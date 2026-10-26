@@ -88,19 +88,29 @@ const site = await startMockSite({ registry: registry.url, register: async (o) =
 await seed(registry.registry, 'mock-site', site.url);
 const browser: Browser = await chromium.launch();
 
-// The public form's map, as the registry would hold it after one compile (replayed from the log).
+// The public form's map, as the registry would hold it after one compile: replayed from the
+// compiler log, or compiled live with --live. A fresh clone has no log, so without --live the
+// public journey is left out (and the report says so).
 const PUBLIC = 'https://httpbin.org/forms/post';
+let publicSkipped: string | null = null;
 {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
-  await page.goto(PUBLIC, { waitUntil: 'load' });
-  const compiled = await compilePage(page, { chat: (await replayFromLog(logDir)).chat, model: 'muse-spark-1.3', logDir: null });
-  await registry.registry.addMap(compiled.map);
-  await page.context().close();
+  try {
+    await page.goto(PUBLIC, { waitUntil: 'load' });
+    const chat = values.live ? modelApi() : (await replayFromLog(logDir)).chat;
+    const compiled = await compilePage(page, { chat, model: values.live ? compilerModel() : 'muse-spark-1.3', logDir: values.live ? DEFAULT_LOG_DIR : null });
+    await registry.registry.addMap(compiled.map);
+  } catch (err) {
+    publicSkipped = /compiler log/.test(String(err)) ? 'no recorded Muse Spark response for it in data/compiler-log (gitignored); run with --live once to record one (about $0.03)' : `it could not be mapped: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`;
+    console.log(`Leaving out ${PUBLIC}: ${publicSkipped}.`);
+  } finally {
+    await page.context().close();
+  }
 }
 
 const journeys = [
   { name: 'Mock quote site, 3 steps, submitted', url: `${site.url}/quote/driver`, profile: (await read('packages/agent/profiles/test-driver.json')) as Profile, dryRun: false },
-  { name: 'httpbin.org/forms/post, 1 page, filled not submitted', url: PUBLIC, profile: (await read('packages/agent/profiles/httpbin-order.json')) as Profile, dryRun: true },
+  ...(publicSkipped ? [] : [{ name: 'httpbin.org/forms/post, 1 page, filled not submitted', url: PUBLIC, profile: (await read('packages/agent/profiles/httpbin-order.json')) as Profile, dryRun: true }]),
 ];
 const configs = [
   { name: '(a) reads pages, no Usher', noUsher: true, usePlan: false, usesModel: true },
@@ -195,7 +205,9 @@ const lines = [
         '',
       ]
     : ['No live runs in this report: every run replayed recorded responses.', '']),
-  ...(rows.some((r) => r.note) ? ['## Notes', '', ...rows.filter((r) => r.note).map((r) => `- ${r.journey}, ${r.config}, ${r.agent}: ${r.note}.`), ''] : []),
+  ...(rows.some((r) => r.note) || publicSkipped
+    ? ['## Notes', '', ...(publicSkipped ? [`- ${PUBLIC} was left out: ${publicSkipped}.`] : []), ...rows.filter((r) => r.note).map((r) => `- ${r.journey}, ${r.config}, ${r.agent}: ${r.note}.`), '']
+    : []),
 ];
 await writeFile(new URL('reports/benchmark.md', root), lines.join('\n'));
 console.log(lines.join('\n'));

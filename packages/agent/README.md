@@ -23,7 +23,7 @@ Also here, in `scripts/`:
 | Command | What |
 | --- | --- |
 | `npm run demo [-- scene] [--now] [--once]` | The video's six scenes at http://localhost:4200/demo (local only, `USHER_DEMO=1`). Scenes: `locked`, `says-yes`, `race`, `rules-hold`, `site-sees`, `stays-fresh`, or `all`. |
-| `npm run benchmark [-- --runs 5] [--live]` | The same journeys with no Usher, with maps, and with a plan: [reports/benchmark.md](../../reports/benchmark.md). |
+| `npm run benchmark [-- --runs 5] [--live]` | The same journeys with no Usher, with maps, and with a plan: [reports/benchmark.md](../../reports/benchmark.md). In a fresh clone the httpbin journey is left out until one `--live` run (about $0.03) records its responses. |
 | `npm run demo:drift` | A form changes; the keeper rebuilds; agents are fast again: [reports/drift-demo.md](../../reports/drift-demo.md). |
 | `npm run e2e:remote` | The end-to-end check against a running registry and demo site (Docker compose). |
 
