@@ -11,6 +11,11 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ReplayCache, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
+import { vocabulary } from '@usher/core/vocabulary';
+
+// The least an action's default risk allows, so a token from a knock on an unmapped page can't
+// skip confirmation.
+const DEFAULT_RISK = new Map(vocabulary.entries.map((e) => [e.key, e.default_risk]));
 
 export interface UsherCheckOptions {
   /** The registry the site trusts: tokens must be issued by it. */
@@ -35,12 +40,14 @@ export interface CheckOptions {
   form?: URLSearchParams;
   /** Check even if the request does not identify as an agent (for API endpoints). */
   always?: boolean;
+  /** The semantic key this endpoint performs, e.g. form.submit, so the site's rules apply. */
+  action?: string;
 }
 
 export type UsherCheckResult =
   | { status: 'human' }
   | { status: 'ok'; claims: TokenClaims }
-  | { status: 'knock_required'; reason: 'missing' | TokenErrorCode | 'keys_unavailable'; message: string };
+  | { status: 'knock_required'; reason: 'missing' | TokenErrorCode | 'keys_unavailable' | 'action_forbidden' | 'confirmation_required'; message: string };
 
 export interface KnockRequiredBody {
   error: 'knock_required';
@@ -116,7 +123,18 @@ export function createUsherCheck(options: UsherCheckOptions) {
         replay,
         ...(options.now && { now: options.now() }),
       });
-      return result.ok ? { status: 'ok', claims: result.claims } : { status: 'knock_required', reason: result.error, message: result.message };
+      if (!result.ok) return { status: 'knock_required', reason: result.error, message: result.message };
+      const { claims } = result;
+      // The site's rules travel in the token: forbidden actions, and ones the user must confirm.
+      const floor = opts.action ? DEFAULT_RISK.get(opts.action) : undefined;
+      if (opts.action && (claims.forbid?.includes(opts.action) || floor === 'needs_user')) {
+        return { status: 'knock_required', reason: 'action_forbidden', message: `Agents may not do ${opts.action} here.` };
+      }
+      const needsConfirmation = claims.confirm?.includes(opts.action ?? '') || floor === 'consequential';
+      if (opts.action && needsConfirmation && !claims.confirmed?.includes(opts.action)) {
+        return { status: 'knock_required', reason: 'confirmation_required', message: `Ask your user, then knock with confirmed: ["${opts.action}"].` };
+      }
+      return { status: 'ok', claims };
     } catch {
       // Fail closed: without keys no token can be accepted.
       return { status: 'knock_required', reason: 'keys_unavailable', message: 'The registry keys could not be fetched.' };

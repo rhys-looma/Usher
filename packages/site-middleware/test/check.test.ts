@@ -28,7 +28,8 @@ after(async () => {
 });
 
 const req = (headers: Record<string, string> = {}) => ({ headers }) as unknown as IncomingMessage;
-const knockToken = async (url = `${site.url}/quote/cover`) => (await client.knock({ url, intent: 'quote.car_insurance' })).token;
+// A token for requesting the quote: knocked with the user's confirmation, as the rules require.
+const knockToken = async (url = `${site.url}/quote/cover`, confirmed: string[] = ['form.submit']) => (await client.knock({ url, intent: 'quote.car_insurance', confirmed })).token;
 
 test('the token is read from Authorization, X-Usher-Token, then the usher_token form field', () => {
   assert.equal(tokenFrom(req({ authorization: 'Usher a.b.c', 'x-usher-token': 'x.y.z' })), 'a.b.c');
@@ -47,9 +48,9 @@ test('people pass through; agents without a valid token need to knock', async ()
   assert.deepEqual(await usher.check(req(), { always: true }), { status: 'knock_required', reason: 'missing', message: 'Knock at the registry for a token first.' });
 
   const token = await knockToken();
-  const ok = await usher.check(req({ authorization: `Usher ${token}` }));
+  const ok = await usher.check(req({ authorization: `Usher ${token}` }), { action: 'form.submit' });
   assert.equal(ok.status, 'ok');
-  const replayed = await usher.check(req({ authorization: `Usher ${token}` }));
+  const replayed = await usher.check(req({ authorization: `Usher ${token}` }), { action: 'form.submit' });
   assert.equal(replayed.status === 'knock_required' && replayed.reason, 'replayed');
 });
 
@@ -71,6 +72,22 @@ test('expired, foreign-origin and wrong-intent tokens fail; no keys fails closed
   const offline = createUsherCheck({ registry: 'http://localhost:1', intent: 'quote.car_insurance', origin: site.url });
   const r = await offline.check(req({ 'x-usher-token': await knockToken() }));
   assert.equal(r.status === 'knock_required' && r.reason, 'keys_unavailable');
+});
+
+test('the rules travel in the token: unconfirmed consequential actions and forbidden ones are refused', async () => {
+  const usher = createUsherCheck({ registry: registry.url, intent: 'quote.car_insurance', origin: site.url });
+  const reason = async (token: string, action: string) => {
+    const r = await usher.check(req({ 'x-usher-token': token }), { action });
+    return r.status === 'knock_required' ? r.reason : r.status;
+  };
+  // form.submit is consequential: a token from a plain knock is not enough, even with no map.
+  assert.equal(await reason(await knockToken(undefined, []), 'form.submit'), 'confirmation_required');
+  assert.equal(await reason(await knockToken(`${site.url}/unmapped`, []), 'form.submit'), 'confirmation_required');
+  assert.equal(await reason(await knockToken(), 'form.submit'), 'ok');
+  // Paying is for the user (needs_user by default), whatever the token says.
+  assert.equal(await reason(await knockToken(undefined, []), 'form.purchase'), 'action_forbidden');
+  // Safe actions need nothing more.
+  assert.equal(await reason(await knockToken(undefined, []), 'nav.next'), 'ok');
 });
 
 test('mock site: /.well-known/usher.json names the registry', async () => {

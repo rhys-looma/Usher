@@ -56,10 +56,10 @@ async function open(step: 'driver' | 'vehicle' | 'cover'): Promise<Page> {
   return page;
 }
 
-async function knockFor(page: Page, session?: string): Promise<KnockResponse> {
+async function knockFor(page: Page, confirmed?: string[]): Promise<KnockResponse> {
   const scan: Scan = await page.evaluate(scanScript());
   const fp = await fingerprint(scan.forms[0]!.elements);
-  return client.knock({ url: page.url(), fingerprint: fp, ...(session && { session }) });
+  return client.knock({ url: page.url(), fingerprint: fp, ...(confirmed && { confirmed }) });
 }
 
 const getSession = async (sid: string): Promise<Session> =>
@@ -167,7 +167,8 @@ test('postMessage binding works too', async () => {
 
 test('rules: the consequential submit is held until the agent confirms; the server accepts the bound token', async () => {
   const page = await open('cover');
-  const knock = await knockFor(page);
+  // The agent's user has confirmed the quote request, so the knock says so and the server accepts it.
+  const knock = await knockFor(page, ['form.submit']);
   await page.evaluate((t) => window.usher.bind(t), knock.token);
   await page.getByLabel('Cover start date').fill('2026-11-15');
   await page.getByRole('group', { name: 'Level of cover' }).getByLabel('Comprehensive').check();
@@ -213,5 +214,25 @@ test('drift: in layout B the script compares locally, reports once per change, a
     assert.deepEqual(drifted, { driver: true, vehicle: true, cover: true });
   } finally {
     await site.setLayout('a');
+  }
+});
+
+test('a forbidden action stays blocked in the page, even after the agent confirms', async () => {
+  await registry.registry.storage.putPolicy({
+    policy: { usher_policy: '0.1', origin: site.url, default: {}, forms: [{ match: { path: '/quote/vehicle' }, actions: { 'nav.next': 'forbid' } }] },
+    confirmed_at: new Date().toISOString(),
+  });
+  try {
+    const page = await open('vehicle');
+    const knock = await knockFor(page);
+    assert.equal(knock.rules.actions['nav.next'], 'forbid');
+    await page.evaluate((t) => window.usher.bind(t), knock.token);
+    await page.evaluate(() => window.usher.confirm('nav.next'));
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.waitForTimeout(200);
+    assert.match(page.url(), /\/quote\/vehicle$/, 'not submitted');
+    await page.context().close();
+  } finally {
+    await registry.registry.storage.putPolicy({ policy: { usher_policy: '0.1', origin: site.url, default: {} }, confirmed_at: new Date().toISOString() });
   }
 });
