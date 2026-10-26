@@ -386,6 +386,11 @@ const server = createServer(async (req, res) => {
       return json(res, price(all));
     }
 
+    // The site's claim to its origin: the registry checks this file holds the site key.
+    if (process.env.USHER_SITE_KEY && req.method === 'GET' && url.pathname === '/.well-known/usher-site.json') {
+      return json(res, { usher_site: '0.1', site_key: process.env.USHER_SITE_KEY });
+    }
+
     if (REGISTRY && req.method === 'GET' && url.pathname === '/.well-known/usher.json') {
       return json(res, { usher: '0.1', registry: REGISTRY, knock_url: `${REGISTRY}/knock`, keys_url: `${REGISTRY}/.well-known/usher-keys.json` });
     }
