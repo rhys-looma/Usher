@@ -47,3 +47,4 @@ This table is updated as the build progresses.
 | 27 Oct | Accuracy evaluation and review workflow; mock site and five public forms (LU-50) |
 | 27 Oct | Drift rebuilds and the keeper: Spark Open triage, Muse Spark recompile, map versions (LU-42, LU-51) |
 | 27 Oct | Plans across steps with get_plan; pre-flight validation and structured errors for agents (LU-40) |
+| 27 Oct | Benchmark harness: raw pages vs maps vs plans, both agents, mock site and a public form (LU-41) |
