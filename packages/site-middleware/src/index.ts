@@ -10,8 +10,9 @@
 // not bot detection.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ReplayCache, decodeToken, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
+import { ReplayCache, decodeToken, jwkThumbprint, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
 import { vocabulary } from '@usher/core/vocabulary';
+import { fetchKeyDirectory, hasSignature, verifyHttpMessage, type HttpSignatureCheck } from '@usher/core/http-signatures';
 
 // The least an action's default risk allows, so a token from a knock on an unmapped page can't
 // skip confirmation.
@@ -37,6 +38,13 @@ export interface UsherCheckOptions {
   /** The site's public key: when set, refusals are reported to the registry for the dashboard. */
   siteKey?: string;
   now?: () => number;
+  /**
+   * Refuse agent requests without a Web Bot Auth signature (RFC 9421) from the key the token was
+   * issued to. Off by default: signatures are checked when present, and a token alone still works.
+   */
+  requireSignature?: boolean;
+  /** Fetch Signature-Agent key directories over http:// (local development only). */
+  allowHttpDirectories?: boolean;
 }
 
 export interface CheckOptions {
@@ -46,12 +54,17 @@ export interface CheckOptions {
   always?: boolean;
   /** The semantic key this endpoint performs, e.g. form.submit, so the site's rules apply. */
   action?: string;
+  /** The raw request body, so a signature's Content-Digest can be checked against it. */
+  body?: Uint8Array<ArrayBuffer>;
 }
+
+/** Whether the request proved the agent's key with a Web Bot Auth signature. */
+export type AgentIdentityStatus = 'verified' | 'unsigned';
 
 export type UsherCheckResult =
   | { status: 'human' }
-  | { status: 'ok'; claims: TokenClaims }
-  | { status: 'knock_required'; reason: 'missing' | TokenErrorCode | 'keys_unavailable' | 'action_forbidden' | 'confirmation_required'; message: string };
+  | { status: 'ok'; claims: TokenClaims; identity: AgentIdentityStatus }
+  | { status: 'knock_required'; reason: 'missing' | TokenErrorCode | 'keys_unavailable' | 'action_forbidden' | 'confirmation_required' | 'bad_signature' | 'signature_required'; message: string };
 
 export interface KnockRequiredBody {
   error: 'knock_required';
@@ -71,7 +84,7 @@ export function tokenFrom(req: IncomingMessage, form?: URLSearchParams): string 
 }
 
 export function identifiesAsAgent(req: IncomingMessage): boolean {
-  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent']);
+  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent'] || hasSignature(req.headers));
 }
 
 // Keys fetched from the registry and kept for a while; an unknown kid triggers at most one
@@ -113,6 +126,29 @@ export function createUsherCheck(options: UsherCheckOptions) {
   const keys = new KeyCache(options.keysUrl ?? `${internal}/.well-known/usher-keys.json`, options.keysTtlMs ?? 300_000, options.fetch ?? fetch);
   const replay = options.replay ?? new ReplayCache();
   const originOf = (req: IncomingMessage) => (typeof options.origin === 'function' ? options.origin(req) : options.origin);
+  const nonces = new ReplayCache();
+
+  // The request's signature, checked against the key the token was issued to (its cnf), or the
+  // agent's key directory when it names one.
+  async function signature(req: IncomingMessage, claims: TokenClaims, body?: Uint8Array<ArrayBuffer>): Promise<HttpSignatureCheck | null> {
+    if (!hasSignature(req.headers)) return null;
+    return verifyHttpMessage(
+      { method: req.method ?? 'GET', url: `http://${req.headers.host ?? 'site'}${req.url ?? '/'}`, headers: req.headers },
+      {
+        require: ['@authority', '@method', '@path'],
+        ...(body && { body }),
+        nonces,
+        ...(options.now && { now: options.now() }),
+        key: async (keyid, signatureAgent) => {
+          if (claims.cnf?.jwk) return claims.cnf.jwk;
+          if (!signatureAgent) return undefined;
+          const keys = await fetchKeyDirectory(signatureAgent, { allowHttp: options.allowHttpDirectories === true, ...(options.fetch && { fetch: options.fetch }) }).catch(() => []);
+          for (const k of keys) if ((await jwkThumbprint(k)) === keyid) return k;
+          return undefined;
+        },
+      },
+    );
+  }
 
   async function check(req: IncomingMessage, opts: CheckOptions = {}): Promise<UsherCheckResult> {
     const token = tokenFrom(req, opts.form);
@@ -139,7 +175,14 @@ export function createUsherCheck(options: UsherCheckOptions) {
       if (opts.action && needsConfirmation && !claims.confirmed?.includes(opts.action)) {
         return { status: 'knock_required', reason: 'confirmation_required', message: `Ask your user, then knock with confirmed: ["${opts.action}"].` };
       }
-      return { status: 'ok', claims };
+      // The signature must come from the key the token was issued to: a copied token is no use
+      // without the agent's private key.
+      const signed = await signature(req, claims, opts.body);
+      if (signed && (!signed.ok || signed.keyid !== claims.sub)) {
+        return { status: 'knock_required', reason: 'bad_signature', message: signed.ok ? 'The request was signed by a different agent than the token was issued to.' : `Web Bot Auth: ${signed.message}` };
+      }
+      if (!signed && options.requireSignature) return { status: 'knock_required', reason: 'signature_required', message: 'Sign requests with your key (Web Bot Auth HTTP Message Signatures).' };
+      return { status: 'ok', claims, identity: signed ? 'verified' : 'unsigned' };
     } catch {
       // Fail closed: without keys no token can be accepted.
       return { status: 'knock_required', reason: 'keys_unavailable', message: 'The registry keys could not be fetched.' };

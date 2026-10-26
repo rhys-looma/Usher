@@ -34,6 +34,9 @@ const usher = REGISTRY
       intent: 'quote.car_insurance',
       origin: (req) => `http://${req.headers.host}`,
       ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
+      // A demo on localhost: agents' key directories may be served over http.
+      allowHttpDirectories: true,
+      requireSignature: process.env.USHER_REQUIRE_SIGNATURE === '1',
     })
   : null;
 const sessions = new Map(); // session id -> { driver, vehicle, cover, result }
@@ -334,10 +337,12 @@ const server = createServer(async (req, res) => {
       if (req.method === 'GET') return html(res, renderStep(key, session[key] ?? {}));
 
       if (req.method === 'POST') {
-        const params = new URLSearchParams(await body(req));
-        // Requesting the quote is consequential: an agent needs a token from a knock.
+        const raw = await body(req);
+        const params = new URLSearchParams(raw);
+        // Requesting the quote is consequential: an agent needs a token from a knock (and, if it
+        // signs its requests, a signature from the key the token was issued to).
         if (steps[key].final && usher) {
-          const check = await usher.check(req, { form: params, action: 'form.submit' });
+          const check = await usher.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
           if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
         }
         const values = readStep(key, params);
@@ -360,13 +365,14 @@ const server = createServer(async (req, res) => {
     // skipping the page and calling the endpoint directly.
     if (section === 'api' && key === 'quote' && req.method === 'POST') {
       // The API is for software, so every call needs a token when Usher is on.
+      const raw = await body(req);
       if (usher) {
-        const check = await usher.check(req, { always: true, action: 'form.submit' });
+        const check = await usher.check(req, { always: true, action: 'form.submit', body: new TextEncoder().encode(raw) });
         if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
       }
       let input;
       try {
-        input = JSON.parse(await body(req));
+        input = JSON.parse(raw);
       } catch {
         return json(res, { error: 'invalid_json' }, 400);
       }
