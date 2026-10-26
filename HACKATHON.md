@@ -28,3 +28,4 @@ This table is updated as the build progresses.
 | Date | Work |
 | --- | --- |
 | 26 Oct | Repository, map schema spec and vocabulary, mock quote site |
+| 26 Oct | Workspace and test runner; form extractor, locators and usher-fp-1 fingerprint |
