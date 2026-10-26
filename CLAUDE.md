@@ -24,10 +24,11 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | Path | What |
 | --- | --- |
 | `spec/` | Map spec (`map.md`), JSON Schema (`map.schema.json`, draft 2020-12), vocabulary, example maps |
-| `packages/core/` | Extractor, locators, fingerprint (TypeScript, runs in Node and in the page) |
+| `packages/core/` | Extractor, locators, fingerprint, labels, map compiler (TypeScript) |
 | `packages/core/test/` | node:test suites; browser tests use Playwright (chromium) |
 | `examples/mock-quote-site/` | Fictional three-step quote form (Brightwater Motor), no dependencies |
-| `scripts/test.mjs` | Root test runner: starts the mock site, runs workspace tests, stops it |
+| `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A and B) started on free ports |
+| `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
 
 ## Core package
 
@@ -38,6 +39,13 @@ An open protocol and script tag that lets websites control AI agents on their fo
 - `src/vocabulary.ts`: vocabulary as data. `spec/vocabulary.md` is the source; `npm run vocabulary` regenerates `spec/vocabulary.json` and a test keeps them in sync.
 - `src/labels.ts`: the `Labels` a labeller returns (meaning only) and `validateLabels()`, which returns structured errors to feed back to a model, clamps risk to key defaults and drops hidden unconditioned fields (honeypots).
 - `src/map.ts`: `mergeMap()` joins extraction, locators, fingerprint and validated labels into a schema-valid map.
+- `src/compile/`: the Muse Spark compiler. `model.ts` (fetch client, prices, refuses `-contributor` models), `prompt.ts` (system prompt, per-page strict schema), `compile.ts` (page → map, one retry with validation errors), `log.ts`, `cli.ts`.
+
+## Model API
+
+- `MODEL_API_KEY` from the environment or `.env` (gitignored). Never log, print or commit it.
+- Model `muse-spark-1.3`, override with `USHER_COMPILER_MODEL`. Never a `-contributor` variant: those let Meta train on our content.
+- Tests replay `packages/core/test/fixtures/labels/`. A prompt change makes them stale: re-record with `npm run fixtures:record`.
 
 ## Running
 
@@ -47,6 +55,9 @@ Node 20+.
 npm install
 npm test             # installs chromium if needed, starts mock site (A and B) on free ports, runs tests
 npm run typecheck
+npm run compile -- <url> [--out file]   # compile one page with Muse Spark
+npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
+USHER_LIVE=1 npm test                   # also run the live model test
 ```
 
 Mock site on its own:
