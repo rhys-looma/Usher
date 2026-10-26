@@ -4,7 +4,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { Browser } from 'playwright';
-import { CompileError, VIEWPORT, compilePage, fingerprint, mapFromLabels, pickForm, scanScript, type ChatFn, type Scan, type UsherMap } from '@usher/core';
+import { CompileError, VIEWPORT, compilePage, fingerprint, mapFromLabels, pickForm, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
 import type { MapRecord, Storage } from '../storage.ts';
 import { html, page, riskBadge, when, type Raw } from './html.ts';
@@ -12,13 +12,15 @@ import { html, page, riskBadge, when, type Raw } from './html.ts';
 export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited';
 
 export type ViewerResult =
-  | { ok: true; map: UsherMap; cached: boolean; model: string; cost_usd: number | null; ms: number }
+  | { ok: true; map: UsherMap; cached: boolean; model: string; cost_usd: number | null; ms: number; flags?: RiskFlag[] }
   | { ok: false; reason: ViewerFailure; message: string };
 
 export interface ViewerOptions {
   storage: Storage;
   chat?: ChatFn;
   model?: string;
+  /** A second opinion on risk (Muse Spark Open); disagreements keep the stricter risk and are shown. */
+  classifier?: { chat: ChatFn; model: string };
   /** Allow localhost and private networks (for local demos). */
   allowPrivate?: boolean;
   timeoutMs?: number;
@@ -102,9 +104,10 @@ export class Viewer {
       }
       if (!this.options.chat || !this.options.model) return fail('no_model', 'This registry has no model configured to compile maps.');
       try {
-        const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model });
+        const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model, ...(this.options.classifier && { classifier: this.options.classifier }) });
+        const flags = result.classifier && !('error' in result.classifier) ? result.classifier.flags : undefined;
         await this.options.storage.putCached('viewer-labels', digest, { labels: result.labels, model: result.model, created_at: result.map.provenance.created_at } satisfies CachedLabels);
-        return { ok: true, map: result.map, cached: false, model: result.model, cost_usd: result.cost_usd, ms: Math.round(performance.now() - started) };
+        return { ok: true, map: result.map, cached: false, model: result.model, cost_usd: result.cost_usd, ms: Math.round(performance.now() - started), ...(flags && { flags }) };
       } catch (err) {
         if (err instanceof CompileError) return fail('labels_invalid', 'The model could not label this form reliably, so no map was made.');
         throw err;
@@ -140,7 +143,7 @@ function locators(el: { locators: UsherMap['fields'][number]['locators'] }): Raw
 }
 
 /** A map, readable: purpose, fields with key and risk, actions, locators, fingerprint, raw JSON. */
-export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord }): string {
+export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord; flags?: RiskFlag[] }): string {
   const drift = info.record?.drift;
   return page(
     map.form.purpose,
@@ -148,6 +151,7 @@ export function mapPage(map: UsherMap, info: { source: string; record?: MapRecor
 <h1>${map.form.purpose}</h1>
 <p class="lede">${map.form.intent ? html`Intent <code>${map.form.intent}</code> · ` : ''}${map.fields.length} fields, ${map.actions.length} actions · ${info.source}</p>
 ${drift ? html`<div class="card warn"><b>Drifted.</b> The live form no longer matches this map (similarity ${drift.score}), reported ${when(drift.at)}.</div>` : ''}
+${info.flags?.length ? html`<div class="card warn"><b>Second opinion.</b> The open-weights classifier disagreed on ${info.flags.length} element${info.flags.length === 1 ? '' : 's'}; the stricter risk was kept.<ul class="small">${info.flags.map((f) => html`<li>${f.label} (<code>${f.key}</code>): labeller ${f.labeller}, classifier ${f.classifier}, kept ${riskBadge(f.kept)}. ${f.reason}</li>`)}</ul></div>` : ''}
 <h2>Fields</h2>
 <div class="card"><table>
 <thead><tr><th>Label</th><th>Key</th><th>Control</th><th>Risk</th><th>Notes</th><th>Found by</th></tr></thead>

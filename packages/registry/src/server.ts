@@ -29,7 +29,11 @@ const running = await startRegistry({
   port: Number(values.port),
   siteScript,
   // The map viewer opens only public sites unless --allow-private (for the local demo).
-  web: { allowPrivate: values['allow-private'] },
+  web: {
+    allowPrivate: values['allow-private'],
+    // The viewer's second opinion on risk, from Muse Spark Open, when a Baseten key is set.
+    ...(process.env.BASETEN_API_KEY && { classifier: { chat: modelApi({ provider: 'baseten' }), model: openModel() } }),
+  },
   // Muse Spark turns owners' plain-English rules into policy, when a key is set.
   ...(process.env.MODEL_API_KEY && { chat: modelApi(), model: compilerModel() }),
   // Session explanations: Muse Spark, or Muse Spark Open on Baseten with --explain-open.
