@@ -76,7 +76,22 @@ export interface AgentOptions {
   noUsher?: boolean;
   /** Fill each page but stop before its way forward (for public forms: never submit). */
   dryRun?: boolean;
+  /** Ignore the site's knock notice (an agent that skips Usher), but still look maps up. */
+  knock?: boolean;
+  /** Extra headers on every request the browser makes, e.g. Usher-Agent. */
+  headers?: Record<string, string>;
+  viewport?: { width: number; height: number };
+  /** Called with the page before the run starts (the demo streams it). */
+  onPage?: (page: Page) => Promise<void> | void;
+  /** Progress as it happens: pages, knocks and model calls, with running usage and cost. */
+  onEvent?: (event: AgentEvent) => void;
 }
+
+export type AgentEvent =
+  | { type: 'page'; path: string }
+  | { type: 'knock'; path: string; match: KnockResponse['match']['kind'] | 'lookup' | 'none' }
+  | { type: 'model'; path: string; done: boolean; usage: Usage; cost_usd: number }
+  | { type: 'filled'; path: string; filled: number };
 
 export interface PageRun {
   path: string;
@@ -211,8 +226,15 @@ function mainForm(scan: Scan) {
 
 export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const started = performance.now();
-  const context = await options.browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await options.browser.newContext({ viewport: options.viewport ?? { width: 1280, height: 900 }, ...(options.headers && { extraHTTPHeaders: options.headers }) });
   const page = await context.newPage();
+  const emit = (event: AgentEvent) => {
+    try {
+      options.onEvent?.(event);
+    } catch {
+      // Progress is for display; it never stops a run.
+    }
+  };
   const pages: PageRun[] = [];
   let usage = ZERO;
   let cost = 0;
@@ -244,6 +266,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const agentFields = <T extends FieldSpec>(fields: T[], rule: (f: T) => string) => fields.filter((f) => rule(f) !== 'forbid' && f.risk !== 'needs_user');
 
   try {
+    await options.onPage?.(page);
     // A plan lets the agent check the whole journey's data before opening a page.
     if (options.usePlan !== false && !options.noUsher) {
       const plan = await options.registry.getPlan(options.url);
@@ -259,7 +282,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
     await page.goto(options.url, { waitUntil: 'load' });
     for (let step = 0; step < (options.maxPages ?? 10); step++) {
       // Usher sites carry a knock notice; elsewhere the agent can still look a map up by fingerprint.
-      const knockUrl = options.noUsher ? null : await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
+      const knockUrl = options.noUsher || options.knock === false ? null : await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
       if (knockUrl) await page.evaluate(() => window.usher?.ready);
 
       const scan: Scan = await page.evaluate(scanScript());
@@ -268,6 +291,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) break;
       const fp = await fingerprint(form.elements);
       const path = new URL(page.url()).pathname;
+      emit({ type: 'page', path });
 
       let t = performance.now();
       let knock: KnockResponse | null = null;
@@ -281,6 +305,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         if (lookup?.match.kind === 'exact') found = lookup.map;
       }
       const knockMs = ms(t);
+      if (!options.noUsher) emit({ type: 'knock', path, match: knock ? knock.match.kind : found ? 'lookup' : 'none' });
 
       // Only an exact map is trusted as a plan; anything else is re-read.
       let map: UsherMap | null = found;
@@ -293,12 +318,14 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           break;
         }
         t = performance.now();
+        emit({ type: 'model', path, done: false, usage, cost_usd: cost });
         const compiled = await compilePage(page, { chat: options.fallback.chat, model: options.fallback.model, logDir: options.fallback.logDir ?? null });
         modelMs = ms(t);
         map = { ...compiled.map, provenance: { ...compiled.map.provenance, source: 'agent' } };
         usage = { prompt_tokens: usage.prompt_tokens + compiled.usage.prompt_tokens, completion_tokens: usage.completion_tokens + compiled.usage.completion_tokens, total_tokens: usage.total_tokens + compiled.usage.total_tokens, cached_tokens: usage.cached_tokens + compiled.usage.cached_tokens };
         cost += compiled.cost_usd ?? costUsd(options.fallback.model, compiled.usage) ?? 0;
         source = 'compiled';
+        emit({ type: 'model', path, done: true, usage, cost_usd: cost });
         // Share it before acting, so the site script can log this run by semantic key and the
         // next agent gets the fast path.
         if (knock && (await options.registry.submitMap(map)).stored) submitted++;
@@ -347,6 +374,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         if (await fillField(page, field, value)) filled++;
       }
 
+      emit({ type: 'filled', path, filled });
       const advance = map.actions.find((a) => a.key === 'form.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
       if (!advance) {
         outcome = 'stopped';

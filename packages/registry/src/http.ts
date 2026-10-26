@@ -25,6 +25,16 @@ export interface HttpOptions {
   hsts?: boolean;
   /** Per-client-address limits per minute, by route group. */
   limits?: Partial<Record<'knock' | 'drift' | 'events' | 'read' | 'write', number>>;
+  /** The demo stage at /demo: served only when USHER_DEMO=1, and only to this machine. */
+  demo?: DemoHandler;
+}
+
+export type DemoHandler = (req: IncomingMessage, res: ServerResponse, url: URL) => Promise<void>;
+
+/** Whether a request comes from this machine (the demo is never served to anyone else). */
+export function isLoopback(req: IncomingMessage): boolean {
+  const address = req.socket.remoteAddress ?? '';
+  return address === '::1' || address.startsWith('127.') || address.startsWith('::ffff:127.');
 }
 
 // Endpoints the site script calls from a site's pages.
@@ -156,6 +166,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       const session = /^\/sessions\/(s_[A-Za-z0-9_-]+)(\/events)?$/.exec(url.pathname);
       if (session && req.method === 'GET' && !session[2]) return send(res, await registry.getSession(session[1]!, req.headers.authorization));
       if (session && req.method === 'POST' && session[2]) return send(res, await registry.appendEvents(session[1]!, req.headers.authorization, await readJson(req)));
+      if (options.demo && process.env.USHER_DEMO === '1' && isLoopback(req) && (url.pathname === '/demo' || url.pathname.startsWith('/demo/'))) return await options.demo(req, res, url);
       if (options.web && (await options.web.handle(req, res, url))) return;
       send(res, { status: 404, body: { error: 'not_found', message: `${route} is not a registry endpoint.` } });
     } catch (err) {
@@ -211,6 +222,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
       ...(options.trustProxy && { trustProxy: true }),
       ...(options.hsts && { hsts: true }),
       ...(options.limits && { limits: options.limits }),
+      ...(options.demo && { demo: options.demo }),
     }),
   );
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
