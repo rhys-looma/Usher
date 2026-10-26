@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { API_URL, compilerModel, costUsd, labelsSchema, modelApi, redactRequest, requestHash, type ChatRequest, type ExtractedForm } from '../src/index.ts';
+import { API_URL, OPEN_MODEL, compilerModel, costUsd, labelsSchema, modelApi, openModel, parseJsonContent, redactRequest, requestHash, type ChatRequest, type ExtractedForm } from '../src/index.ts';
 
 const request: ChatRequest = {
   model: 'muse-spark-1.3',
@@ -121,4 +121,39 @@ test('labels schema follows the strict subset, with enums from this page', () =>
   const fieldsOnly = labelsSchema({ ...form, elements: form.elements.slice(0, 2) }) as any;
   assertStrictSubset(fieldsOnly);
   assert.deepEqual(fieldsOnly.properties.advance_action_id, { type: 'null' });
+});
+
+test('Baseten (Muse Spark Open): no structured output, so the schema goes in the system prompt', async () => {
+  const seen: { url?: string; init?: RequestInit }[] = [];
+  const chat = modelApi({ provider: 'baseten', apiKey: 'bt-test', fetch: fakeFetch(200, { choices: [{ message: { content: '```json\n{"ok":true}\n```' } }], usage: { prompt_tokens: 10, completion_tokens: 2 } }, seen) });
+  const result = await chat({ ...request, model: OPEN_MODEL });
+  assert.equal(seen[0]!.url, 'https://inference.baseten.co/v1/chat/completions');
+  assert.equal((seen[0]!.init!.headers as Record<string, string>).Authorization, 'Bearer bt-test');
+  const sent = JSON.parse(seen[0]!.init!.body as string);
+  assert.deepEqual(sent.response_format, { type: 'json_object' }, 'JSON mode, no json_schema');
+  assert.equal(sent.model, 'meta-models/muse-spark-open-1026');
+  assert.match(sent.messages[0].content, /^system\n\n## Output format\nReply with one JSON object and nothing else/);
+  assert.match(sent.messages[0].content, /"type":"object"/);
+  assert.deepEqual(sent.messages[1], request.messages[1], 'the user message and screenshot are unchanged');
+  assert.deepEqual(parseJsonContent(result.content), { ok: true });
+
+  const saved = process.env.BASETEN_API_KEY;
+  delete process.env.BASETEN_API_KEY;
+  try {
+    assert.throws(() => modelApi({ provider: 'baseten' }), /BASETEN_API_KEY is not set/);
+  } finally {
+    if (saved !== undefined) process.env.BASETEN_API_KEY = saved;
+  }
+  assert.equal(openModel({}), 'meta-models/muse-spark-open-1026', 'the hackathon id');
+  assert.equal(openModel({ USHER_OPEN_MODEL: 'meta-models/muse-spark-open' }), 'meta-models/muse-spark-open');
+  const missing = modelApi({ provider: 'baseten', apiKey: 'k', fetch: fakeFetch(404, { error: 'please check the model you provided' }) });
+  await assert.rejects(() => missing({ ...request, model: OPEN_MODEL }), /set USHER_OPEN_MODEL=meta-models\/muse-spark-open\)/);
+  assert.throws(() => openModel({ USHER_OPEN_MODEL: 'muse-spark-1.3-contributor' }), /train on our content/);
+});
+
+test('model replies are parsed leniently: fences and prose around one JSON object', () => {
+  assert.deepEqual(parseJsonContent('{"a":1}'), { a: 1 });
+  assert.deepEqual(parseJsonContent('```\n{"a":1}\n```'), { a: 1 });
+  assert.deepEqual(parseJsonContent('Here are the labels:\n{"a":{"b":2}}\nDone.'), { a: { b: 2 } });
+  assert.throws(() => parseJsonContent('no json here'), SyntaxError);
 });
