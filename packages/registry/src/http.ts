@@ -24,7 +24,7 @@ export interface HttpOptions {
   /** Send Strict-Transport-Security (when served over HTTPS). */
   hsts?: boolean;
   /** Per-client-address limits per minute, by route group. */
-  limits?: Partial<Record<'knock' | 'drift' | 'read' | 'write', number>>;
+  limits?: Partial<Record<'knock' | 'drift' | 'events' | 'read' | 'write', number>>;
 }
 
 // Endpoints the site script calls from a site's pages.
@@ -69,7 +69,8 @@ function send(res: ServerResponse, reply: Reply, headers: Record<string, string>
 }
 
 export function registryHandler(registry: Registry, options: HttpOptions = {}) {
-  const limits = { knock: 120, drift: 60, read: 600, write: 120, ...options.limits };
+  // Site script events come in bursts while an agent fills a form, so they have their own allowance.
+  const limits = { knock: 120, drift: 60, events: 1200, read: 600, write: 300, ...options.limits };
   const limiters = Object.fromEntries(Object.entries(limits).map(([k, max]) => [k, new RateLimiter(max, 60_000)])) as Record<keyof typeof limits, RateLimiter>;
   const started = Date.now();
   let script: Promise<SiteScript | null> | undefined;
@@ -101,7 +102,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 
       // Per client address, in memory only.
       const client = clientAddress(req, options.trustProxy);
-      const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : req.method === 'GET' ? 'read' : 'write';
+      const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : /^POST \/sessions\/[^/]+\/events$/.test(route) ? 'events' : req.method === 'GET' ? 'read' : 'write';
       if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });
 
       if (route === 'GET /healthz') {

@@ -68,7 +68,7 @@ The site script can be included at `/usher.js` (cached 5 minutes) or at its vers
 
 ## Hardening in place
 
-- Rate limits per client address: knocks 120/min, drift reports 60/min, other writes 120/min, reads 600/min; per site key on drift and blocked reports; per client and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
+- Rate limits per client address: knocks 120/min, drift reports 60/min, session events 1,200/min, other writes 300/min, reads 600/min; per site key on drift and blocked reports; per client and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
 - A hard daily cap on model spend.
 - JSON bodies up to 256 KB; form bodies up to 20 KB.
 - The viewer refuses private and loopback addresses unless `USHER_ALLOW_PRIVATE=1`.
