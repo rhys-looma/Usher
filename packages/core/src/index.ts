@@ -16,3 +16,6 @@ export * from './compile/compile.ts';
 export * from './schemas.ts';
 export * from './compile/classify.ts';
 export * from './compile/budget.ts';
+export * from './plan.ts';
+export * from './preflight.ts';
+export * from './page-errors.ts';

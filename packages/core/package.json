@@ -15,7 +15,8 @@
     "./fingerprint": "./src/fingerprint.ts",
     "./schemas": "./src/schemas.ts",
     "./policy": "./src/policy.ts",
-    "./vocabulary": "./src/vocabulary.ts"
+    "./vocabulary": "./src/vocabulary.ts",
+    "./page-errors": "./src/page-errors.ts"
   },
   "scripts": {
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
