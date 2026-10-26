@@ -25,6 +25,11 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null');
 }
 
+function header(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name];
+  return typeof value === 'string' ? value : undefined;
+}
+
 function send(res: ServerResponse, reply: Reply, headers: Record<string, string> = {}): void {
   res.writeHead(reply.status, { 'Content-Type': 'application/json', ...headers });
   res.end(JSON.stringify(reply.body));
@@ -33,7 +38,7 @@ function send(res: ServerResponse, reply: Reply, headers: Record<string, string>
 export function registryHandler(registry: Registry, options: HttpOptions = {}) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     try {
       const url = new URL(req.url ?? '/', 'http://registry');
@@ -52,7 +57,11 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req)));
       if (route === 'POST /maps') return send(res, await registry.submitMap(await readJson(req)));
       if (route === 'POST /runs') return send(res, await registry.reportRun(await readJson(req)));
-      if (route === 'POST /drift') return send(res, await registry.drift(await readJson(req)));
+      if (route === 'POST /drift') return send(res, await registry.drift(await readJson(req), header(req, 'usher-site-key')));
+      if (route === 'POST /sites') return send(res, await registry.registerSite(await readJson(req)));
+      if (route === 'GET /maps/current') {
+        return send(res, await registry.currentMap(url.searchParams.get('origin'), url.searchParams.get('path')), { 'Cache-Control': 'public, max-age=3600' });
+      }
       const map = /^\/maps\/(sha256:[0-9a-f]{64})$/.exec(url.pathname);
       if (map && req.method === 'GET') {
         const origin = url.searchParams.get('origin');
@@ -60,7 +69,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         return send(res, await registry.getMap(origin, map[1]!));
       }
       const session = /^\/sessions\/(s_[A-Za-z0-9_-]+)(\/events)?$/.exec(url.pathname);
-      if (session && req.method === 'GET' && !session[2]) return send(res, await registry.getSession(session[1]!));
+      if (session && req.method === 'GET' && !session[2]) return send(res, await registry.getSession(session[1]!, req.headers.authorization));
       if (session && req.method === 'POST' && session[2]) return send(res, await registry.appendEvents(session[1]!, req.headers.authorization, await readJson(req)));
       send(res, { status: 404, body: { error: 'not_found', message: `${route} is not a registry endpoint.` } });
     } catch (err) {

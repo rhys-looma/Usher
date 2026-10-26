@@ -4,7 +4,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateAgentIdentity, knockSchemaErrors, signRequest, verifyToken, type AgentIdentity, type Fingerprint, type UsherMap } from '@usher/core';
-import { FileStorage, RegistryClient, RegistryError, findMatch, seed, startRegistry, type MapRecord, type RunningRegistry } from '../src/index.ts';
+import { FileStorage, RateLimiter, RegistryClient, RegistryError, findMatch, seed, startRegistry, type MapRecord, type RunningRegistry } from '../src/index.ts';
+import { readSession, registerSite, type SiteKeys } from './sites.ts';
 
 const site = 'http://localhost:4100';
 let dir: string;
@@ -12,11 +13,13 @@ let running: RunningRegistry;
 let maps: UsherMap[];
 let agent: AgentIdentity;
 let client: RegistryClient;
+let keys: SiteKeys;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-registry-'));
   running = await startRegistry({ storage: new FileStorage(dir) });
   maps = await seed(running.registry, 'mock-site', site);
+  keys = await registerSite(running, site);
   agent = (await generateAgentIdentity()).identity;
   client = new RegistryClient(running.url, agent);
 });
@@ -50,15 +53,15 @@ test('knock with an exact fingerprint: map, rules, a token that verifies, a sess
   assert.deepEqual(knock.rules, { agents: 'allowed', confirm: ['consequential'], human_only: ['needs_user'] });
   assert.equal(knock.events_url, `${running.url}/sessions/${knock.session}/events`);
 
-  const keys = await (await fetch(knock.keys_url)).json();
-  const verified = await verifyToken(knock.token, { keys, origin: site, intent: 'quote.car_insurance', issuers: [running.url] });
+  const keySet = await (await fetch(knock.keys_url)).json();
+  const verified = await verifyToken(knock.token, { keys: keySet, origin: site, intent: 'quote.car_insurance', issuers: [running.url] });
   assert.ok(verified.ok);
   assert.equal(verified.claims.sub, agent.id);
   assert.equal(verified.claims.sid, knock.session);
   assert.equal(verified.claims.map, maps[0]!.fingerprint.digest);
   assert.equal(verified.claims.exp - verified.claims.iat, 600);
 
-  const session = await (await fetch(`${running.url}/sessions/${knock.session}`)).json();
+  const session = await readSession(running, knock.session, keys.secret_key);
   assert.equal(session.agent, agent.id);
   assert.deepEqual(session.events.map((e: { action: string; path: string }) => [e.action, e.path]), [['knock', '/quote/driver']]);
 });
@@ -76,11 +79,11 @@ test('near, path and no matches report their score', async () => {
   const near = await client.knock({ url: `${site}/quote/driver`, fingerprint: nearly(maps[0]!.fingerprint, 12) });
   assert.equal(near.match.kind, 'near');
   assert.equal(near.match.digest, maps[0]!.fingerprint.digest);
-  assert.ok(near.match.score >= 0.5 && near.match.score < 1, String(near.match.score));
+  assert.ok(near.match.score >= 0.3 && near.match.score < 1, String(near.match.score));
 
   const path = await client.knock({ url: `${site}/quote/driver`, fingerprint: nearly(maps[0]!.fingerprint, 2) });
   assert.equal(path.match.kind, 'path');
-  assert.ok(path.match.score < 0.5);
+  assert.ok(path.match.score < 0.3);
 
   const none = await client.knock({ url: `${site}/contact`, intent: 'contact.message', fingerprint: nearly(maps[0]!.fingerprint, 0) });
   assert.deepEqual([none.match.kind, none.map], ['none', null]);
@@ -95,7 +98,7 @@ test('every lookup is logged with each candidate\'s score', async () => {
   assert.ok(log.length >= 6);
   const last = log.at(-1)!;
   assert.equal(last.via, 'knock');
-  assert.equal(last.threshold, 0.5);
+  assert.equal(last.threshold, 0.3);
   assert.equal(last.scores.length, 3, 'one score per map for the origin');
 });
 
@@ -137,7 +140,7 @@ test('events: token required, session must match, values are refused', async () 
   assert.deepEqual(await send({ events: [event] }, other.token), [403, 'wrong_session']);
   assert.deepEqual(await send({ events: [event] }, `${knock.token.slice(0, -3)}AAA`), [401, 'bad_signature']);
 
-  const session = await (await fetch(`${running.url}/sessions/${knock.session}`)).json();
+  const session = await readSession(running, knock.session, keys.secret_key);
   assert.deepEqual(session.events.map((e: { action: string }) => e.action), ['knock', 'fill']);
 });
 
@@ -164,7 +167,7 @@ test('maps: get by digest, look up for a page, submit from an agent', async () =
 test('runs: reported by the session\'s agent, logged and added to the session', async () => {
   const knock = await client.knock({ url: `${site}/quote/driver`, fingerprint: maps[0]!.fingerprint });
   await client.reportRun({ session: knock.session, url: `${site}/quote/result`, outcome: 'completed', summary: { pages: 3, total_ms: 4200 } });
-  const session = await (await fetch(`${running.url}/sessions/${knock.session}`)).json();
+  const session = await readSession(running, knock.session, keys.secret_key);
   assert.deepEqual(session.events.at(-1).detail, { outcome: 'completed', pages: 3, total_ms: 4200 });
   const runs = (await running.registry.storage.readLog('runs')) as { agent: string; outcome: string }[];
   assert.deepEqual([runs.at(-1)!.agent, runs.at(-1)!.outcome], [agent.id, 'completed']);
@@ -174,7 +177,11 @@ test('runs: reported by the session\'s agent, logged and added to the session', 
 
 test('drift: a differing live form marks the map drifted, and knocks say so', async () => {
   const live = nearly(maps[1]!.fingerprint, 6);
-  const res = await post('/drift', { origin: site, path: '/quote/vehicle', map: maps[1]!.fingerprint.digest, fingerprint: live, score: 0.99 });
+  const report = { origin: site, path: '/quote/vehicle', map: maps[1]!.fingerprint.digest, fingerprint: live, score: 0.99 };
+  assert.equal((await post('/drift', report)).status, 401, 'site key required');
+  assert.equal((await post('/drift', report, { 'Usher-Site-Key': 'usp_wrong' })).status, 401);
+  assert.equal((await post('/drift', report, { 'Usher-Site-Key': keys.secret_key })).status, 401, 'the secret is not the site key');
+  const res = await post('/drift', report, { 'Usher-Site-Key': keys.site_key });
   const body = await res.json();
   assert.equal(body.drifted, true);
   assert.ok(body.score < 0.99, 'the registry scores it itself');
@@ -182,9 +189,60 @@ test('drift: a differing live form marks the map drifted, and knocks say so', as
   assert.equal(record.drift?.live_digest, live.digest);
   const knock = await client.knock({ url: `${site}/quote/vehicle`, fingerprint: live });
   assert.equal(knock.match.drifted, true);
-  const unchanged = await post('/drift', { origin: site, path: '/quote/driver', map: maps[0]!.fingerprint.digest, fingerprint: maps[0]!.fingerprint, score: 1 });
+  const unchanged = await post('/drift', { origin: site, path: '/quote/driver', map: maps[0]!.fingerprint.digest, fingerprint: maps[0]!.fingerprint, score: 1 }, { 'Usher-Site-Key': keys.site_key });
   assert.equal((await unchanged.json()).drifted, false);
   assert.equal((await post('/drift', { origin: site })).status, 400);
+  // Nothing about the reporter is kept: no IP, no user agent.
+  const logged = (await running.registry.storage.readLog('drift')) as Record<string, unknown>[];
+  assert.deepEqual(Object.keys(logged.at(-1)!).sort(), ['live', 'map', 'origin', 'path', 'score', 'ts']);
+});
+
+test('sites: register once for a site key and a secret; sessions need the secret', async () => {
+  const other = await registerSite(running, 'http://localhost:4199');
+  assert.match(other.site_key, /^usp_/);
+  assert.match(other.secret_key, /^uss_/);
+  const again = await post('/sites', { origin: 'http://localhost:4199' });
+  assert.equal(again.status, 409);
+  assert.equal((await post('/sites', { origin: 'not an origin' })).status, 400);
+  const stored = await running.registry.storage.getSite('http://localhost:4199');
+  assert.ok(stored && !JSON.stringify(stored).includes(other.secret_key), 'only a hash of the secret is stored');
+
+  const knock = await client.knock({ url: `${site}/quote/driver`, fingerprint: maps[0]!.fingerprint });
+  const read = (auth?: string) => fetch(`${running.url}/sessions/${knock.session}`, auth ? { headers: { Authorization: auth } } : {}).then((r) => r.status);
+  assert.equal(await read(), 404);
+  assert.equal(await read(`Bearer ${keys.site_key}`), 404, 'the public site key cannot read');
+  assert.equal(await read(`Bearer ${other.secret_key}`), 404, 'another site cannot read');
+  assert.equal(await read(`Bearer ${keys.secret_key}`), 200);
+});
+
+test('rate limits: a sliding window per key', () => {
+  let now = 0;
+  const limit = new RateLimiter(2, 1000, () => now);
+  assert.ok(limit.allow('a') && limit.allow('a'));
+  assert.ok(!limit.allow('a'));
+  assert.ok(limit.allow('b'));
+  now = 1001;
+  assert.ok(limit.allow('a'));
+});
+
+test('the current map for a page, for the site script to compare locally', async () => {
+  const current = await (await fetch(`${running.url}/maps/current?origin=${encodeURIComponent(site)}&path=/quote/cover`)).json();
+  assert.equal(current.digest, maps[2]!.fingerprint.digest);
+  assert.deepEqual(current.signature, maps[2]!.fingerprint.signature);
+  const none = await (await fetch(`${running.url}/maps/current?origin=${encodeURIComponent(site)}&path=/nowhere`)).json();
+  assert.deepEqual(none, { digest: null, signature: null });
+});
+
+test('edges: the agent that shared a map can add where its actions lead', async () => {
+  const origin = 'http://localhost:4105';
+  const mine: UsherMap = { ...maps[0]!, origin, actions: maps[0]!.actions.map(({ leads_to: _, ...a }) => a) };
+  await client.submitMap(mine);
+  const withEdge = { ...mine, actions: mine.actions.map((a) => ({ ...a, leads_to: '/quote/vehicle' })) };
+  const other = new RegistryClient(running.url, (await generateAgentIdentity()).identity);
+  assert.deepEqual(await other.submitMap(withEdge), { digest: mine.fingerprint.digest, stored: false }, 'not from another agent');
+  assert.deepEqual(await client.submitMap(withEdge), { digest: mine.fingerprint.digest, stored: false, edges: true });
+  const stored = await running.registry.storage.getMap(origin, mine.fingerprint.digest);
+  assert.equal(stored!.map.actions[0]!.leads_to, '/quote/vehicle');
 });
 
 test('CORS: the site script may call the registry from the site', async () => {
