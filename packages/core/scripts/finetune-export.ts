@@ -47,6 +47,11 @@ function optionsSummary(e: Extracted): string | null {
 }
 
 const files = (await readdir(values.log).catch(() => [] as string[])).filter((f) => f.endsWith('.jsonl')).sort();
+if (!files.length) {
+  // The log is local and gitignored: it fills as the compiler runs (npm run compile, npm run accuracy, the viewer).
+  console.error(`No compiler log in ${values.log}. Compile some forms first, e.g. npm run accuracy (needs MODEL_API_KEY).`);
+  process.exit(1);
+}
 const examples: Example[] = [];
 let records = 0;
 let skipped = 0;
