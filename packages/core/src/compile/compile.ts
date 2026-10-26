@@ -9,7 +9,7 @@ import { scanScript, type Scan, type ScannedForm } from '../inpage.ts';
 import { validateLabels, type Exclusion, type LabelError, type LabelValidation, type RiskClamp } from '../labels.ts';
 import { mergeMap, type UsherMap } from '../map.ts';
 import { appendLog, redactRequest } from './log.ts';
-import { compilerModel, costUsd, type ChatFn, type ChatMessage, type ChatRequest, type Usage } from './model.ts';
+import { compilerModel, costUsd, parseJsonContent, type ChatFn, type ChatMessage, type ChatRequest, type Usage } from './model.ts';
 import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt } from './prompt.ts';
 
 /** Default compiler log folder: data/compiler-log at the repository root (gitignored). */
@@ -143,7 +143,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     const result = await options.chat(request);
     let parsed: unknown;
     try {
-      parsed = JSON.parse(result.content);
+      parsed = parseJsonContent(result.content);
       validation = validateLabels(parsed, form.elements);
     } catch {
       validation = { ok: false, errors: [{ path: '$', code: 'invalid_json', message: 'The response was not valid JSON.' }], clamps: [], excluded: [] };

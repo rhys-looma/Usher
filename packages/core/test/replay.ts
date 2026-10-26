@@ -20,12 +20,15 @@ export interface LabelFixture {
   attempts: RecordedAttempt[];
 }
 
-export function fixtureUrl(layout: Layout, step: Step): URL {
-  return new URL(`./fixtures/labels/${layout}-${step}.json`, import.meta.url);
+/** Recorded sets: Muse Spark on the Meta Model API, and Muse Spark Open on Baseten. */
+export type FixtureSet = 'labels' | 'labels-open';
+
+export function fixtureUrl(layout: Layout, step: Step, set: FixtureSet = 'labels'): URL {
+  return new URL(`./fixtures/${set}/${layout}-${step}.json`, import.meta.url);
 }
 
-export async function readFixture(layout: Layout, step: Step): Promise<LabelFixture> {
-  return JSON.parse(await readFile(fixtureUrl(layout, step), 'utf8'));
+export async function readFixture(layout: Layout, step: Step, set: FixtureSet = 'labels'): Promise<LabelFixture> {
+  return JSON.parse(await readFile(fixtureUrl(layout, step, set), 'utf8'));
 }
 
 /** Wraps a chat function and records each exchange into `attempts`. */

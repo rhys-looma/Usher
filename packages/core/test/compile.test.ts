@@ -21,10 +21,10 @@ after(async () => {
   await browser.close();
 });
 
-async function compileStep(layout: Layout, step: Step, chat: ChatFn, logDir: string | null = null) {
+async function compileStep(layout: Layout, step: Step, chat: ChatFn, logDir: string | null = null, model = 'muse-spark-1.3') {
   const { context, page } = await openStep(browser, layout, step);
   try {
-    return await compilePage(page, { chat, model: 'muse-spark-1.3', logDir });
+    return await compilePage(page, { chat, model, logDir });
   } finally {
     await context.close();
   }
@@ -36,16 +36,17 @@ function byLabel(map: UsherMap, label: string) {
   return found;
 }
 
+for (const [set, model] of [['labels', 'Muse Spark'], ['labels-open', 'Muse Spark Open']] as const) {
 for (const layout of LAYOUTS) {
   for (const step of STEPS) {
-    test(`layout ${layout.toUpperCase()} ${step}: compiled map validates and has the expected keys`, async () => {
-      const fixture = await readFixture(layout, step);
-      const { map, attempts } = await compileStep(layout, step, replayChat(fixture));
+    test(`${model}, layout ${layout.toUpperCase()} ${step}: compiled map validates and has the expected keys`, async () => {
+      const fixture = await readFixture(layout, step, set);
+      const { map, attempts } = await compileStep(layout, step, replayChat(fixture), null, fixture.model);
       assert.equal(attempts.length, fixture.attempts.length);
       assert.equal(mapSchemaErrors(map), null);
       assert.equal(map.form.intent, 'quote.car_insurance');
       assert.equal(map.path, `/quote/${step}`);
-      assert.equal(map.provenance.compiler, 'muse-spark-1.3');
+      assert.equal(map.provenance.compiler, fixture.model);
       assert.deepEqual(
         [...map.fields, ...map.actions].sort((x, y) => Number(x.id.slice(1)) - Number(y.id.slice(1))).map((e) => [e.label, e.key]),
         expectedKeys[layout][step],
@@ -68,6 +69,7 @@ for (const layout of LAYOUTS) {
       }
     });
   }
+}
 }
 
 // A scripted model: returns the given contents in turn and keeps the requests it saw.

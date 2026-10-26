@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T20:23:07.799Z",
+  "layout": "b",
+  "step": "driver",
+  "attempts": [
+    {
+      "request_sha256": "22f98085e6a0622462f274ab87fdb39bc54352b3efdef21ce1864166c06b0f36",
+      "content": "{\"form\":{\"purpose\":\"Motor insurance quote: driver details - step 1 of 3\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"address.line1\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"person.occupation\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"person.employment_status\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"person.claims.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.claims.date\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e13\",\"key\":\"person.claims.type\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e14\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e14\"}",
+      "usage": {
+        "prompt_tokens": 5460,
+        "completion_tokens": 933,
+        "total_tokens": 6393,
+        "cached_tokens": 1920
+      },
+      "latency_ms": 5485
+    }
+  ]
+}
