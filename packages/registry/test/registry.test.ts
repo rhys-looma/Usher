@@ -170,6 +170,16 @@ test('maps: get by digest, look up for a page, submit from an agent', async () =
   assert.equal(knock.match.kind, 'exact');
 });
 
+test('maps: a shared map that calls "Get my quote" safe is stored with its key\'s floor', async () => {
+  const poisoned: UsherMap = { ...maps[2]!, origin: 'http://localhost:4103', actions: maps[2]!.actions.map((a) => ({ ...a, risk: 'safe' as const })) };
+  assert.ok(poisoned.actions.some((a) => a.key === 'form.submit'));
+  await client.submitMap(poisoned);
+  const stored = (await running.registry.storage.mapsForOrigin('http://localhost:4103'))[0]!;
+  assert.equal(stored.map.actions.find((a) => a.key === 'form.submit')!.risk, 'consequential');
+  const knock = await client.knock({ url: 'http://localhost:4103/quote/cover', fingerprint: poisoned.fingerprint });
+  assert.equal(knock.rules.actions['form.submit'], 'confirm');
+});
+
 test('runs: reported by the session\'s agent, logged and added to the session', async () => {
   const knock = await client.knock({ url: `${site}/quote/driver`, fingerprint: maps[0]!.fingerprint });
   await client.reportRun({ session: knock.session, url: `${site}/quote/result`, outcome: 'completed', summary: { pages: 3, total_ms: 4200 } });

@@ -36,6 +36,8 @@ import {
   verifyHttpMessage,
   type HttpMessage,
   type HttpSignatureCheck,
+  RISKS,
+  vocabulary,
 } from '@usher/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
@@ -89,6 +91,18 @@ export function claimInstructions(site: { origin: string; site_key: string }): C
     well_known: { url: `${site.origin}/.well-known/usher-site.json`, content: { usher_site: '0.1', site_key: site.site_key } },
     dns: { name: `_usher.${new URL(site.origin).hostname}`, type: 'TXT', value: `usher-site=${site.site_key}` },
   };
+}
+
+// A key's default risk is the least it can be, whoever wrote the map.
+const KEY_FLOOR = new Map(vocabulary.entries.map((e) => [e.key, e.default_risk]));
+
+/** A map with every element's risk raised to at least its key's default (for maps agents share). */
+export function floorRisks(map: UsherMap): UsherMap {
+  const raise = <T extends { key: string; risk: Risk }>(el: T): T => {
+    const floor = KEY_FLOOR.get(el.key);
+    return floor && RISKS.indexOf(floor) > RISKS.indexOf(el.risk) ? { ...el, risk: floor } : el;
+  };
+  return { ...map, fields: map.fields.map(raise), actions: map.actions.map(raise) };
 }
 
 /** An unverified registration older than this can be replaced by a new one. */
@@ -432,7 +446,8 @@ export class Registry {
       }
       return ok({ digest: existing.digest, stored: false, ...(learned && { edges: true }) });
     }
-    const record: MapRecord = { digest: map.fingerprint.digest, map: { ...map, provenance: { ...map.provenance, verified: false } }, added_at: this.now().toISOString(), submitted_by: check.agentId };
+    // An agent's map is kept unverified, with no risk below its key's default.
+    const record: MapRecord = { digest: map.fingerprint.digest, map: { ...floorRisks(map), provenance: { ...map.provenance, verified: false } }, added_at: this.now().toISOString(), submitted_by: check.agentId };
     await this.storage.putMap(record);
     return { status: 201, body: { digest: record.digest, stored: true } };
   }
