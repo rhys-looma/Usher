@@ -11,7 +11,8 @@
     "packages/*"
   ],
   "scripts": {
-    "pretest": "playwright install chromium",
+    "build": "node scripts/build.mjs",
+    "pretest": "npm run build && playwright install chromium",
     "test": "node scripts/test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "vocabulary": "tsx packages/core/scripts/build-vocabulary.ts",
