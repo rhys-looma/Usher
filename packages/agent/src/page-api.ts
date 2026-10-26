@@ -6,6 +6,7 @@ export interface UsherPageApi {
   bind(token: string): Promise<{ ok: boolean; error?: string; session?: string }>;
   confirm(key?: string): boolean;
   handoff(key: string): boolean;
+  errors(): { key: string; message: string }[];
   state(): { state: string; bound: boolean; session: string | null; match: { kind: string } | null };
 }
 

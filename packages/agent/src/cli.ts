@@ -63,6 +63,8 @@ try {
     ...(!values['no-model'] && !values.open && process.env.MODEL_API_KEY && { fallback: { chat: modelApi(), model: compilerModel() } }),
   });
   if (values.json) console.log(JSON.stringify(result, null, 2));
+  for (const p of result.problems ?? []) console.error(`  ${p.key} ("${p.label}"): ${p.message}${p.expected ? ` Expected: ${p.expected}.` : ''}`);
+  for (const e of result.errors ?? []) console.error(`  ${e.key}: ${e.message}`);
   console.log(summaryLine(result));
   process.exitCode = result.outcome === 'completed' ? 0 : 1;
 } finally {

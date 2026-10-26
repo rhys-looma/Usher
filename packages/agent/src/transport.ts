@@ -4,12 +4,14 @@
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { UsherMap } from '@usher/core';
+import type { UsherMap, UsherPlan } from '@usher/core';
 import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type RunReport } from '@usher/registry';
 
 export interface RegistryTransport {
   readonly kind: 'http' | 'mcp';
   knock(input: KnockInput): Promise<KnockResponse>;
+  /** The plan for a journey from this page, or null if the registry has none. */
+  getPlan(url: string): Promise<UsherPlan | null>;
   submitMap(map: UsherMap): Promise<{ digest: string; stored: boolean }>;
   reportRun(report: RunReport): Promise<{ recorded: boolean }>;
   close(): Promise<void>;
@@ -20,6 +22,7 @@ export async function httpTransport(registryUrl: string, keyFile?: string): Prom
   return {
     kind: 'http',
     knock: (input) => client.knock(input),
+    getPlan: (url) => client.getPlan(url).catch(() => null),
     submitMap: (map) => client.submitMap(map),
     reportRun: (report) => client.reportRun(report),
     close: async () => undefined,
@@ -46,6 +49,7 @@ export async function mcpTransport(registryUrl: string, keyFile?: string): Promi
   return {
     kind: 'mcp',
     knock: (input) => call('knock', { ...input }),
+    getPlan: (url) => call<UsherPlan>('get_plan', { url }).catch(() => null),
     submitMap: (map) => call('submit_map', { map }),
     reportRun: (report) => call('report_run', { ...report }),
     close: () => client.close(),
