@@ -30,10 +30,10 @@ An agent that knocks gets a fast, trusted path: on the demo quote form, three pa
 
 ## Quickstart
 
-**A site** adds one tag to its pages:
+**A site** registers its origin with the registry (`POST /sites`), which returns a public site key and a secret key, then adds one tag to its pages:
 
 ```html
-<script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" defer></script>
+<script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" data-usher-site-key="usp_…" defer></script>
 ```
 
 Optionally, it checks knocks on consequential endpoints on its server with [`@usher/site-middleware`](packages/site-middleware/), and publishes `/.well-known/usher.json` naming its registry.
@@ -56,8 +56,8 @@ Optionally, it checks knocks on consequential endpoints on its server with [`@us
 
 ```sh
 npm install && npm run build
-npm run registry -- --seed mock-site                                    # registry on :4200 with the demo maps
-USHER_REGISTRY_URL=http://localhost:4200 npm start --prefix examples/mock-quote-site   # demo site on :4100
+npm run registry -- --seed mock-site                                    # registry on :4200 with the demo maps; prints the site keys
+USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site   # demo site on :4100
 npm run agent -- http://localhost:4100/quote/driver --profile packages/agent/profiles/test-driver.json --mcp
 ```
 
