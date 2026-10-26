@@ -73,7 +73,7 @@ This scheme is deliberately small. It can be replaced by HTTP Message Signatures
 The registry then:
 
 1. verifies the signed request;
-2. finds the map: for the page's origin, an **exact** match on `fingerprint.digest`, otherwise the **near** match with the highest signature similarity at or above the registry's threshold, preferring the same path; without a fingerprint, the newest map for the origin and path. Every lookup and its scores are logged;
+2. finds the map, among the maps for the page's origin: an **exact** match on `fingerprint.digest`; otherwise the **near** match with the highest signature similarity at or above the registry's threshold, preferring the same path; otherwise the best-scoring map for the same **path** (also used when the knock has no fingerprint). Every lookup and its scores are logged;
 3. applies the site's rules for the form. If the site does not allow agents, it answers `403 {"error":"agents_not_allowed"}`;
 4. creates a session (or continues `session`) and records the knock in its log;
 5. signs a token.
@@ -97,7 +97,7 @@ The registry then:
 }
 ```
 
-- `match.kind` is `exact`, `near` or `none`; `score` is the similarity (1 for exact, 0 for none). `map` is `null` when nothing matched; the agent then reads the page as it would without Usher.
+- `match.kind` is `exact`, `near`, `path` or `none`; `score` is the signature similarity (1 for exact; 0 without a fingerprint). A `path` match is the map for this path whose structure no longer matches well: treat it as a hint, not a plan. `map` is `null` when nothing matched; the agent then reads the page as it would without Usher.
 - `drifted` is true when the site script has reported that the live page no longer matches this map.
 - `plan` is reserved for multi-step plans (a later spec).
 - `rules` (interim, until the policy format): whether agents may use the form, the risk levels that need the user's confirmation before the agent acts, and the risk levels only the user may act on. The default is the example above.

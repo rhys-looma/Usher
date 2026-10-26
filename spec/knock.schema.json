@@ -92,7 +92,7 @@
       "required": ["kind", "score", "digest", "drifted"],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["exact", "near", "none"] },
+        "kind": { "enum": ["exact", "near", "path", "none"] },
         "score": { "type": "number", "minimum": 0, "maximum": 1 },
         "digest": { "type": ["string", "null"] },
         "drifted": { "type": "boolean" }
