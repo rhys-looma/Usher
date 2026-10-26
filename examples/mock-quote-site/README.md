@@ -23,6 +23,18 @@ No dependencies; Node 20 or later.
 
 Pages are separate requests with a server session, like real quote journeys, and the server validates every step.
 
+## With Usher
+
+Set `USHER_REGISTRY_URL` to turn Usher on (run `npm run build` at the repository root first):
+
+```sh
+USHER_REGISTRY_URL=http://localhost:4200 npm start
+```
+
+- `/.well-known/usher.json` names the registry.
+- `POST /quote/cover` (requesting the quote) checks a token from requests that identify as agents: an `Authorization: Usher …` or `X-Usher-Token` header, a `usher_token` form field, or an `Usher-Agent` header. People using the form are not checked.
+- `POST /api/quote` is for software, so every call needs a token. Without one it answers `403` with `{"error":"knock_required", …}` and a `Link` header pointing at the knock URL.
+
 ## Layouts A and B
 
 Layout B behaves like a site redesign: every field id and name changes, some labels are reworded, contact fields move to the top, and "Continue" becomes "Next". Switch at `/__admin` while the site is running, or start with `npm run start:b`. This is what the drift-detection and healing demo runs against.
