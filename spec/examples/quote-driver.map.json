@@ -444,6 +444,9 @@
       "control": "date",
       "required": true,
       "risk": "safe",
+      "constraints": {
+        "format": "date"
+      },
       "shown_if": {
         "field": "person.claims.has_any",
         "op": "equals",

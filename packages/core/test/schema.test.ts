@@ -1,30 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { Ajv2020 } from 'ajv/dist/2020.js';
 import { fingerprint, type Scan } from '../src/index.ts';
 import { LAYOUTS, STEPS, launch, openStep, scan } from './helpers.ts';
+import { mapSchemaErrors } from './map-schema.ts';
 
 const specDir = new URL('../../../spec/', import.meta.url);
-const schema = JSON.parse(await readFile(new URL('map.schema.json', specDir), 'utf8'));
-
-// Ajv's strict lints that the spec schema deliberately trips: if/then blocks requiring
-// properties declared on the parent, and union types (min/max are numbers or date strings).
-const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
-// RFC 3339 date-time, the only format the schema uses.
-ajv.addFormat('date-time', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i);
-const validate = ajv.compile(schema);
-
-function errors(): string {
-  return ajv.errorsText(validate.errors, { separator: '\n' });
-}
 
 test('every map in spec/examples validates against map.schema.json', async () => {
   const files = (await readdir(new URL('examples/', specDir))).filter((f) => f.endsWith('.map.json'));
   assert.ok(files.length > 0);
   for (const file of files) {
     const map = JSON.parse(await readFile(new URL(`examples/${file}`, specDir), 'utf8'));
-    assert.ok(validate(map), `${file}:\n${errors()}`);
+    assert.equal(mapSchemaErrors(map), null, file);
   }
 });
 
@@ -67,7 +55,7 @@ test('draft maps built from every extracted step validate against the schema', a
       const { context, page } = await openStep(browser, layout, step);
       const map = await draftMap(await scan(page), `/quote/${step}`);
       await context.close();
-      assert.ok(validate(map), `${layout} ${step}:\n${errors()}`);
+      assert.equal(mapSchemaErrors(map), null, `${layout} ${step}`);
     }
   }
   await browser.close();
