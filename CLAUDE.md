@@ -49,6 +49,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 
 - `MODEL_API_KEY` from the environment or `.env` (gitignored). Never log, print or commit it.
 - Model `muse-spark-1.3`, override with `USHER_COMPILER_MODEL`. Never a `-contributor` variant: those let Meta train on our content.
+- Muse Spark Open on Baseten: `BASETEN_API_KEY`, model `meta-models/muse-spark-open-1026` (override `USHER_OPEN_MODEL`). No json_schema there: JSON mode plus the schema in the prompt.
 - Tests replay `packages/core/test/fixtures/labels/`. A prompt change makes them stale: re-record with `npm run fixtures:record`.
 
 ## Running
@@ -61,6 +62,7 @@ npm test             # installs chromium if needed, starts mock site (A and B) o
 npm run typecheck
 npm run compile -- <url> [--out file]   # compile one page with Muse Spark
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
+npm run fixtures:record:open            # same for Muse Spark Open (needs BASETEN_API_KEY)
 npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps (data in data/registry)
 npm run seed:build                      # rebuild seed maps from recorded labels
 npm run agent -- <url> --profile packages/agent/profiles/test-driver.json [--mcp] [--auto-confirm]

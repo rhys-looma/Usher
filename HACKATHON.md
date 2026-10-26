@@ -20,7 +20,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | Explain agent sessions to site owners | Muse Spark |
 | Flag consequential fields and actions | Muse Glimmer / Muse Spark Open (open weights) |
 | Reference agent's fallback when a page has no map: labels the page, then acts on it | Muse Spark `muse-spark-1.3`. In use. |
-| Second, independent agent using the registry | Muse Spark Open |
+| Second, independent agent using the registry (and its fallback when a page has no map) | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`; JSON mode, schema in the prompt). In use. |
 
 This table is updated as the build progresses.
 
@@ -36,3 +36,5 @@ This table is updated as the build progresses.
 | 26 Oct | Registry over HTTP and MCP with fingerprint matching, sessions and drift (LU-21, LU-23) |
 | 26 Oct | Server-side check (LU-26) and one-tag site script (LU-25) on the mock site |
 | 26 Oct | Reference agent with a Muse Spark fallback; end-to-end test and first benchmark (LU-28, LU-29) |
+| 26 Oct | Knock loop fixes: no drift beacons, site keys, threshold 0.3, edges on shared maps |
+| 26 Oct | Second agent on Muse Spark Open via Baseten (LU-30) |
