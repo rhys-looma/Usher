@@ -50,3 +50,19 @@ export function replayChat(fixture: LabelFixture): ChatFn {
     return { content: recorded.content, usage: recorded.usage, latency_ms: recorded.latency_ms, response: { replayed: name } };
   };
 }
+
+/**
+ * Replays whichever recorded response matches each request, across fixtures, for runs that
+ * compile several pages. With simulateLatency it waits as long as the model took when recorded,
+ * so timings compare honestly with runs that skip the model.
+ */
+export function replayAny(fixtures: LabelFixture[], options: { simulateLatency?: boolean } = {}): ChatFn {
+  const byHash = new Map(fixtures.flatMap((f) => f.attempts.map((a) => [a.request_sha256, { fixture: f, attempt: a }] as const)));
+  return async (request) => {
+    const found = byHash.get(requestHash(request));
+    if (!found) throw new Error('No recorded response matches this request (prompt or page changed). Run npm run fixtures:record.');
+    if (options.simulateLatency) await new Promise((r) => setTimeout(r, found.attempt.latency_ms));
+    const name = `${found.fixture.layout}-${found.fixture.step}`;
+    return { content: found.attempt.content, usage: found.attempt.usage, latency_ms: found.attempt.latency_ms, response: { replayed: name } };
+  };
+}
