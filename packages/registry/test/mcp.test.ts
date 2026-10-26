@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { jwkThumbprint, publicPart, verifyToken } from '@usher/core';
-import { FileStorage, seed, startRegistry } from '../src/index.ts';
+import { seed, startRegistry } from '../src/index.ts';
+import { testStorage } from './storage-helper.ts';
 
 test('MCP server: knock, get_map, submit_map and report_run as tools, signing with a local key', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'usher-mcp-'));
-  const running = await startRegistry({ storage: new FileStorage(join(dir, 'registry')) });
+  const running = await startRegistry({ storage: await testStorage(join(dir, 'registry')) });
   const maps = await seed(running.registry, 'mock-site', 'http://localhost:4100');
   const keyFile = join(dir, 'agent-key.json');
   const transport = new StdioClientTransport({

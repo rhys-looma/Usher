@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import { generateAgentIdentity, knockSchemaErrors, randomId, signToken } from '@usher/core';
-import { FileStorage, RegistryClient, seed, startRegistry, type RunningRegistry } from '@usher/registry';
+import { RegistryClient, seed, startRegistry, type RunningRegistry } from '@usher/registry';
 import { createUsherCheck, tokenFrom } from '../src/index.ts';
 import { startMockSite, type MockSite } from './mock-site.ts';
+import { testStorage } from '../../registry/test/storage-helper.ts';
 
 let dir: string;
 let registry: RunningRegistry;
@@ -16,7 +17,7 @@ let client: RegistryClient;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-check-'));
-  registry = await startRegistry({ storage: new FileStorage(dir) });
+  registry = await startRegistry({ storage: await testStorage(dir) });
   site = await startMockSite({ registry: registry.url });
   await seed(registry.registry, 'mock-site', site.url);
   client = new RegistryClient(registry.url, (await generateAgentIdentity()).identity);

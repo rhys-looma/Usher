@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ChatFn } from '@usher/core';
 import { replayAny, type LabelFixture } from '../../core/test/replay.ts';
-import { FileStorage, explainFacts, formFacts, startRegistry } from '../src/index.ts';
+import { explainFacts, formFacts, startRegistry } from '../src/index.ts';
 import { ORIGIN, blocked, maps, sessions } from './explain-data.ts';
 import { registerSite } from './sites.ts';
+import { testStorage } from './storage-helper.ts';
 
 const recorded = async (name: 'spark' | 'open') => JSON.parse(await readFile(new URL(`./fixtures/explanations/${name}.json`, import.meta.url), 'utf8')) as LabelFixture;
 const spark = await recorded('spark');
@@ -53,7 +54,7 @@ test('the dashboard shows explanations, regenerated on demand, cached when nothi
   let calls = 0;
   const replay = replayAny([spark]);
   const counting: ChatFn = async (r) => (calls++, replay(r));
-  const running = await startRegistry({ storage: new FileStorage(dir), explainer: { chat: counting, model: spark.model }, web: { allowPrivate: true } });
+  const running = await startRegistry({ storage: await testStorage(dir), explainer: { chat: counting, model: spark.model }, web: { allowPrivate: true } });
   try {
     for (const m of all) await running.registry.addMap(m);
     for (const s of sessions()) await running.registry.storage.putSession(s);

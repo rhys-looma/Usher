@@ -6,9 +6,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright';
 import { fingerprint, generateAgentIdentity, scanScript, type Scan } from '@usher/core';
-import { FileStorage, RegistryClient, seed, startRegistry, type KnockResponse, type RunningRegistry, type Session } from '@usher/registry';
+import { RegistryClient, seed, startRegistry, type KnockResponse, type RunningRegistry, type Session } from '@usher/registry';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
 import { registerSite, type SiteKeys } from '../../registry/test/sites.ts';
+import { testStorage } from '../../registry/test/storage-helper.ts';
 
 const siteScript = fileURLToPath(new URL('../dist/usher.js', import.meta.url));
 let dir: string;
@@ -20,7 +21,7 @@ let keys: SiteKeys;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-site-script-'));
-  registry = await startRegistry({ storage: new FileStorage(dir), siteScript });
+  registry = await startRegistry({ storage: await testStorage(dir), siteScript });
   site = await startMockSite({
     registry: registry.url,
     register: async (origin) => {
@@ -116,8 +117,7 @@ test('page loads without a bound token are never logged', async () => {
   assert.deepEqual(calls, []);
   await page.context().close();
   // Only knocks create sessions.
-  const sessions = await readdir(join(dir, 'sessions')).catch(() => []);
-  assert.equal(sessions.length, 0);
+  assert.equal((await registry.registry.storage.listSessions(site.url)).length, 0);
 });
 
 test('bind: bad and foreign tokens are refused; a good one unlocks and logs by semantic key, never values', async () => {

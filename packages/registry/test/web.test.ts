@@ -8,8 +8,9 @@ import { chromium, type Browser } from 'playwright';
 import { fingerprint, generateAgentIdentity, scanScript, type Scan } from '@usher/core';
 import { readFixture, replayAny, type LabelFixture } from '../../core/test/replay.ts';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
-import { FileStorage, RegistryClient, Viewer, seed, startRegistry, type RunningRegistry } from '../src/index.ts';
+import { RegistryClient, Viewer, seed, startRegistry, type RunningRegistry } from '../src/index.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
+import { testStorage } from './storage-helper.ts';
 
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 const labels = await Promise.all((['driver', 'vehicle', 'cover'] as const).map((s) => readFixture('a', s)));
@@ -24,7 +25,7 @@ let browser: Browser;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-web-'));
-  registry = await startRegistry({ storage: new FileStorage(dir), siteScript, chat: replayAny([...labels, ...rules]), model: 'muse-spark-1.3', web: { allowPrivate: true } });
+  registry = await startRegistry({ storage: await testStorage(dir), siteScript, chat: replayAny([...labels, ...rules]), model: 'muse-spark-1.3', web: { allowPrivate: true } });
   site = await startMockSite({
     registry: registry.url,
     register: async (origin) => {
