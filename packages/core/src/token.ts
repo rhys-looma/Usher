@@ -44,6 +44,12 @@ export interface TokenClaims {
   iat: number;
   exp: number;
   jti: string;
+  /** Keys on this form the site's rules say need the user's confirmation. */
+  confirm?: string[];
+  /** Keys agents may not act on. */
+  forbid?: string[];
+  /** Keys the agent stated, when knocking, that its user confirmed. */
+  confirmed?: string[];
 }
 
 export interface TokenHeader {

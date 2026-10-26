@@ -37,6 +37,11 @@ await write('knock-response', {
   match: { kind: 'exact', score: 1, digest: fingerprint.digest, drifted: false },
   map,
   plan: null,
-  rules: { agents: 'allowed', confirm: ['consequential'], human_only: ['needs_user'] },
+  rules: {
+    agents: 'allowed',
+    confirm: ['consequential'],
+    human_only: ['needs_user'],
+    actions: Object.fromEntries([...map.fields, ...map.actions].map((e: { key: string; risk: string }) => [e.key, e.risk === 'safe' ? 'allow' : e.risk === 'consequential' ? 'confirm' : 'forbid'])),
+  },
 });
 console.log('spec/examples/knock regenerated');

@@ -1,7 +1,7 @@
 {
   "usher": "0.1",
   "session": "s_Yk3nQ2xV8wLp4tRz",
-  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6IlFsNHZxTnJocUZCeTdoSXpRU3F3RXZiTG5BcThuQlRQRUV0SHNGRVhxd2MifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAiLCJzdWIiOiJ2MVRiMWx3d0lDRUFDTk9zOWpXVm1CRy1wNjVYZjhvT1dOYXExQWEzV0FnIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDo0MTAwIiwiaW50ZW50IjoicXVvdGUuY2FyX2luc3VyYW5jZSIsIm1hcCI6InNoYTI1NjoxM2M0NDVjMmQ5YzMwMTdhMmY2NWExOWU0YTcxODgyZjUzYzA3MGZhZDgyNGJiNWNiYTRhMTM1OWMzMDUxOWU2Iiwic2lkIjoic19ZazNuUTJ4Vjh3THA0dFJ6IiwiaWF0IjoxNzkzMDk1MjAwLCJleHAiOjE3OTMwOTU4MDAsImp0aSI6IlFtOXZaR3hsTFdwMGFTMWxlR0Z0Y0d4bCIsImtpZCI6IlFsNHZxTnJocUZCeTdoSXpRU3F3RXZiTG5BcThuQlRQRUV0SHNGRVhxd2MifQ.wPcAUnJTR8dsdUv9xmdkbp0NOeH-vbAI2CpikHa0IuqcMpXgHb_t307aiFwmdtWic_a0knmYV-KJoyeffd89Cg",
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6Imlyek0zNWItSXpYZFJ5RmhMTS0zWndJakFiVWpyUW5iOHFoTkhvVmNwMUkifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAiLCJzdWIiOiJBWlNCSVBkNXp1bmEwREtHNnYzYkl5YTZoX2J3eHZPQm5FVGd6QlUxNFM0Iiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDo0MTAwIiwiaW50ZW50IjoicXVvdGUuY2FyX2luc3VyYW5jZSIsIm1hcCI6InNoYTI1NjoxM2M0NDVjMmQ5YzMwMTdhMmY2NWExOWU0YTcxODgyZjUzYzA3MGZhZDgyNGJiNWNiYTRhMTM1OWMzMDUxOWU2Iiwic2lkIjoic19ZazNuUTJ4Vjh3THA0dFJ6IiwiaWF0IjoxNzkzMDk1MjAwLCJleHAiOjE3OTMwOTU4MDAsImp0aSI6IlFtOXZaR3hsTFdwMGFTMWxlR0Z0Y0d4bCIsImtpZCI6Imlyek0zNWItSXpYZFJ5RmhMTS0zWndJakFiVWpyUW5iOHFoTkhvVmNwMUkifQ.cCnRp8C58DNPvuH0a9sHY6pFr6sRgVbYLutka6s6ma2CaZnx4Jt654qb3S9vfUX2bz9QVdhgV1WLq3Hiz7gSAw",
   "expires_at": "2026-10-27T10:10:00Z",
   "keys_url": "http://localhost:4200/.well-known/usher-keys.json",
   "events_url": "http://localhost:4200/sessions/s_Yk3nQ2xV8wLp4tRz/events",
@@ -570,6 +570,22 @@
     ],
     "human_only": [
       "needs_user"
-    ]
+    ],
+    "actions": {
+      "person.title": "allow",
+      "person.first_name": "allow",
+      "person.last_name": "allow",
+      "person.dob": "allow",
+      "contact.email": "allow",
+      "contact.phone": "allow",
+      "address.postcode": "allow",
+      "address.line1": "allow",
+      "person.occupation": "allow",
+      "person.employment_status": "allow",
+      "person.claims.has_any": "allow",
+      "person.claims.date": "allow",
+      "person.claims.type": "allow",
+      "nav.next": "allow"
+    }
   }
 }
