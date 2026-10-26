@@ -5,6 +5,10 @@ import { parseArgs } from 'node:util';
 import { startRegistry } from './http.ts';
 import { seed } from './seed.ts';
 import { FileStorage } from './storage.ts';
+import { compilerModel, modelApi } from '@usher/core';
+import { loadDotEnv } from '../../core/src/compile/env.ts';
+
+loadDotEnv();
 
 const { values } = parseArgs({
   options: {
@@ -22,6 +26,8 @@ const running = await startRegistry({
   storage: new FileStorage(values.data),
   port: Number(values.port),
   siteScript,
+  // Muse Spark turns owners' plain-English rules into policy, when a key is set.
+  ...(process.env.MODEL_API_KEY && { chat: modelApi(), model: compilerModel() }),
   ...(values.url && { url: values.url }),
   ...(values.threshold && { threshold: Number(values.threshold) }),
 });

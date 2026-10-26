@@ -6,3 +6,4 @@ export * from './client.ts';
 export * from './identity-file.ts';
 export * from './seed.ts';
 export * from './rate-limit.ts';
+export * from './rules.ts';
