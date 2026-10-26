@@ -1,0 +1,291 @@
+// The Usher site script (LU-25). One tag:
+//
+//   <script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" defer></script>
+//
+// On load it adds the knock notice to every form (nothing a person sees), fingerprints the live
+// form and looks up its map, and reports drift if the form no longer matches. An agent that has
+// knocked binds its token with window.usher.bind(token) or a "usher:bind" postMessage; only then
+// does the script unlock the form, apply the site's rules and log the agent's actions by
+// semantic key. Page loads without a bound token are never logged, and no event carries a value.
+
+import { extractForms, type ExtractedForm } from '@usher/core/extract';
+import { fingerprint, type Fingerprint } from '@usher/core/fingerprint';
+import { locatorKit } from '@usher/core/locators';
+import { verifyToken, type KeySet, type PublicJwk, type TokenClaims } from '@usher/core/token';
+
+type Risk = 'safe' | 'consequential' | 'needs_user';
+type Action = 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff';
+
+interface MapElement {
+  id: string;
+  key: string;
+  label: string;
+  risk: Risk;
+  control?: string;
+  kind?: string;
+  locators: { by: string; value: string; name?: string }[];
+}
+
+interface UsherMap {
+  fingerprint: Fingerprint;
+  form: { intent?: string };
+  fields: MapElement[];
+  actions: MapElement[];
+}
+
+interface Rules {
+  agents: 'allowed' | 'denied';
+  confirm: Risk[];
+  human_only: Risk[];
+}
+
+interface Lookup {
+  match: { kind: 'exact' | 'near' | 'path' | 'none'; score: number; digest: string | null; drifted: boolean };
+  map: UsherMap | null;
+  rules: Rules;
+}
+
+type State = 'locked' | 'unlocked' | 'awaiting_confirmation';
+
+const VERSION = '0.1.0';
+const script = document.currentScript as HTMLScriptElement | null;
+const registry = (script?.dataset.usherRegistry ?? (script?.src ? new URL(script.src).origin : '')).replace(/\/$/, '');
+const knockUrl = `${registry}/knock`;
+const keysUrl = `${registry}/.well-known/usher-keys.json`;
+const TOKEN_FIELD = 'usher_token';
+const kit = locatorKit();
+
+let lookup: Lookup | null = null;
+let token: string | null = null;
+let claims: TokenClaims | null = null;
+let state: State = 'locked';
+let confirmed = false;
+let heldKey: string | undefined;
+let elements = new Map<Element, MapElement>();
+
+function setState(next: State): void {
+  state = next;
+  for (const f of Array.from(document.forms)) f.dataset.usherState = next;
+}
+
+// The notice: a data attribute and a visually hidden note pointing agents at the knock URL.
+function addNotices(): void {
+  for (const f of Array.from(document.forms)) {
+    f.dataset.usherKnock = knockUrl;
+    f.dataset.usherState = state;
+    if (f.querySelector('[data-usher-note]')) continue;
+    const note = document.createElement('p');
+    note.setAttribute('role', 'note');
+    note.dataset.usherNote = '';
+    note.textContent = `This form has an agent lane (Usher). Agents: knock at ${knockUrl} before filling it.`;
+    note.style.cssText = 'position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important';
+    f.append(note);
+  }
+}
+
+// The form with the most fields, as the compiler picks it.
+function mainForm(forms: ExtractedForm[]): ExtractedForm | undefined {
+  return [...forms].sort((a, b) => b.elements.filter((e) => e.kind === 'field').length - a.elements.filter((e) => e.kind === 'field').length)[0];
+}
+
+async function post(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {
+  return fetch(`${registry}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), keepalive: true, credentials: 'omit' });
+}
+
+// Fingerprints the live form, finds its map and reports drift once per page and map.
+async function load(): Promise<void> {
+  const extracted = mainForm(extractForms().forms);
+  if (!extracted) return;
+  const fp = await fingerprint(extracted.elements);
+  const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: fp });
+  if (!res.ok) return;
+  lookup = (await res.json()) as Lookup;
+  if (lookup.map && lookup.match.kind !== 'exact') {
+    const seen = `usher-drift:${location.pathname}:${lookup.map.fingerprint.digest}:${fp.digest}`;
+    let reported = false;
+    try {
+      reported = sessionStorage.getItem(seen) === '1';
+      sessionStorage.setItem(seen, '1');
+    } catch {
+      // No storage: report anyway.
+    }
+    if (!reported) await post('/drift', { origin: location.origin, path: location.pathname, map: lookup.map.fingerprint.digest, fingerprint: fp, score: lookup.match.score });
+  }
+}
+
+let keys: KeySet | null = null;
+async function keyFor(kid: string): Promise<PublicJwk | undefined> {
+  if (!keys?.keys.some((k) => k.kid === kid)) {
+    const res = await fetch(keysUrl, { credentials: 'omit' });
+    keys = res.ok ? ((await res.json()) as KeySet) : null;
+  }
+  return keys?.keys.find((k) => k.kid === kid);
+}
+
+// Which map element each page element is, found with the map's own locators.
+function indexElements(map: UsherMap): Map<Element, MapElement> {
+  const index = new Map<Element, MapElement>();
+  for (const el of [...map.fields.map((f) => ({ ...f, kind: 'field' })), ...map.actions]) {
+    for (const loc of el.locators) {
+      const found = kit.resolve(loc as Parameters<typeof kit.resolve>[0]);
+      if (found.length === 1) {
+        index.set(found[0]!, el);
+        break;
+      }
+    }
+  }
+  return index;
+}
+
+function elementFor(target: EventTarget | null): MapElement | undefined {
+  for (let node = target instanceof Element ? target : null; node; node = node.parentElement) {
+    const el = elements.get(node);
+    if (el) return el;
+  }
+  return undefined;
+}
+
+function log(action: Action, el?: MapElement): void {
+  if (!token || !claims) return;
+  const event = { ts: new Date().toISOString(), source: 'site', action, path: location.pathname, ...(el && { key: el.key, element: el.id }) };
+  void post(`/sessions/${claims.sid}/events`, { events: [event] }, { Authorization: `Usher ${token}` }).catch(() => undefined);
+}
+
+const CHOICES = new Set(['select', 'radio', 'checkbox']);
+let lastFilled: string | undefined;
+
+// Text is logged on its first input, so the log keeps the order the agent acted in (change
+// only fires on blur); typing on in the same field adds nothing.
+function onInput(event: Event): void {
+  const el = elementFor(event.target);
+  if (!token || !el || el.kind !== 'field' || CHOICES.has(el.control ?? '') || lastFilled === el.id) return;
+  lastFilled = el.id;
+  log('fill', el);
+}
+
+function onChange(event: Event): void {
+  const el = elementFor(event.target);
+  if (!token || !el || el.kind !== 'field' || !CHOICES.has(el.control ?? '')) return;
+  lastFilled = undefined;
+  const action: Action = el.control === 'select' ? 'select' : el.control === 'radio' ? 'choose' : (event.target as HTMLInputElement).checked ? 'check' : 'uncheck';
+  log(action, el);
+}
+
+function onClick(event: Event): void {
+  const el = elementFor(event.target);
+  // Submits are logged by onSubmit, which can still hold them.
+  if (!token || !el || (el.kind !== 'button' && el.kind !== 'link')) return;
+  lastFilled = undefined;
+  log('click', el);
+}
+
+function onSubmit(event: SubmitEvent): void {
+  if (!token || !lookup) return;
+  const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
+  const risk = el?.risk ?? 'safe';
+  if ((lookup.rules.confirm.includes(risk) || lookup.rules.human_only.includes(risk)) && !confirmed) {
+    // The site's rules say the user must confirm (or do) this first.
+    event.preventDefault();
+    heldKey = el?.key;
+    setState('awaiting_confirmation');
+    log('held', el);
+    return;
+  }
+  const f = event.target as HTMLFormElement;
+  let field = f.querySelector<HTMLInputElement>(`input[name="${TOKEN_FIELD}"]`);
+  if (!field) {
+    field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = TOKEN_FIELD;
+    f.append(field);
+  }
+  field.value = token;
+  log('submit', el);
+}
+
+let listening = false;
+function listen(): void {
+  if (listening) return;
+  listening = true;
+  document.addEventListener('input', onInput, true);
+  document.addEventListener('change', onChange, true);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('submit', onSubmit, true);
+}
+
+export interface BindResult {
+  ok: boolean;
+  error?: string;
+  session?: string;
+}
+
+async function bind(candidate: string): Promise<BindResult> {
+  await ready;
+  if (typeof candidate !== 'string') return { ok: false, error: 'malformed' };
+  const result = await verifyToken(candidate, {
+    keys: keyFor,
+    origin: location.origin,
+    issuers: [registry],
+    ...(lookup?.map?.form.intent && { intent: lookup.map.form.intent }),
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  if (lookup?.rules.agents === 'denied') return { ok: false, error: 'agents_not_allowed' };
+  token = candidate;
+  claims = result.claims;
+  confirmed = false;
+  elements = lookup?.map ? indexElements(lookup.map) : new Map();
+  setState('unlocked');
+  listen();
+  return { ok: true, session: result.claims.sid };
+}
+
+/** Called by the agent after its user has confirmed the held action. */
+function confirm(): boolean {
+  if (!token) return false;
+  confirmed = true;
+  const el = heldKey ? [...elements.values()].find((e) => e.key === heldKey) : undefined;
+  log('confirm', el);
+  setState('unlocked');
+  return true;
+}
+
+/** Called by the agent when it hands an element to its user (needs_user). */
+function handoff(key: string): boolean {
+  const el = [...elements.values()].find((e) => e.key === key);
+  if (!token || !el) return false;
+  log('handoff', el);
+  return true;
+}
+
+const ready: Promise<void> = new Promise((resolve) => {
+  const start = () => {
+    addNotices();
+    load().catch(() => undefined).finally(resolve);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
+});
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window || event.origin !== location.origin) return;
+  const data = event.data as { type?: string; token?: string } | null;
+  if (data?.type !== 'usher:bind' || typeof data.token !== 'string') return;
+  void bind(data.token).then((result) => window.postMessage({ type: 'usher:bound', ...result }, location.origin));
+});
+
+const api = {
+  version: VERSION,
+  registry,
+  ready,
+  bind,
+  confirm,
+  handoff,
+  state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, match: lookup?.match ?? null }),
+};
+
+declare global {
+  interface Window {
+    usher: typeof api;
+  }
+}
+window.usher = api;
