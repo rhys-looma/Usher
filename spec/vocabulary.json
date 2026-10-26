@@ -1,0 +1,544 @@
+{
+  "usher_vocabulary": "0.1",
+  "entries": [
+    {
+      "key": "person.title",
+      "meaning": "Title (Mr, Ms, Dr…)",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.first_name",
+      "meaning": "First or given name",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.last_name",
+      "meaning": "Surname or family name",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.full_name",
+      "meaning": "Full name in one field",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.dob",
+      "meaning": "Date of birth",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.gender",
+      "meaning": "Gender",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.marital_status",
+      "meaning": "Marital status",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.occupation",
+      "meaning": "Occupation or job title",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.employment_status",
+      "meaning": "Employed, self-employed, retired…",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.industry",
+      "meaning": "Industry of employment",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.resident_since",
+      "meaning": "Date or years resident in the country",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.licence.type",
+      "meaning": "Driving licence type",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.licence.held_years",
+      "meaning": "Years the licence has been held",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.licence.number",
+      "meaning": "Driving licence number",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "person.claims.has_any",
+      "meaning": "Any claims in a period",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.claims.date",
+      "meaning": "Date of a claim",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.claims.type",
+      "meaning": "Type of a claim",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "person.convictions.has_any",
+      "meaning": "Any motoring convictions in a period",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "contact.email",
+      "meaning": "Email address",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "contact.phone",
+      "meaning": "Phone number",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "contact.mobile",
+      "meaning": "Mobile number",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.line1",
+      "meaning": "Address lines",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.line2",
+      "meaning": "Address lines",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.town",
+      "meaning": "Town or city",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.county",
+      "meaning": "County, state or region",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.postcode",
+      "meaning": "Postcode or ZIP",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.country",
+      "meaning": "Country",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "address.years_at",
+      "meaning": "Years at this address",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.registration",
+      "meaning": "Registration plate",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.make",
+      "meaning": "Make and model",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.model",
+      "meaning": "Make and model",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.year",
+      "meaning": "Year of manufacture",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.value",
+      "meaning": "Estimated value",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.purchase_date",
+      "meaning": "Date bought",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.annual_mileage",
+      "meaning": "Expected annual mileage",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.use",
+      "meaning": "Social, commuting, business",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.overnight_location",
+      "meaning": "Where it is kept overnight",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.owner",
+      "meaning": "Who owns it",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.keeper",
+      "meaning": "Who is the registered keeper",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "vehicle.modifications.has_any",
+      "meaning": "Any modifications",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.start_date",
+      "meaning": "Cover start date",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.cover_level",
+      "meaning": "Comprehensive, third party…",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.voluntary_excess",
+      "meaning": "Voluntary excess",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.no_claims_years",
+      "meaning": "Years of no-claims discount",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.payment_frequency",
+      "meaning": "Monthly or annual",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "policy.additional_drivers.has_any",
+      "meaning": "Any additional drivers",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "search.query",
+      "meaning": "Free-text search",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "search.location",
+      "meaning": "Where",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "search.date_from",
+      "meaning": "Date range",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "search.date_to",
+      "meaning": "Date range",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "booking.date",
+      "meaning": "Booking date and time",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "booking.time",
+      "meaning": "Booking date and time",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "booking.party_size",
+      "meaning": "Number of people",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "message.subject",
+      "meaning": "Subject line",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "message.body",
+      "meaning": "Message text",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "consent.terms",
+      "meaning": "Accept terms and conditions",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "consent.declaration",
+      "meaning": "Confirm the information given is true",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "consent.marketing",
+      "meaning": "Marketing opt-in",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "account.username",
+      "meaning": "Account username",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "account.password",
+      "meaning": "Password",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.card_number",
+      "meaning": "Card details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.expiry",
+      "meaning": "Card details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.cvc",
+      "meaning": "Card details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.name",
+      "meaning": "Card details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.account_number",
+      "meaning": "Bank details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "payment.sort_code",
+      "meaning": "Bank details",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "nav.next",
+      "meaning": "Go to the next step without committing anything",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "nav.back",
+      "meaning": "Go to the previous step",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "nav.skip",
+      "meaning": "Skip an optional step",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "lookup.address",
+      "meaning": "Look up an address from a postcode",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "lookup.vehicle",
+      "meaning": "Look up a vehicle from its registration",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "form.save",
+      "meaning": "Save progress",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "form.submit",
+      "meaning": "Submit the form (request a quote, send a message, make a booking)",
+      "kind": "action",
+      "default_risk": "consequential",
+      "sensitive": false
+    },
+    {
+      "key": "form.purchase",
+      "meaning": "Buy, pay or commit to a contract",
+      "kind": "action",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "account.create",
+      "meaning": "Create an account",
+      "kind": "action",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "ui.dismiss",
+      "meaning": "Dismiss a banner or dialog (cookie notices: always the least-consent option)",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "ui.expand",
+      "meaning": "Reveal more fields or options",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    }
+  ]
+}
