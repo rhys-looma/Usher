@@ -99,6 +99,15 @@ export class Web {
 
     const origin = board.originOf(req);
     if (!origin) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 401, board.loginPage()), true;
+    // Nothing is shown until the site has proved it controls its origin.
+    const site = await this.registry.storage.getSite(origin);
+    if (!site) return board.logout(res), redirect(res, '/dashboard'), true;
+    if (route === 'POST /dashboard/verify') {
+      const reply = await this.registry.verifySiteFor(origin);
+      if (reply.status === 200) return redirect(res, '/dashboard'), true;
+      return sendHtml(res, 422, board.claimPage(site, html`<div class="card error">${(reply.body as { message: string }).message}</div>`)), true;
+    }
+    if (!site.claim) return sendHtml(res, 403, board.claimPage(site)), true;
     if (route === 'GET /dashboard') return sendHtml(res, 200, await board.overview(origin)), true;
     if (route === 'POST /dashboard/rules') {
       const text = (await readForm(req)).get('text') ?? '';
