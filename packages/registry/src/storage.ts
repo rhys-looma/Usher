@@ -73,6 +73,18 @@ export interface Site {
   site_key: string;
   secret_sha256: string;
   created_at: string;
+  /** Proof that the registrant controls the origin. Until there is one, the dashboard shows nothing. */
+  claim?: SiteClaim;
+}
+
+export interface SiteClaim {
+  /** How control was proved: the site's well-known file, a DNS TXT record, or development keys from configuration. */
+  method: 'well-known' | 'dns' | 'dev';
+  verified_at: string;
+  /** The last successful check (re-checked daily). */
+  checked_at: string;
+  /** Consecutive failed daily checks; the third withdraws the claim. */
+  failures?: number;
 }
 
 export interface StoredKey {

@@ -10,7 +10,8 @@
 //   USHER_RETIRED_KEYS              JSON array of earlier public JWKs, still published
 //   MODEL_API_KEY, BASETEN_API_KEY  model access; USHER_OPEN_MODEL picks the Spark Open id
 //   USHER_DAILY_MODEL_BUDGET_USD    hard daily cap on model spend (default 5)
-//   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses (local demos only)
+//   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses, domain claims check local
+//                                   origins, and agents' key directories be served over http (local demos only)
 //   USHER_TRUST_PROXY=1             take the client address from X-Forwarded-For (behind a proxy)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
@@ -78,6 +79,7 @@ const running = await startRegistry({
   hsts: (values.url ?? '').startsWith('https://'),
   ...(signingKey && { signingKey }),
   ...(retiredKeys && { retiredKeys }),
+  ...(values['allow-private'] && { claims: { allowPrivate: true }, directories: { allowHttp: true } }),
   web: {
     // Public addresses only, unless explicitly allowed for a local demo.
     allowPrivate: values['allow-private'],
@@ -101,6 +103,8 @@ if (values.seed) {
   if (!env.USHER_DEV_SITE_ORIGIN) {
     const site = await running.registry.registerSite({ origin });
     if (site.status === 201) {
+      // Seeding is for the local mock site: its claim is the development one.
+      await running.registry.claimForDevelopment(origin);
       const { site_key, secret_key } = site.body as { site_key: string; secret_key: string };
       console.log(`registered ${origin}\n  site key (script tag, USHER_SITE_KEY): ${site_key}\n  secret key (sessions, dashboard; shown once): ${secret_key}`);
     }

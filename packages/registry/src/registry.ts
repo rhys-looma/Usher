@@ -74,7 +74,27 @@ export interface RegistryOptions {
   now?: () => Date;
   /** Fetching agents' key directories (Signature-Agent): allow http:// and private hosts (local development only). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
+  /** Checking domain claims: allow localhost and private origins (local development), and test doubles. */
+  claims?: { allowPrivate?: boolean; fetch?: typeof fetch; resolveTxt?: (name: string) => Promise<string[][]> };
 }
+
+/** What a registrant publishes to prove they control an origin: either one is enough. */
+export interface ClaimInstructions {
+  well_known: { url: string; content: { usher_site: '0.1'; site_key: string } };
+  dns: { name: string; type: 'TXT'; value: string };
+}
+
+export function claimInstructions(site: { origin: string; site_key: string }): ClaimInstructions {
+  return {
+    well_known: { url: `${site.origin}/.well-known/usher-site.json`, content: { usher_site: '0.1', site_key: site.site_key } },
+    dns: { name: `_usher.${new URL(site.origin).hostname}`, type: 'TXT', value: `usher-site=${site.site_key}` },
+  };
+}
+
+/** An unverified registration older than this can be replaced by a new one. */
+export const STALE_CLAIM_MS = 24 * 3_600_000;
+/** Verified claims are re-checked this often. */
+export const RECHECK_MS = 24 * 3_600_000;
 
 /** An agent whose id has been checked, and how. */
 type AgentCheck =
@@ -97,7 +117,7 @@ export interface MatchSummary {
 
 const ok = (body: unknown): Reply => ({ status: 200, body });
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
-const error = (status: number, code: string, message: string): Reply => ({ status, body: { error: code, message } });
+const error = (status: number, code: string, message: string, extra: object = {}): Reply => ({ status, body: { error: code, message, ...extra } });
 
 export function knockRules(effective: EffectiveRules): Rules {
   return { agents: effective.agent_lane ? 'allowed' : 'denied', confirm: ['consequential'], human_only: ['needs_user'], actions: effective.actions };
@@ -484,21 +504,121 @@ export class Registry {
     return removed;
   }
 
-  /** Registers an origin with keys from configuration, if it isn't registered (for dev seeding only). */
+  /**
+   * Registers an origin with keys from configuration, if it isn't registered, and counts it as
+   * claimed: the operator who configured the keys controls the deployment (development only).
+   */
   async ensureSite(origin: string, siteKey: string, secret: string): Promise<void> {
-    if (await this.storage.getSite(origin)) return;
-    await this.storage.putSite({ origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() });
+    if (!(await this.storage.getSite(origin))) await this.storage.putSite({ origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() });
+    await this.claimForDevelopment(origin);
   }
 
-  /** Registers an origin and issues its keys: a public site key and a secret key, shown once. */
+  /** Marks a registered origin as claimed without a check (development keys, local seeding). */
+  async claimForDevelopment(origin: string): Promise<void> {
+    const site = await this.storage.getSite(origin);
+    const at = this.now().toISOString();
+    if (site && !site.claim) await this.storage.putSite({ ...site, claim: { method: 'dev', verified_at: at, checked_at: at } });
+  }
+
+  /**
+   * Registers an origin and issues its keys: a public site key and a secret key, shown once. The
+   * site then proves it controls the origin (verifySite); until it does, nothing is shown to it.
+   * An unverified registration older than a day can be replaced, so a squatter can't hold an origin.
+   */
   async registerSite(body: unknown): Promise<Reply> {
     const origin = (body as { origin?: unknown } | null)?.origin;
     if (typeof origin !== 'string' || !/^https?:\/\/[^/]+$/.test(origin)) return error(400, 'invalid_request', 'Expected { "origin": "https://example.com" }.');
-    if (await this.storage.getSite(origin)) return error(409, 'site_exists', `${origin} is already registered.`);
+    const existing = await this.storage.getSite(origin);
+    if (existing && (existing.claim || this.now().getTime() - Date.parse(existing.created_at) < STALE_CLAIM_MS)) {
+      return error(409, 'site_exists', existing.claim ? `${origin} is already registered and claimed.` : `${origin} has a registration waiting to be claimed; it can be replaced after ${new Date(Date.parse(existing.created_at) + STALE_CLAIM_MS).toISOString()}.`);
+    }
     const siteKey = `usp_${randomId(18)}`;
     const secret = `uss_${randomId(24)}`;
-    await this.storage.putSite({ origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() });
-    return { status: 201, body: { origin, site_key: siteKey, secret_key: secret } };
+    const site = { origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() };
+    await this.storage.putSite(site);
+    return { status: 201, body: { origin, site_key: siteKey, secret_key: secret, claimed: false, claim: claimInstructions(site) } };
+  }
+
+  /** Checks the two proofs of control, well-known file first. */
+  private async checkClaim(site: Site): Promise<{ method: 'well-known' | 'dns' | null; tried: { method: string; result: string }[] }> {
+    const instructions = claimInstructions(site);
+    const tried: { method: string; result: string }[] = [];
+    const host = new URL(site.origin).hostname;
+    if (!this.options.claims?.allowPrivate && PRIVATE_HOST.test(host)) {
+      return { method: null, tried: [{ method: 'well-known', result: 'a private or local address can only be claimed with development keys' }] };
+    }
+    try {
+      const res = await (this.options.claims?.fetch ?? fetch)(instructions.well_known.url, { signal: AbortSignal.timeout(5000), redirect: 'error', headers: { Accept: 'application/json' } });
+      const text = res.ok ? await res.text() : '';
+      const body = text.length < 10_000 ? (JSON.parse(text || 'null') as { site_key?: unknown } | null) : null;
+      if (body?.site_key === site.site_key) return { method: 'well-known', tried };
+      tried.push({ method: 'well-known', result: res.ok ? 'the file does not contain this site key' : `HTTP ${res.status}` });
+    } catch (err) {
+      tried.push({ method: 'well-known', result: err instanceof SyntaxError ? 'not JSON' : 'could not be fetched' });
+    }
+    try {
+      const resolveTxt = this.options.claims?.resolveTxt ?? (async (name: string) => (await import('node:dns/promises')).resolveTxt(name));
+      const records = (await resolveTxt(instructions.dns.name)).map((parts) => parts.join(''));
+      if (records.includes(instructions.dns.value)) return { method: 'dns', tried };
+      tried.push({ method: 'dns', result: records.length ? 'no TXT record with this site key' : 'no TXT records' });
+    } catch {
+      tried.push({ method: 'dns', result: 'no TXT records' });
+    }
+    return { method: null, tried };
+  }
+
+  /** The site proves it controls its origin. Needs the secret key (or an authenticated dashboard). */
+  async verifySite(origin: string, authorization: string | undefined): Promise<Reply> {
+    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    return this.verifySiteFor(origin);
+  }
+
+  async verifySiteFor(origin: string): Promise<Reply> {
+    const site = await this.storage.getSite(origin);
+    if (!site) return error(404, 'not_found', `${origin} is not registered.`);
+    if (site.claim) return ok({ claimed: true, method: site.claim.method, verified_at: site.claim.verified_at });
+    const { method, tried } = await this.checkClaim(site);
+    if (!method) return error(422, 'claim_not_found', `Neither proof was found: ${tried.map((t) => `${t.method}: ${t.result}`).join('; ')}.`, { claim: claimInstructions(site), tried });
+    const at = this.now().toISOString();
+    await this.storage.putSite({ ...site, claim: { method, verified_at: at, checked_at: at } });
+    return ok({ claimed: true, method, verified_at: at });
+  }
+
+  /**
+   * Re-checks claims older than a day. A check that fails counts against the claim; the third in a
+   * row withdraws it, and the dashboard shows nothing until the site proves control again.
+   */
+  async recheckClaims(): Promise<{ checked: number; withdrawn: string[] }> {
+    const withdrawn: string[] = [];
+    let checked = 0;
+    for (const site of await this.storage.listSites()) {
+      const claim = site.claim;
+      if (!claim || claim.method === 'dev' || this.now().getTime() - Date.parse(claim.checked_at) < RECHECK_MS) continue;
+      checked++;
+      const { method } = await this.checkClaim(site);
+      if (method) {
+        await this.storage.putSite({ ...site, claim: { method, verified_at: claim.verified_at, checked_at: this.now().toISOString() } });
+        continue;
+      }
+      const failures = (claim.failures ?? 0) + 1;
+      if (failures >= 3) {
+        const { claim: _, ...unclaimed } = site;
+        await this.storage.putSite(unclaimed);
+        withdrawn.push(site.origin);
+      } else {
+        // checked_at stays, so the next run tries again.
+        await this.storage.putSite({ ...site, claim: { ...claim, failures } });
+      }
+    }
+    return { checked, withdrawn };
+  }
+
+  /** The site for this secret, if it has also proved control of its origin. */
+  private async claimedSite(origin: string, authorization: string | undefined): Promise<Reply | null> {
+    const site = await this.siteForSecret(origin, authorization);
+    if (!site) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    if (!site.claim) return error(403, 'claim_required', `Prove you control ${origin} first: publish the well-known file or the DNS record, then POST /sites/<origin>/verify.`, { claim: claimInstructions(site) });
+    return null;
   }
 
   /** The site whose secret key this Authorization header carries, if it is the given origin's. */
@@ -513,7 +633,8 @@ export class Registry {
 
   /** Turns the owner's English into a draft policy, held until they confirm it. */
   async proposeRules(origin: string, authorization: string | undefined, body: unknown): Promise<Reply> {
-    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    const refused = await this.claimedSite(origin, authorization);
+    if (refused) return refused;
     return this.proposeRulesFor(origin, (body as { text?: unknown } | null)?.text);
   }
 
@@ -536,7 +657,8 @@ export class Registry {
 
   /** Applies a draft the owner has read. Nothing changes until this is called. */
   async confirmRules(origin: string, id: string, authorization: string | undefined): Promise<Reply> {
-    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    const refused = await this.claimedSite(origin, authorization);
+    if (refused) return refused;
     return this.confirmRulesFor(origin, id);
   }
 
@@ -553,7 +675,8 @@ export class Registry {
   }
 
   async getRules(origin: string, authorization: string | undefined): Promise<Reply> {
-    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    const refused = await this.claimedSite(origin, authorization);
+    if (refused) return refused;
     return ok({ current: (await this.storage.getPolicy(origin)) ?? null, drafts: await this.storage.listDrafts(origin) });
   }
 
@@ -659,6 +782,8 @@ export class Registry {
     if (!this.readLimit.allow(authorization ?? 'anonymous')) return error(429, 'rate_limited', 'Too many session reads; slow down.');
     const session = await this.storage.getSession(sid);
     if (!session || !(await this.siteForSecret(session.origin, authorization))) return error(404, 'not_found', 'No such session for this site key.');
+    const refused = await this.claimedSite(session.origin, authorization);
+    if (refused) return refused;
     // Events arrive from the page and the agent independently; show them in time order.
     const events = session.events.map((e, i) => [e, i] as const).sort(([a, i], [b, j]) => a.ts.localeCompare(b.ts) || i - j).map(([e]) => e);
     return ok({ ...session, events } satisfies Session);

@@ -5,7 +5,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
-import type { Registry } from '../registry.ts';
+import { claimInstructions, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session } from '../storage.ts';
 import { html, page, ruleBadge, when, type Raw } from './html.ts';
 
@@ -115,6 +115,25 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
   <p><label>Secret key<br><input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label></p>
   <button type="submit">Sign in</button>
 </form>`,
+    );
+  }
+
+  /** All an unclaimed site sees: how to prove it controls its origin. */
+  claimPage(site: { origin: string; site_key: string }, notice?: Raw): string {
+    const c = claimInstructions(site);
+    return page(
+      'Claim your site',
+      html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>
+<h1>Claim ${site.origin}</h1>
+<p class="lede">Before the dashboard shows anything, prove you control this origin. Publish either of these, then check. The registry checks again every day.</p>
+${notice ?? ''}
+<div class="card"><h2>A file on your site</h2>
+<p>Serve this at <code>${c.well_known.url}</code>:</p>
+<pre>${JSON.stringify(c.well_known.content, null, 2)}</pre></div>
+<div class="card"><h2>Or a DNS record</h2>
+<p>A <code>TXT</code> record at <code>${c.dns.name}</code> with the value:</p>
+<pre>${c.dns.value}</pre></div>
+<form method="post" action="/dashboard/verify"><button type="submit">Check now</button></form>`,
     );
   }
 

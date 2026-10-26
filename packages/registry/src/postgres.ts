@@ -4,7 +4,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
 import type { PublicJwk } from '@usher/core';
-import type { MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, Storage, StoredKey } from './storage.ts';
+import type { MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, SiteClaim, Storage, StoredKey } from './storage.ts';
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url);
 type LogName = 'matches' | 'runs' | 'drift' | 'blocked';
@@ -127,20 +127,23 @@ export class PostgresStorage implements Storage {
     return (await this.rows<{ record: MapRecord }>('SELECT record FROM maps WHERE origin = $1 ORDER BY added_at', [origin])).map((r) => r.record);
   }
 
+  private siteOf(r: { origin: string; site_key: string; secret_sha256: string; created_at: Date; claim: SiteClaim | null }): Site {
+    return { origin: r.origin, site_key: r.site_key, secret_sha256: r.secret_sha256, created_at: iso(r.created_at)!, ...(r.claim && { claim: r.claim }) };
+  }
+
   async getSite(origin: string): Promise<Site | undefined> {
-    const r = (await this.rows<{ origin: string; site_key: string; secret_sha256: string; created_at: Date }>('SELECT * FROM sites WHERE origin = $1', [origin]))[0];
-    return r && { origin: r.origin, site_key: r.site_key, secret_sha256: r.secret_sha256, created_at: iso(r.created_at)! };
+    const r = (await this.rows<Parameters<PostgresStorage['siteOf']>[0]>('SELECT * FROM sites WHERE origin = $1', [origin]))[0];
+    return r && this.siteOf(r);
   }
 
   async listSites(): Promise<Site[]> {
-    const rows = await this.rows<{ origin: string; site_key: string; secret_sha256: string; created_at: Date }>('SELECT * FROM sites ORDER BY origin');
-    return rows.map((r) => ({ origin: r.origin, site_key: r.site_key, secret_sha256: r.secret_sha256, created_at: iso(r.created_at)! }));
+    return (await this.rows<Parameters<PostgresStorage['siteOf']>[0]>('SELECT * FROM sites ORDER BY origin')).map((r) => this.siteOf(r));
   }
 
   async putSite(site: Site): Promise<void> {
     await this.pool.query(
-      'INSERT INTO sites (origin, site_key, secret_sha256, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT (origin) DO UPDATE SET site_key = EXCLUDED.site_key, secret_sha256 = EXCLUDED.secret_sha256',
-      [site.origin, site.site_key, site.secret_sha256, site.created_at],
+      'INSERT INTO sites (origin, site_key, secret_sha256, created_at, claim) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (origin) DO UPDATE SET site_key = EXCLUDED.site_key, secret_sha256 = EXCLUDED.secret_sha256, created_at = EXCLUDED.created_at, claim = EXCLUDED.claim',
+      [site.origin, site.site_key, site.secret_sha256, site.created_at, site.claim ? JSON.stringify(site.claim) : null],
     );
   }
 

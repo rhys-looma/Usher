@@ -43,7 +43,18 @@ A site registers its origin with its registry (`POST <registry>/sites` with `{"o
 - a **site key** (`usp_…`), which is public and goes in the script tag as `data-usher-site-key`, for drift reports;
 - a **secret key** (`uss_…`), which the site keeps private and sends as `Authorization: Bearer <secret key>` to read its sessions and use its dashboard. The registry stores only a hash of it.
 
-Proving control of the origin (DNS or a well-known file) is a later addition; until then registration is first come, first served.
+### Claiming the origin
+
+The registration response also says how to prove control of the origin. Either proof is enough:
+
+- **A well-known file**: `GET <origin>/.well-known/usher-site.json` answers `{"usher_site": "0.1", "site_key": "usp_…"}` with the site's own key.
+- **A DNS record**: a `TXT` record at `_usher.<host>` with the value `usher-site=usp_…`.
+
+The site then asks the registry to check, with `POST <registry>/sites/<origin>/verify` and its secret key, or with the dashboard's "Check now". Until a check succeeds, the registry shows the site nothing: its sessions, rules and dashboard answer `403 claim_required`, with the instructions again.
+
+- **Daily re-checks.** The registry re-checks each claim daily. A failed check counts against the claim, and the third failure in a row withdraws it until the site proves control again.
+- **Stale registrations.** A registration that is never claimed can be replaced by someone else after a day, so nobody can squat on an origin. A claimed one cannot be replaced.
+- **Local origins.** Private and local origins can't be checked from outside. A registry operator can mark them claimed with development keys from configuration, which are never re-checked.
 
 ## 2. Agent identity
 
