@@ -29,6 +29,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
 import { RateLimiter } from './rate-limit.ts';
 import { RulesError, compileRules } from './rules.ts';
+import { explainFacts, factsHash, formFacts, type Explanation } from './explain.ts';
 import type { MapRecord, Session, SessionEvent, Site, Storage } from './storage.ts';
 
 /** The knock response's rules: risk-level defaults, and the effective rule for each key on the form. */
@@ -47,6 +48,8 @@ export interface RegistryOptions {
   /** Muse Spark, for turning site owners' plain-English rules into policy. */
   chat?: ChatFn;
   model?: string;
+  /** The model that explains sessions to site owners (Muse Spark, or Spark Open for self-hosters). */
+  explainer?: { chat: ChatFn; model: string };
   /** Public URL of the registry, used as the token issuer. A function when it is known only after listening. */
   url: string | (() => string);
   threshold?: number;
@@ -427,6 +430,72 @@ export class Registry {
   async getRules(origin: string, authorization: string | undefined): Promise<Reply> {
     if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
     return ok({ current: (await this.storage.getPolicy(origin)) ?? null, drafts: await this.storage.listDrafts(origin) });
+  }
+
+  /** The newest map for each path on an origin. */
+  private async currentMaps(origin: string): Promise<Map<string, UsherMap>> {
+    const latest = new Map<string, MapRecord>();
+    for (const r of await this.storage.mapsForOrigin(origin)) {
+      const seen = latest.get(r.map.path);
+      if (!seen || r.added_at > seen.added_at) latest.set(r.map.path, r);
+    }
+    return new Map([...latest].map(([path, r]) => [path, r.map]));
+  }
+
+  /** Cached explanations for each form on an origin. */
+  async explanations(origin: string): Promise<Explanation[]> {
+    const found = await Promise.all([...(await this.currentMaps(origin)).keys()].map((path) => this.storage.getCached<Explanation>('explanations', `${origin}|${path}`)));
+    return found.filter((e): e is Explanation => e !== undefined).sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /**
+   * Explains the last day's agent sessions on each form (or the 20 most recent, if quieter),
+   * reusing a cached explanation when nothing has changed. Returns an error message or null.
+   */
+  async explainOrigin(origin: string): Promise<string | null> {
+    if (!this.options.explainer) return 'This registry has no model configured for explanations.';
+    const all = await this.storage.listSessions(origin);
+    const dayAgo = new Date(this.now().getTime() - 86_400_000).toISOString();
+    const recent = all.filter((s) => s.created_at >= dayAgo);
+    const sessions = recent.length ? recent : all.slice(0, 20);
+    if (!sessions.length) return 'No agent sessions to explain yet.';
+    const blocked = ((await this.storage.readLog('blocked')) as { origin: string; path: string; reason: string }[]).filter((b) => b.origin === origin);
+    try {
+      for (const [path, map] of await this.currentMaps(origin)) {
+        const facts = formFacts(map, sessions, blocked);
+        if (!facts.sessions && !Object.keys(facts.refused_attempts as object).length) continue;
+        const key = `${origin}|${path}`;
+        const cached = await this.storage.getCached<Explanation>('explanations', key);
+        if (cached?.facts_sha256 === factsHash(facts)) continue;
+        const result = await explainFacts(this.options.explainer.chat, this.options.explainer.model, facts);
+        await this.storage.putCached('explanations', key, {
+          path,
+          text: result.text,
+          sessions: facts.sessions as number,
+          model: this.options.explainer.model,
+          created_at: this.now().toISOString(),
+          facts_sha256: result.facts_sha256,
+        } satisfies Explanation);
+      }
+      return null;
+    } catch (err) {
+      return `The explanation could not be made: ${err instanceof Error ? err.message.slice(0, 160) : 'model error'}`;
+    }
+  }
+
+  /** One agent session in a few sentences, per page it visited. */
+  async explainSession(origin: string, sid: string, regenerate = false): Promise<Explanation | null> {
+    const session = await this.storage.getSession(sid);
+    if (!session || session.origin !== origin || !this.options.explainer) return null;
+    const cached = await this.storage.getCached<Explanation>('session-explanations', sid);
+    if (cached && !regenerate) return cached;
+    const maps = await this.currentMaps(origin);
+    const pages = [...new Set(session.events.map((e) => e.path).filter((p): p is string => !!p))].filter((p) => maps.has(p));
+    const facts = { one_agent_session: true, pages: pages.map((p) => formFacts(maps.get(p)!, [session], [])) };
+    const result = await explainFacts(this.options.explainer.chat, this.options.explainer.model, facts);
+    const explanation: Explanation = { path: pages.join(', '), text: result.text, sessions: 1, model: this.options.explainer.model, created_at: this.now().toISOString(), facts_sha256: result.facts_sha256 };
+    await this.storage.putCached('session-explanations', sid, explanation);
+    return explanation;
   }
 
   /** The newest map for a page, so the site script can compare fingerprints locally. */
