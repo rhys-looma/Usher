@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:02:01.773Z",
+  "layout": "b",
+  "step": "driver",
+  "attempts": [
+    {
+      "request_sha256": "82cc2294bc404e99f3a101abadbded8582eb82e71f8bbc30fcdf791af42eea24",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email entry is reversible data input for quote contact; no legal or financial commitment on its own.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible with no external effect until form is submitted.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting title is a low-risk preference choice, reversible and with no outside effect.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible personal data input with no commitment.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth is personal data used for pricing but entering it is reversible and not itself a legal declaration or payment.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address data for quoting, no legal/financial commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address data, no commitment on its own.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting main occupation from list is reversible input for risk assessment.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status choice is reversible categorical input with no external effect.\"},{\"id\":\"e11\",\"risk\":\"needs_user\",\"reason\":\"Material insurance disclosure about claims history; requires user's own knowledge/recall and inaccurate answer can void cover - a legal declaration.\"},{\"id\":\"e12\",\"risk\":\"needs_user\",\"reason\":\"Specific date of claim is detail of material disclosure; requires accurate recall and has legal weight for validity of quote/contract.\"},{\"id\":\"e13\",\"risk\":\"needs_user\",\"reason\":\"Type of claim is categorization of material disclosure requiring user judgement with legal implications for insurance validity.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' is navigation to next step of multi-step quote flow; reversible and does not itself finalize purchase or legally commit.\"}]}",
+      "usage": {
+        "prompt_tokens": 860,
+        "completion_tokens": 4383,
+        "total_tokens": 5243,
+        "cached_tokens": 256
+      },
+      "latency_ms": 15158
+    }
+  ]
+}

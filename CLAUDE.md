@@ -60,7 +60,7 @@ Node 20+.
 npm install
 npm test             # installs chromium if needed, starts mock site (A and B) on free ports, runs tests
 npm run typecheck
-npm run compile -- <url> [--out file]   # compile one page with Muse Spark
+npm run compile -- <url> [--out file] [--classify]   # compile one page with Muse Spark (+ Spark Open second opinion)
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
 npm run fixtures:record:open            # same for Muse Spark Open (needs BASETEN_API_KEY)
 npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps (data in data/registry)
