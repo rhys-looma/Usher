@@ -28,6 +28,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/core/test/` | node:test suites; browser tests use Playwright (chromium) |
 | `examples/mock-quote-site/` | Fictional three-step quote form (Brightwater Motor), no dependencies |
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A and B) started on free ports |
+| `packages/registry/` | Registry: knock, maps (lookup by fingerprint), sessions, runs, drift; HTTP (`src/http.ts`) and MCP (`src/mcp.ts`); JSON-file storage |
 | `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
 
 ## Core package
@@ -57,6 +58,8 @@ npm test             # installs chromium if needed, starts mock site (A and B) o
 npm run typecheck
 npm run compile -- <url> [--out file]   # compile one page with Muse Spark
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
+npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps (data in data/registry)
+npm run seed:build                      # rebuild seed maps from recorded labels
 USHER_LIVE=1 npm test                   # also run the live model test
 ```
 
