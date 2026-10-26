@@ -30,6 +30,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A and B) started on free ports |
 | `packages/registry/` | Registry: knock, maps (lookup by fingerprint), sessions, runs, drift; HTTP (`src/http.ts`) and MCP (`src/mcp.ts`); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
+| `packages/site-script/` | The one-tag site script, bundled to `dist/usher.js` and served by the registry at `/usher.js` |
 | `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
 
 ## Core package

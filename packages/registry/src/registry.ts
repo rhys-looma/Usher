@@ -247,7 +247,10 @@ export class Registry {
 
   async getSession(sid: string): Promise<Reply> {
     const session = await this.storage.getSession(sid);
-    return session ? ok(session satisfies Session) : error(404, 'not_found', 'No such session.');
+    if (!session) return error(404, 'not_found', 'No such session.');
+    // Events arrive from the page and the agent independently; show them in time order.
+    const events = session.events.map((e, i) => [e, i] as const).sort(([a, i], [b, j]) => a.ts.localeCompare(b.ts) || i - j).map(([e]) => e);
+    return ok({ ...session, events } satisfies Session);
   }
 
   /** The site script saw a live form that differs from the registry's map for it. */

@@ -1,0 +1,19 @@
+{
+  "name": "@usher/site-script",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Usher site script: knock notices on forms, token binding, rules, the agent log and drift reports.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@usher/core": "*"
+  },
+  "devDependencies": {
+    "@usher/registry": "*",
+    "@usher/site-middleware": "*"
+  }
+}

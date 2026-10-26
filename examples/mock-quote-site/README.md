@@ -31,6 +31,7 @@ Set `USHER_REGISTRY_URL` to turn Usher on (run `npm run build` at the repository
 USHER_REGISTRY_URL=http://localhost:4200 npm start
 ```
 
+- Every page loads the site script from the registry (`<script src="…/usher.js" data-usher-registry="…">`), which adds the knock notice to the form, binds agent tokens and reports drift.
 - `/.well-known/usher.json` names the registry.
 - `POST /quote/cover` (requesting the quote) checks a token from requests that identify as agents: an `Authorization: Usher …` or `X-Usher-Token` header, a `usher_token` form field, or an `Usher-Agent` header. People using the form are not checked.
 - `POST /api/quote` is for software, so every call needs a token. Without one it answers `403` with `{"error":"knock_required", …}` and a `Link` header pointing at the knock URL.
