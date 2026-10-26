@@ -6,10 +6,16 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./token": "./src/token.ts",
+    "./identity": "./src/identity.ts",
+    "./encoding": "./src/encoding.ts",
+    "./extract": "./src/extract.ts",
+    "./locators": "./src/locators.ts",
+    "./fingerprint": "./src/fingerprint.ts"
   },
   "scripts": {
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
