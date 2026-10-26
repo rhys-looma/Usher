@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:01:42.777Z",
+  "layout": "a",
+  "step": "vehicle",
+  "attempts": [
+    {
+      "request_sha256": "da0b5735616c5136a38cae5b1d66036866eba88c57dc51ae0c215a97fb6f3937",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering registration number is reversible data entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a lookup/search action within the session, reversible with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible data entry.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible data entry.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible data entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated annual mileage is reversible data entry for the quote.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is a reversible choice within the form.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting where car is kept overnight is a reversible choice.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting modification status is a reversible yes/no choice.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation within the session, reversible.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Continue only advances to next step of vehicle details flow, does not request quote or create commitment.\"}]}",
+      "usage": {
+        "prompt_tokens": 736,
+        "completion_tokens": 2065,
+        "total_tokens": 2801,
+        "cached_tokens": 256
+      },
+      "latency_ms": 8737
+    }
+  ]
+}

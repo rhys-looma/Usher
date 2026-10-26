@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:02:05.663Z",
+  "layout": "b",
+  "step": "vehicle",
+  "attempts": [
+    {
+      "request_sha256": "2f7f06242ea55807f4411db52d1d7e25b8ab0ddaf87e15d39c2448ff7c12fd1c",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering car registration is reversible data entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a lookup/search action within the session, reversible with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible vehicle detail entry with no external effect.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible vehicle detail entry with no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible data entry with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible data entry with no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is a reversible choice with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is a reversible choice with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering about modifications is a reversible choice with no external effect.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation within the form, reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Next advances to the next step of the quote flow, reversible and does not itself request a quote or commit.\"}]}",
+      "usage": {
+        "prompt_tokens": 736,
+        "completion_tokens": 1431,
+        "total_tokens": 2167,
+        "cached_tokens": 384
+      },
+      "latency_ms": 3730
+    }
+  ]
+}

@@ -73,7 +73,7 @@ export class Web {
       const result = await this.viewer.compile(target, req.socket.remoteAddress ?? 'unknown');
       if (!result.ok) return sendHtml(res, result.reason === 'rate_limited' ? 429 : 422, viewerPage({ url: target, error: result })), true;
       const source = `${result.cached ? 'from cache' : `compiled by ${result.model}`} in ${(result.ms / 1000).toFixed(1)}s${result.cost_usd ? `, $${result.cost_usd.toFixed(4)}` : ''}`;
-      return sendHtml(res, 200, mapPage(result.map, { source })), true;
+      return sendHtml(res, 200, mapPage(result.map, { source, ...(result.flags && { flags: result.flags }) })), true;
     }
     if (route === 'GET /maps/view') {
       const origin = url.searchParams.get('origin') ?? '';

@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:02:10.596Z",
+  "layout": "b",
+  "step": "cover",
+  "attempts": [
+    {
+      "request_sha256": "6d52359dd0f6a05a2ff958cdab6d71be8c58f5356ac7f8ef5dd66fcf67ce1bd4",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Date selection only configures the quote calculation, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Choosing level of cover is a quote parameter, reversible and has no commitment outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting voluntary excess amount configures the quote, no financial or legal commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Selecting years of no-claims discount is informational for pricing the quote.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference is for quote illustration only, not entering payment details or committing to pay.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires user's own judgement and commitment.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user's own judgement about receiving offers.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Navigation link to go back, reversible with no effect outside session.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submits information to request an insurance quote, an external action the person should know about.\"}]}",
+      "usage": {
+        "prompt_tokens": 730,
+        "completion_tokens": 1263,
+        "total_tokens": 1993,
+        "cached_tokens": 256
+      },
+      "latency_ms": 4784
+    }
+  ]
+}

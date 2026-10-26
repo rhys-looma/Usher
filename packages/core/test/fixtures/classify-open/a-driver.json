@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:01:33.889Z",
+  "layout": "a",
+  "step": "driver",
+  "attempts": [
+    {
+      "request_sha256": "e412705cb95dfc2e55a5eddb2c3034ac3aeffcc78b35f2771d0dc79ee5c083e7",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Selecting title is reversible personal detail entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Entering first name is reversible and stays within session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering last name is reversible and has no outside commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering date of birth is standard personal data entry, reversible with no external action.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Providing email address is reversible contact detail entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible with no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Entering postcode is reversible address detail.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Entering address line is reversible personal data entry.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation is reversible choice with no external commitment.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Choosing employment status is reversible option selection.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history question is reversible factual disclosure.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering claim date is reversible detail entry.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting claim type is reversible categorization.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue button only advances to next step of quote flow, no quote requested or commitment made.\"}]}",
+      "usage": {
+        "prompt_tokens": 861,
+        "completion_tokens": 1035,
+        "total_tokens": 1896,
+        "cached_tokens": 768
+      },
+      "latency_ms": 4136
+    }
+  ]
+}

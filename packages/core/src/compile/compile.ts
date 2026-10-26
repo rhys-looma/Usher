@@ -11,6 +11,7 @@ import { mergeMap, type UsherMap } from '../map.ts';
 import { appendLog, redactRequest } from './log.ts';
 import { compilerModel, costUsd, parseJsonContent, type ChatFn, type ChatMessage, type ChatRequest, type Usage } from './model.ts';
 import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt } from './prompt.ts';
+import { classifierRequest, classifyRisks, reconcile, type RiskFlag } from './classify.ts';
 
 /** Default compiler log folder: data/compiler-log at the repository root (gitignored). */
 export const DEFAULT_LOG_DIR = fileURLToPath(new URL('../../../../data/compiler-log/', import.meta.url));
@@ -32,7 +33,13 @@ export interface CompileOptions {
   step?: number;
   leadsTo?: string;
   now?: () => Date;
+  /** A second opinion on risk from an open-weights model; the stricter risk is kept. */
+  classifier?: { chat: ChatFn; model: string };
 }
+
+export type ClassifierOutcome =
+  | { model: string; agreement: number; flags: RiskFlag[]; usage: Usage; cost_usd: number | null; latency_ms: number }
+  | { model: string; error: string };
 
 export interface Attempt {
   usage: Usage;
@@ -55,6 +62,7 @@ export interface CompileResult {
   model_ms: number;
   /** Whole compile, including extraction and the screenshot. */
   total_ms: number;
+  classifier?: ClassifierOutcome;
 }
 
 export class CompileError extends Error {
@@ -80,23 +88,17 @@ export function pickForm(scan: Scan, index?: number): ScannedForm {
   return best;
 }
 
-// A full-width PNG of the form area. Text in filled inputs is hidden first, so a page that
-// already holds someone's answers can't send them to the model.
+// A full-width PNG of the form area. Text inputs and text areas are painted over by Playwright's
+// mask (outside the page, so any Content Security Policy allows it), so a page that already holds
+// someone's answers can't send them to the model, and no value is ever read.
 async function screenshotForm(page: Page, form: ScannedForm): Promise<string> {
   const boxes = form.elements.filter((e) => e.visible).map((e) => e.box);
   const width = page.viewportSize()?.width ?? VIEWPORT.width;
   const top = Math.max(0, Math.min(...boxes.map((b) => b.y)) - 160);
   const bottom = Math.max(...boxes.map((b) => b.y + b.height)) + 40;
-  const style = await page.addStyleTag({
-    content:
-      'input:not([type=checkbox]):not([type=radio]):not(:placeholder-shown), textarea { color: transparent !important; -webkit-text-fill-color: transparent !important; }',
-  });
-  try {
-    const png = await page.screenshot({ type: 'png', fullPage: true, clip: { x: 0, y: top, width, height: Math.max(1, bottom - top) } });
-    return png.toString('base64');
-  } finally {
-    await style.evaluate((node) => (node as Element).remove());
-  }
+  const typed = page.locator('input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=hidden]):not([type=image]):not([type=reset]), textarea');
+  const png = await page.screenshot({ type: 'png', fullPage: true, clip: { x: 0, y: top, width, height: Math.max(1, bottom - top) }, mask: [typed], maskColor: '#eef0f3' });
+  return png.toString('base64');
 }
 
 function addUsage(a: Usage, b: Usage): Usage {
@@ -194,6 +196,27 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     );
   }
 
+  // Second opinion: where the open-weights classifier disagrees, keep the stricter risk and flag it.
+  let classifier: ClassifierOutcome | undefined;
+  if (options.classifier) {
+    const labelled = validation.labels.elements;
+    const els = form.elements.filter((e) => labelled.some((l) => l.id === e.id));
+    try {
+      const c = await classifyRisks(options.classifier.chat, options.classifier.model, validation.labels.form.purpose, els);
+      const { risks, flags, agreement } = reconcile(
+        labelled.map((l) => ({ id: l.id, key: l.key, label: els.find((e) => e.id === l.id)!.label, risk: l.risk })),
+        c.opinions,
+      );
+      validation.labels.elements = labelled.map((l) => ({ ...l, risk: risks.get(l.id)! }));
+      classifier = { model: c.model, agreement, flags, usage: c.usage, cost_usd: c.cost_usd, latency_ms: c.latency_ms };
+      if (logDir) {
+        await appendLog(logDir, { ts: now().toISOString(), model: c.model, url: scan.url, fingerprint: fp.digest, task: 'classify', request: classifierRequest(c.model, validation.labels.form.purpose, els), opinions: c.opinions, usage: c.usage, latency_ms: c.latency_ms, cost_usd: c.cost_usd, agreement, flags }, now());
+      }
+    } catch (err) {
+      classifier = { model: options.classifier.model, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   const map = mergeMap({
     form,
     fingerprint: fp,
@@ -216,6 +239,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     cost_usd,
     model_ms: attempts.reduce((s, a) => s + a.latency_ms, 0),
     total_ms: Math.round(performance.now() - started),
+    ...(classifier && { classifier }),
   };
 }
 
