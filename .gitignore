@@ -4,3 +4,4 @@ test-results/
 .DS_Store
 .env
 data/compiler-log/
+data/registry/

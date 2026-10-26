@@ -1,0 +1,21 @@
+{
+  "name": "@usher/registry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Usher registry: maps, knocks, tokens and logs, over HTTP and MCP.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@usher/core": "*",
+    "zod": "^4.6.7"
+  }
+}

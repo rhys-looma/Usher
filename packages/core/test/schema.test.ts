@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { fingerprint, type Scan } from '../src/index.ts';
 import { LAYOUTS, STEPS, launch, openStep, scan } from './helpers.ts';
-import { mapSchemaErrors } from './map-schema.ts';
+import { mapSchemaErrors } from '../src/schemas.ts';
 
 const specDir = new URL('../../../spec/', import.meta.url);
 

@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { compilePage, compilerModel, modelApi, summary } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
 import { launch, openStep } from './helpers.ts';
-import { mapSchemaErrors } from './map-schema.ts';
+import { mapSchemaErrors } from '../src/schemas.ts';
 
 const live = process.env.USHER_LIVE === '1';
 

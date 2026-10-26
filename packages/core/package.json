@@ -12,13 +12,15 @@
     "./encoding": "./src/encoding.ts",
     "./extract": "./src/extract.ts",
     "./locators": "./src/locators.ts",
-    "./fingerprint": "./src/fingerprint.ts"
+    "./fingerprint": "./src/fingerprint.ts",
+    "./schemas": "./src/schemas.ts"
   },
   "scripts": {
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "playwright": "^1.64.1"
+    "playwright": "^1.64.1",
+    "ajv": "^8.20.0"
   }
 }

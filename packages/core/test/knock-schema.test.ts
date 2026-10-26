@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { knockSchemaErrors } from './map-schema.ts';
+import { knockSchemaErrors } from '../src/schemas.ts';
 
 const examples = new URL('../../../spec/examples/knock/', import.meta.url);
 const read = async (name: string) => JSON.parse(await readFile(new URL(name, examples), 'utf8'));

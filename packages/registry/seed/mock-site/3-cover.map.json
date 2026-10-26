@@ -1,0 +1,331 @@
+{
+  "usher": "0.1",
+  "origin": "http://localhost:4100",
+  "path": "/quote/cover",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:1a78d8d9c6f1c719e7e20042c4b8c8dacf33f6a25c4d31e4996e89c4d2fa83ee",
+    "signature": [
+      "1dcd51747be8",
+      "69dde24497e3",
+      "bc7105b7ff93",
+      "56bcfa44f68d",
+      "5f73ba8a9291",
+      "326a02a4baf3",
+      "10a67b347285",
+      "fcc5e8327a93",
+      "0355aecb180b"
+    ]
+  },
+  "form": {
+    "purpose": "Car insurance quote: cover details",
+    "intent": "quote.car_insurance",
+    "step": 3
+  },
+  "fields": [
+    {
+      "id": "e1",
+      "key": "policy.start_date",
+      "label": "Cover start date",
+      "control": "date",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "format": "date"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "start-date"
+        },
+        {
+          "by": "name",
+          "value": "start_date"
+        },
+        {
+          "by": "label",
+          "value": "Cover start date"
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "key": "policy.cover_level",
+      "label": "Level of cover",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "comprehensive",
+            "label": "Comprehensive"
+          },
+          {
+            "value": "third-party-fire-and-theft",
+            "label": "Third party, fire and theft"
+          },
+          {
+            "value": "third-party-only",
+            "label": "Third party only"
+          }
+        ],
+        "total": 3,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "cover-level"
+        },
+        {
+          "by": "name",
+          "value": "cover_level"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Level of cover"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "policy.voluntary_excess",
+      "label": "Voluntary excess",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "0",
+            "label": "£0"
+          },
+          {
+            "value": "100",
+            "label": "£100"
+          },
+          {
+            "value": "250",
+            "label": "£250"
+          },
+          {
+            "value": "500",
+            "label": "£500"
+          }
+        ],
+        "total": 4,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "excess"
+        },
+        {
+          "by": "name",
+          "value": "excess"
+        },
+        {
+          "by": "label",
+          "value": "Voluntary excess"
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "key": "policy.no_claims_years",
+      "label": "Years of no-claims discount",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "0",
+            "label": "0"
+          },
+          {
+            "value": "1",
+            "label": "1"
+          },
+          {
+            "value": "2",
+            "label": "2"
+          },
+          {
+            "value": "3",
+            "label": "3"
+          },
+          {
+            "value": "4",
+            "label": "4"
+          },
+          {
+            "value": "5",
+            "label": "5"
+          },
+          {
+            "value": "6",
+            "label": "6"
+          },
+          {
+            "value": "7",
+            "label": "7"
+          },
+          {
+            "value": "8",
+            "label": "8"
+          },
+          {
+            "value": "9+",
+            "label": "9+"
+          }
+        ],
+        "total": 10,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "ncd-years"
+        },
+        {
+          "by": "name",
+          "value": "ncd_years"
+        },
+        {
+          "by": "label",
+          "value": "Years of no-claims discount"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "key": "policy.payment_frequency",
+      "label": "How would you like to pay?",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "annually",
+            "label": "Annually"
+          },
+          {
+            "value": "monthly",
+            "label": "Monthly"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "payment"
+        },
+        {
+          "by": "name",
+          "value": "payment"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "How would you like to pay?"
+        }
+      ]
+    },
+    {
+      "id": "e6",
+      "key": "consent.declaration",
+      "label": "I confirm the information I have given is true and complete",
+      "control": "checkbox",
+      "required": true,
+      "risk": "needs_user",
+      "locators": [
+        {
+          "by": "id",
+          "value": "declaration"
+        },
+        {
+          "by": "name",
+          "value": "declaration"
+        },
+        {
+          "by": "label",
+          "value": "I confirm the information I have given is true and complete"
+        }
+      ]
+    },
+    {
+      "id": "e7",
+      "key": "consent.marketing",
+      "label": "Send me offers by email (optional)",
+      "control": "checkbox",
+      "required": false,
+      "risk": "needs_user",
+      "locators": [
+        {
+          "by": "id",
+          "value": "marketing"
+        },
+        {
+          "by": "name",
+          "value": "marketing"
+        },
+        {
+          "by": "label",
+          "value": "Send me offers by email (optional)"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e8",
+      "key": "nav.back",
+      "label": "Back",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Back"
+        },
+        {
+          "by": "css",
+          "value": "form a"
+        }
+      ]
+    },
+    {
+      "id": "e9",
+      "key": "form.submit",
+      "label": "Get my quote",
+      "kind": "submit",
+      "risk": "consequential",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Get my quote"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"submit\"]"
+        }
+      ],
+      "leads_to": "/quote/result"
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-26T19:25:24.903Z",
+    "verified": false
+  }
+}

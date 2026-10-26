@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fingerprint, mergeMap, validateLabels, type Provenance, type ScannedForm } from '../src/index.ts';
 import { launch, openStep, scan } from './helpers.ts';
-import { mapSchemaErrors } from './map-schema.ts';
+import { mapSchemaErrors } from '../src/schemas.ts';
 
 const read = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
 const example = await read('../../../spec/examples/quote-driver.map.json');
