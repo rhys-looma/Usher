@@ -3,8 +3,8 @@
 // An agent's id is the RFC 7638 thumbprint of its Ed25519 public key. Knocks and other agent
 // writes are signed over "usher-sig-v1\n" + the canonical JSON of the request without its
 // signature, so the same request verifies whether it came over HTTP or as an MCP tool call.
-// Only how the registry learns the agent id is specific to this scheme; it can be swapped for
-// HTTP Message Signatures (RFC 9421) and Web Bot Auth later.
+// This is the fallback: agents normally also sign with HTTP Message Signatures (RFC 9421) as Web
+// Bot Auth profiles them (http-signatures.ts), whose keyid is the same thumbprint.
 
 import { canonicalJson, fromBase64Url, toBase64Url, utf8, type Bytes } from './encoding.ts';
 import { generateKeyPair, importPrivateKey, jwkThumbprint, publicPart, sign, verifySignature, type PrivateJwk, type PublicJwk } from './token.ts';

@@ -16,6 +16,8 @@ import {
   type PageError,
   type PreflightProblem,
   compilePage,
+  contentDigest,
+  signHttpMessage,
   pickForm,
   costUsd,
   type ActionRule,
@@ -76,6 +78,10 @@ export interface AgentOptions {
   noUsher?: boolean;
   /** Fill each page but stop before its way forward (for public forms: never submit). */
   dryRun?: boolean;
+  /** Sign the browser's requests to the site with the agent's key (Web Bot Auth; default true). */
+  signRequests?: boolean;
+  /** Where the agent publishes its key directory, sent as Signature-Agent. */
+  signatureAgent?: string;
   /** Ignore the site's knock notice (an agent that skips Usher), but still look maps up. */
   knock?: boolean;
   /** Extra headers on every request the browser makes, e.g. Usher-Agent. */
@@ -266,6 +272,25 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const agentFields = <T extends FieldSpec>(fields: T[], rule: (f: T) => string) => fields.filter((f) => rule(f) !== 'forbid' && f.risk !== 'needs_user');
 
   try {
+    // Web Bot Auth: every request to the site carries a signature from the agent's key, so the
+    // site can tell this agent from anyone holding a copy of its token.
+    const identity = options.registry.identity;
+    if (identity && !options.noUsher && options.signRequests !== false) {
+      const origin = new URL(options.url).origin;
+      const signatureAgent = options.signatureAgent ?? process.env.USHER_SIGNATURE_AGENT;
+      await page.route(
+        (u) => u.origin === origin,
+        async (route) => {
+          const request = route.request();
+          const headers = Object.fromEntries(Object.entries(await request.allHeaders()).filter(([k]) => !k.startsWith(':')));
+          const body = request.postDataBuffer();
+          if (body?.length) headers['content-digest'] = await contentDigest(new Uint8Array(body));
+          const components = ['@method', '@authority', '@path', ...(body?.length ? ['content-digest'] : [])];
+          Object.assign(headers, await signHttpMessage({ method: request.method(), url: request.url(), headers }, identity, { components, ...(signatureAgent && { signatureAgent }) }));
+          await route.continue({ headers });
+        },
+      );
+    }
     await options.onPage?.(page);
     // A plan lets the agent check the whole journey's data before opening a page.
     if (options.usePlan !== false && !options.noUsher) {
@@ -430,7 +455,12 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       };
       let rejected = await submit(button);
       // Bind again on the page that came back, so the site script logs which keys were rejected.
-      if (rejected.length && knock) await page.evaluate((token) => window.usher?.bind(token), knock.token).catch(() => undefined);
+      if (rejected.length && knock) {
+        // Wait for that log to reach the registry before the page can be closed.
+        const logged = page.waitForResponse((r) => r.request().method() === 'POST' && /\/sessions\/[^/]+\/events$/.test(new URL(r.url()).pathname), { timeout: 3000 }).catch(() => undefined);
+        await page.evaluate((token) => window.usher?.bind(token), knock.token).catch(() => undefined);
+        await logged;
+      }
       if (rejected.length && options.user.correct) {
         // Fix what the site named, by key, and try once more without re-reading the page.
         for (const e of rejected) {

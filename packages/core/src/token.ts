@@ -50,6 +50,8 @@ export interface TokenClaims {
   forbid?: string[];
   /** Keys the agent stated, when knocking, that its user confirmed. */
   confirmed?: string[];
+  /** The agent's public key (RFC 7800 confirmation): sites can check its request signatures. */
+  cnf?: { jwk: PublicJwk };
 }
 
 export interface TokenHeader {

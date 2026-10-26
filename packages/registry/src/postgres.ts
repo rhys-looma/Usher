@@ -4,7 +4,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
 import type { PublicJwk } from '@usher/core';
-import type { MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, Site, Storage, StoredKey } from './storage.ts';
+import type { MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, Storage, StoredKey } from './storage.ts';
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url);
 type LogName = 'matches' | 'runs' | 'drift' | 'blocked';
@@ -183,19 +183,20 @@ export class PostgresStorage implements Storage {
   }
 
   async getSession(id: string): Promise<Session | undefined> {
-    const s = (await this.rows<{ id: string; origin: string; agent: string; intent: string; created_at: Date }>('SELECT * FROM sessions WHERE id = $1', [id]))[0];
+    const s = (await this.rows<{ id: string; origin: string; agent: string; intent: string; created_at: Date; identity: SessionIdentity | null }>('SELECT * FROM sessions WHERE id = $1', [id]))[0];
     if (!s) return undefined;
     const events = await this.rows<Parameters<PostgresStorage['eventOf']>[0]>('SELECT ts, source, action, key, element, path, detail FROM session_events WHERE session_id = $1 ORDER BY id', [id]);
-    return { id: s.id, origin: s.origin, agent: s.agent, intent: s.intent, created_at: iso(s.created_at)!, events: events.map((e) => this.eventOf(e)) };
+    return { id: s.id, origin: s.origin, agent: s.agent, intent: s.intent, created_at: iso(s.created_at)!, events: events.map((e) => this.eventOf(e)), ...(s.identity && { identity: s.identity }) };
   }
 
   async putSession(session: Session): Promise<void> {
-    await this.pool.query('INSERT INTO sessions (id, origin, agent, intent, created_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING', [
+    await this.pool.query('INSERT INTO sessions (id, origin, agent, intent, created_at, identity) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING', [
       session.id,
       session.origin,
       session.agent,
       session.intent,
       session.created_at,
+      session.identity ? JSON.stringify(session.identity) : null,
     ]);
     if (session.events.length) await this.insertEvents(session.id, session.events);
   }

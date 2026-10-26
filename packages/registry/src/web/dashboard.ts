@@ -9,6 +9,16 @@ import type { Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session } from '../storage.ts';
 import { html, page, ruleBadge, when, type Raw } from './html.ts';
 
+/** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
+function identityBadge(session: Session | undefined): Raw {
+  const id = session?.identity;
+  if (id?.method === 'web-bot-auth') {
+    const where = id.signature_agent ? new URL(id.signature_agent).host : 'key in the knock';
+    return html`<span class="badge rule-allow" title="HTTP Message Signatures, tag web-bot-auth">verified identity</span> <span class="small muted">Web Bot Auth · ${where}</span>`;
+  }
+  return html`<span class="badge plain" title="Ed25519 signature over the knock">signed knock</span>`;
+}
+
 const COOKIE = 'usher_site';
 const SESSION_HOURS = 12;
 
@@ -180,11 +190,11 @@ ${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
 
 <h2 id="sessions">Agent sessions</h2>
 <div class="card"><table>
-<thead><tr><th>Agent</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
+<thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
 <tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent)}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
+        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent)}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
 <td>${list.slice(0, 5).map((s) => html`<a href="/dashboard/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
-      ) : html`<tr><td colspan="4" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
+      ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
 
 <h2 id="blocked">Blocked attempts</h2>
 <div class="card"><table>
@@ -204,7 +214,7 @@ ${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
       'Agent session',
       html`<p class="muted small"><a href="/dashboard#sessions">Dashboard</a> · session ${session.id}</p>
 <h1>Agent session</h1>
-<p class="lede">Agent <span class="mono">${session.agent}</span> · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
+<p class="lede">Agent <span class="mono">${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
 ${this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
 <form method="post" action="/dashboard/sessions/${session.id}/explain"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
 <div class="card"><ol class="timeline">${events.map(

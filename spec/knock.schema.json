@@ -49,8 +49,9 @@
       }
     },
     "signedAgentFields": {
+      "description": "The body signature (usher-sig-v1): agent, ts and signature together. Optional when the request carries a Web Bot Auth HTTP Message Signature instead, which may still send agent (id and jwk) to supply its key. The registry requires one of the two signatures.",
       "type": "object",
-      "required": ["agent", "ts", "signature"],
+      "dependentRequired": { "signature": ["agent", "ts"], "ts": ["signature"] },
       "properties": {
         "agent": {
           "type": "object",

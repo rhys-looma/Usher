@@ -4,6 +4,7 @@ export * from './fingerprint.ts';
 export * from './encoding.ts';
 export * from './token.ts';
 export * from './identity.ts';
+export * from './http-signatures.ts';
 export * from './inpage.ts';
 export * from './vocabulary.ts';
 export * from './labels.ts';

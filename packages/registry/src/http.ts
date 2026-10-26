@@ -57,7 +57,7 @@ async function loadScript(path: string | undefined): Promise<SiteScript | null> 
   return body && { version: createHash('sha256').update(body).digest('hex').slice(0, 12), body };
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readRaw(req: IncomingMessage): Promise<Uint8Array<ArrayBuffer>> {
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -65,7 +65,11 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
     if (size > MAX_BODY) throw new Error('too_large');
     chunks.push(chunk as Buffer);
   }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null');
+  return new Uint8Array(Buffer.concat(chunks));
+}
+
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  return JSON.parse(Buffer.from(await readRaw(req)).toString('utf8') || 'null');
 }
 
 function header(req: IncomingMessage, name: string): string | undefined {
@@ -102,7 +106,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       const corsRoute = CORS_ROUTES.some((r) => r.test(preflight ? route.replace(/^OPTIONS/, String(req.headers['access-control-request-method'] ?? 'GET')) : route));
       if (corsRoute) {
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key, Content-Digest, Signature, Signature-Input, Signature-Agent');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       }
       if (preflight) {
@@ -138,11 +142,27 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         const current = await siteScript();
         return send(res, { status: current ? 200 : 404, body: current ? { version: current.version, path: `/usher/${current.version}.js` } : { error: 'not_found' } }, { 'Cache-Control': 'public, max-age=300' });
       }
-      if (route === 'POST /knock') return send(res, await registry.knock(await readJson(req)));
+      // Agent writes: the body, and the Web Bot Auth signature over it if the agent sent one.
+      const signed = async () => {
+        const raw = await readRaw(req);
+        const host = (options.trustProxy && header(req, 'x-forwarded-host')) || req.headers.host || 'registry';
+        const via = await registry.verifyHttpAgent({ method: req.method ?? 'POST', url: `http://${host}${req.url ?? '/'}`, headers: req.headers }, raw);
+        return { body: JSON.parse(Buffer.from(raw).toString('utf8') || 'null') as unknown, via };
+      };
+      if (route === 'POST /knock') {
+        const { body, via } = await signed();
+        return send(res, await registry.knock(body, via));
+      }
       if (route === 'GET /plans') return send(res, await registry.getPlan(url.searchParams.get('url')));
       if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req)));
-      if (route === 'POST /maps') return send(res, await registry.submitMap(await readJson(req)));
-      if (route === 'POST /runs') return send(res, await registry.reportRun(await readJson(req)));
+      if (route === 'POST /maps') {
+        const { body, via } = await signed();
+        return send(res, await registry.submitMap(body, via));
+      }
+      if (route === 'POST /runs') {
+        const { body, via } = await signed();
+        return send(res, await registry.reportRun(body, via));
+      }
       if (route === 'POST /drift') return send(res, await registry.drift(await readJson(req), header(req, 'usher-site-key')));
       if (route === 'POST /sites') return send(res, await registry.registerSite(await readJson(req)));
       if (route === 'GET /maps/current') {
@@ -193,6 +213,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   /** Public URL; defaults to http://localhost:<port>. */
   url?: string;
   threshold?: number;
+  /** Fetching agents' key directories: allow http:// and private hosts (local development). */
+  directories?: { allowHttp?: boolean; fetch?: typeof fetch };
 }
 
 export interface RunningRegistry {
@@ -213,6 +235,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.explainer && { explainer: options.explainer }),
     ...(options.signingKey && { signingKey: options.signingKey }),
     ...(options.retiredKeys && { retiredKeys: options.retiredKeys }),
+    ...(options.directories && { directories: options.directories }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(

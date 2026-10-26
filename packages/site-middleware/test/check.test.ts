@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { IncomingMessage } from 'node:http';
-import { generateAgentIdentity, knockSchemaErrors, randomId, signToken } from '@usher/core';
+import { contentDigest, generateAgentIdentity, knockSchemaErrors, randomId, signHttpMessage, signToken, utf8 } from '@usher/core';
 import { RegistryClient, seed, startRegistry, type RunningRegistry } from '@usher/registry';
 import { createUsherCheck, tokenFrom } from '../src/index.ts';
 import { startMockSite, type MockSite } from './mock-site.ts';
@@ -150,4 +150,40 @@ test('mock site form: people get their quote unchecked; identified agents need a
   // The site script puts the bound token in the form as usher_token.
   const agentWith = await formFlow({ 'Usher-Agent': 'test-agent' }, { usher_token: await knockToken() });
   assert.deepEqual([agentWith.status, agentWith.headers.get('location')], [303, '/quote/result']);
+});
+
+test('Web Bot Auth: a signature from the token\'s key is verified; another key, or none when required, is refused', async () => {
+  const usher = createUsherCheck({ registry: registry.url, intent: 'quote.car_insurance', origin: site.url });
+  const strict = createUsherCheck({ registry: registry.url, intent: 'quote.car_insurance', origin: site.url, requireSignature: true });
+  const host = new URL(site.url).host;
+  const signedReq = async (token: string, identity: Awaited<ReturnType<typeof generateAgentIdentity>>['identity'], body = utf8('quote=yes')) => {
+    const headers: Record<string, string> = { host, authorization: `Usher ${token}`, 'content-digest': await contentDigest(body) };
+    Object.assign(headers, await signHttpMessage({ method: 'POST', url: `http://${host}/api/quote`, headers }, identity, { components: ['@method', '@authority', '@path', 'content-digest'] }));
+    return { request: { method: 'POST', url: '/api/quote', headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])) } as unknown as IncomingMessage, body };
+  };
+  const { identity } = await generateAgentIdentity();
+  const own = new RegistryClient(registry.url, identity);
+  const knock = async () => (await own.knock({ url: `${site.url}/quote/cover`, intent: 'quote.car_insurance', confirmed: ['form.submit'] })).token;
+
+  const good = await signedReq(await knock(), identity);
+  const ok = await usher.check(good.request, { action: 'form.submit', always: true, body: good.body });
+  assert.equal(ok.status === 'ok' && ok.identity, 'verified');
+
+  // A copied token, signed by someone else.
+  const thief = (await generateAgentIdentity()).identity;
+  const stolen = await signedReq(await knock(), thief);
+  const refused = await usher.check(stolen.request, { action: 'form.submit', always: true, body: stolen.body });
+  assert.equal(refused.status === 'knock_required' && refused.reason, 'bad_signature');
+
+  // The body changed after signing.
+  const tampered = await signedReq(await knock(), identity);
+  const changed = await usher.check(tampered.request, { action: 'form.submit', always: true, body: utf8('quote=no') });
+  assert.equal(changed.status === 'knock_required' && changed.reason, 'bad_signature');
+
+  // A token alone still works unless the site requires signatures.
+  const plain = req({ authorization: `Usher ${await knock()}` });
+  const unsigned = await usher.check(plain, { action: 'form.submit' });
+  assert.equal(unsigned.status === 'ok' && unsigned.identity, 'unsigned');
+  const required = await strict.check(req({ authorization: `Usher ${await knock()}` }), { action: 'form.submit' });
+  assert.equal(required.status === 'knock_required' && required.reason, 'signature_required');
 });
