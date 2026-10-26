@@ -165,6 +165,8 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       }
       if (route === 'POST /drift') return send(res, await registry.drift(await readJson(req), header(req, 'usher-site-key')));
       if (route === 'POST /sites') return send(res, await registry.registerSite(await readJson(req)));
+      const verify = /^\/sites\/([^/]+)\/verify$/.exec(url.pathname);
+      if (verify && req.method === 'POST') return send(res, await registry.verifySite(decodeURIComponent(verify[1]!), req.headers.authorization));
       if (route === 'GET /maps/current') {
         return send(res, await registry.currentMap(url.searchParams.get('origin'), url.searchParams.get('path')), { 'Cache-Control': 'public, max-age=3600' });
       }
@@ -215,6 +217,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   threshold?: number;
   /** Fetching agents' key directories: allow http:// and private hosts (local development). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
+  /** Checking domain claims: allow private origins (local development), and test doubles. */
+  claims?: { allowPrivate?: boolean; fetch?: typeof fetch; resolveTxt?: (name: string) => Promise<string[][]> };
 }
 
 export interface RunningRegistry {
@@ -236,6 +240,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.signingKey && { signingKey: options.signingKey }),
     ...(options.retiredKeys && { retiredKeys: options.retiredKeys }),
     ...(options.directories && { directories: options.directories }),
+    ...(options.claims && { claims: options.claims }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
@@ -257,9 +262,10 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     registry.onDrift = (origin, path) => void keeper.check(origin, path).catch(() => undefined);
     keeper.start();
   }
-  // Keep each site's sessions only as long as its policy says.
+  // Keep each site's sessions only as long as its policy says, and re-check domain claims daily.
   const prune = async () => {
     for (const site of await options.storage.listSites()) await registry.pruneSessions(site.origin).catch(() => undefined);
+    await registry.recheckClaims().catch(() => undefined);
   };
   void prune();
   const pruning = setInterval(prune, 3_600_000);
