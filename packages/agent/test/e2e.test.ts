@@ -14,6 +14,7 @@ import { FileStorage, startRegistry, type RunningRegistry, type Session } from '
 import { readFixture, replayAny } from '../../core/test/replay.ts';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
+import { registerSite, type SiteKeys } from '../../registry/test/sites.ts';
 import { httpTransport, mcpTransport, runAgent, scriptedUser, summaryLine, type Profile, type RunResult } from '../src/index.ts';
 
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;
@@ -25,12 +26,19 @@ let dir: string;
 let registry: RunningRegistry;
 let site: MockSite;
 let browser: Browser;
+let keys: SiteKeys;
 const runs: Record<string, RunResult> = {};
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-e2e-'));
   registry = await startRegistry({ storage: new FileStorage(join(dir, 'registry')), siteScript });
-  site = await startMockSite({ registry: registry.url });
+  site = await startMockSite({
+    registry: registry.url,
+    register: async (origin) => {
+      keys = await registerSite(registry, origin);
+      return keys.site_key;
+    },
+  });
   browser = await chromium.launch();
 });
 after(async () => {
@@ -43,7 +51,8 @@ after(async () => {
 });
 
 const keyFile = () => join(dir, 'agent-key.json');
-const session = async (sid: string): Promise<Session> => (await fetch(`${registry.url}/sessions/${sid}`)).json() as Promise<Session>;
+const session = async (sid: string): Promise<Session> =>
+  (await fetch(`${registry.url}/sessions/${sid}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json() as Promise<Session>;
 
 test('an agent that did not knock gets 403 knock_required from the API', async () => {
   const res = await fetch(`${site.url}/api/quote`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Usher-Agent': 'unknocked' }, body: '{}' });
@@ -76,6 +85,12 @@ test('run 1, no maps yet: the agent reads each page with Muse Spark, completes t
   const log = await session(run.session!);
   const actions = log.events.map((e) => `${e.source}:${e.action}${e.key ? `:${e.key}` : ''}`);
   console.log(`session ${run.session}: ${actions.join(', ')}`);
+
+  // The shared maps carry the edges the agent learned by acting on them.
+  const edges = (await registry.registry.storage.mapsForOrigin(site.url))
+    .map((r) => [r.map.path, r.map.actions.find((a) => a.leads_to)?.leads_to ?? null])
+    .sort();
+  assert.deepEqual(edges, [['/quote/cover', '/quote/result'], ['/quote/driver', '/quote/vehicle'], ['/quote/vehicle', '/quote/cover']]);
   for (const key of ['person.first_name', 'person.dob', 'address.postcode', 'vehicle.registration', 'vehicle.annual_mileage', 'policy.start_date']) {
     assert.ok(actions.includes(`site:fill:${key}`), `${key} logged`);
   }
@@ -112,7 +127,8 @@ test('layout B: the site script reports drift, the registry marks the maps, the 
     await transport.close();
     runs['run 3 (layout B, drifted)'] = run;
     assert.equal(run.outcome, 'completed', run.reason);
-    assert.deepEqual(run.pages.map((p) => p.match), ['path', 'near', 'near']);
+    // At the 0.3 threshold every layout B page is a near match; the agent only trusts exact ones.
+    assert.deepEqual(run.pages.map((p) => p.match), ['near', 'near', 'near']);
     assert.ok(run.pages.every((p) => p.map_source === 'compiled'));
 
     const records = await registry.registry.storage.mapsForOrigin(site.url);

@@ -248,6 +248,12 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       await Promise.all([page.waitForURL((u) => u.pathname !== path, { timeout: 15_000 }), button.click()]);
       const fillMs = ms(t);
       pages.push({ path, match: knock.match.kind, map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: fillMs, filled, handed_off: handedOff });
+
+      if (source === 'compiled') {
+        // We now know where the way forward leads: record that edge on the map we shared.
+        const leadsTo = new URL(page.url()).pathname;
+        await options.registry.submitMap({ ...map, actions: map.actions.map((a) => (a.id === advance.id ? { ...a, leads_to: leadsTo } : a)) }).catch(() => undefined);
+      }
     }
   } catch (err) {
     outcome = 'failed';
