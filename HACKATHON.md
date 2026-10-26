@@ -17,7 +17,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | --- | --- |
 | Compile forms into maps (semantic labels, risk, conditions) | Muse Spark `muse-spark-1.3` (Meta Model API): strict structured output from the extraction plus a screenshot. In use. |
 | Turn site rules written in plain English into a policy file | Muse Spark `muse-spark-1.3`, strict structured output, validated against the policy schema and the never-looser check. In use. |
-| Explain agent sessions to site owners | Muse Spark |
+| Explain agent sessions to site owners | Muse Spark `muse-spark-1.3`, or Muse Spark Open on Baseten for self-hosters (`--explain-open`); code computes the facts, the model writes 1 to 3 sentences. In use. |
 | Flag consequential fields and actions | Muse Glimmer / Muse Spark Open (open weights) |
 | Reference agent's fallback when a page has no map: labels the page, then acts on it | Muse Spark `muse-spark-1.3`. In use. |
 | Second, independent agent using the registry (and its fallback when a page has no map) | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`; JSON mode, schema in the prompt). In use. |
@@ -40,3 +40,4 @@ This table is updated as the build progresses.
 | 26 Oct | Second agent on Muse Spark Open via Baseten (LU-30) |
 | 26 Oct | Policy format (LU-15) and plain-English rules with Muse Spark, enforced at knock, in the page and on the server (LU-32) |
 | 26 Oct | Map viewer (LU-38) and site dashboard (LU-37), server-rendered by the registry; blocked attempts recorded |
+| 26 Oct | Session explanations on the dashboard with Muse Spark or Spark Open (LU-34) |

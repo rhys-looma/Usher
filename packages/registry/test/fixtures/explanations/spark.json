@@ -1,0 +1,39 @@
+{
+  "model": "muse-spark-1.3",
+  "recorded_at": "2026-10-26T20:52:32.984Z",
+  "attempts": [
+    {
+      "request_sha256": "0b20aa1d8795c2791809fbff6199085cc364fb8e5a7a0c27c9dd4302faa0221d",
+      "content": "{\"sentences\": [\"All 5 agents stalled on Occupation, typically spending 44 seconds there, likely because they had to choose from a dropdown with 173 options.\", \"Despite that delay, all 5 reached Continue.\"]}",
+      "usage": {
+        "prompt_tokens": 423,
+        "completion_tokens": 1845,
+        "total_tokens": 2268,
+        "cached_tokens": 369
+      },
+      "latency_ms": 11196
+    },
+    {
+      "request_sha256": "c0ad2db57db0f3abcf42199d099c6b703cfa822dc9348bf0ab2018d1291e07b6",
+      "content": "{\"sentences\": [\"On your car insurance cover details form, all 3 agents reached Get my quote, pausing for user confirmation and getting confirmed each time.\", \"All 3 handed the consent declaration back to the user to finish.\", \"One attempt was refused for rate limiting.\"]}",
+      "usage": {
+        "prompt_tokens": 398,
+        "completion_tokens": 2880,
+        "total_tokens": 3278,
+        "cached_tokens": 0
+      },
+      "latency_ms": 16153
+    },
+    {
+      "request_sha256": "fe42462b2e5d44424b3ec3a17b2eea9fe043a2b37e5ecb4af6920a9513f50481",
+      "content": "{\"sentences\": [\"One agent spent 38 seconds on Occupation on the driver details form, likely because it had to choose from 173 options.\", \"It then reached Get my quote on the cover details form, paused once for user confirmation and was confirmed.\"]}",
+      "usage": {
+        "prompt_tokens": 620,
+        "completion_tokens": 2483,
+        "total_tokens": 3103,
+        "cached_tokens": 0
+      },
+      "latency_ms": 15199
+    }
+  ]
+}

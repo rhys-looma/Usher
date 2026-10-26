@@ -52,8 +52,13 @@ export class Web {
     this.viewer = new Viewer({ ...options, storage: registry.storage });
   }
 
+  /** Explanations come from the registry unless the caller supplies its own. */
+  private get hooks(): DashboardHooks {
+    return this.options.hooks ?? { explanations: (o: string) => this.registry.explanations(o), explain: (o: string) => this.registry.explainOrigin(o) };
+  }
+
   private async board(): Promise<Dashboard> {
-    this.dashboard ??= new Dashboard(this.registry, await this.registry.derivedSecret('dashboard'), this.options.hooks);
+    this.dashboard ??= new Dashboard(this.registry, await this.registry.derivedSecret('dashboard'), this.hooks);
     return this.dashboard;
   }
 
@@ -101,11 +106,12 @@ export class Web {
       return sendHtml(res, reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`)), true;
     }
     if (route === 'POST /dashboard/explain') {
-      const failure = await this.options.hooks?.explain?.(origin);
+      const failure = await this.hooks.explain?.(origin);
       return sendHtml(res, 200, await board.overview(origin, failure ? html`<div class="card error">${failure}</div>` : html`<div class="card notice">Explanations updated.</div>`)), true;
     }
-    const session = /^\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)$/.exec(url.pathname);
-    if (session && req.method === 'GET') {
+    const session = /^\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)(\/explain)?$/.exec(url.pathname);
+    if (session && (req.method === 'GET' || session[2])) {
+      if (session[2] && req.method === 'POST') await this.registry.explainSession(origin, session[1]!, true).catch(() => null);
       const body = await board.sessionPage(origin, session[1]!);
       return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such session for ${origin}</h1>`)), true;
     }

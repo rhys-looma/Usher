@@ -100,6 +100,7 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   web?: Omit<WebOptions, 'chat' | 'model'>;
   chat?: ChatFn;
   model?: string;
+  explainer?: { chat: ChatFn; model: string };
   port?: number;
   host?: string;
   /** Public URL; defaults to http://localhost:<port>. */
@@ -121,6 +122,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     url: () => url,
     ...(options.threshold !== undefined && { threshold: options.threshold }),
     ...(options.chat && options.model && { chat: options.chat, model: options.model }),
+    ...(options.explainer && { explainer: options.explainer }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(registryHandler(registry, { ...(options.siteScript && { siteScript: options.siteScript }), ...(web && { web }) }));

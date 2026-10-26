@@ -5,7 +5,7 @@ import { parseArgs } from 'node:util';
 import { startRegistry } from './http.ts';
 import { seed } from './seed.ts';
 import { FileStorage } from './storage.ts';
-import { compilerModel, modelApi } from '@usher/core';
+import { compilerModel, modelApi, openModel } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 
 loadDotEnv();
@@ -19,6 +19,7 @@ const { values } = parseArgs({
     'seed-origin': { type: 'string', default: 'http://localhost:4100' },
     threshold: { type: 'string' },
     'allow-private': { type: 'boolean', default: false },
+    'explain-open': { type: 'boolean', default: false },
   },
 });
 
@@ -31,6 +32,10 @@ const running = await startRegistry({
   web: { allowPrivate: values['allow-private'] },
   // Muse Spark turns owners' plain-English rules into policy, when a key is set.
   ...(process.env.MODEL_API_KEY && { chat: modelApi(), model: compilerModel() }),
+  // Session explanations: Muse Spark, or Muse Spark Open on Baseten with --explain-open.
+  ...(values['explain-open'] && process.env.BASETEN_API_KEY
+    ? { explainer: { chat: modelApi({ provider: 'baseten' }), model: openModel() } }
+    : process.env.MODEL_API_KEY && { explainer: { chat: modelApi(), model: compilerModel() } }),
   ...(values.url && { url: values.url }),
   ...(values.threshold && { threshold: Number(values.threshold) }),
 });

@@ -1,0 +1,39 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T20:52:58.349Z",
+  "attempts": [
+    {
+      "request_sha256": "e1ebf97b8b0e6ccef551c7b9cc88177851e1ea73f3ad3773fd2849e73437f8ed",
+      "content": "{\"sentences\": [\"All 5 agents stalled on Occupation for a median of 44 seconds, likely due to the dropdown with 173 options.\", \"All 5 still reached Continue.\"]}",
+      "usage": {
+        "prompt_tokens": 568,
+        "completion_tokens": 1911,
+        "total_tokens": 2479,
+        "cached_tokens": 512
+      },
+      "latency_ms": 5166
+    },
+    {
+      "request_sha256": "1b8969832f8609abef4030bbd902372fcff47da6a2bacb877d32c9bdfa30d52a",
+      "content": "{\"sentences\":[\"All 3 agents reached 'Get my quote' and paused for your confirmation as expected for this consequential step, with all 3 confirmed and the consent declaration handed to you to complete.\",\"One attempt was refused as rate-limited, so check your rate limits aren't blocking genuine quote traffic.\"]}",
+      "usage": {
+        "prompt_tokens": 543,
+        "completion_tokens": 2773,
+        "total_tokens": 3316,
+        "cached_tokens": 512
+      },
+      "latency_ms": 8509
+    },
+    {
+      "request_sha256": "878cfff868e6e9ded0fdf3744571e0f33df555f92a0402b3b3a83311c1ac00fa",
+      "content": "{\"sentences\":[\"On the driver details form, 1 agent stalled on Occupation for 38 seconds, likely due to the 173-option dropdown with no search — consider adding search or filtering.\",\"The agent still reached Continue, and on the cover details form 1 agent reached Get my quote.\",\"That cover step paused for your confirmation and was confirmed, handing the declaration to you to complete.\"]}",
+      "usage": {
+        "prompt_tokens": 765,
+        "completion_tokens": 3142,
+        "total_tokens": 3907,
+        "cached_tokens": 0
+      },
+      "latency_ms": 11685
+    }
+  ]
+}

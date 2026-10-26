@@ -9,3 +9,4 @@ export * from './rate-limit.ts';
 export * from './rules.ts';
 export * from './web/routes.ts';
 export * from './web/viewer.ts';
+export * from './explain.ts';
