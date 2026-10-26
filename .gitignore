@@ -3,3 +3,4 @@ test-results/
 *.log
 .DS_Store
 .env
+data/compiler-log/
