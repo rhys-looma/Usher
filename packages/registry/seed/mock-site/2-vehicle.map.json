@@ -1,0 +1,335 @@
+{
+  "usher": "0.1",
+  "origin": "http://localhost:4100",
+  "path": "/quote/vehicle",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:f548a7ac24df75489d4e2c5e3cfe88d77b80b04731ba0971ecac6a7fcf6ddaf5",
+    "signature": [
+      "6ef3bd559b0f",
+      "d3b7a57f90bd",
+      "ba4991a7c1e0",
+      "70104084ce91",
+      "72c6e96bdc5f",
+      "b6c274c3c4aa",
+      "61e95ccfa175",
+      "b9019152c398",
+      "1096ef7a045e",
+      "fcc5e8327a93",
+      "aaf42bd620d6"
+    ]
+  },
+  "form": {
+    "purpose": "Car insurance quote: vehicle details",
+    "intent": "quote.car_insurance",
+    "step": 2
+  },
+  "fields": [
+    {
+      "id": "e1",
+      "key": "vehicle.registration",
+      "label": "Registration number",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "pattern": "[A-Za-z0-9 ]{2,8}"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "registration"
+        },
+        {
+          "by": "name",
+          "value": "registration"
+        },
+        {
+          "by": "label",
+          "value": "Registration number"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "vehicle.make",
+      "label": "Make",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "make"
+        },
+        {
+          "by": "name",
+          "value": "make"
+        },
+        {
+          "by": "label",
+          "value": "Make"
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "key": "vehicle.model",
+      "label": "Model",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "model"
+        },
+        {
+          "by": "name",
+          "value": "model"
+        },
+        {
+          "by": "label",
+          "value": "Model"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "key": "vehicle.year",
+      "label": "Year of manufacture",
+      "control": "number",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "min": 1960,
+        "max": 2027
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "year"
+        },
+        {
+          "by": "name",
+          "value": "year"
+        },
+        {
+          "by": "label",
+          "value": "Year of manufacture"
+        }
+      ]
+    },
+    {
+      "id": "e6",
+      "key": "vehicle.annual_mileage",
+      "label": "Estimated annual mileage",
+      "control": "number",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "min": 0,
+        "max": 100000
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "annual-mileage"
+        },
+        {
+          "by": "name",
+          "value": "annual_mileage"
+        },
+        {
+          "by": "label",
+          "value": "Estimated annual mileage"
+        }
+      ]
+    },
+    {
+      "id": "e7",
+      "key": "vehicle.use",
+      "label": "What do you use the car for?",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "social-only",
+            "label": "Social only"
+          },
+          {
+            "value": "social-and-commuting",
+            "label": "Social and commuting"
+          },
+          {
+            "value": "business",
+            "label": "Business"
+          }
+        ],
+        "total": 3,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "use"
+        },
+        {
+          "by": "name",
+          "value": "use"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "What do you use the car for?"
+        }
+      ]
+    },
+    {
+      "id": "e8",
+      "key": "vehicle.overnight_location",
+      "label": "Where is the car kept overnight?",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "garage",
+            "label": "Garage"
+          },
+          {
+            "value": "driveway",
+            "label": "Driveway"
+          },
+          {
+            "value": "on-the-street",
+            "label": "On the street"
+          },
+          {
+            "value": "car-park",
+            "label": "Car park"
+          }
+        ],
+        "total": 4,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "overnight"
+        },
+        {
+          "by": "name",
+          "value": "overnight"
+        },
+        {
+          "by": "label",
+          "value": "Where is the car kept overnight?"
+        }
+      ]
+    },
+    {
+      "id": "e9",
+      "key": "vehicle.modifications.has_any",
+      "label": "Has the car been modified?",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "yes",
+            "label": "Yes"
+          },
+          {
+            "value": "no",
+            "label": "No"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "modified"
+        },
+        {
+          "by": "name",
+          "value": "modified"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Has the car been modified?"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e2",
+      "key": "lookup.vehicle",
+      "label": "Find car",
+      "kind": "button",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "find-vehicle"
+        },
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Find car"
+        }
+      ]
+    },
+    {
+      "id": "e10",
+      "key": "nav.back",
+      "label": "Back",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Back"
+        },
+        {
+          "by": "css",
+          "value": "form a"
+        }
+      ]
+    },
+    {
+      "id": "e11",
+      "key": "nav.next",
+      "label": "Continue",
+      "kind": "submit",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Continue"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"submit\"]"
+        }
+      ],
+      "leads_to": "/quote/cover"
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-26T19:25:20.974Z",
+    "verified": false
+  }
+}

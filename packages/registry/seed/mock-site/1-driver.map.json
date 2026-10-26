@@ -1,0 +1,551 @@
+{
+  "usher": "0.1",
+  "origin": "http://localhost:4100",
+  "path": "/quote/driver",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6",
+    "signature": [
+      "69e4f5de482f",
+      "d0902a45a792",
+      "c8329abd70e6",
+      "abfe360db422",
+      "610c8ae3674e",
+      "9ff9fdeda520",
+      "2c17b6a25c43",
+      "22cf2de2473a",
+      "0b5f68ad67d7",
+      "b40874a2944d",
+      "18c2f616422b",
+      "506218913c86",
+      "75c93c6f5aa5",
+      "aaf42bd620d6"
+    ]
+  },
+  "form": {
+    "purpose": "Car insurance quote: driver details",
+    "intent": "quote.car_insurance",
+    "step": 1
+  },
+  "fields": [
+    {
+      "id": "e1",
+      "key": "person.title",
+      "label": "Title",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "mr",
+            "label": "Mr"
+          },
+          {
+            "value": "mrs",
+            "label": "Mrs"
+          },
+          {
+            "value": "miss",
+            "label": "Miss"
+          },
+          {
+            "value": "ms",
+            "label": "Ms"
+          },
+          {
+            "value": "mx",
+            "label": "Mx"
+          },
+          {
+            "value": "dr",
+            "label": "Dr"
+          }
+        ],
+        "total": 6,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "title"
+        },
+        {
+          "by": "name",
+          "value": "title"
+        },
+        {
+          "by": "label",
+          "value": "Title"
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "key": "person.first_name",
+      "label": "First name",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "first-name"
+        },
+        {
+          "by": "name",
+          "value": "first_name"
+        },
+        {
+          "by": "label",
+          "value": "First name"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "person.last_name",
+      "label": "Last name",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "last-name"
+        },
+        {
+          "by": "name",
+          "value": "last_name"
+        },
+        {
+          "by": "label",
+          "value": "Last name"
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "key": "person.dob",
+      "label": "Date of birth",
+      "control": "date",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "format": "date"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "dob"
+        },
+        {
+          "by": "name",
+          "value": "dob"
+        },
+        {
+          "by": "label",
+          "value": "Date of birth"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "key": "contact.email",
+      "label": "Email address",
+      "control": "email",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "format": "email"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "email"
+        },
+        {
+          "by": "name",
+          "value": "email"
+        },
+        {
+          "by": "label",
+          "value": "Email address"
+        }
+      ]
+    },
+    {
+      "id": "e6",
+      "key": "contact.phone",
+      "label": "Phone number (optional)",
+      "control": "tel",
+      "required": false,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "phone"
+        },
+        {
+          "by": "name",
+          "value": "phone"
+        },
+        {
+          "by": "label",
+          "value": "Phone number (optional)"
+        }
+      ]
+    },
+    {
+      "id": "e7",
+      "key": "address.postcode",
+      "label": "Postcode",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "pattern": "[A-Za-z]{1,2}[0-9][A-Za-z0-9]? ?[0-9][A-Za-z]{2}"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "postcode"
+        },
+        {
+          "by": "name",
+          "value": "postcode"
+        },
+        {
+          "by": "label",
+          "value": "Postcode"
+        }
+      ]
+    },
+    {
+      "id": "e8",
+      "key": "address.line1",
+      "label": "First line of address",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "address-line1"
+        },
+        {
+          "by": "name",
+          "value": "address_line1"
+        },
+        {
+          "by": "label",
+          "value": "First line of address"
+        }
+      ]
+    },
+    {
+      "id": "e9",
+      "key": "person.occupation",
+      "label": "Occupation",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "accountant",
+            "label": "Accountant"
+          },
+          {
+            "value": "actor",
+            "label": "Actor"
+          },
+          {
+            "value": "actuary",
+            "label": "Actuary"
+          },
+          {
+            "value": "administrator",
+            "label": "Administrator"
+          },
+          {
+            "value": "air-traffic-controller",
+            "label": "Air Traffic Controller"
+          },
+          {
+            "value": "ambulance-driver",
+            "label": "Ambulance Driver"
+          },
+          {
+            "value": "anaesthetist",
+            "label": "Anaesthetist"
+          },
+          {
+            "value": "animal-groomer",
+            "label": "Animal Groomer"
+          },
+          {
+            "value": "antique-dealer",
+            "label": "Antique Dealer"
+          },
+          {
+            "value": "architect",
+            "label": "Architect"
+          },
+          {
+            "value": "archivist",
+            "label": "Archivist"
+          },
+          {
+            "value": "art-dealer",
+            "label": "Art Dealer"
+          },
+          {
+            "value": "artist",
+            "label": "Artist"
+          },
+          {
+            "value": "astronomer",
+            "label": "Astronomer"
+          },
+          {
+            "value": "auctioneer",
+            "label": "Auctioneer"
+          },
+          {
+            "value": "audiologist",
+            "label": "Audiologist"
+          },
+          {
+            "value": "auditor",
+            "label": "Auditor"
+          },
+          {
+            "value": "baker",
+            "label": "Baker"
+          },
+          {
+            "value": "bank-clerk",
+            "label": "Bank Clerk"
+          },
+          {
+            "value": "barber",
+            "label": "Barber"
+          }
+        ],
+        "total": 173,
+        "truncated": true
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "occupation"
+        },
+        {
+          "by": "name",
+          "value": "occupation"
+        },
+        {
+          "by": "label",
+          "value": "Occupation"
+        }
+      ]
+    },
+    {
+      "id": "e10",
+      "key": "person.employment_status",
+      "label": "Employment status",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "employed",
+            "label": "Employed"
+          },
+          {
+            "value": "self-employed",
+            "label": "Self-employed"
+          },
+          {
+            "value": "retired",
+            "label": "Retired"
+          },
+          {
+            "value": "student",
+            "label": "Student"
+          },
+          {
+            "value": "unemployed",
+            "label": "Unemployed"
+          }
+        ],
+        "total": 5,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "employment-status"
+        },
+        {
+          "by": "name",
+          "value": "employment_status"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Employment status"
+        }
+      ]
+    },
+    {
+      "id": "e11",
+      "key": "person.claims.has_any",
+      "label": "Have you made any claims in the last 5 years?",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "yes",
+            "label": "Yes"
+          },
+          {
+            "value": "no",
+            "label": "No"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "has-claims"
+        },
+        {
+          "by": "name",
+          "value": "has_claims"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Have you made any claims in the last 5 years?"
+        }
+      ]
+    },
+    {
+      "id": "e12",
+      "key": "person.claims.date",
+      "label": "Date of the claim",
+      "control": "date",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "format": "date"
+      },
+      "shown_if": {
+        "field": "person.claims.has_any",
+        "op": "equals",
+        "value": "yes"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "claim-date"
+        },
+        {
+          "by": "name",
+          "value": "claim_date"
+        },
+        {
+          "by": "label",
+          "value": "Date of the claim"
+        }
+      ]
+    },
+    {
+      "id": "e13",
+      "key": "person.claims.type",
+      "label": "Type of claim",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "accident",
+            "label": "Accident"
+          },
+          {
+            "value": "theft",
+            "label": "Theft"
+          },
+          {
+            "value": "windscreen",
+            "label": "Windscreen"
+          },
+          {
+            "value": "fire",
+            "label": "Fire"
+          },
+          {
+            "value": "vandalism",
+            "label": "Vandalism"
+          }
+        ],
+        "total": 5,
+        "truncated": false
+      },
+      "shown_if": {
+        "field": "person.claims.has_any",
+        "op": "equals",
+        "value": "yes"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "claim-type"
+        },
+        {
+          "by": "name",
+          "value": "claim_type"
+        },
+        {
+          "by": "label",
+          "value": "Type of claim"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e14",
+      "key": "nav.next",
+      "label": "Continue",
+      "kind": "submit",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Continue"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"submit\"]"
+        }
+      ],
+      "leads_to": "/quote/vehicle"
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-26T19:25:16.844Z",
+    "verified": false
+  }
+}
