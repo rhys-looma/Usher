@@ -49,9 +49,35 @@ Proving control of the origin (DNS or a well-known file) is a later addition; un
 
 An agent has an Ed25519 key pair. Its **agent id** is the [RFC 7638](https://www.rfc-editor.org/rfc/rfc7638) JWK thumbprint of its public key: base64url of the SHA-256 of `{"crv":"Ed25519","kty":"OKP","x":"…"}`. The id therefore certifies the key, and a registry can accept a new agent without prior registration.
 
-### Signed requests
+An agent proves its id in one of two ways. A registry accepts either; when a request carries both, they must name the same agent.
 
-Knocks and other agent writes (submitting a map, reporting a run) are **signed requests**: a JSON object with these members plus the request's own fields.
+### Web Bot Auth (HTTP Message Signatures)
+
+The preferred way is the web's own: [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) as the [Web Bot Auth](https://datatracker.ietf.org/wg/webbotauth/about/) drafts profile them. The agent signs each request with its Ed25519 key:
+
+```http
+POST /knock HTTP/1.1
+Host: registry.example
+Content-Type: application/json
+Content-Digest: sha-256=:…:
+Signature-Agent: "https://agent.example"
+Signature-Input: sig1=("@method" "@authority" "@path" "content-digest" "signature-agent");created=1735689600;expires=1735689660;keyid="poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U";alg="ed25519";nonce="…";tag="web-bot-auth"
+Signature: sig1=:…:
+```
+
+- `tag="web-bot-auth"`, `created` and `expires` (a minute is enough; a registry refuses more than an hour), and a `nonce`. A registry refuses a nonce it has seen until the signature expires.
+- `keyid` is the key's RFC 7638 thumbprint: **the keyid is the agent id**.
+- The signature covers at least `@authority`, `@method` and `@path`, plus `signature-agent` when that header is sent. When there is a body it also covers `content-digest` ([RFC 9530](https://www.rfc-editor.org/rfc/rfc9530)), and the digest must match the body.
+- The key comes from, in order:
+  1. The agent's **key directory**, when it sends `Signature-Agent`: a JWK set at `/.well-known/http-message-signatures-directory` (media type `application/http-message-signatures-directory+json`), over HTTPS. The response is itself signed with each key it lists (`tag="http-message-signatures-directory"`, covering `"@authority";req`), so nobody can republish someone else's keys as their own. A registry trusts only keys that signed the directory, and caches it for an hour.
+  2. A key the registry already holds for that id.
+  3. The JWK supplied in the knock as `agent.jwk`, whose thumbprint must be the keyid. This suits agents that run on a person's machine and have no domain to publish a directory from.
+
+The same headers go on the agent's requests to the site. A site with the server-side check (section 7) verifies them too.
+
+### Signed body (fallback)
+
+The original scheme still works, for clients that can't set headers (or prefer not to). The JSON body carries these members alongside the request's own fields.
 
 | Member | Meaning |
 | --- | --- |
@@ -60,11 +86,22 @@ Knocks and other agent writes (submitting a map, reporting a run) are **signed r
 | `ts` | Time of signing, RFC 3339 UTC |
 | `signature` | base64url Ed25519 signature |
 
-The signature covers the UTF-8 bytes of `usher-sig-v1` and a newline, followed by the **canonical JSON** of the whole object without `signature`: object members sorted by key (code-unit order), no insignificant whitespace, strings and numbers as `JSON.stringify` writes them. Canonical JSON makes the signature independent of transport, so the same request can travel over HTTP or as an MCP tool call.
+The signature covers the UTF-8 bytes of `usher-sig-v1` and a newline, followed by the **canonical JSON** of the whole object without `signature`. Canonical JSON means object members sorted by key (code-unit order), no insignificant whitespace, and strings and numbers as `JSON.stringify` writes them. It makes the signature independent of transport, so the same request can travel over HTTP or as an MCP tool call.
 
-A registry rejects a signed request when the signature does not verify, when `agent.jwk` is present and its thumbprint is not `agent.id`, when it has never seen the agent and `agent.jwk` is missing, or when `ts` is more than 5 minutes from its clock.
+A registry rejects a body signature when it does not verify, when `agent.jwk` is present and its thumbprint is not `agent.id`, when the registry has never seen the agent and `agent.jwk` is missing, or when `ts` is more than 5 minutes from its clock. A request with neither signature gets `401 signature_required`.
 
-This scheme is deliberately small. It can be replaced by HTTP Message Signatures ([RFC 9421](https://www.rfc-editor.org/rfc/rfc9421)) with Web Bot Auth key directories without changing anything else in the protocol: only how the registry learns `agent.id` changes.
+The reference client sends both: Web Bot Auth headers and the signed body. The registry records which one it verified on the session (`identity.method`: `web-bot-auth` or `usher-signature`, with `signature_agent` when given), and the dashboard shows it as the session's identity.
+
+### How this lines up with Cloudflare's signed agents
+
+Cloudflare verifies the same signatures for its [signed agents](https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/): same tag, keyid, `Signature-Agent` as a quoted string, and a signed key directory at the same path. An agent that signs for Cloudflare can knock at an Usher registry unchanged, and an Usher agent's requests verify at Cloudflare once its directory is registered there. The two layers do different jobs:
+
+- **Cloudflare answers who the agent is**, at the edge, for a whole site: let signed agents through, or block them.
+- **Usher answers what the agent may do on each form, and gives it the means to do it.**
+  - **Per-form rules:** the site's policy decides per form and per semantic key what is allowed, what needs the user's confirmation and what only the user may do, with rate limits per agent.
+  - **The map:** the agent gets the form's structure by meaning, so it doesn't spend a model reading the page.
+  - **The token:** it carries those rules to the site's server and is bound to the agent's key (its `cnf` claim), so a copied token is useless without the key.
+  - **The log:** the site sees what each agent did, by key, never values.
 
 ## 3. Knock
 
@@ -112,7 +149,7 @@ The registry then:
 - `plan` is reserved for multi-step plans (a later spec).
 - `rules`: from the site's [policy](policy.md) for this form. `actions` gives the effective rule (`allow`, `confirm` or `forbid`) for every key on the form, the policy raised to the floor each element's risk sets; `confirm` and `human_only` restate the risk-level defaults.
 
-Errors use `{"error": "<code>", "message": "…"}`: `400 invalid_request`, `401 bad_signature`, `401 unknown_agent`, `401 stale_request`, `403 agents_not_allowed`, `403 agent_blocked`, `403 action_forbidden`, `429 rate_limited`.
+Errors use `{"error": "<code>", "message": "…"}`: `400 invalid_request`, `401 signature_required`, `401 bad_signature`, `401 unknown_agent`, `401 stale_request`, `403 agents_not_allowed`, `403 agent_blocked`, `403 action_forbidden`, `429 rate_limited`.
 
 ## 4. Token
 
@@ -133,6 +170,7 @@ Header: `{"alg":"EdDSA","typ":"usher+jwt","kid":"<key id>"}`.
 | `jti` | Unique token id |
 | `confirm`, `forbid` | Keys on the form that need the user's confirmation, and keys agents may not act on (from the policy) |
 | `confirmed` | Keys the agent stated its user confirmed, when it knocked |
+| `cnf` | `{"jwk": …}`: the agent's public key ([RFC 7800](https://www.rfc-editor.org/rfc/rfc7800) confirmation), so a site can check that requests carrying the token are signed by the agent it was issued to |
 
 The registry publishes its public keys at `/.well-known/usher-keys.json` as a JWK set: `{"keys":[{"kty":"OKP","crv":"Ed25519","x":"…","kid":"…","alg":"EdDSA","use":"sig"}]}`. Sites cache it and verify tokens offline; they refetch only when they meet an unknown `kid`. Old keys stay published until every token they signed has expired.
 
@@ -172,7 +210,7 @@ Reading a session (`GET <registry>/sessions/<id>`) needs the site's secret key, 
 
 The script is a convenience; the server is the lock. On a consequential endpoint (requesting a quote, placing an order, an API that does the same), the site's server looks for a token in `Authorization: Usher <token>`, then `X-Usher-Token`, then the `usher_token` form field, and verifies it as in section 4. A check that knows the key it protects (say `form.submit`) also refuses it when the token lists it as forbidden or as needing confirmation it did not get (`reason: action_forbidden`, `confirmation_required`), and applies the key's default risk from the vocabulary as a floor, so a token from a knock on an unmapped page can't skip confirmation.
 
-The server checks requests that identify as automated: any request carrying a token or an `Usher-Agent` header, and every request to endpoints meant for software, such as an API. When the check fails it answers:
+The server checks requests that identify as automated: any request carrying a token, an `Usher-Agent` or `Signature-Agent` header or a Web Bot Auth signature, and every request to endpoints meant for software, such as an API. When the check fails it answers:
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -183,6 +221,8 @@ Link: <https://registry.example/knock>; rel="usher-knock"
 ```
 
 A `reason` member (`missing`, `expired`, `wrong_origin`, `replayed`, …) may be added to help agents recover.
+
+When the request also carries a Web Bot Auth signature (section 2), the check verifies it with the token's `cnf` key, or the agent's key directory for a token without one. The keyid must be the token's `sub`. A signature that fails, or one from a different key, is refused with `reason: bad_signature`. A site can also require signatures, refusing a token that arrives unsigned (`reason: signature_required`); that is off by default, so plain tokens keep working.
 
 ## What the protocol does not do
 
