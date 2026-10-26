@@ -30,10 +30,12 @@ export interface MockSiteOptions {
   variant?: 'a' | 'b';
   /** Registers the site's origin before it starts and returns the site key for its script tag. */
   register?: (origin: string) => Promise<string>;
+  /** A fixed port instead of a free one. */
+  port?: number;
 }
 
 export async function startMockSite(options: MockSiteOptions = {}): Promise<MockSite> {
-  const port = await freePort();
+  const port = options.port ?? (await freePort());
   const siteKey = await options.register?.(`http://localhost:${port}`);
   const child = spawn(process.execPath, [serverScript], {
     env: {
