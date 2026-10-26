@@ -37,7 +37,7 @@ export interface RulesDraft {
   status: 'pending' | 'confirmed' | 'superseded';
 }
 
-export type EventAction = 'knock' | 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff' | 'run';
+export type EventAction = 'knock' | 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff' | 'run' | 'invalid';
 
 export interface SessionEvent {
   ts: string;

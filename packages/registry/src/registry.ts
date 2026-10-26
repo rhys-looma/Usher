@@ -26,6 +26,7 @@ import {
   type EffectiveRules,
   type Risk,
   agentStanding,
+  composePlan,
   effectiveRules,
   WINDOW_MS,
 } from '@usher/core';
@@ -470,6 +471,18 @@ export class Registry {
   async getRules(origin: string, authorization: string | undefined): Promise<Reply> {
     if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
     return ok({ current: (await this.storage.getPolicy(origin)) ?? null, drafts: await this.storage.listDrafts(origin) });
+  }
+
+  /** A plan for a journey starting at this page, from the current maps and their edges. */
+  async getPlan(input: string | null): Promise<Reply> {
+    let page: URL;
+    try {
+      page = new URL(input ?? '');
+    } catch {
+      return error(400, 'invalid_request', 'Expected ?url= with the first page of the journey.');
+    }
+    const plan = composePlan(page.pathname, await this.currentMaps(page.origin));
+    return plan ? ok(plan) : error(404, 'not_found', `No map for ${page.origin}${page.pathname} yet: knock, or read the page.`);
   }
 
   /** For /healthz: is storage reachable? */

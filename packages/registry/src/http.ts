@@ -128,6 +128,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         return send(res, { status: current ? 200 : 404, body: current ? { version: current.version, path: `/usher/${current.version}.js` } : { error: 'not_found' } }, { 'Cache-Control': 'public, max-age=300' });
       }
       if (route === 'POST /knock') return send(res, await registry.knock(await readJson(req)));
+      if (route === 'GET /plans') return send(res, await registry.getPlan(url.searchParams.get('url')));
       if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req)));
       if (route === 'POST /maps') return send(res, await registry.submitMap(await readJson(req)));
       if (route === 'POST /runs') return send(res, await registry.reportRun(await readJson(req)));

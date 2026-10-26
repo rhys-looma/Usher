@@ -74,6 +74,17 @@ export async function createMcpServer(registryUrl: string, keyFile?: string): Pr
   );
 
   server.registerTool(
+    'get_plan',
+    {
+      title: 'Get a plan',
+      description:
+        'Get the plan for a multi-step journey starting at this page: its steps (maps joined by where each step leads) and every input it will ask for by semantic key, with required, constraints and allowed options, so you can check your user\'s data before starting and ask for anything missing.',
+      inputSchema: { url: z.string().url() },
+    },
+    (args) => guarded(() => client.getPlan(args.url)),
+  );
+
+  server.registerTool(
     'submit_map',
     {
       title: 'Submit a map',

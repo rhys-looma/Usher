@@ -1,6 +1,6 @@
 // HTTP client for the registry, signing as an agent. Used by the MCP server and the agent.
 
-import { signRequest, type AgentIdentity, type Fingerprint, type UsherMap } from '@usher/core';
+import { signRequest, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPlan } from '@usher/core';
 
 export interface KnockInput {
   url: string;
@@ -64,6 +64,10 @@ export class RegistryClient {
 
   lookup(origin: string, path: string, fingerprint: Fingerprint): Promise<{ match: KnockResponse['match']; map: UsherMap | null }> {
     return this.call('POST', '/maps/lookup', { origin, path, fingerprint });
+  }
+
+  getPlan(url: string): Promise<UsherPlan> {
+    return this.call('GET', `/plans?url=${encodeURIComponent(url)}`);
   }
 
   getMap(origin: string, digest: string): Promise<{ map: UsherMap }> {
