@@ -38,7 +38,7 @@ An agent that knocks gets a fast, trusted path: on the demo quote form, three pa
 
 Optionally, it checks knocks on consequential endpoints on its server with [`@usher/site-middleware`](packages/site-middleware/), and publishes `/.well-known/usher.json` naming its registry.
 
-**An agent** adds one MCP server entry, which gives it `knock`, `get_map`, `submit_map` and `report_run`, signed with its own key (created at `~/.usher/agent-key.json` on first use):
+**An agent** adds one MCP server entry, which gives it `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key (created at `~/.usher/agent-key.json` on first use):
 
 ```json
 {
@@ -76,7 +76,7 @@ The map schema, knock protocol, policy format, site script and middleware are op
 
 | Path | What |
 | --- | --- |
-| [`spec/`](spec/) | Map schema, field vocabulary, knock protocol (policy format to follow) |
+| [`spec/`](spec/) | Map, vocabulary, knock protocol, policy and plan specs with JSON Schemas |
 | [`packages/core/`](packages/core/) | Form extractor, locators, fingerprint, label validator and the Muse Spark map compiler |
 | [`packages/registry/`](packages/registry/) | The registry: knocks, maps, logs; HTTP and MCP |
 | [`packages/site-script/`](packages/site-script/) | The one-tag site script |
