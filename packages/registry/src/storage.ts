@@ -49,6 +49,14 @@ export interface SessionEvent {
   detail?: Record<string, unknown>;
 }
 
+/** How the agent proved its id when it knocked. */
+export interface SessionIdentity {
+  /** web-bot-auth: an HTTP Message Signature (RFC 9421); usher-signature: the signed knock body. */
+  method: 'web-bot-auth' | 'usher-signature';
+  /** Where the agent publishes its keys (Signature-Agent), when it said. */
+  signature_agent?: string;
+}
+
 export interface Session {
   id: string;
   origin: string;
@@ -56,6 +64,7 @@ export interface Session {
   intent: string;
   created_at: string;
   events: SessionEvent[];
+  identity?: SessionIdentity;
 }
 
 /** A registered site. The site key is public (it sits in the script tag); the secret is stored hashed. */

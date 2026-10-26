@@ -157,10 +157,12 @@ test('dashboard: agent sessions as timelines, blocked attempts from registry and
   assert.match(overview, /the registry/);
   assert.match(overview, /drifted/);
   assert.match(overview, /<code>\/quote\/cover<\/code>/);
+  assert.match(overview, /verified identity<\/span> <span class="small muted">Web Bot Auth · key in the knock/);
 
   const timeline = await dash(`/dashboard/sessions/${knock.session}`, cookie);
   assert.equal(timeline.status, 200);
   assert.match(timeline.text, /<b>knock<\/b>/);
+  assert.match(timeline.text, /verified identity/);
   assert.match(timeline.text, /<b>fill<\/b> <code>person\.first_name<\/code>/);
   assert.ok(!timeline.text.includes('>Sam<'), 'no values');
 });

@@ -1,6 +1,6 @@
 // HTTP client for the registry, signing as an agent. Used by the MCP server and the agent.
 
-import { signRequest, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPlan } from '@usher/core';
+import { contentDigest, signHttpMessage, signRequest, utf8, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPlan } from '@usher/core';
 
 export interface KnockInput {
   url: string;
@@ -29,17 +29,29 @@ export class RegistryError extends Error {
   }
 }
 
+export interface ClientOptions {
+  /** Sign requests with Web Bot Auth HTTP Message Signatures as well as in the body (default true). */
+  httpSignatures?: boolean;
+  /** Where this agent publishes its key directory, sent as Signature-Agent. */
+  signatureAgent?: string;
+}
+
 export class RegistryClient {
   constructor(
     readonly url: string,
     private readonly identity: AgentIdentity,
+    private readonly options: ClientOptions = {},
   ) {}
 
   private async call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${this.url}${path}`, {
-      method,
-      ...(body !== undefined && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    });
+    const url = `${this.url}${path}`;
+    const text = body === undefined ? undefined : JSON.stringify(body);
+    const headers: Record<string, string> = text === undefined ? {} : { 'Content-Type': 'application/json', 'Content-Digest': await contentDigest(utf8(text)) };
+    if (text !== undefined && this.options.httpSignatures !== false) {
+      const signatureAgent = this.options.signatureAgent ?? process.env.USHER_SIGNATURE_AGENT;
+      Object.assign(headers, await signHttpMessage({ method, url, headers }, this.identity, { components: ['@method', '@authority', '@path', 'content-digest'], ...(signatureAgent && { signatureAgent }) }));
+    }
+    const res = await fetch(url, { method, headers, ...(text !== undefined && { body: text }) });
     const json = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
     if (!res.ok) throw new RegistryError(res.status, json.error ?? 'error', json.message ?? res.statusText);
     return json as T;

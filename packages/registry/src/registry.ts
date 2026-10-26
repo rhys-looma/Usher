@@ -22,6 +22,7 @@ import {
   type PrivateJwk,
   type PublicJwk,
   publicPart,
+  jwkThumbprint,
   type ActionRule,
   type EffectiveRules,
   type Risk,
@@ -29,13 +30,19 @@ import {
   composePlan,
   effectiveRules,
   WINDOW_MS,
+  ReplayCache,
+  fetchKeyDirectory,
+  hasSignature,
+  verifyHttpMessage,
+  type HttpMessage,
+  type HttpSignatureCheck,
 } from '@usher/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
 import { RateLimiter } from './rate-limit.ts';
 import { RulesError, compileRules } from './rules.ts';
 import { explainFacts, factsHash, formFacts, type Explanation } from './explain.ts';
-import type { MapRecord, Session, SessionEvent, Site, Storage } from './storage.ts';
+import type { MapRecord, Session, SessionEvent, SessionIdentity, Site, Storage } from './storage.ts';
 
 /** The knock response's rules: risk-level defaults, and the effective rule for each key on the form. */
 export interface Rules {
@@ -65,7 +72,16 @@ export interface RegistryOptions {
   url: string | (() => string);
   threshold?: number;
   now?: () => Date;
+  /** Fetching agents' key directories (Signature-Agent): allow http:// and private hosts (local development only). */
+  directories?: { allowHttp?: boolean; fetch?: typeof fetch };
 }
+
+/** An agent whose id has been checked, and how. */
+type AgentCheck =
+  | { ok: true; agentId: string; jwk: PublicJwk; identity: SessionIdentity }
+  | { ok: false; error: string; message: string; status: number };
+
+const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[?::1\]?$|\[?f[cd])/i;
 
 export interface Reply {
   status: number;
@@ -97,6 +113,9 @@ export class Registry {
   private readonly blockedLimit = new RateLimiter(120, 60_000);
   // Sites' own rate limits, one sliding window per (max, window).
   private readonly policyLimits = new Map<string, RateLimiter>();
+  // Web Bot Auth: nonces seen until their signatures expire, and agents' key directories.
+  private readonly nonces = new ReplayCache();
+  private readonly directories = new Map<string, { keys: PublicJwk[]; until: number }>();
 
   constructor(private readonly options: RegistryOptions) {
     this.threshold = options.threshold ?? DEFAULT_THRESHOLD;
@@ -215,13 +234,78 @@ export class Registry {
     return ok({ recorded: true });
   }
 
-  async knock(request: unknown): Promise<Reply> {
+  /** The keys an agent's directory signed for, cached for an hour (failures for a minute). */
+  private async directoryKeys(signatureAgent: string): Promise<PublicJwk[]> {
+    const cached = this.directories.get(signatureAgent);
+    if (cached && cached.until > Date.now()) return cached.keys;
+    const allowHttp = this.options.directories?.allowHttp === true;
+    let keys: PublicJwk[] = [];
+    try {
+      if (!allowHttp && PRIVATE_HOST.test(new URL(signatureAgent).hostname)) throw new Error('private host');
+      keys = await fetchKeyDirectory(signatureAgent, { allowHttp, ...(this.options.directories?.fetch && { fetch: this.options.directories.fetch }) });
+    } catch {
+      keys = [];
+    }
+    if (this.directories.size > 10_000) this.directories.clear();
+    this.directories.set(signatureAgent, { keys, until: Date.now() + (keys.length ? 3_600_000 : 60_000) });
+    return keys;
+  }
+
+  /**
+   * Checks a Web Bot Auth signature on an agent's request (RFC 9421, tag web-bot-auth). The key
+   * comes from the agent's directory (Signature-Agent), from an earlier request, or from the JWK
+   * in the body. Null when the request carries no such signature.
+   */
+  async verifyHttpAgent(message: HttpMessage, body: Uint8Array<ArrayBuffer>): Promise<HttpSignatureCheck | null> {
+    if (!hasSignature(message.headers)) return null;
+    let bodyJwk: PublicJwk | undefined;
+    try {
+      bodyJwk = (JSON.parse(new TextDecoder().decode(body)) as { agent?: { jwk?: PublicJwk } } | null)?.agent?.jwk;
+    } catch {
+      bodyJwk = undefined;
+    }
+    return verifyHttpMessage(message, {
+      require: ['@authority', '@method', '@path'],
+      body,
+      nonces: this.nonces,
+      now: Math.floor(this.now().getTime() / 1000),
+      key: async (keyid, signatureAgent) => {
+        if (signatureAgent) {
+          const keys = await this.directoryKeys(signatureAgent);
+          for (const k of keys) if ((await jwkThumbprint(k)) === keyid) return k;
+          return undefined;
+        }
+        return (await this.storage.agentKey(keyid)) ?? bodyJwk;
+      },
+    });
+  }
+
+  /** The agent behind a request: its Web Bot Auth signature if it sent one, else the signed body. */
+  private async agentOf(request: unknown, via?: HttpSignatureCheck | null): Promise<AgentCheck> {
+    let check: AgentCheck;
+    if (via) {
+      if (!via.ok) return { ok: false, status: 401, error: via.error === 'unknown_key' ? 'unknown_agent' : 'bad_signature', message: `Web Bot Auth: ${via.message}` };
+      const claimed = (request as { agent?: { id?: unknown } } | null)?.agent?.id;
+      if (claimed !== undefined && claimed !== via.keyid) return { ok: false, status: 401, error: 'bad_signature', message: 'agent.id is not the keyid of the request signature.' };
+      check = { ok: true, agentId: via.keyid, jwk: via.jwk, identity: { method: 'web-bot-auth', ...(via.signatureAgent && { signature_agent: via.signatureAgent }) } };
+    } else {
+      const body = await verifySignedRequest(request, { knownKey: (id) => this.storage.agentKey(id), now: this.now() });
+      if (!body.ok) {
+        const unsigned = body.error === 'invalid_request' && !(request as { signature?: unknown } | null)?.signature;
+        return { ok: false, status: body.error === 'invalid_request' ? (unsigned ? 401 : 400) : 401, error: unsigned ? 'signature_required' : body.error, message: unsigned ? 'Sign the request: a Web Bot Auth HTTP Message Signature, or agent, ts and signature in the body.' : body.message };
+      }
+      check = { ok: true, agentId: body.agentId, jwk: body.jwk, identity: { method: 'usher-signature' } };
+    }
+    if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
+    return check;
+  }
+
+  async knock(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
-    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[]; agent: { id: string } };
-    const check = await verifySignedRequest(knock, { knownKey: (id) => this.storage.agentKey(id), now: this.now() });
-    if (!check.ok) return error(check.error === 'invalid_request' ? 400 : 401, check.error, check.message);
-    if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
+    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[] };
+    const check = await this.agentOf(request, via);
+    if (!check.ok) return error(check.status, check.error, check.message);
 
     const page = new URL(knock.url);
     const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock');
@@ -250,7 +334,7 @@ export class Registry {
     }
     const at = this.now();
     if (!session) {
-      session = { id: `s_${randomId(12)}`, origin: page.origin, agent: check.agentId, intent, created_at: at.toISOString(), events: [] };
+      session = { id: `s_${randomId(12)}`, origin: page.origin, agent: check.agentId, intent, created_at: at.toISOString(), events: [], identity: check.identity };
       await this.storage.putSession(session);
     }
     const summary = this.summary(match);
@@ -260,7 +344,7 @@ export class Registry {
         source: 'registry',
         action: 'knock',
         path: page.pathname,
-        detail: { match: summary.kind, score: summary.score, map: summary.digest, ...(confirmed.length && { confirmed: confirmed.join(',') }) },
+        detail: { match: summary.kind, score: summary.score, map: summary.digest, identity: check.identity.method, ...(confirmed.length && { confirmed: confirmed.join(',') }) },
       },
     ]);
 
@@ -278,6 +362,7 @@ export class Registry {
       confirm: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'confirm'),
       forbid: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'forbid'),
       ...(confirmed.length && { confirmed }),
+      cnf: { jwk: check.jwk },
     };
     return ok({
       usher: '0.1',
@@ -310,13 +395,12 @@ export class Registry {
   }
 
   /** A signed request from an agent carrying a map it built. */
-  async submitMap(request: unknown): Promise<Reply> {
-    const check = await verifySignedRequest(request, { knownKey: (id) => this.storage.agentKey(id), now: this.now() });
-    if (!check.ok) return error(check.error === 'invalid_request' ? 400 : 401, check.error, check.message);
+  async submitMap(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
+    const check = await this.agentOf(request, via);
+    if (!check.ok) return error(check.status, check.error, check.message);
     const map = (request as { map?: UsherMap }).map;
     const invalid = mapSchemaErrors(map);
     if (invalid || !map) return error(400, 'invalid_map', invalid ?? 'No map.');
-    if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
     const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
     if (existing) {
       // The agent that built a map may come back with edges it learned by acting on it.
@@ -357,9 +441,9 @@ export class Registry {
   }
 
   /** A signed run report from the agent that owns the session. */
-  async reportRun(request: unknown): Promise<Reply> {
-    const check = await verifySignedRequest(request, { knownKey: (id) => this.storage.agentKey(id), now: this.now() });
-    if (!check.ok) return error(check.error === 'invalid_request' ? 400 : 401, check.error, check.message);
+  async reportRun(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
+    const check = await this.agentOf(request, via);
+    if (!check.ok) return error(check.status, check.error, check.message);
     const run = request as { session?: string; url?: string; outcome?: string; summary?: Record<string, unknown> };
     const session = typeof run.session === 'string' ? await this.storage.getSession(run.session) : undefined;
     if (!session || session.agent !== check.agentId) return error(404, 'not_found', 'No such session for this agent.');
