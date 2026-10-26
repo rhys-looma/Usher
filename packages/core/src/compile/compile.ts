@@ -86,7 +86,7 @@ export function pickForm(scan: Scan, index?: number): ScannedForm {
   // one, then loose controls outside any form, then anything.
   const fields = (f: ScannedForm) => f.elements.filter((e) => e.kind === 'field').length;
   const tiers = [scan.forms.filter((f) => !f.pseudo && !f.banner && fields(f) > 0), scan.forms.filter((f) => !f.banner && fields(f) > 0), scan.forms];
-  const best = [...tiers.find((t) => t.length)!].sort((a, b) => fields(b) - fields(a))[0];
+  const best = [...(tiers.find((t) => t.length) ?? [])].sort((a, b) => fields(b) - fields(a))[0];
   if (!best) throw new Error(`No forms found on ${scan.url}.`);
   return best;
 }
@@ -95,12 +95,16 @@ export function pickForm(scan: Scan, index?: number): ScannedForm {
 // mask (outside the page, so any Content Security Policy allows it), so a page that already holds
 // someone's answers can't send them to the model, and no value is ever read.
 async function screenshotForm(page: Page, form: ScannedForm): Promise<string> {
-  const boxes = form.elements.filter((e) => e.visible).map((e) => e.box);
+  const boxes = form.elements.filter((e) => e.visible && e.box.height > 0).map((e) => e.box);
   const width = page.viewportSize()?.width ?? VIEWPORT.width;
-  const top = Math.max(0, Math.min(...boxes.map((b) => b.y)) - 160);
-  const bottom = Math.max(...boxes.map((b) => b.y + b.height)) + 40;
+  // Clamp to the rendered page: elements can report boxes outside it (fixed overlays, off-screen
+  // menus). With nothing to clip to, the viewport as it is.
+  const pageHeight = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0, window.innerHeight));
+  const top = boxes.length ? Math.min(pageHeight - 1, Math.max(0, Math.min(...boxes.map((b) => b.y)) - 160)) : 0;
+  const bottom = boxes.length ? Math.min(pageHeight, Math.max(...boxes.map((b) => b.y + b.height)) + 40) : 0;
+  const clip = bottom - top >= 1 ? { x: 0, y: top, width, height: bottom - top } : undefined;
   const typed = page.locator('input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=hidden]):not([type=image]):not([type=reset]), textarea');
-  const png = await page.screenshot({ type: 'png', fullPage: true, clip: { x: 0, y: top, width, height: Math.max(1, bottom - top) }, mask: [typed], maskColor: '#eef0f3' });
+  const png = await page.screenshot({ type: 'png', fullPage: Boolean(clip), ...(clip && { clip }), mask: [typed], maskColor: '#eef0f3' });
   return png.toString('base64');
 }
 
