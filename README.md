@@ -30,6 +30,7 @@ The map schema, knock protocol, policy format, site script and middleware are op
 | Path | What |
 | --- | --- |
 | [`spec/`](spec/) | Map schema, field vocabulary (knock protocol and policy format to follow) |
+| [`packages/core/`](packages/core/) | Form extractor, locators and fingerprint, running in Node and in the page |
 | [`examples/mock-quote-site/`](examples/mock-quote-site/) | A fictional multi-step quote form used for development and the demo |
 
 Built by Rhys at Looma.
