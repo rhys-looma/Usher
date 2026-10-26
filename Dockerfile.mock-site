@@ -1,0 +1,24 @@
+# The demo quote site (fictional), with the server-side Usher check bundled in.
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/core/package.json packages/core/
+COPY packages/registry/package.json packages/registry/
+COPY packages/site-middleware/package.json packages/site-middleware/
+COPY packages/site-script/package.json packages/site-script/
+COPY packages/agent/package.json packages/agent/
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY spec spec
+COPY packages packages
+COPY scripts scripts
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY examples/mock-quote-site examples/mock-quote-site
+COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/dist
+ENV PORT=4100 HOST=0.0.0.0 NODE_OPTIONS=--disable-warning=ExperimentalWarning
+EXPOSE 4100
+USER node
+HEALTHCHECK --interval=5s --timeout=3s --retries=12 CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "examples/mock-quote-site/server.mjs"]
