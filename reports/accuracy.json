@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-26T21:37:07.866Z",
+  "generated": "2026-10-26T23:39:27.166Z",
   "results": [
     {
       "id": "mock-a-driver",
@@ -128,6 +128,38 @@
       "cost_usd": 0.051773799999999995
     },
     {
+      "id": "ico-contact",
+      "category": "contact",
+      "url": "https://ico.org.uk/global/contact-us/",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Site search for ICO website",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1,
+        "consequential": 1
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.0102125
+    },
+    {
+      "id": "parliament-contact",
+      "category": "contact",
+      "url": "https://www.parliament.uk/site-information/contact-us/",
+      "status": "skipped",
+      "reason": "HTTP 403 (refuses automated browsers)"
+    },
+    {
+      "id": "ofcom-contact",
+      "category": "contact",
+      "url": "https://www.ofcom.org.uk/about-ofcom/contact-us",
+      "status": "skipped",
+      "reason": "labels failed validation twice"
+    },
+    {
       "id": "travelodge-booking",
       "category": "booking",
       "url": "https://www.travelodge.co.uk/",
@@ -154,7 +186,7 @@
       "note": "a test form (pizza order), kept as a control",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Pizza order form",
+      "purpose": "Pizza order: contact, size, toppings and delivery",
       "elements": 11,
       "vocabulary_keys": 5,
       "custom_keys": 6,
@@ -164,7 +196,48 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.01302575
+      "cost_usd": 0.01062025
+    },
+    {
+      "id": "nationalrail-journey",
+      "category": "booking",
+      "url": "https://www.nationalrail.co.uk/",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Live train departures and arrivals lookup",
+      "elements": 4,
+      "vocabulary_keys": 2,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 4
+      },
+      "locators_resolved": 4,
+      "flags": 0,
+      "cost_usd": 0.01545
+    },
+    {
+      "id": "eventbrite-search",
+      "category": "booking",
+      "url": "https://www.eventbrite.co.uk/",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Find local events and things to do",
+      "elements": 1,
+      "vocabulary_keys": 1,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1
+      },
+      "locators_resolved": 1,
+      "flags": 0,
+      "cost_usd": 0.00558825
+    },
+    {
+      "id": "lner-booking",
+      "category": "booking",
+      "url": "https://www.lner.co.uk/",
+      "status": "skipped",
+      "reason": "HTTP 403 (refuses automated browsers)"
     },
     {
       "id": "mozilla-newsletter",
@@ -186,12 +259,34 @@
       "cost_usd": 0.0101385
     },
     {
+      "id": "which-newsletter",
+      "category": "newsletter",
+      "url": "https://www.which.co.uk/newsletters",
+      "status": "ok",
+      "source": "live",
+      "purpose": "Site search",
+      "elements": 0,
+      "vocabulary_keys": 0,
+      "custom_keys": 0,
+      "risk": {},
+      "locators_resolved": 0,
+      "flags": 0,
+      "cost_usd": 0.010648
+    },
+    {
+      "id": "guardian-newsletters",
+      "category": "newsletter",
+      "url": "https://www.theguardian.com/email-newsletters",
+      "status": "skipped",
+      "reason": "labels failed validation twice"
+    },
+    {
       "id": "wikipedia-search",
       "category": "search",
       "url": "https://en.wikipedia.org/wiki/Special:Search",
       "recorded": true,
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Search Wikipedia articles",
       "elements": 2,
       "vocabulary_keys": 1,
@@ -204,12 +299,96 @@
       "cost_usd": 0.0096125
     },
     {
+      "id": "govuk-search",
+      "category": "search",
+      "url": "https://www.gov.uk/search/all",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Search all content on GOV.UK",
+      "elements": 16,
+      "vocabulary_keys": 4,
+      "custom_keys": 12,
+      "risk": {
+        "safe": 15,
+        "consequential": 1
+      },
+      "locators_resolved": 16,
+      "flags": 0,
+      "cost_usd": 0.02318275
+    },
+    {
+      "id": "ons-search",
+      "category": "search",
+      "url": "https://www.ons.gov.uk/",
+      "status": "ok",
+      "source": "live",
+      "purpose": "Page improvement feedback form",
+      "elements": 0,
+      "vocabulary_keys": 0,
+      "custom_keys": 0,
+      "risk": {},
+      "locators_resolved": 0,
+      "flags": 0,
+      "cost_usd": 0.029871250000000002
+    },
+    {
+      "id": "nhs-search",
+      "category": "search",
+      "url": "https://www.nhs.uk/",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Search the NHS website",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.0108805
+    },
+    {
+      "id": "github-signup",
+      "category": "account sign-up",
+      "url": "https://github.com/signup",
+      "note": "stop before submit",
+      "status": "skipped",
+      "reason": "HTTP 403 (refuses automated browsers)"
+    },
+    {
+      "id": "reddit-signup",
+      "category": "account sign-up",
+      "url": "https://www.reddit.com/register/",
+      "note": "stop before submit",
+      "status": "skipped",
+      "reason": "No forms found on https://www.reddit.com/register/."
+    },
+    {
+      "id": "bbc-signup",
+      "category": "account sign-up",
+      "url": "https://account.bbc.com/register",
+      "note": "stop before submit",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "BBC sign in: enter email or username",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.01179725
+    },
+    {
       "id": "aviva-car",
       "category": "insurance first step",
       "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
       "recorded": true,
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Car insurance quote by car registration",
       "elements": 4,
       "vocabulary_keys": 4,
@@ -221,6 +400,91 @@
       "locators_resolved": 4,
       "flags": 0,
       "cost_usd": 0.011096
+    },
+    {
+      "id": "directline-car",
+      "category": "insurance first step",
+      "url": "https://www.directline.com/car-insurance",
+      "status": "ok",
+      "source": "live",
+      "purpose": "Car insurance cover levels, benefits and FAQs",
+      "elements": 19,
+      "vocabulary_keys": 19,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 19
+      },
+      "locators_resolved": 19,
+      "flags": 0,
+      "cost_usd": 0.01796775
+    },
+    {
+      "id": "admiral-car",
+      "category": "insurance first step",
+      "url": "https://www.admiral.com/car-insurance",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Cookie consent preferences",
+      "elements": 3,
+      "vocabulary_keys": 2,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 2,
+        "needs_user": 1
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.01271275
+    },
+    {
+      "id": "churchill-car",
+      "category": "insurance first step",
+      "url": "https://www.churchill.com/car-insurance",
+      "status": "skipped",
+      "reason": "No forms found on https://www.churchill.com/car-insurance."
+    },
+    {
+      "id": "moneysupermarket-car",
+      "category": "insurance first step",
+      "url": "https://www.moneysupermarket.com/car-insurance/",
+      "status": "skipped",
+      "reason": "HTTP 403 (refuses automated browsers)"
+    },
+    {
+      "id": "nationwide-mortgage",
+      "category": "finance first step",
+      "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/",
+      "status": "skipped",
+      "reason": "HTTP 404"
+    },
+    {
+      "id": "barclays-loans",
+      "category": "finance first step",
+      "url": "https://www.barclays.co.uk/loans/",
+      "status": "skipped",
+      "reason": "No forms found on https://www.barclays.co.uk/loans/."
+    },
+    {
+      "id": "hl-isa",
+      "category": "finance first step",
+      "url": "https://www.hl.co.uk/investment-services/isa",
+      "status": "ok",
+      "source": "live",
+      "purpose": "Site search for shares, funds or articles",
+      "elements": 0,
+      "vocabulary_keys": 0,
+      "custom_keys": 0,
+      "risk": {},
+      "locators_resolved": 0,
+      "flags": 0,
+      "cost_usd": 0.01037225
+    },
+    {
+      "id": "mse-mortgage",
+      "category": "finance first step",
+      "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/",
+      "status": "skipped",
+      "reason": "HTTP 403 (refuses automated browsers)"
     }
   ]
 }
