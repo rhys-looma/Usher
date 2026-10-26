@@ -23,13 +23,13 @@
     ]
   },
   "agent": {
-    "id": "628Ic2oOBpV4gRBoW6dM0ImaFAAgfKPrJMey0oQRLdc",
+    "id": "v1Tb1lwwICEACNOs9jWVmBG-p65Xf8oOWNaq1Aa3WAg",
     "jwk": {
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "bT9PtGJzWzNacOXFwP3lfYd2-7VZVoT4XFGlmJI-Akk"
+      "x": "Eaf_OMJ6gkl_mE0whHyehRr7EsVVKvyOOCikWZEasfU"
     }
   },
   "ts": "2026-10-27T10:00:00Z",
-  "signature": "u90z-LGnIZQM84OFb0Uw2Xg6_ZGmLsvQ6IbrcwZ6N1XRRy3-zFFpFvHmvIOgQLf2D9IHhTVRT0dSiSuN5Gm9bQ"
+  "signature": "DZy1L6wOnI4S2gAfFvovIHoc_dWVAsSsb2mHnigEXR2xnjFl0dJP_TcbT4JWhVvwmen89BL11QqR2Z75NRCaAQ"
 }

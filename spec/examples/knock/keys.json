@@ -3,8 +3,8 @@
     {
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "BdSuITITk1CuKTib-ImGYXhiF5caZOD88a3hwW5rAC0",
-      "kid": "k1-EncLTJyO",
+      "x": "FFTriUz654hRkqDa2m-2l32_8Ys8IUybG1gFthlsCZM",
+      "kid": "Ql4vqNrhqFBy7hIzQSqwEvbLnAq8nBTPEEtHsFEXqwc",
       "alg": "EdDSA",
       "use": "sig"
     }
