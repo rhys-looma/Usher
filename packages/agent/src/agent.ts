@@ -104,6 +104,18 @@ async function locate(page: Page, el: MapField | MapAction): Promise<Locator | n
   return null;
 }
 
+const LEAST_CONSENT = /\b(reject|decline|refuse|deny|necessary|essential|required only|only necessary|manage|settings|no,? thanks)\b/i;
+const MORE_CONSENT = /\b(accept|allow|agree|ok|got it|consent|yes)\b/i;
+
+/**
+ * The banner action to click: always the least-consent option. Among ui.dismiss actions, one that
+ * rejects or keeps only what's necessary; never one that accepts. Null if there's no safe choice.
+ */
+export function leastConsent(actions: MapAction[]): MapAction | null {
+  const dismiss = actions.filter((a) => a.key === 'ui.dismiss');
+  return dismiss.find((a) => LEAST_CONSENT.test(a.label)) ?? dismiss.find((a) => !MORE_CONSENT.test(a.label)) ?? null;
+}
+
 function conditionHolds(field: MapField, profile: Profile): boolean {
   const c = field.shown_if;
   if (!c) return true;
@@ -210,6 +222,12 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       let filled = 0;
       let handedOff = 0;
       const ruleFor = (el: MapField | MapAction): ActionRule => knock.rules.actions[el.key] ?? FLOOR[el.risk];
+      // Cookie banners first, with the least consent on offer.
+      const banner = leastConsent(map.actions);
+      if (banner) {
+        const button = await locate(page, banner);
+        if (button && (await button.isVisible())) await button.click().catch(() => undefined);
+      }
       for (const field of map.fields) {
         if (!conditionHolds(field, options.profile)) continue;
         if (ruleFor(field) === 'forbid') {

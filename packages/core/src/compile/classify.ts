@@ -101,6 +101,12 @@ export async function classifyRisks(chat: ChatFn, model: string, purpose: string
   return { opinions: elements.map((e) => opinions.get(e.id)!), model, usage: result.usage, cost_usd: costUsd(model, result.usage), latency_ms: result.latency_ms };
 }
 
+/**
+ * Keys whose risk the classifier may flag but never raise. Dismissing a banner is always safe:
+ * agents take the least-consent option (vocabulary: ui.dismiss).
+ */
+export const AUTHORITATIVE_SAFE = new Set(['ui.dismiss']);
+
 /** Compares opinions with the labeller's risks: the stricter is kept, differences are flagged. */
 export function reconcile(labelled: { id: string; key: string; label: string; risk: Risk }[], opinions: RiskOpinion[]): { risks: Map<string, Risk>; flags: RiskFlag[]; agreement: number } {
   const byId = new Map(opinions.map((o) => [o.id, o]));
@@ -113,7 +119,7 @@ export function reconcile(labelled: { id: string; key: string; label: string; ri
       risks.set(l.id, l.risk);
       continue;
     }
-    const kept = stricter(l.risk, o.risk);
+    const kept = AUTHORITATIVE_SAFE.has(l.key) ? 'safe' : stricter(l.risk, o.risk);
     risks.set(l.id, kept);
     if (o.risk === l.risk) agree++;
     else flags.push({ id: l.id, key: l.key, label: l.label, labeller: l.risk, classifier: o.risk, kept, reason: o.reason });
