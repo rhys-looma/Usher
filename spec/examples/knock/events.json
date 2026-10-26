@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "ts": "2026-10-27T10:00:01Z",
+      "source": "registry",
+      "action": "knock",
+      "path": "/quote/driver",
+      "detail": {
+        "match": "exact",
+        "map": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6"
+      }
+    },
+    {
+      "ts": "2026-10-27T10:00:03Z",
+      "source": "site",
+      "action": "fill",
+      "key": "person.first_name",
+      "element": "e2",
+      "path": "/quote/driver"
+    },
+    {
+      "ts": "2026-10-27T10:00:04Z",
+      "source": "site",
+      "action": "choose",
+      "key": "person.claims.has_any",
+      "element": "e11",
+      "path": "/quote/driver"
+    },
+    {
+      "ts": "2026-10-27T10:00:05Z",
+      "source": "site",
+      "action": "submit",
+      "key": "nav.next",
+      "element": "e14",
+      "path": "/quote/driver"
+    }
+  ]
+}

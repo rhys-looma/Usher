@@ -4,7 +4,7 @@
 | --- | --- |
 | [Map](map.md) ([JSON Schema](map.schema.json)) | Draft 0.1 |
 | [Field and action vocabulary](vocabulary.md) | Draft 0.1 |
-| Knock protocol | To follow |
+| [Knock protocol](knock.md) ([JSON Schema](knock.schema.json)) | Draft 0.1 |
 | Policy format | To follow |
 
 Example documents live in [`examples/`](examples/).

@@ -1,0 +1,35 @@
+{
+  "usher": "0.1",
+  "url": "http://localhost:4100/quote/driver",
+  "intent": "quote.car_insurance",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6",
+    "signature": [
+      "69e4f5de482f",
+      "d0902a45a792",
+      "c8329abd70e6",
+      "abfe360db422",
+      "610c8ae3674e",
+      "9ff9fdeda520",
+      "2c17b6a25c43",
+      "22cf2de2473a",
+      "0b5f68ad67d7",
+      "b40874a2944d",
+      "18c2f616422b",
+      "506218913c86",
+      "75c93c6f5aa5",
+      "aaf42bd620d6"
+    ]
+  },
+  "agent": {
+    "id": "628Ic2oOBpV4gRBoW6dM0ImaFAAgfKPrJMey0oQRLdc",
+    "jwk": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "bT9PtGJzWzNacOXFwP3lfYd2-7VZVoT4XFGlmJI-Akk"
+    }
+  },
+  "ts": "2026-10-27T10:00:00Z",
+  "signature": "u90z-LGnIZQM84OFb0Uw2Xg6_ZGmLsvQ6IbrcwZ6N1XRRy3-zFFpFvHmvIOgQLf2D9IHhTVRT0dSiSuN5Gm9bQ"
+}
