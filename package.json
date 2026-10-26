@@ -24,7 +24,9 @@
     "fixtures:record:open": "node scripts/record-fixtures.mjs --open",
     "keygen": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/keygen.ts",
     "db": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/db.ts",
-    "e2e:remote": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/e2e-remote.ts"
+    "e2e:remote": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/e2e-remote.ts",
+    "accuracy": "node scripts/with-mock-sites.mjs node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/accuracy.ts",
+    "accuracy:score": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/accuracy-score.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

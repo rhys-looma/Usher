@@ -82,8 +82,11 @@ export function pickForm(scan: Scan, index?: number): ScannedForm {
     if (!form) throw new Error(`No form ${index} on ${scan.url}; found ${scan.forms.length}.`);
     return form;
   }
+  // The form with the most fields: a real <form> that isn't a cookie or consent banner if there is
+  // one, then loose controls outside any form, then anything.
   const fields = (f: ScannedForm) => f.elements.filter((e) => e.kind === 'field').length;
-  const best = [...scan.forms].sort((a, b) => fields(b) - fields(a))[0];
+  const tiers = [scan.forms.filter((f) => !f.pseudo && !f.banner && fields(f) > 0), scan.forms.filter((f) => !f.banner && fields(f) > 0), scan.forms];
+  const best = [...tiers.find((t) => t.length)!].sort((a, b) => fields(b) - fields(a))[0];
   if (!best) throw new Error(`No forms found on ${scan.url}.`);
   return best;
 }

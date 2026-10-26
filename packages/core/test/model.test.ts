@@ -95,6 +95,7 @@ const box = { x: 0, y: 0, width: 10, height: 10 };
 const form: ExtractedForm = {
   index: 0,
   pseudo: false,
+  banner: false,
   groups: [],
   elements: [
     { id: 'e1', kind: 'field', tag: 'input', control: 'text', required: true, label: 'Name', labelSource: 'label-for', box, visible: true },

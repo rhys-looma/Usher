@@ -1,0 +1,33 @@
+{
+  "about": "Public forms for the accuracy evaluation (LU-50). Pages are loaded and read; nothing is ever submitted. Account sign-ups are mapped up to their submit button only. Pages that refuse a headless browser (403 and the like) are skipped and noted. 'recorded' marks forms whose model responses are already in the compiler log.",
+  "forms": [
+    { "id": "govuk-contact", "category": "contact", "url": "https://www.gov.uk/contact/govuk", "recorded": true },
+    { "id": "ico-contact", "category": "contact", "url": "https://ico.org.uk/global/contact-us/" },
+    { "id": "parliament-contact", "category": "contact", "url": "https://www.parliament.uk/site-information/contact-us/" },
+    { "id": "ofcom-contact", "category": "contact", "url": "https://www.ofcom.org.uk/about-ofcom/contact-us" },
+    { "id": "travelodge-booking", "category": "booking", "url": "https://www.travelodge.co.uk/", "recorded": true },
+    { "id": "httpbin-order", "category": "booking", "url": "https://httpbin.org/forms/post", "recorded": true, "note": "a test form (pizza order), kept as a control" },
+    { "id": "nationalrail-journey", "category": "booking", "url": "https://www.nationalrail.co.uk/" },
+    { "id": "eventbrite-search", "category": "booking", "url": "https://www.eventbrite.co.uk/" },
+    { "id": "lner-booking", "category": "booking", "url": "https://www.lner.co.uk/" },
+    { "id": "mozilla-newsletter", "category": "newsletter", "url": "https://www.mozilla.org/en-US/newsletter/", "recorded": true },
+    { "id": "which-newsletter", "category": "newsletter", "url": "https://www.which.co.uk/newsletters" },
+    { "id": "guardian-newsletters", "category": "newsletter", "url": "https://www.theguardian.com/email-newsletters" },
+    { "id": "wikipedia-search", "category": "search", "url": "https://en.wikipedia.org/wiki/Special:Search", "recorded": true },
+    { "id": "govuk-search", "category": "search", "url": "https://www.gov.uk/search/all" },
+    { "id": "ons-search", "category": "search", "url": "https://www.ons.gov.uk/" },
+    { "id": "nhs-search", "category": "search", "url": "https://www.nhs.uk/" },
+    { "id": "github-signup", "category": "account sign-up", "url": "https://github.com/signup", "note": "stop before submit" },
+    { "id": "reddit-signup", "category": "account sign-up", "url": "https://www.reddit.com/register/", "note": "stop before submit" },
+    { "id": "bbc-signup", "category": "account sign-up", "url": "https://account.bbc.com/register", "note": "stop before submit" },
+    { "id": "aviva-car", "category": "insurance first step", "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/", "recorded": true },
+    { "id": "directline-car", "category": "insurance first step", "url": "https://www.directline.com/car-insurance" },
+    { "id": "admiral-car", "category": "insurance first step", "url": "https://www.admiral.com/car-insurance" },
+    { "id": "churchill-car", "category": "insurance first step", "url": "https://www.churchill.com/car-insurance" },
+    { "id": "moneysupermarket-car", "category": "insurance first step", "url": "https://www.moneysupermarket.com/car-insurance/" },
+    { "id": "nationwide-mortgage", "category": "finance first step", "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/" },
+    { "id": "barclays-loans", "category": "finance first step", "url": "https://www.barclays.co.uk/loans/" },
+    { "id": "hl-isa", "category": "finance first step", "url": "https://www.hl.co.uk/investment-services/isa" },
+    { "id": "mse-mortgage", "category": "finance first step", "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/" }
+  ]
+}

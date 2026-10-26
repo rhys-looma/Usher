@@ -11,6 +11,7 @@ import type { Browser, Locator, Page } from 'playwright';
 import {
   FLOOR,
   compilePage,
+  pickForm,
   costUsd,
   type ActionRule,
   fingerprint,
@@ -159,7 +160,7 @@ async function fillField(page: Page, field: MapField, value: string | boolean): 
 }
 
 function mainForm(scan: Scan) {
-  return [...scan.forms].sort((a, b) => b.elements.filter((e) => e.kind === 'field').length - a.elements.filter((e) => e.kind === 'field').length)[0];
+  return pickForm(scan);
 }
 
 export async function runAgent(options: AgentOptions): Promise<RunResult> {

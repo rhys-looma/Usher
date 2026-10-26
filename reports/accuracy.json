@@ -1,0 +1,226 @@
+{
+  "generated": "2026-10-26T21:37:07.866Z",
+  "results": [
+    {
+      "id": "mock-a-driver",
+      "category": "mock site",
+      "url": "/quote/driver (layout A)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: driver details",
+      "elements": 14,
+      "vocabulary_keys": 14,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 14
+      },
+      "locators_resolved": 14,
+      "flags": 0,
+      "cost_usd": 0.0124345
+    },
+    {
+      "id": "mock-a-vehicle",
+      "category": "mock site",
+      "url": "/quote/vehicle (layout A)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: vehicle details",
+      "elements": 11,
+      "vocabulary_keys": 11,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 11
+      },
+      "locators_resolved": 11,
+      "flags": 0,
+      "cost_usd": 0.00953625
+    },
+    {
+      "id": "mock-a-cover",
+      "category": "mock site",
+      "url": "/quote/cover (layout A)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: cover details",
+      "elements": 9,
+      "vocabulary_keys": 9,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 6,
+        "needs_user": 2,
+        "consequential": 1
+      },
+      "locators_resolved": 9,
+      "flags": 0,
+      "cost_usd": 0.00871425
+    },
+    {
+      "id": "mock-b-driver",
+      "category": "mock site",
+      "url": "/quote/driver (layout B)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: driver details",
+      "elements": 14,
+      "vocabulary_keys": 14,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 11,
+        "needs_user": 3
+      },
+      "locators_resolved": 14,
+      "flags": 3,
+      "cost_usd": 0.0130835
+    },
+    {
+      "id": "mock-b-vehicle",
+      "category": "mock site",
+      "url": "/quote/vehicle (layout B)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: vehicle details",
+      "elements": 11,
+      "vocabulary_keys": 11,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 11
+      },
+      "locators_resolved": 11,
+      "flags": 0,
+      "cost_usd": 0.00987625
+    },
+    {
+      "id": "mock-b-cover",
+      "category": "mock site",
+      "url": "/quote/cover (layout B)",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Car insurance quote: cover options",
+      "elements": 9,
+      "vocabulary_keys": 9,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 6,
+        "needs_user": 2,
+        "consequential": 1
+      },
+      "locators_resolved": 9,
+      "flags": 0,
+      "cost_usd": 0.00846175
+    },
+    {
+      "id": "govuk-contact",
+      "category": "contact",
+      "url": "https://www.gov.uk/contact/govuk",
+      "recorded": true,
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Contact GOV.UK team with a question or feedback",
+      "elements": 7,
+      "vocabulary_keys": 4,
+      "custom_keys": 3,
+      "risk": {
+        "safe": 6,
+        "consequential": 1
+      },
+      "locators_resolved": 7,
+      "flags": 0,
+      "cost_usd": 0.051773799999999995
+    },
+    {
+      "id": "travelodge-booking",
+      "category": "booking",
+      "url": "https://www.travelodge.co.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Hotel search by destination, dates and guests",
+      "elements": 6,
+      "vocabulary_keys": 5,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 5,
+        "consequential": 1
+      },
+      "locators_resolved": 6,
+      "flags": 0,
+      "cost_usd": 0.01250525
+    },
+    {
+      "id": "httpbin-order",
+      "category": "booking",
+      "url": "https://httpbin.org/forms/post",
+      "recorded": true,
+      "note": "a test form (pizza order), kept as a control",
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Pizza order form",
+      "elements": 11,
+      "vocabulary_keys": 5,
+      "custom_keys": 6,
+      "risk": {
+        "safe": 10,
+        "consequential": 1
+      },
+      "locators_resolved": 11,
+      "flags": 0,
+      "cost_usd": 0.01302575
+    },
+    {
+      "id": "mozilla-newsletter",
+      "category": "newsletter",
+      "url": "https://www.mozilla.org/en-US/newsletter/",
+      "recorded": true,
+      "status": "ok",
+      "source": "recorded",
+      "purpose": "Firefox news newsletter signup",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1,
+        "consequential": 1
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.0101385
+    },
+    {
+      "id": "wikipedia-search",
+      "category": "search",
+      "url": "https://en.wikipedia.org/wiki/Special:Search",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search Wikipedia articles",
+      "elements": 2,
+      "vocabulary_keys": 1,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.0096125
+    },
+    {
+      "id": "aviva-car",
+      "category": "insurance first step",
+      "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Car insurance quote by car registration",
+      "elements": 4,
+      "vocabulary_keys": 4,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 3,
+        "consequential": 1
+      },
+      "locators_resolved": 4,
+      "flags": 0,
+      "cost_usd": 0.011096
+    }
+  ]
+}

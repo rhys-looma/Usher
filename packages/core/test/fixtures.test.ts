@@ -91,3 +91,27 @@ test('label sources, groups, honeypots and controls outside forms', async () => 
   for (const secret of ['zqhiddentoken', 'zqtextareacontent', 'zqtypedmessage']) assert.ok(!json.includes(secret), secret);
   for (const c of checks) assert.ok(c.agree && c.counts.every((n) => n === 1), JSON.stringify(c));
 });
+
+test('cookie banners are marked, and the main form is the one a person came for', async () => {
+  const { pickForm } = await import('../src/index.ts');
+  const page = await browser.newPage();
+  const banner = `<!doctype html><title>t</title>
+<div id="onetrust-banner-sdk"><form><label><input type="checkbox" name="a"> Analytics</label><label><input type="checkbox" name="m"> Marketing</label><label><input type="checkbox" name="p"> Personalisation</label><button>Essential cookies only</button></form></div>
+<form id="reg"><label for="r">Car registration</label><input id="r" name="r"><button>Find my car</button></form>`;
+  await page.route('http://usher.test/**', (route) => route.fulfill({ body: banner, contentType: 'text/html' }));
+  await page.goto('http://usher.test/quote');
+  const result: Scan = await page.evaluate(scanScript());
+  await page.close();
+  assert.deepEqual(result.forms.map((f) => f.banner), [true, false]);
+  assert.equal(pickForm(result).elements[0]!.label, 'Car registration', 'not the banner, though it has more fields');
+
+  // Loose controls outside any form (where many banners put their toggles) come after a real form.
+  const loose = await browser.newPage();
+  await loose.route('http://usher.test/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: `<!doctype html><title>t</title><div><label><input type="checkbox" name="a"> Analytics</label><label><input type="checkbox" name="b"> Ads</label></div><form><label for="r">Car registration</label><input id="r" name="r"><button>Find</button></form>` }),
+  );
+  await loose.goto('http://usher.test/quote');
+  const looseScan: Scan = await loose.evaluate(scanScript());
+  await loose.close();
+  assert.equal(pickForm(looseScan).pseudo, false);
+});
