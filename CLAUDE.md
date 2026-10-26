@@ -31,6 +31,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/registry/` | Registry: knock, maps (lookup by fingerprint), sessions, runs, drift; HTTP (`src/http.ts`) and MCP (`src/mcp.ts`); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
 | `packages/site-script/` | The one-tag site script, bundled to `dist/usher.js` and served by the registry at `/usher.js` |
+| `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test |
 | `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
 
 ## Core package
@@ -62,6 +63,7 @@ npm run compile -- <url> [--out file]   # compile one page with Muse Spark
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
 npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps (data in data/registry)
 npm run seed:build                      # rebuild seed maps from recorded labels
+npm run agent -- <url> --profile packages/agent/profiles/test-driver.json [--mcp] [--auto-confirm]
 USHER_LIVE=1 npm test                   # also run the live model test
 ```
 
