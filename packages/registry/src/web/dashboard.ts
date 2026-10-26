@@ -182,12 +182,15 @@ ${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
   async sessionPage(origin: string, sid: string): Promise<string | null> {
     const session = await this.registry.storage.getSession(sid);
     if (!session || session.origin !== origin) return null;
+    const explained = await this.registry.storage.getCached<ExplanationView>('session-explanations', sid);
     const events = [...session.events].sort((a, b) => a.ts.localeCompare(b.ts));
     return page(
       'Agent session',
       html`<p class="muted small"><a href="/dashboard#sessions">Dashboard</a> · session ${session.id}</p>
 <h1>Agent session</h1>
 <p class="lede">Agent <span class="mono">${session.agent}</span> · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
+${this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
+<form method="post" action="/dashboard/sessions/${session.id}/explain"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
 <div class="card"><ol class="timeline">${events.map(
         (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
       )}</ol></div>`,
