@@ -43,6 +43,8 @@ export interface Attempt {
 
 export interface CompileResult {
   map: UsherMap;
+  /** The labels the model returned that passed validation, for caching by fingerprint. */
+  labels: unknown;
   model: string;
   attempts: Attempt[];
   clamps: RiskClamp[];
@@ -66,7 +68,7 @@ export class CompileError extends Error {
   }
 }
 
-function pickForm(scan: Scan, index?: number): ScannedForm {
+export function pickForm(scan: Scan, index?: number): ScannedForm {
   if (index !== undefined) {
     const form = scan.forms[index];
     if (!form) throw new Error(`No form ${index} on ${scan.url}; found ${scan.forms.length}.`);
@@ -132,6 +134,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
   const schema = labelsSchema(form);
   const attempts: Attempt[] = [];
   let validation: LabelValidation | undefined;
+  let accepted: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const request: ChatRequest = {
@@ -171,7 +174,10 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
       );
     }
 
-    if (validation.ok) break;
+    if (validation.ok) {
+      accepted = parsed;
+      break;
+    }
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: retryPrompt(validation.errors) });
   }
 
@@ -201,6 +207,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
 
   return {
     map,
+    labels: accepted,
     model,
     attempts,
     clamps: validation.clamps,
@@ -210,6 +217,23 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     model_ms: attempts.reduce((s, a) => s + a.latency_ms, 0),
     total_ms: Math.round(performance.now() - started),
   };
+}
+
+/** Merges labels that already passed validation for this structure (a cache hit) into a map for this page. */
+export async function mapFromLabels(page: Page, labels: unknown, provenance: { compiler: string; created_at: string }): Promise<UsherMap | null> {
+  const scan: Scan = await page.evaluate(scanScript());
+  const form = pickForm(scan);
+  const validation = validateLabels(labels, form.elements);
+  if (!validation.ok) return null;
+  const url = new URL(scan.url);
+  return mergeMap({
+    form,
+    fingerprint: await fingerprint(form.elements),
+    validation,
+    origin: url.origin,
+    path: url.pathname,
+    provenance: { source: 'compiled', compiler: provenance.compiler, created_at: provenance.created_at, verified: false },
+  });
 }
 
 /** Loads a URL in a fresh 1280px-wide browser context and compiles it. */

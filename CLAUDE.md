@@ -28,7 +28,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/core/test/` | node:test suites; browser tests use Playwright (chromium) |
 | `examples/mock-quote-site/` | Fictional three-step quote form (Brightwater Motor), no dependencies |
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A and B) started on free ports |
-| `packages/registry/` | Registry: knock, maps (lookup by fingerprint), sessions, runs, drift; HTTP (`src/http.ts`) and MCP (`src/mcp.ts`); JSON-file storage |
+| `packages/registry/` | Registry: knock, maps, sessions, policy and rules, drift; HTTP, MCP, and server-rendered pages (`src/web/`: map viewer, dashboard); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
 | `packages/site-script/` | The one-tag site script, bundled to `dist/usher.js` and served by the registry at `/usher.js` |
 | `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test |

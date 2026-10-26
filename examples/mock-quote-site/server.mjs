@@ -32,6 +32,7 @@ const usher = REGISTRY
       registry: REGISTRY,
       intent: 'quote.car_insurance',
       origin: (req) => `http://${req.headers.host}`,
+      ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
     })
   : null;
 const sessions = new Map(); // session id -> { driver, vehicle, cover, result }
@@ -335,7 +336,7 @@ const server = createServer(async (req, res) => {
         // Requesting the quote is consequential: an agent needs a token from a knock.
         if (steps[key].final && usher) {
           const check = await usher.check(req, { form: params, action: 'form.submit' });
-          if (check.status === 'knock_required') return usher.reject(req, res, check);
+          if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
         }
         const values = readStep(key, params);
         const errors = validate(key, values);
@@ -359,7 +360,7 @@ const server = createServer(async (req, res) => {
       // The API is for software, so every call needs a token when Usher is on.
       if (usher) {
         const check = await usher.check(req, { always: true, action: 'form.submit' });
-        if (check.status === 'knock_required') return usher.reject(req, res, check);
+        if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
       }
       let input;
       try {

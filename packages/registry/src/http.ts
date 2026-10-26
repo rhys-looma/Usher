@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import type { ChatFn } from '@usher/core';
 import { Registry, type Reply } from './registry.ts';
+import { Web, type WebOptions } from './web/routes.ts';
 import type { Storage } from './storage.ts';
 
 const MAX_BODY = 1_000_000;
@@ -13,6 +14,8 @@ const MAX_BODY = 1_000_000;
 export interface HttpOptions {
   /** Path of the built site script, served at /usher.js. */
   siteScript?: string;
+  /** The map viewer and dashboard pages. */
+  web?: Web;
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -63,6 +66,8 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       if (route === 'GET /maps/current') {
         return send(res, await registry.currentMap(url.searchParams.get('origin'), url.searchParams.get('path')), { 'Cache-Control': 'public, max-age=3600' });
       }
+      const blocked = /^\/sites\/([^/]+)\/blocked$/.exec(url.pathname);
+      if (blocked && req.method === 'POST') return send(res, await registry.reportBlocked(decodeURIComponent(blocked[1]!), header(req, 'usher-site-key'), await readJson(req)));
       const rules = /^\/sites\/([^/]+)\/rules(?:\/(r_[A-Za-z0-9_-]+)\/confirm)?$/.exec(url.pathname);
       if (rules) {
         const origin = decodeURIComponent(rules[1]!);
@@ -79,6 +84,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       const session = /^\/sessions\/(s_[A-Za-z0-9_-]+)(\/events)?$/.exec(url.pathname);
       if (session && req.method === 'GET' && !session[2]) return send(res, await registry.getSession(session[1]!, req.headers.authorization));
       if (session && req.method === 'POST' && session[2]) return send(res, await registry.appendEvents(session[1]!, req.headers.authorization, await readJson(req)));
+      if (options.web && (await options.web.handle(req, res, url))) return;
       send(res, { status: 404, body: { error: 'not_found', message: `${route} is not a registry endpoint.` } });
     } catch (err) {
       const bad = err instanceof SyntaxError || (err as Error).message === 'too_large';
@@ -88,8 +94,10 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
   };
 }
 
-export interface StartOptions extends HttpOptions {
+export interface StartOptions extends Omit<HttpOptions, 'web'> {
   storage: Storage;
+  /** Serve the map viewer and dashboard. */
+  web?: Omit<WebOptions, 'chat' | 'model'>;
   chat?: ChatFn;
   model?: string;
   port?: number;
@@ -114,7 +122,8 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.threshold !== undefined && { threshold: options.threshold }),
     ...(options.chat && options.model && { chat: options.chat, model: options.model }),
   });
-  const server = createServer(registryHandler(registry, options));
+  const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const server = createServer(registryHandler(registry, { ...(options.siteScript && { siteScript: options.siteScript }), ...(web && { web }) }));
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
   url ||= `http://localhost:${(server.address() as AddressInfo).port}`;
   await registry.signingKey();
@@ -125,7 +134,10 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   void prune();
   const pruning = setInterval(prune, 3_600_000);
   pruning.unref();
-  server.on('close', () => clearInterval(pruning));
+  server.on('close', () => {
+    clearInterval(pruning);
+    void web?.viewer.close();
+  });
   return {
     url,
     registry,

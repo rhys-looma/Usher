@@ -18,6 +18,7 @@ const { values } = parseArgs({
     seed: { type: 'string' },
     'seed-origin': { type: 'string', default: 'http://localhost:4100' },
     threshold: { type: 'string' },
+    'allow-private': { type: 'boolean', default: false },
   },
 });
 
@@ -26,6 +27,8 @@ const running = await startRegistry({
   storage: new FileStorage(values.data),
   port: Number(values.port),
   siteScript,
+  // The map viewer opens only public sites unless --allow-private (for the local demo).
+  web: { allowPrivate: values['allow-private'] },
   // Muse Spark turns owners' plain-English rules into policy, when a key is set.
   ...(process.env.MODEL_API_KEY && { chat: modelApi(), model: compilerModel() }),
   ...(values.url && { url: values.url }),

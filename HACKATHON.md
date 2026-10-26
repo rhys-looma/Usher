@@ -39,3 +39,4 @@ This table is updated as the build progresses.
 | 26 Oct | Knock loop fixes: no drift beacons, site keys, threshold 0.3, edges on shared maps |
 | 26 Oct | Second agent on Muse Spark Open via Baseten (LU-30) |
 | 26 Oct | Policy format (LU-15) and plain-English rules with Muse Spark, enforced at knock, in the page and on the server (LU-32) |
+| 26 Oct | Map viewer (LU-38) and site dashboard (LU-37), server-rendered by the registry; blocked attempts recorded |
