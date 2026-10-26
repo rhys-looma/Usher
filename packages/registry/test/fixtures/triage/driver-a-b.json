@@ -1,0 +1,28 @@
+{
+  "model": "meta-models/muse-spark-open",
+  "recorded_at": "2026-10-26T21:42:31.988Z",
+  "attempts": [
+    {
+      "request_sha256": "60325be73149e5b6574abcb007bc1577ff8f698772cd571b4b816f06d004327f",
+      "content": "{\"change\":\"cosmetic\",\"consequential_changed\":false,\"summary\":\"All 13 questions are retained with only reordering and synonymous rewording (Last name/Surname, Occupation/Main occupation, First line of address/House number and street) and the Continue button renamed to Next.\"}",
+      "usage": {
+        "prompt_tokens": 580,
+        "completion_tokens": 1078,
+        "total_tokens": 1658,
+        "cached_tokens": 0
+      },
+      "latency_ms": 6194
+    },
+    {
+      "request_sha256": "b13a81cd2c5a68bd6416c948afe6e38bc009bba8f20c0c52807500531a96b11b",
+      "content": "{\"change\":\"cosmetic\",\"consequential_changed\":false,\"summary\":\"All required fields remain identical with only rewording (e.g., Surname to Last name) and reordering, and the Next/Continue button performs the same navigation.\"}",
+      "usage": {
+        "prompt_tokens": 580,
+        "completion_tokens": 772,
+        "total_tokens": 1352,
+        "cached_tokens": 0
+      },
+      "latency_ms": 7405
+    }
+  ]
+}
