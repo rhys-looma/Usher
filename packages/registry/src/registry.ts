@@ -16,16 +16,37 @@ import {
   type SigningKey,
   type TokenClaims,
   type UsherMap,
+  type UsherPolicy,
+  type ChatFn,
+  type ActionRule,
+  type EffectiveRules,
+  type Risk,
+  agentStanding,
+  effectiveRules,
+  WINDOW_MS,
 } from '@usher/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
 import { RateLimiter } from './rate-limit.ts';
-import type { MapRecord, Policy, Rules, Session, SessionEvent, Site, Storage } from './storage.ts';
+import { RulesError, compileRules } from './rules.ts';
+import type { MapRecord, Session, SessionEvent, Site, Storage } from './storage.ts';
 
-export const DEFAULT_RULES: Rules = { agents: 'allowed', confirm: ['consequential'], human_only: ['needs_user'] };
+/** The knock response's rules: risk-level defaults, and the effective rule for each key on the form. */
+export interface Rules {
+  agents: 'allowed' | 'denied';
+  confirm: Risk[];
+  human_only: Risk[];
+  actions: Record<string, ActionRule>;
+}
+
+/** How long sessions are kept when a site's policy doesn't say. */
+export const DEFAULT_RETENTION_DAYS = 90;
 
 export interface RegistryOptions {
   storage: Storage;
+  /** Muse Spark, for turning site owners' plain-English rules into policy. */
+  chat?: ChatFn;
+  model?: string;
   /** Public URL of the registry, used as the token issuer. A function when it is known only after listening. */
   url: string | (() => string);
   threshold?: number;
@@ -48,12 +69,8 @@ const ok = (body: unknown): Reply => ({ status: 200, body });
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 const error = (status: number, code: string, message: string): Reply => ({ status, body: { error: code, message } });
 
-export function resolveRules(policy: Policy | undefined, intent: string | undefined, path: string): Rules {
-  let rules: Rules = { ...DEFAULT_RULES, ...policy?.default };
-  for (const form of policy?.forms ?? []) {
-    if ((form.intent === undefined || form.intent === intent) && (form.path === undefined || form.path === path)) rules = { ...rules, ...form.rules };
-  }
-  return rules;
+export function knockRules(effective: EffectiveRules): Rules {
+  return { agents: effective.agent_lane ? 'allowed' : 'denied', confirm: ['consequential'], human_only: ['needs_user'], actions: effective.actions };
 }
 
 export class Registry {
@@ -63,6 +80,8 @@ export class Registry {
   // Per site key for drift reports, per secret for session reads.
   private readonly driftLimit = new RateLimiter(60, 60_000);
   private readonly readLimit = new RateLimiter(120, 60_000);
+  // Sites' own rate limits, one sliding window per (max, window).
+  private readonly policyLimits = new Map<string, RateLimiter>();
 
   constructor(private readonly options: RegistryOptions) {
     this.threshold = options.threshold ?? DEFAULT_THRESHOLD;
@@ -123,6 +142,25 @@ export class Registry {
     return result;
   }
 
+  async policy(origin: string): Promise<UsherPolicy | undefined> {
+    return (await this.storage.getPolicy(origin))?.policy;
+  }
+
+  /** Checks the site's rate limits for these uses and counts them if all allow. */
+  private withinLimits(effective: EffectiveRules, origin: string, agent: string, uses: string[]): string | null {
+    const applicable = effective.rate_limits.filter((l) => uses.includes(l.action));
+    const keyed = applicable.map((l) => {
+      const id = `${l.max}/${l.window}`;
+      let limiter = this.policyLimits.get(id);
+      if (!limiter) this.policyLimits.set(id, (limiter = new RateLimiter(l.max, WINDOW_MS[l.window], () => this.now().getTime())));
+      return { limit: l, limiter, key: `${origin}|${l.action}|${l.per === 'agent' ? agent : '*'}` };
+    });
+    const over = keyed.find((k) => !k.limiter.wouldAllow(k.key));
+    if (over) return `At most ${over.limit.max} ${over.limit.action} per ${over.limit.per} per ${over.limit.window}.`;
+    for (const k of keyed) k.limiter.allow(k.key);
+    return null;
+  }
+
   private summary(result: MatchResult): MatchSummary {
     return { kind: result.kind, score: result.score, digest: result.record?.digest ?? null, drifted: Boolean(result.record?.drift) };
   }
@@ -130,7 +168,7 @@ export class Registry {
   async knock(request: unknown): Promise<Reply> {
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
-    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; agent: { id: string } };
+    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[]; agent: { id: string } };
     const check = await verifySignedRequest(knock, { knownKey: (id) => this.storage.agentKey(id), now: this.now() });
     if (!check.ok) return error(check.error === 'invalid_request' ? 400 : 401, check.error, check.message);
     if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
@@ -140,8 +178,17 @@ export class Registry {
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
-    const rules = resolveRules(await this.storage.getPolicy(page.origin), intent, page.pathname);
-    if (rules.agents === 'denied') return error(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
+    const policy = await this.policy(page.origin);
+    const effective = effectiveRules(policy, map, page.pathname);
+    if (!effective.agent_lane) return error(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
+    const standing = agentStanding(policy, check.agentId);
+    if (standing !== 'allowed') return error(403, 'agent_blocked', `${page.origin} does not allow this agent.`);
+    const confirmed = [...new Set(knock.confirmed ?? [])];
+    const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
+    if (forbidden.length) return error(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`);
+    const limited = this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
+    if (limited) return error(429, 'rate_limited', `${page.origin}: ${limited}`);
+    const rules = knockRules(effective);
 
     let session = knock.session ? await this.storage.getSession(knock.session) : undefined;
     if (knock.session && (!session || session.agent !== check.agentId || session.origin !== page.origin)) {
@@ -154,7 +201,13 @@ export class Registry {
     }
     const summary = this.summary(match);
     await this.storage.appendEvents(session.id, [
-      { ts: at.toISOString(), source: 'registry', action: 'knock', path: page.pathname, detail: { match: summary.kind, score: summary.score, map: summary.digest } },
+      {
+        ts: at.toISOString(),
+        source: 'registry',
+        action: 'knock',
+        path: page.pathname,
+        detail: { match: summary.kind, score: summary.score, map: summary.digest, ...(confirmed.length && { confirmed: confirmed.join(',') }) },
+      },
     ]);
 
     const iat = Math.floor(at.getTime() / 1000);
@@ -168,6 +221,9 @@ export class Registry {
       iat,
       exp: iat + TOKEN_LIFETIME_SECONDS,
       jti: randomId(16),
+      confirm: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'confirm'),
+      forbid: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'forbid'),
+      ...(confirmed.length && { confirmed }),
     };
     return ok({
       usher: '0.1',
@@ -191,7 +247,7 @@ export class Registry {
     }
     const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup');
     const map = match.record?.map ?? null;
-    return ok({ match: this.summary(match), map, rules: resolveRules(await this.storage.getPolicy(b.origin), map?.form.intent, b.path) });
+    return ok({ match: this.summary(match), map, rules: knockRules(effectiveRules(await this.policy(b.origin), map, b.path)) });
   }
 
   async getMap(origin: string, digest: string): Promise<Reply> {
@@ -260,6 +316,20 @@ export class Registry {
     return ok({ recorded: (body as { events: unknown[] }).events.length });
   }
 
+  /** Deletes sessions older than each site's retention (policy, or the default). */
+  async pruneSessions(origin: string): Promise<number> {
+    const days = (await this.policy(origin))?.retention?.session_days ?? DEFAULT_RETENTION_DAYS;
+    const cutoff = this.now().getTime() - days * 86_400_000;
+    let removed = 0;
+    for (const session of await this.storage.listSessions(origin)) {
+      if (Date.parse(session.created_at) < cutoff) {
+        await this.storage.deleteSession(session.id);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   /** Registers an origin and issues its keys: a public site key and a secret key, shown once. */
   async registerSite(body: unknown): Promise<Reply> {
     const origin = (body as { origin?: unknown } | null)?.origin;
@@ -279,6 +349,43 @@ export class Registry {
     const a = Buffer.from(site.secret_sha256, 'hex');
     const b = Buffer.from(sha256(secret), 'hex');
     return a.length === b.length && timingSafeEqual(a, b) ? site : undefined;
+  }
+
+  /** Turns the owner's English into a draft policy, held until they confirm it. */
+  async proposeRules(origin: string, authorization: string | undefined, body: unknown): Promise<Reply> {
+    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    const text = (body as { text?: unknown } | null)?.text;
+    if (typeof text !== 'string' || !text.trim() || text.length > 4000) return error(400, 'invalid_request', 'Expected { "text": "…" } under 4000 characters.');
+    if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'This registry has no model configured for rules.');
+    const maps = (await this.storage.mapsForOrigin(origin)).map((r) => r.map);
+    try {
+      const result = await compileRules(this.options.chat, this.options.model, text.trim(), origin, maps);
+      const draft = { id: `r_${randomId(9)}`, origin, text: text.trim(), policy: result.policy, summary: result.summary, model: this.options.model, created_at: this.now().toISOString(), status: 'pending' as const };
+      await this.storage.putDraft(draft);
+      return { status: 201, body: { ...draft, usage: result.usage, cost_usd: result.cost_usd, latency_ms: result.latency_ms } };
+    } catch (err) {
+      if (err instanceof RulesError) return error(422, 'invalid_rules', err.message);
+      throw err;
+    }
+  }
+
+  /** Applies a draft the owner has read. Nothing changes until this is called. */
+  async confirmRules(origin: string, id: string, authorization: string | undefined): Promise<Reply> {
+    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    const draft = await this.storage.getDraft(origin, id);
+    if (!draft || draft.status !== 'pending') return error(404, 'not_found', 'No pending draft with that id.');
+    for (const other of await this.storage.listDrafts(origin)) {
+      if (other.status === 'pending' && other.id !== id) await this.storage.putDraft({ ...other, status: 'superseded' });
+    }
+    await this.storage.putDraft({ ...draft, status: 'confirmed' });
+    const record = { policy: draft.policy, text: draft.text, draft: draft.id, confirmed_at: this.now().toISOString() };
+    await this.storage.putPolicy(record);
+    return ok(record);
+  }
+
+  async getRules(origin: string, authorization: string | undefined): Promise<Reply> {
+    if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    return ok({ current: (await this.storage.getPolicy(origin)) ?? null, drafts: await this.storage.listDrafts(origin) });
   }
 
   /** The newest map for a page, so the site script can compare fingerprints locally. */

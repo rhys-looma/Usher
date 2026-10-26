@@ -7,6 +7,8 @@ export interface KnockInput {
   intent?: string;
   fingerprint?: Fingerprint;
   session?: string;
+  /** Keys the user has confirmed, for a knock made just before acting on them. */
+  confirmed?: string[];
 }
 
 export interface RunReport {
@@ -55,6 +57,7 @@ export class RegistryClient {
       ...(input.intent && { intent: input.intent }),
       ...(input.fingerprint && { fingerprint: input.fingerprint }),
       ...(input.session && { session: input.session }),
+      ...(input.confirmed?.length && { confirmed: input.confirmed }),
     };
     return this.call('POST', '/knock', await this.sign(payload));
   }
@@ -86,5 +89,5 @@ export interface KnockResponse {
   match: { kind: 'exact' | 'near' | 'path' | 'none'; score: number; digest: string | null; drifted: boolean };
   map: UsherMap | null;
   plan: null;
-  rules: { agents: 'allowed' | 'denied'; confirm: string[]; human_only: string[] };
+  rules: { agents: 'allowed' | 'denied'; confirm: string[]; human_only: string[]; actions: Record<string, 'allow' | 'confirm' | 'forbid'> };
 }

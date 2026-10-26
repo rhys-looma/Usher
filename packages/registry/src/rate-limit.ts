@@ -9,6 +9,12 @@ export class RateLimiter {
     private readonly now: () => number = Date.now,
   ) {}
 
+  /** True if a call would be allowed now, without counting it. */
+  wouldAllow(key: string): boolean {
+    const t = this.now();
+    return (this.hits.get(key) ?? []).filter((at) => t - at < this.windowMs).length < this.max;
+  }
+
   /** True if the call is allowed (and counts it). */
   allow(key: string): boolean {
     const t = this.now();

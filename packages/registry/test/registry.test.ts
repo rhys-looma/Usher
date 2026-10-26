@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generateAgentIdentity, knockSchemaErrors, signRequest, verifyToken, type AgentIdentity, type Fingerprint, type UsherMap } from '@usher/core';
+import { decodeToken, generateAgentIdentity, knockSchemaErrors, signRequest, verifyToken, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPolicy } from '@usher/core';
 import { FileStorage, RateLimiter, RegistryClient, RegistryError, findMatch, seed, startRegistry, type MapRecord, type RunningRegistry } from '../src/index.ts';
 import { readSession, registerSite, type SiteKeys } from './sites.ts';
 
@@ -50,7 +50,9 @@ test('knock with an exact fingerprint: map, rules, a token that verifies, a sess
   assert.equal(knockSchemaErrors('knockResponse', knock), null);
   assert.deepEqual(knock.match, { kind: 'exact', score: 1, digest: maps[0]!.fingerprint.digest, drifted: false });
   assert.equal(knock.map?.path, '/quote/driver');
-  assert.deepEqual(knock.rules, { agents: 'allowed', confirm: ['consequential'], human_only: ['needs_user'] });
+  assert.deepEqual(knock.rules.agents, 'allowed');
+  assert.equal(knock.rules.actions['nav.next'], 'allow');
+  assert.equal(knock.rules.actions['person.dob'], 'allow');
   assert.equal(knock.events_url, `${running.url}/sessions/${knock.session}/events`);
 
   const keySet = await (await fetch(knock.keys_url)).json();
@@ -121,7 +123,10 @@ test('bad signatures, stale requests and unknown agents are refused', async () =
 });
 
 test('site rules: agents can be turned away per form', async () => {
-  await running.registry.storage.putPolicy({ origin: 'http://localhost:4101', forms: [{ path: '/quote/cover', rules: { agents: 'denied' } }] });
+  await running.registry.storage.putPolicy({
+    policy: { usher_policy: '0.1', origin: 'http://localhost:4101', default: {}, forms: [{ match: { path: '/quote/cover' }, agent_lane: false }] },
+    confirmed_at: new Date().toISOString(),
+  });
   await assert.rejects(() => client.knock({ url: 'http://localhost:4101/quote/cover', intent: 'quote.car_insurance' }), (err: RegistryError) => err.status === 403 && err.code === 'agents_not_allowed');
   const allowed = await client.knock({ url: 'http://localhost:4101/quote/driver', intent: 'quote.car_insurance' });
   assert.equal(allowed.rules.agents, 'allowed');
@@ -277,4 +282,50 @@ test('storage survives a restart: keys, maps and sessions', async () => {
   } finally {
     await again.close();
   }
+});
+
+test('policy at knock: forbidden actions refused, rate limits counted, agents blocked, rules in the token', async () => {
+  const origin = 'http://localhost:4106';
+  for (const m of maps) await running.registry.addMap({ ...m, origin });
+  const put = (policy: Partial<UsherPolicy>) =>
+    running.registry.storage.putPolicy({ policy: { usher_policy: '0.1', origin, default: {}, ...policy }, confirmed_at: new Date().toISOString() });
+  await put({
+    default: { rate_limits: [{ action: 'form.submit', per: 'agent', max: 2, window: 'hour' }] },
+    forms: [{ match: { path: '/quote/cover' }, actions: { 'consent.marketing': 'forbid' } }],
+  });
+  const knockCover = (c: RegistryClient, confirmed?: string[]) => c.knock({ url: `${origin}/quote/cover`, fingerprint: maps[2]!.fingerprint, ...(confirmed && { confirmed }) });
+
+  const plain = await knockCover(client);
+  assert.equal(plain.rules.actions['form.submit'], 'confirm');
+  assert.equal(plain.rules.actions['consent.marketing'], 'forbid');
+  const claims = decodeToken(plain.token)!.claims;
+  assert.ok(claims.confirm?.includes('form.submit'));
+  assert.ok(claims.forbid?.includes('consent.declaration') && claims.forbid.includes('consent.marketing'));
+  assert.equal(claims.confirmed, undefined);
+
+  const confirmed = await knockCover(client, ['form.submit']);
+  assert.deepEqual(decodeToken(confirmed.token)!.claims.confirmed, ['form.submit']);
+  await assert.rejects(() => knockCover(client, ['consent.marketing']), (e: RegistryError) => e.status === 403 && e.code === 'action_forbidden');
+  await knockCover(client, ['form.submit']);
+  await assert.rejects(() => knockCover(client, ['form.submit']), (e: RegistryError) => e.status === 429 && e.code === 'rate_limited', 'two per agent per hour');
+  // Per agent: another agent has its own allowance.
+  const other = new RegistryClient(running.url, (await generateAgentIdentity()).identity);
+  await knockCover(other, ['form.submit']);
+
+  await put({ agents: { block: [agent.id] } });
+  await assert.rejects(() => knockCover(client), (e: RegistryError) => e.status === 403 && e.code === 'agent_blocked');
+  await put({ agents: { allow: [agent.id] } });
+  await knockCover(client);
+  await assert.rejects(() => knockCover(other), (e: RegistryError) => e.status === 403 && e.code === 'agent_blocked');
+});
+
+test('retention: sessions older than the policy allows are deleted', async () => {
+  const origin = 'http://localhost:4107';
+  await running.registry.storage.putPolicy({ policy: { usher_policy: '0.1', origin, default: {}, retention: { session_days: 1 } }, confirmed_at: new Date().toISOString() });
+  const old = { id: 's_old0000000000000', origin, agent: agent.id, intent: 'quote.car_insurance', created_at: new Date(Date.now() - 2 * 86_400_000).toISOString(), events: [] };
+  const recent = { ...old, id: 's_new0000000000000', created_at: new Date().toISOString() };
+  await running.registry.storage.putSession(old);
+  await running.registry.storage.putSession(recent);
+  assert.equal(await running.registry.pruneSessions(origin), 1);
+  assert.deepEqual((await running.registry.storage.listSessions(origin)).map((s) => s.id), ['s_new0000000000000']);
 });

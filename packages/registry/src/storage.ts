@@ -1,9 +1,9 @@
 // Registry storage (LU-21): an interface with a JSON-file implementation. Postgres comes when we
 // deploy (LU-20). Everything stored is structure: maps, rules, sessions of semantic events, keys.
 
-import { mkdir, readFile, readdir, rename, writeFile, appendFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { PrivateJwk, PublicJwk, Risk, UsherMap } from '@usher/core';
+import type { PolicyIssue, PrivateJwk, PublicJwk, UsherMap, UsherPolicy } from '@usher/core';
 
 export interface MapRecord {
   digest: string;
@@ -14,19 +14,25 @@ export interface MapRecord {
   drift?: { at: string; live_digest: string; score: number };
 }
 
-export interface Rules {
-  agents: 'allowed' | 'denied';
-  /** Risk levels that need the user's confirmation before the agent acts. */
-  confirm: Risk[];
-  /** Risk levels only the user may act on. */
-  human_only: Risk[];
+/** A site's confirmed policy, with the English it was written in when there was one. */
+export interface PolicyRecord {
+  policy: UsherPolicy;
+  text?: string;
+  draft?: string;
+  confirmed_at: string;
 }
 
-/** Interim per-site rules, until the policy format. Later entries win. */
-export interface Policy {
+/** A policy proposed from plain English, waiting for the site owner to confirm it. */
+export interface RulesDraft {
+  id: string;
   origin: string;
-  default?: Partial<Rules>;
-  forms?: { intent?: string; path?: string; rules: Partial<Rules> }[];
+  text: string;
+  policy: UsherPolicy;
+  /** Model notes on how it read the text. */
+  summary: string;
+  model: string;
+  created_at: string;
+  status: 'pending' | 'confirmed' | 'superseded';
 }
 
 export type EventAction = 'knock' | 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff' | 'run';
@@ -77,13 +83,19 @@ export interface Storage {
   mapsForOrigin(origin: string): Promise<MapRecord[]>;
 
   getSite(origin: string): Promise<Site | undefined>;
+  listSites(): Promise<Site[]>;
   putSite(site: Site): Promise<void>;
 
-  getPolicy(origin: string): Promise<Policy | undefined>;
-  putPolicy(policy: Policy): Promise<void>;
+  getPolicy(origin: string): Promise<PolicyRecord | undefined>;
+  putPolicy(record: PolicyRecord): Promise<void>;
+  getDraft(origin: string, id: string): Promise<RulesDraft | undefined>;
+  putDraft(draft: RulesDraft): Promise<void>;
+  listDrafts(origin: string): Promise<RulesDraft[]>;
 
   getSession(id: string): Promise<Session | undefined>;
   putSession(session: Session): Promise<void>;
+  listSessions(origin: string): Promise<Session[]>;
+  deleteSession(id: string): Promise<void>;
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined>;
 
   /** Append-only logs: lookups and their scores, run reports, drift reports. */
@@ -181,6 +193,12 @@ export class FileStorage implements Storage {
     return this.read<Site>(this.siteFile(origin));
   }
 
+  async listSites(): Promise<Site[]> {
+    const files = await readdir(this.file('sites')).catch(() => [] as string[]);
+    const sites = await Promise.all(files.filter((f) => f.endsWith('.json')).map((f) => this.read<Site>(this.file('sites', f))));
+    return sites.filter((s): s is Site => s !== undefined);
+  }
+
   putSite(site: Site): Promise<void> {
     return this.write(this.siteFile(site.origin), site);
   }
@@ -189,12 +207,33 @@ export class FileStorage implements Storage {
     return this.file('policies', `${encodeURIComponent(origin)}.json`);
   }
 
-  getPolicy(origin: string): Promise<Policy | undefined> {
-    return this.read<Policy>(this.policyFile(origin));
+  getPolicy(origin: string): Promise<PolicyRecord | undefined> {
+    return this.read<PolicyRecord>(this.policyFile(origin));
   }
 
-  putPolicy(policy: Policy): Promise<void> {
-    return this.write(this.policyFile(policy.origin), policy);
+  putPolicy(record: PolicyRecord): Promise<void> {
+    return this.write(this.policyFile(record.policy.origin), record);
+  }
+
+  private draftFile(origin: string, id: string): string {
+    if (!/^r_[A-Za-z0-9_-]+$/.test(id)) throw new Error('bad draft id');
+    return this.file('drafts', encodeURIComponent(origin), `${id}.json`);
+  }
+
+  getDraft(origin: string, id: string): Promise<RulesDraft | undefined> {
+    if (!/^r_[A-Za-z0-9_-]+$/.test(id)) return Promise.resolve(undefined);
+    return this.read<RulesDraft>(this.draftFile(origin, id));
+  }
+
+  putDraft(draft: RulesDraft): Promise<void> {
+    return this.write(this.draftFile(draft.origin, draft.id), draft);
+  }
+
+  async listDrafts(origin: string): Promise<RulesDraft[]> {
+    const dir = this.file('drafts', encodeURIComponent(origin));
+    const files = await readdir(dir).catch(() => [] as string[]);
+    const drafts = await Promise.all(files.filter((f) => f.endsWith('.json')).map((f) => this.read<RulesDraft>(join(dir, f))));
+    return drafts.filter((d): d is RulesDraft => d !== undefined).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
 
   private sessionFile(id: string): string {
@@ -209,6 +248,20 @@ export class FileStorage implements Storage {
 
   putSession(session: Session): Promise<void> {
     return this.write(this.sessionFile(session.id), session);
+  }
+
+  async listSessions(origin: string): Promise<Session[]> {
+    const files = await readdir(this.file('sessions')).catch(() => [] as string[]);
+    const sessions = await Promise.all(files.filter((f) => f.endsWith('.json')).map((f) => this.read<Session>(this.file('sessions', f))));
+    return sessions.filter((s): s is Session => s?.origin === origin).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  deleteSession(id: string): Promise<void> {
+    return this.serial(async () => {
+      const path = this.sessionFile(id);
+      this.cache.delete(path);
+      await rm(path, { force: true });
+    });
   }
 
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined> {
