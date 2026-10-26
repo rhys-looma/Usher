@@ -69,3 +69,28 @@ export function replayAny(fixtures: LabelFixture[], options: { simulateLatency?:
     return { content: found.attempt.content, usage: found.attempt.usage, latency_ms: found.attempt.latency_ms, response: { replayed: name } };
   };
 }
+
+/**
+ * Replays model responses from the compiler log (data/compiler-log/*.jsonl): any logged request
+ * whose hash matches. Pages that changed since they were logged won't match.
+ */
+export async function replayFromLog(dir: URL): Promise<{ chat: ChatFn; size: number }> {
+  const { readdir } = await import('node:fs/promises');
+  const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith('.jsonl'));
+  const byHash = new Map<string, { content: string; usage: Usage; latency_ms: number }>();
+  for (const f of files) {
+    for (const line of (await readFile(new URL(f, dir), 'utf8')).split('\n').filter(Boolean)) {
+      const r = JSON.parse(line) as { request?: Parameters<typeof requestHash>[0]; response?: { choices?: { message?: { content?: string } }[] }; usage: Usage; latency_ms: number; task?: string };
+      const content = r.response?.choices?.[0]?.message?.content;
+      if (r.request && content && !r.task) byHash.set(requestHash(r.request), { content, usage: r.usage, latency_ms: r.latency_ms });
+    }
+  }
+  return {
+    size: byHash.size,
+    chat: async (request) => {
+      const hit = byHash.get(requestHash(request));
+      if (!hit) throw new Error('not in the compiler log');
+      return { ...hit, response: { replayed: 'compiler-log' } };
+    },
+  };
+}
