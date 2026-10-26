@@ -1,4 +1,6 @@
-// npm run agent -- <url> --profile <file> [--intent quote.car_insurance] [--mcp] [--auto-confirm] [--headed] [--key <file>] [--no-model]
+// npm run agent -- <url> --profile <file> [--intent quote.car_insurance] [--open] [--mcp] [--auto-confirm] [--headed] [--key <file>] [--no-model]
+//
+// --open uses Muse Spark Open on Baseten (BASETEN_API_KEY) instead of Muse Spark for pages without a map.
 //
 // Finds the registry from the site's knock notice (or --registry), knocks, fills the form from
 // the profile, asks before consequential actions, and prints a one-line summary.
@@ -6,7 +8,7 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
-import { compilerModel, modelApi } from '@usher/core';
+import { compilerModel, modelApi, openModel } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { runAgent, summaryLine, type Profile } from './agent.ts';
 import { httpTransport, mcpTransport } from './transport.ts';
@@ -24,6 +26,7 @@ const { values, positionals } = parseArgs({
     'no-model': { type: 'boolean', default: false },
     json: { type: 'boolean', default: false },
     intent: { type: 'string', default: 'quote.car_insurance' },
+    open: { type: 'boolean', default: false },
   },
 });
 const url = positionals[0];
@@ -55,7 +58,9 @@ try {
     intent: values.intent,
     registry,
     user: values['auto-confirm'] ? scriptedUser(profile) : terminalUser(),
-    ...(!values['no-model'] && process.env.MODEL_API_KEY && { fallback: { chat: modelApi(), model: compilerModel() } }),
+    // The fallback model: Muse Spark, or Muse Spark Open on Baseten with --open.
+    ...(!values['no-model'] && values.open && process.env.BASETEN_API_KEY && { fallback: { chat: modelApi({ provider: 'baseten' }), model: openModel() } }),
+    ...(!values['no-model'] && !values.open && process.env.MODEL_API_KEY && { fallback: { chat: modelApi(), model: compilerModel() } }),
   });
   if (values.json) console.log(JSON.stringify(result, null, 2));
   console.log(summaryLine(result));

@@ -1,6 +1,7 @@
-// End to end on the mock site: an unknocked API call is refused; the agent knocks, binds, fills
-// all three steps, pauses at "Get my quote", confirms and gets a quote; the log shows every
-// action by semantic key; a second run with the maps is faster; layout B is reported as drift.
+// End to end on the mock site. An unknocked API call is refused. Agent A (Muse Spark) finds no
+// maps, reads each page, completes the quote and shares the maps; the log shows every action by
+// semantic key. Agent B (Muse Spark Open, its own key, over MCP) knocks and runs on those maps,
+// faster. In layout B the site script reports drift and Agent B re-reads the pages with Spark Open.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
-import { compilerModel, knockSchemaErrors, modelApi } from '@usher/core';
+import { compilerModel, knockSchemaErrors, modelApi, openModel } from '@usher/core';
 import { FileStorage, startRegistry, type RunningRegistry, type Session } from '@usher/registry';
 import { readFixture, replayAny } from '../../core/test/replay.ts';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
@@ -19,8 +20,13 @@ import { httpTransport, mcpTransport, runAgent, scriptedUser, summaryLine, type 
 
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
-const fixtures = await Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s))));
-const replay = { chat: replayAny(fixtures, { simulateLatency: true }), model: 'muse-spark-1.3', logDir: null };
+const recorded = (set: 'labels' | 'labels-open') =>
+  Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, set))));
+// Recorded responses, replayed with the latency they had when recorded.
+const spark = { chat: replayAny(await recorded('labels'), { simulateLatency: true }), model: 'muse-spark-1.3', logDir: null };
+// Replayed under the model id the fixtures were recorded with (see OPEN_MODEL).
+const openFixtures = await recorded('labels-open');
+const sparkOpen = { chat: replayAny(openFixtures, { simulateLatency: true }), model: openFixtures[0]!.model, logDir: null };
 
 let dir: string;
 let registry: RunningRegistry;
@@ -50,7 +56,8 @@ after(async () => {
   if (lines.length) console.log(['', 'end-to-end runs', ...lines, ''].join('\n'));
 });
 
-const keyFile = () => join(dir, 'agent-key.json');
+const keyA = () => join(dir, 'agent-a-key.json');
+const keyB = () => join(dir, 'agent-b-key.json');
 const session = async (sid: string): Promise<Session> =>
   (await fetch(`${registry.url}/sessions/${sid}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json() as Promise<Session>;
 
@@ -63,12 +70,12 @@ test('an agent that did not knock gets 403 knock_required from the API', async (
   assert.equal(body.knock_url, `${registry.url}/knock`);
 });
 
-test('run 1, no maps yet: the agent reads each page with Muse Spark, completes the quote and shares the maps', async () => {
+test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote and shares the maps', async () => {
   const user = scriptedUser(profile);
-  const transport = await httpTransport(registry.url, keyFile());
-  const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: replay });
+  const transport = await httpTransport(registry.url, keyA());
+  const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: spark });
   await transport.close();
-  runs['run 1 (no map, http)'] = run;
+  runs['Agent A, Muse Spark, no map'] = run;
   assert.equal(run.outcome, 'completed', run.reason);
   assert.match(run.final_url, /\/quote\/result$/);
   assert.deepEqual(run.pages.map((p) => [p.path, p.match, p.map_source]), [
@@ -105,27 +112,31 @@ test('run 1, no maps yet: the agent reads each page with Muse Spark, completes t
   for (const value of ['Sam', 'Taylor', 'sam@example.com', 'WR14 1AA', 'AB12CDE', '1988-04-02', '07700 900123', '1 High Street']) assert.ok(!json.includes(value), `log holds ${value}`);
 });
 
-test('run 2, with the maps: exact matches over MCP, no model, and faster', async () => {
+test('Agent B (Muse Spark Open, own key, MCP) knocks and runs on the maps Agent A built: no model, faster', async () => {
   const user = scriptedUser(profile);
-  const transport = await mcpTransport(registry.url, keyFile());
-  const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: replay });
+  const transport = await mcpTransport(registry.url, keyB());
+  const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: sparkOpen });
   await transport.close();
-  runs['run 2 (with map, mcp)'] = run;
+  runs['Agent B, Spark Open, with map'] = run;
   assert.equal(run.outcome, 'completed', run.reason);
   assert.equal(run.transport, 'mcp');
   assert.deepEqual(run.pages.map((p) => [p.match, p.map_source]), [['exact', 'registry'], ['exact', 'registry'], ['exact', 'registry']]);
   assert.equal(run.model_ms, 0);
   assert.equal(run.usage.total_tokens, 0);
-  assert.ok(run.total_ms < runs['run 1 (no map, http)']!.total_ms, `${run.total_ms} ms vs ${runs['run 1 (no map, http)']!.total_ms} ms`);
+  const a = runs['Agent A, Muse Spark, no map']!;
+  assert.ok(run.total_ms < a.total_ms, `${run.total_ms} ms vs ${a.total_ms} ms`);
+  // Two agents, two identities.
+  const sessions = await Promise.all([a.session!, run.session!].map(session));
+  assert.notEqual(sessions[0]!.agent, sessions[1]!.agent);
 });
 
-test('layout B: the site script reports drift, the registry marks the maps, the agent re-reads and completes', async () => {
+test('layout B: the site script reports drift, the registry marks the maps, Agent B re-reads with Spark Open', async () => {
   await site.setLayout('b');
   try {
-    const transport = await httpTransport(registry.url, keyFile());
-    const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user: scriptedUser(profile), fallback: replay });
+    const transport = await httpTransport(registry.url, keyB());
+    const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user: scriptedUser(profile), fallback: sparkOpen });
     await transport.close();
-    runs['run 3 (layout B, drifted)'] = run;
+    runs['Agent B, Spark Open, layout B'] = run;
     assert.equal(run.outcome, 'completed', run.reason);
     // At the 0.3 threshold every layout B page is a near match; the agent only trusts exact ones.
     assert.deepEqual(run.pages.map((p) => p.match), ['near', 'near', 'near']);
@@ -149,17 +160,23 @@ test('the match log holds every lookup with its scores', async () => {
   assert.ok(log.length >= 12);
 });
 
-test('live: Muse Spark as the fallback model on step 1', { skip: process.env.USHER_LIVE !== '1' && 'set USHER_LIVE=1 to call the model API' }, async () => {
+test('live: Agent A on Muse Spark builds the maps, Agent B on Muse Spark Open runs on them, then reads layout B', { skip: process.env.USHER_LIVE !== '1' && 'set USHER_LIVE=1 to call the model APIs' }, async () => {
   loadDotEnv();
   const live = await mkdtemp(join(tmpdir(), 'usher-e2e-live-'));
   const fresh = await startRegistry({ storage: new FileStorage(live), siteScript });
-  const liveSite = await startMockSite({ registry: fresh.url });
-  try {
-    const transport = await httpTransport(fresh.url, keyFile());
-    const run = await runAgent({ browser, url: `${liveSite.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user: scriptedUser(profile), fallback: { chat: modelApi(), model: compilerModel() } });
+  const liveSite = await startMockSite({ registry: fresh.url, register: async (origin) => (await registerSite(fresh, origin)).site_key });
+  const go = async (name: string, key: string, fallback: { chat: ReturnType<typeof modelApi>; model: string }) => {
+    const transport = await httpTransport(fresh.url, key);
+    const run = await runAgent({ browser, url: `${liveSite.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user: scriptedUser(profile), fallback });
     await transport.close();
-    runs['live run (no map, http)'] = run;
-    assert.equal(run.outcome, 'completed', run.reason);
+    runs[name] = run;
+    assert.equal(run.outcome, 'completed', `${name}: ${run.reason}`);
+  };
+  try {
+    await go('live: Agent A, Muse Spark, no map', join(live, 'a.json'), { chat: modelApi(), model: compilerModel() });
+    await go('live: Agent B, Spark Open, map', join(live, 'b.json'), { chat: modelApi({ provider: 'baseten' }), model: openModel() });
+    await liveSite.setLayout('b');
+    await go('live: Agent B, Spark Open, layout B', join(live, 'b.json'), { chat: modelApi({ provider: 'baseten' }), model: openModel() });
   } finally {
     await liveSite.stop();
     await fresh.close();
