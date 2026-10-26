@@ -4,11 +4,13 @@
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { Fingerprint, UsherMap, UsherPlan } from '@usher/core';
+import type { AgentIdentity, Fingerprint, UsherMap, UsherPlan } from '@usher/core';
 import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type RunReport } from '@usher/registry';
 
 export interface RegistryTransport {
   readonly kind: 'http' | 'mcp';
+  /** The agent's key, for signing its browser's requests to sites (Web Bot Auth). */
+  readonly identity?: AgentIdentity;
   knock(input: KnockInput): Promise<KnockResponse>;
   /** The map for a page by its fingerprint, for sites without a knock lane. */
   lookup(url: string, fingerprint: Fingerprint): Promise<{ match: KnockResponse['match']; map: UsherMap | null }>;
@@ -20,9 +22,11 @@ export interface RegistryTransport {
 }
 
 export async function httpTransport(registryUrl: string, keyFile?: string): Promise<RegistryTransport> {
-  const client = new RegistryClient(registryUrl, await loadOrCreateIdentity(keyFile));
+  const identity = await loadOrCreateIdentity(keyFile);
+  const client = new RegistryClient(registryUrl, identity);
   return {
     kind: 'http',
+    identity,
     knock: (input) => client.knock(input),
     getPlan: (url) => client.getPlan(url).catch(() => null),
     lookup: (url, fingerprint) => {
@@ -39,6 +43,8 @@ const MCP_SERVER = fileURLToPath(new URL('../../registry/src/mcp.ts', import.met
 
 /** Starts the Usher MCP server as a child process and calls its tools. */
 export async function mcpTransport(registryUrl: string, keyFile?: string): Promise<RegistryTransport> {
+  // The same key file the MCP server signs with (created here if new, so both use one key).
+  const identity = await loadOrCreateIdentity(keyFile);
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: ['--disable-warning=ExperimentalWarning', '--import', 'tsx', MCP_SERVER],
@@ -54,6 +60,7 @@ export async function mcpTransport(registryUrl: string, keyFile?: string): Promi
   };
   return {
     kind: 'mcp',
+    identity,
     knock: (input) => call('knock', { ...input }),
     getPlan: (url) => call<UsherPlan>('get_plan', { url }).catch(() => null),
     lookup: (url, fingerprint) => call('get_map', { url, fingerprint }),
