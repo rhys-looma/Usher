@@ -1,0 +1,19 @@
+{
+  "name": "@usher/site-middleware",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Server-side Usher token check for Node HTTP handlers.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@usher/core": "*"
+  },
+  "devDependencies": {
+    "@usher/registry": "*"
+  }
+}

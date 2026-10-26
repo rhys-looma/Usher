@@ -4,6 +4,9 @@
 //   node server.mjs            start on http://localhost:4100
 //   PORT=5000 node server.mjs  another port
 //   VARIANT=b node server.mjs  start with the alternative form layout
+//   USHER_REGISTRY_URL=http://localhost:4200 node server.mjs
+//                              use Usher: discovery file and the server-side token check
+//                              (run `npm run build` at the repository root first)
 //
 // Open /__admin to switch the form layout while the site is running (the live drift demo).
 
@@ -18,6 +21,17 @@ const PORT = Number(process.env.PORT ?? 4100);
 const occupations = JSON.parse(await readFile(join(here, 'data/occupations.json'), 'utf8'));
 
 let variant = process.env.VARIANT === 'b' ? 'b' : 'a';
+
+// Usher, when a registry is configured. The check only applies to requests that identify as
+// agents, and to the API; people using the form are never checked.
+const REGISTRY = process.env.USHER_REGISTRY_URL?.replace(/\/$/, '');
+const usher = REGISTRY
+  ? (await import('../../packages/site-middleware/dist/index.js')).createUsherCheck({
+      registry: REGISTRY,
+      intent: 'quote.car_insurance',
+      origin: (req) => `http://${req.headers.host}`,
+    })
+  : null;
 const sessions = new Map(); // session id -> { driver, vehicle, cover, result }
 
 // ---------------------------------------------------------------------------
@@ -315,7 +329,13 @@ const server = createServer(async (req, res) => {
       if (req.method === 'GET') return html(res, renderStep(key, session[key] ?? {}));
 
       if (req.method === 'POST') {
-        const values = readStep(key, new URLSearchParams(await body(req)));
+        const params = new URLSearchParams(await body(req));
+        // Requesting the quote is consequential: an agent needs a token from a knock.
+        if (steps[key].final && usher) {
+          const check = await usher.check(req, { form: params });
+          if (check.status === 'knock_required') return usher.reject(req, res, check);
+        }
+        const values = readStep(key, params);
         const errors = validate(key, values);
         if (errors.length) return html(res, renderStep(key, values, errors), 422);
         session[key] = values;
@@ -334,6 +354,11 @@ const server = createServer(async (req, res) => {
     // The same consequential action as an API, so the demo can show an agent
     // skipping the page and calling the endpoint directly.
     if (section === 'api' && key === 'quote' && req.method === 'POST') {
+      // The API is for software, so every call needs a token when Usher is on.
+      if (usher) {
+        const check = await usher.check(req, { always: true });
+        if (check.status === 'knock_required') return usher.reject(req, res, check);
+      }
       let input;
       try {
         input = JSON.parse(await body(req));
@@ -348,6 +373,10 @@ const server = createServer(async (req, res) => {
       }
       if (errors.length) return json(res, { error: 'invalid', fields: errors }, 422);
       return json(res, price(all));
+    }
+
+    if (REGISTRY && req.method === 'GET' && url.pathname === '/.well-known/usher.json') {
+      return json(res, { usher: '0.1', registry: REGISTRY, knock_url: `${REGISTRY}/knock`, keys_url: `${REGISTRY}/.well-known/usher-keys.json` });
     }
 
     if (section === '__admin') {

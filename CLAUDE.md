@@ -29,6 +29,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `examples/mock-quote-site/` | Fictional three-step quote form (Brightwater Motor), no dependencies |
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A and B) started on free ports |
 | `packages/registry/` | Registry: knock, maps (lookup by fingerprint), sessions, runs, drift; HTTP (`src/http.ts`) and MCP (`src/mcp.ts`); JSON-file storage |
+| `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
 | `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
 
 ## Core package
