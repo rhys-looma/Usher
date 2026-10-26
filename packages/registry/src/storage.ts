@@ -102,9 +102,12 @@ export interface Storage {
   getCached<T>(kind: string, key: string): Promise<T | undefined>;
   putCached(kind: string, key: string, value: unknown): Promise<void>;
 
-  /** Append-only logs: lookups and their scores, run reports, drift reports. */
+  /** Append-only logs: lookups and their scores, run reports, drift reports, blocked attempts. */
   appendLog(name: 'matches' | 'runs' | 'drift' | 'blocked', record: object): Promise<void>;
-  readLog(name: 'matches' | 'runs' | 'drift' | 'blocked'): Promise<object[]>;
+  /** A log in order, optionally only one origin's entries. */
+  readLog(name: 'matches' | 'runs' | 'drift' | 'blocked', origin?: string): Promise<object[]>;
+
+  close?(): Promise<void>;
 }
 
 // Files under one directory: keys.json, agents.json, maps/<hex>.json, policies/<host>.json,
@@ -302,10 +305,11 @@ export class FileStorage implements Storage {
     });
   }
 
-  async readLog(name: 'matches' | 'runs' | 'drift' | 'blocked'): Promise<object[]> {
+  async readLog(name: 'matches' | 'runs' | 'drift' | 'blocked', origin?: string): Promise<object[]> {
     try {
       const text = await readFile(this.file(`${name}.jsonl`), 'utf8');
-      return text.split('\n').filter(Boolean).map((l) => JSON.parse(l));
+      const all = text.split('\n').filter(Boolean).map((l) => JSON.parse(l) as { origin?: string });
+      return origin ? all.filter((r) => r.origin === origin) : all;
     } catch {
       return [];
     }
