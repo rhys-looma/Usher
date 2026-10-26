@@ -4,12 +4,12 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { Browser } from 'playwright';
-import { CompileError, VIEWPORT, compilePage, fingerprint, mapFromLabels, pickForm, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
+import { BudgetExceeded, CompileError, VIEWPORT, compilePage, fingerprint, mapFromLabels, pickForm, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
 import type { MapRecord, Storage } from '../storage.ts';
 import { html, page, riskBadge, when, type Raw } from './html.ts';
 
-export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited';
+export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited' | 'budget';
 
 export type ViewerResult =
   | { ok: true; map: UsherMap; cached: boolean; model: string; cost_usd: number | null; ms: number; flags?: RiskFlag[] }
@@ -110,6 +110,7 @@ export class Viewer {
         return { ok: true, map: result.map, cached: false, model: result.model, cost_usd: result.cost_usd, ms: Math.round(performance.now() - started), ...(flags && { flags }) };
       } catch (err) {
         if (err instanceof CompileError) return fail('labels_invalid', 'The model could not label this form reliably, so no map was made.');
+        if (err instanceof BudgetExceeded) return fail('budget', `${err.message} Maps already built are still shown from the cache.`);
         throw err;
       }
     } finally {

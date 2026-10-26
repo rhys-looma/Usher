@@ -30,6 +30,7 @@ const SITE_KEY = process.env.USHER_SITE_KEY;
 const usher = REGISTRY
   ? (await import('../../packages/site-middleware/dist/index.js')).createUsherCheck({
       registry: REGISTRY,
+      ...(process.env.USHER_REGISTRY_INTERNAL_URL && { internalUrl: process.env.USHER_REGISTRY_INTERNAL_URL }),
       intent: 'quote.car_insurance',
       origin: (req) => `http://${req.headers.host}`,
       ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
@@ -310,6 +311,7 @@ function vehicleLookup(registration) {
 
 const server = createServer(async (req, res) => {
   try {
+    if (req.url === '/healthz') return json(res, { ok: true, layout: variant, usher: Boolean(REGISTRY) });
     const url = new URL(req.url, `http://${req.headers.host}`);
     const session = getSession(req, res);
     const [, section, key] = url.pathname.split('/');
@@ -399,7 +401,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, process.env.HOST ?? '::', () => {
   console.log(`Brightwater Motor (demo) on http://localhost:${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
 });
 

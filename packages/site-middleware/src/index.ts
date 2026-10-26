@@ -18,8 +18,10 @@ import { vocabulary } from '@usher/core/vocabulary';
 const DEFAULT_RISK = new Map(vocabulary.entries.map((e) => [e.key, e.default_risk]));
 
 export interface UsherCheckOptions {
-  /** The registry the site trusts: tokens must be issued by it. */
+  /** The registry the site trusts: tokens must be issued by it (its public URL). */
   registry: string;
+  /** Where this server reaches the registry, if not at its public URL (inside a container network). */
+  internalUrl?: string;
   /** The intent this endpoint protects, e.g. quote.car_insurance. */
   intent: string;
   /** The site's origin as browsers see it, or a function of the request. */
@@ -107,7 +109,8 @@ class KeyCache {
 export function createUsherCheck(options: UsherCheckOptions) {
   const registry = options.registry.replace(/\/$/, '');
   const knockUrl = options.knockUrl ?? `${registry}/knock`;
-  const keys = new KeyCache(options.keysUrl ?? `${registry}/.well-known/usher-keys.json`, options.keysTtlMs ?? 300_000, options.fetch ?? fetch);
+  const internal = (options.internalUrl ?? registry).replace(/\/$/, '');
+  const keys = new KeyCache(options.keysUrl ?? `${internal}/.well-known/usher-keys.json`, options.keysTtlMs ?? 300_000, options.fetch ?? fetch);
   const replay = options.replay ?? new ReplayCache();
   const originOf = (req: IncomingMessage) => (typeof options.origin === 'function' ? options.origin(req) : options.origin);
 
@@ -162,7 +165,7 @@ export function createUsherCheck(options: UsherCheckOptions) {
       const token = tokenFrom(req);
       const agent = (token && decodeToken(token)?.claims.sub) || (typeof req.headers['usher-agent'] === 'string' ? req.headers['usher-agent'].slice(0, 100) : undefined);
       const path = new URL(req.url ?? '/', 'http://site').pathname;
-      void (options.fetch ?? fetch)(`${registry}/sites/${encodeURIComponent(originOf(req))}/blocked`, {
+      void (options.fetch ?? fetch)(`${internal}/sites/${encodeURIComponent(originOf(req))}/blocked`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Usher-Site-Key': options.siteKey },
         body: JSON.stringify({ path, reason: reason ?? 'knock_required', ...(agent && { agent }), ...(action && { action }) }),

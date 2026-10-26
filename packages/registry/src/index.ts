@@ -10,3 +10,4 @@ export * from './rules.ts';
 export * from './web/routes.ts';
 export * from './web/viewer.ts';
 export * from './explain.ts';
+export * from './postgres.ts';

@@ -1,21 +1,49 @@
-// HTTP API for the registry. Plain node:http; CORS is open because the site script calls the
-// registry from the site's own origin.
+// HTTP API for the registry. Plain node:http. CORS is open only on the endpoints the site script
+// calls from a site's own origin; everything else is same-origin or server-to-server.
 
+import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { RateLimiter } from './rate-limit.ts';
 import type { AddressInfo } from 'node:net';
-import type { ChatFn } from '@usher/core';
+import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
 import { Registry, type Reply } from './registry.ts';
 import { Web, type WebOptions } from './web/routes.ts';
 import type { Storage } from './storage.ts';
 
-const MAX_BODY = 1_000_000;
+const MAX_BODY = 256_000;
 
 export interface HttpOptions {
-  /** Path of the built site script, served at /usher.js. */
+  /** Path of the built site script, served at /usher.js and /usher/<version>.js. */
   siteScript?: string;
   /** The map viewer and dashboard pages. */
   web?: Web;
+  /** Use the first X-Forwarded-For address as the client (behind a trusted proxy only). */
+  trustProxy?: boolean;
+  /** Send Strict-Transport-Security (when served over HTTPS). */
+  hsts?: boolean;
+  /** Per-client-address limits per minute, by route group. */
+  limits?: Partial<Record<'knock' | 'drift' | 'read' | 'write', number>>;
+}
+
+// Endpoints the site script calls from a site's pages.
+const CORS_ROUTES = [/^GET \/maps\/current$/, /^POST \/maps\/lookup$/, /^POST \/drift$/, /^POST \/sessions\/s_[A-Za-z0-9_-]+\/events$/, /^GET \/\.well-known\/usher-keys\.json$/, /^POST \/sites\/[^/]+\/blocked$/];
+
+/** The client address, used in memory for rate limits and never stored. */
+export function clientAddress(req: IncomingMessage, trustProxy = false): string {
+  const forwarded = trustProxy ? String(req.headers['x-forwarded-for'] ?? '').split(',')[0]!.trim() : '';
+  return forwarded || req.socket.remoteAddress || 'unknown';
+}
+
+interface SiteScript {
+  version: string;
+  body: Buffer;
+}
+
+async function loadScript(path: string | undefined): Promise<SiteScript | null> {
+  if (!path) return null;
+  const body = await readFile(path).catch(() => null);
+  return body && { version: createHash('sha256').update(body).digest('hex').slice(0, 12), body };
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -40,22 +68,63 @@ function send(res: ServerResponse, reply: Reply, headers: Record<string, string>
 }
 
 export function registryHandler(registry: Registry, options: HttpOptions = {}) {
+  const limits = { knock: 120, drift: 60, read: 600, write: 120, ...options.limits };
+  const limiters = Object.fromEntries(Object.entries(limits).map(([k, max]) => [k, new RateLimiter(max, 60_000)])) as Record<keyof typeof limits, RateLimiter>;
+  const started = Date.now();
+  let script: Promise<SiteScript | null> | undefined;
+  // Reloaded when the build changes (a deploy), so the versioned path always matches the file.
+  const siteScript = async () => {
+    const current = await (script ??= loadScript(options.siteScript));
+    setTimeout(() => (script = undefined), 60_000).unref();
+    return current;
+  };
+
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    if (options.hsts) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     try {
       const url = new URL(req.url ?? '/', 'http://registry');
       const route = `${req.method} ${url.pathname}`;
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204, { 'Access-Control-Max-Age': '600' });
+      const preflight = req.method === 'OPTIONS';
+      const corsRoute = CORS_ROUTES.some((r) => r.test(preflight ? route.replace(/^OPTIONS/, String(req.headers['access-control-request-method'] ?? 'GET')) : route));
+      if (corsRoute) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      }
+      if (preflight) {
+        res.writeHead(corsRoute ? 204 : 405, corsRoute ? { 'Access-Control-Max-Age': '600' } : {});
         return void res.end();
       }
+
+      // Per client address, in memory only.
+      const client = clientAddress(req, options.trustProxy);
+      const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : req.method === 'GET' ? 'read' : 'write';
+      if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });
+
+      if (route === 'GET /healthz') {
+        const health = await registry.health();
+        return send(res, { status: health.ok ? 200 : 503, body: { ...health, uptime_s: Math.round((Date.now() - started) / 1000), site_script: (await siteScript())?.version ?? null } }, { 'Cache-Control': 'no-store' });
+      }
       if (route === 'GET /.well-known/usher-keys.json') return send(res, { status: 200, body: await registry.keySet() }, { 'Cache-Control': 'public, max-age=300' });
-      if (route === 'GET /usher.js') {
-        if (!options.siteScript) return send(res, { status: 404, body: { error: 'not_found', message: 'Site script not configured.' } });
-        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' });
-        return void res.end(await readFile(options.siteScript));
+      const versioned = /^\/usher\/([0-9a-f]{12})\.js$/.exec(url.pathname);
+      if (route === 'GET /usher.js' || (versioned && req.method === 'GET')) {
+        const current = await siteScript();
+        if (!current) return send(res, { status: 404, body: { error: 'not_found', message: 'Site script not configured.' } });
+        if (versioned && versioned[1] !== current.version) return send(res, { status: 404, body: { error: 'not_found', message: `No site script version ${versioned[1]}; the current one is /usher/${current.version}.js.` } });
+        res.writeHead(200, {
+          'Content-Type': 'text/javascript; charset=utf-8',
+          // A versioned path never changes; the plain one is short-lived so updates reach sites.
+          'Cache-Control': versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=300',
+          ETag: `"${current.version}"`,
+          'Cross-Origin-Resource-Policy': 'cross-origin',
+        });
+        return void res.end(current.body);
+      }
+      if (route === 'GET /usher/version.json') {
+        const current = await siteScript();
+        return send(res, { status: current ? 200 : 404, body: current ? { version: current.version, path: `/usher/${current.version}.js` } : { error: 'not_found' } }, { 'Cache-Control': 'public, max-age=300' });
       }
       if (route === 'POST /knock') return send(res, await registry.knock(await readJson(req)));
       if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req)));
@@ -89,12 +158,14 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
     } catch (err) {
       const bad = err instanceof SyntaxError || (err as Error).message === 'too_large';
       if (!bad) console.error(err);
-      if (!res.headersSent) send(res, { status: bad ? 400 : 500, body: { error: bad ? 'invalid_request' : 'internal_error', message: bad ? 'Expected a JSON body under 1 MB.' : 'Something went wrong.' } });
+      if (!res.headersSent) send(res, { status: bad ? 400 : 500, body: { error: bad ? 'invalid_request' : 'internal_error', message: bad ? 'Expected a JSON body under 256 KB.' : 'Something went wrong.' } });
     }
   };
 }
 
 export interface StartOptions extends Omit<HttpOptions, 'web'> {
+  signingKey?: PrivateJwk;
+  retiredKeys?: PublicJwk[];
   storage: Storage;
   /** Serve the map viewer and dashboard. */
   web?: Omit<WebOptions, 'chat' | 'model'>;
@@ -123,9 +194,19 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.threshold !== undefined && { threshold: options.threshold }),
     ...(options.chat && options.model && { chat: options.chat, model: options.model }),
     ...(options.explainer && { explainer: options.explainer }),
+    ...(options.signingKey && { signingKey: options.signingKey }),
+    ...(options.retiredKeys && { retiredKeys: options.retiredKeys }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
-  const server = createServer(registryHandler(registry, { ...(options.siteScript && { siteScript: options.siteScript }), ...(web && { web }) }));
+  const server = createServer(
+    registryHandler(registry, {
+      ...(options.siteScript && { siteScript: options.siteScript }),
+      ...(web && { web }),
+      ...(options.trustProxy && { trustProxy: true }),
+      ...(options.hsts && { hsts: true }),
+      ...(options.limits && { limits: options.limits }),
+    }),
+  );
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
   url ||= `http://localhost:${(server.address() as AddressInfo).port}`;
   await registry.signingKey();
@@ -144,10 +225,12 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     url,
     registry,
     server,
-    close: () =>
-      new Promise((resolve) => {
+    close: async () => {
+      await new Promise<void>((resolve) => {
         server.closeAllConnections();
         server.close(() => resolve());
-      }),
+      });
+      await options.storage.close?.();
+    },
   };
 }

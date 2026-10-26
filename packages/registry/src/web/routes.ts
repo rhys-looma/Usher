@@ -20,7 +20,13 @@ async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
 }
 
 function sendHtml(res: ServerResponse, status: number, body: string): void {
-  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' });
+  res.writeHead(status, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Frame-Options': 'DENY',
+    // The pages have no scripts, one inline stylesheet, and forms that post to themselves.
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  });
   res.end(body);
 }
 

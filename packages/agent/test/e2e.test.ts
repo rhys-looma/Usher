@@ -11,12 +11,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
 import { compilerModel, knockSchemaErrors, modelApi, openModel } from '@usher/core';
-import { FileStorage, startRegistry, type RunningRegistry, type Session } from '@usher/registry';
+import { startRegistry, type RunningRegistry, type Session } from '@usher/registry';
 import { readFixture, replayAny } from '../../core/test/replay.ts';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
 import { registerSite, type SiteKeys } from '../../registry/test/sites.ts';
 import { httpTransport, mcpTransport, runAgent, scriptedUser, summaryLine, type Profile, type RunResult } from '../src/index.ts';
+import { testStorage } from '../../registry/test/storage-helper.ts';
 
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
@@ -37,7 +38,7 @@ const runs: Record<string, RunResult> = {};
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-e2e-'));
-  registry = await startRegistry({ storage: new FileStorage(join(dir, 'registry')), siteScript });
+  registry = await startRegistry({ storage: await testStorage(join(dir, 'registry')), siteScript });
   site = await startMockSite({
     registry: registry.url,
     register: async (origin) => {
@@ -165,7 +166,7 @@ test('the match log holds every lookup with its scores', async () => {
 test('live: Agent A on Muse Spark builds the maps, Agent B on Muse Spark Open runs on them, then reads layout B', { skip: process.env.USHER_LIVE !== '1' && 'set USHER_LIVE=1 to call the model APIs' }, async () => {
   loadDotEnv();
   const live = await mkdtemp(join(tmpdir(), 'usher-e2e-live-'));
-  const fresh = await startRegistry({ storage: new FileStorage(live), siteScript });
+  const fresh = await startRegistry({ storage: await testStorage(live), siteScript });
   const liveSite = await startMockSite({ registry: fresh.url, register: async (origin) => (await registerSite(fresh, origin)).site_key });
   const go = async (name: string, key: string, fallback: { chat: ReturnType<typeof modelApi>; model: string }) => {
     const transport = await httpTransport(fresh.url, key);

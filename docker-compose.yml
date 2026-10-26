@@ -1,0 +1,55 @@
+# Local stack: Postgres, the registry and the demo quote site.
+#   docker compose up --build
+#   registry  http://localhost:4200  (viewer, dashboard; sign in with the dev secret key below)
+#   site      http://localhost:4100  (fictional quote form, with the Usher site script)
+# The keys below are for local development only; never use them anywhere else.
+
+x-dev-keys: &dev-keys
+  USHER_DEV_SITE_ORIGIN: http://localhost:4100
+  USHER_DEV_SITE_KEY: usp_localdevelopmentonly000
+  USHER_DEV_SECRET_KEY: uss_localdevelopmentonly00000000
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: usher
+      POSTGRES_PASSWORD: usher-local-only
+      POSTGRES_DB: usher
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "usher"]
+      interval: 2s
+      retries: 30
+
+  registry:
+    build: { context: ., dockerfile: Dockerfile.registry }
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      <<: *dev-keys
+      DATABASE_URL: postgres://usher:usher-local-only@postgres:5432/usher
+      REGISTRY_PUBLIC_URL: http://localhost:4200
+      # The demo site is on a private address; public deployments leave this off.
+      USHER_ALLOW_PRIVATE: "1"
+      USHER_DAILY_MODEL_BUDGET_USD: ${USHER_DAILY_MODEL_BUDGET_USD:-1}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      BASETEN_API_KEY: ${BASETEN_API_KEY:-}
+      USHER_OPEN_MODEL: ${USHER_OPEN_MODEL:-}
+      USHER_SIGNING_KEY: ${USHER_SIGNING_KEY:-}
+    ports: ["4200:4200"]
+
+  mock-site:
+    build: { context: ., dockerfile: Dockerfile.mock-site }
+    depends_on:
+      registry: { condition: service_healthy }
+    environment:
+      # What browsers use, and how this container reaches the registry.
+      USHER_REGISTRY_URL: http://localhost:4200
+      USHER_REGISTRY_INTERNAL_URL: http://registry:4200
+      USHER_SITE_KEY: usp_localdevelopmentonly000
+    ports: ["4100:4100"]
+
+volumes:
+  pgdata:

@@ -1,0 +1,26 @@
+# The Usher registry: HTTP API, map viewer and dashboard, and the MCP server for agents to run.
+# Based on Playwright's image, at the same version as the repository, for the viewer's browser.
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/core/package.json packages/core/
+COPY packages/registry/package.json packages/registry/
+COPY packages/site-middleware/package.json packages/site-middleware/
+COPY packages/site-script/package.json packages/site-script/
+COPY packages/agent/package.json packages/agent/
+RUN npm ci --ignore-scripts --no-audit --no-fund
+
+COPY spec spec
+COPY packages packages
+COPY scripts scripts
+COPY examples examples
+RUN npm run build
+
+ENV HOST=0.0.0.0 PORT=4200 NODE_OPTIONS=--disable-warning=ExperimentalWarning
+EXPOSE 4200
+USER pwuser
+HEALTHCHECK --interval=10s --timeout=3s --retries=12 CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# The MCP server runs where the agent is (it holds the agent's key):
+#   docker run -i --rm -e USHER_REGISTRY_URL=https://registry.example -v ~/.usher:/home/pwuser/.usher <image> node --import tsx packages/registry/src/mcp.ts
+CMD ["node", "--import", "tsx", "packages/registry/src/server.ts"]

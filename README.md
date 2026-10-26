@@ -52,7 +52,9 @@ Optionally, it checks knocks on consequential endpoints on its server with [`@us
 }
 ```
 
-**Try it locally** (Node 20+):
+**Try it locally with Docker:** `docker compose up --build`, then `npm run e2e:remote`; see [DEPLOY.md](DEPLOY.md).
+
+**Or with Node 20+:**
 
 ```sh
 npm install && npm run build

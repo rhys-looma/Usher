@@ -4,8 +4,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decodeToken, generateAgentIdentity, knockSchemaErrors, signRequest, verifyToken, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPolicy } from '@usher/core';
-import { FileStorage, RateLimiter, RegistryClient, RegistryError, findMatch, seed, startRegistry, type MapRecord, type RunningRegistry } from '../src/index.ts';
+import { RateLimiter, RegistryClient, RegistryError, findMatch, seed, startRegistry, type MapRecord, type RunningRegistry } from '../src/index.ts';
 import { readSession, registerSite, type SiteKeys } from './sites.ts';
+import { testStorage } from './storage-helper.ts';
 
 const site = 'http://localhost:4100';
 let dir: string;
@@ -17,7 +18,7 @@ let keys: SiteKeys;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-registry-'));
-  running = await startRegistry({ storage: new FileStorage(dir) });
+  running = await startRegistry({ storage: await testStorage(dir) });
   maps = await seed(running.registry, 'mock-site', site);
   keys = await registerSite(running, site);
   agent = (await generateAgentIdentity()).identity;
@@ -275,7 +276,7 @@ test('matching ranks exact, then near above the threshold, then same path', () =
 
 test('storage survives a restart: keys, maps and sessions', async () => {
   const keys = await (await fetch(`${running.url}/.well-known/usher-keys.json`)).json();
-  const again = await startRegistry({ storage: new FileStorage(dir) });
+  const again = await startRegistry({ storage: await testStorage(dir) });
   try {
     assert.deepEqual(await (await fetch(`${again.url}/.well-known/usher-keys.json`)).json(), keys);
     assert.equal((await again.registry.storage.mapsForOrigin(site)).length, 3);

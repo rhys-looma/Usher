@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WINDOW_MS, effectiveRules, generateAgentIdentity, policySchemaErrors, requestHash, type ChatFn, type UsherPolicy } from '@usher/core';
 import type { RecordedAttempt } from '../../core/test/replay.ts';
-import { FileStorage, RegistryClient, RegistryError, compileRules, seed, seedMaps, startRegistry, toPolicy, type RulesDraftOutput } from '../src/index.ts';
+import { RegistryClient, RegistryError, compileRules, seed, seedMaps, startRegistry, toPolicy, type RulesDraftOutput } from '../src/index.ts';
 import { PHRASINGS, RULES_ORIGIN } from './phrasings.ts';
 import { registerSite } from './sites.ts';
+import { testStorage } from './storage-helper.ts';
 
 interface RulesFixture {
   model: string;
@@ -93,7 +94,7 @@ test('a rule looser than the map is sent back once, then refused', async () => {
 
 test('rules endpoints: propose from English, nothing applies until the owner confirms', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'usher-rules-'));
-  const running = await startRegistry({ storage: new FileStorage(dir), chat: replay(), model: fixtures[0]!.model });
+  const running = await startRegistry({ storage: await testStorage(dir), chat: replay(), model: fixtures[0]!.model });
   try {
     await seed(running.registry, 'mock-site', RULES_ORIGIN);
     const keys = await registerSite(running, RULES_ORIGIN);

@@ -42,3 +42,4 @@ This table is updated as the build progresses.
 | 26 Oct | Map viewer (LU-38) and site dashboard (LU-37), server-rendered by the registry; blocked attempts recorded |
 | 26 Oct | Session explanations on the dashboard with Muse Spark or Spark Open (LU-34) |
 | 26 Oct | Field-risk classifier on Muse Spark Open as a second opinion in the compiler (LU-33) |
+| 27 Oct | Postgres storage, Docker images and compose, deployment hardening, DEPLOY.md (LU-52) |
