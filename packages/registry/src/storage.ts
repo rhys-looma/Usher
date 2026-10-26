@@ -50,6 +50,14 @@ export interface Session {
   events: SessionEvent[];
 }
 
+/** A registered site. The site key is public (it sits in the script tag); the secret is stored hashed. */
+export interface Site {
+  origin: string;
+  site_key: string;
+  secret_sha256: string;
+  created_at: string;
+}
+
 export interface StoredKey {
   kid: string;
   created_at: string;
@@ -67,6 +75,9 @@ export interface Storage {
   getMap(origin: string, digest: string): Promise<MapRecord | undefined>;
   putMap(record: MapRecord): Promise<void>;
   mapsForOrigin(origin: string): Promise<MapRecord[]>;
+
+  getSite(origin: string): Promise<Site | undefined>;
+  putSite(site: Site): Promise<void>;
 
   getPolicy(origin: string): Promise<Policy | undefined>;
   putPolicy(policy: Policy): Promise<void>;
@@ -160,6 +171,18 @@ export class FileStorage implements Storage {
     }
     const records = await Promise.all(files.filter((f) => f.endsWith('.json')).map((f) => this.read<MapRecord>(this.file('maps', encodeURIComponent(origin), f))));
     return records.filter((r): r is MapRecord => r !== undefined);
+  }
+
+  private siteFile(origin: string): string {
+    return this.file('sites', `${encodeURIComponent(origin)}.json`);
+  }
+
+  getSite(origin: string): Promise<Site | undefined> {
+    return this.read<Site>(this.siteFile(origin));
+  }
+
+  putSite(site: Site): Promise<void> {
+    return this.write(this.siteFile(site.origin), site);
   }
 
   private policyFile(origin: string): string {

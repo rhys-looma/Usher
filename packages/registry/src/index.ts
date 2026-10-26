@@ -5,3 +5,4 @@ export * from './http.ts';
 export * from './client.ts';
 export * from './identity-file.ts';
 export * from './seed.ts';
+export * from './rate-limit.ts';

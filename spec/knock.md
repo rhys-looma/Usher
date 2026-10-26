@@ -36,6 +36,15 @@ A site that uses Usher publishes two things.
 
 Nothing in the notice is visible to people using the page, and it does not change how the form behaves for them.
 
+### Registering a site
+
+A site registers its origin with its registry (`POST <registry>/sites` with `{"origin": "…"}`) and gets two keys, once:
+
+- a **site key** (`usp_…`), which is public and goes in the script tag as `data-usher-site-key`, for drift reports;
+- a **secret key** (`uss_…`), which the site keeps private and sends as `Authorization: Bearer <secret key>` to read its sessions and use its dashboard. The registry stores only a hash of it.
+
+Proving control of the origin (DNS or a well-known file) is a later addition; until then registration is first come, first served.
+
 ## 2. Agent identity
 
 An agent has an Ed25519 key pair. Its **agent id** is the [RFC 7638](https://www.rfc-editor.org/rfc/rfc7638) JWK thumbprint of its public key: base64url of the SHA-256 of `{"crv":"Ed25519","kty":"OKP","x":"…"}`. The id therefore certifies the key, and a registry can accept a new agent without prior registration.
@@ -73,7 +82,7 @@ This scheme is deliberately small. It can be replaced by HTTP Message Signatures
 The registry then:
 
 1. verifies the signed request;
-2. finds the map, among the maps for the page's origin: an **exact** match on `fingerprint.digest`; otherwise the **near** match with the highest signature similarity at or above the registry's threshold, preferring the same path; otherwise the best-scoring map for the same **path** (also used when the knock has no fingerprint). Every lookup and its scores are logged;
+2. finds the map, among the maps for the page's origin: an **exact** match on `fingerprint.digest`; otherwise the **near** match with the highest signature similarity at or above the registry's threshold (0.3 by default), preferring the same path; otherwise the best-scoring map for the same **path** (also used when the knock has no fingerprint). Every lookup and its scores are logged;
 3. applies the site's rules for the form. If the site does not allow agents, it answers `403 {"error":"agents_not_allowed"}`;
 4. creates a session (or continues `session`) and records the knock in its log;
 5. signs a token.
@@ -152,7 +161,9 @@ The site script and the agent append events to the session with `POST <events_ur
 
 `action` is one of `knock`, `fill`, `select`, `choose`, `check`, `uncheck`, `click`, `submit`, `held`, `confirm`, `handoff`, `run`. `key` is the element's semantic key from the map. **Events never carry values**: not what was typed, not which option was chosen. The site script logs nothing for page loads without a bound token, so people using the site are never logged.
 
-The script also checks the live form against the registry's map on load (fingerprint lookup) and, if they differ, sends a **drift report** (`POST /drift` with the map digest, the live fingerprint and the score). This carries structure only.
+The script also checks the live form against the registry's map, without telling the registry about the visit: it fetches the current map digest for the page (`GET <registry>/maps/current?origin=…&path=…`, no cookies) at most once an hour per browser, compares it with the live form's fingerprint locally, and only on a mismatch sends a **drift report** (`POST /drift` with the site key in `Usher-Site-Key`, the map digest, the live fingerprint and the score), once per change. Drift reports carry structure only; the registry keeps nothing about the visitor (no IP address, no user agent) and rate-limits them per site key.
+
+Reading a session (`GET <registry>/sessions/<id>`) needs the site's secret key, is limited to the site's own sessions, and is rate-limited.
 
 ## 7. Server-side check
 

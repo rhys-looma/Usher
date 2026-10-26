@@ -8,6 +8,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import { fingerprint, generateAgentIdentity, scanScript, type Scan } from '@usher/core';
 import { FileStorage, RegistryClient, seed, startRegistry, type KnockResponse, type RunningRegistry, type Session } from '@usher/registry';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
+import { registerSite, type SiteKeys } from '../../registry/test/sites.ts';
 
 const siteScript = fileURLToPath(new URL('../dist/usher.js', import.meta.url));
 let dir: string;
@@ -15,11 +16,18 @@ let registry: RunningRegistry;
 let site: MockSite;
 let browser: Browser;
 let client: RegistryClient;
+let keys: SiteKeys;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-site-script-'));
   registry = await startRegistry({ storage: new FileStorage(dir), siteScript });
-  site = await startMockSite({ registry: registry.url });
+  site = await startMockSite({
+    registry: registry.url,
+    register: async (origin) => {
+      keys = await registerSite(registry, origin);
+      return keys.site_key;
+    },
+  });
   await seed(registry.registry, 'mock-site', site.url);
   browser = await chromium.launch();
   client = new RegistryClient(registry.url, (await generateAgentIdentity()).identity);
@@ -54,7 +62,8 @@ async function knockFor(page: Page, session?: string): Promise<KnockResponse> {
   return client.knock({ url: page.url(), fingerprint: fp, ...(session && { session }) });
 }
 
-const getSession = async (sid: string): Promise<Session> => (await fetch(`${registry.url}/sessions/${sid}`)).json() as Promise<Session>;
+const getSession = async (sid: string): Promise<Session> =>
+  (await fetch(`${registry.url}/sessions/${sid}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json() as Promise<Session>;
 
 async function waitForEvents(sid: string, count: number): Promise<Session> {
   for (let i = 0; i < 50; i++) {
@@ -75,8 +84,23 @@ test('every form carries the knock notice and starts locked; nothing a person se
   const box = await note.boundingBox();
   assert.ok(box && box.width <= 1 && box.height <= 1, 'visually hidden');
   const state = await page.evaluate(() => window.usher.state());
-  assert.deepEqual([state.state, state.bound, state.match?.kind], ['locked', false, 'exact']);
+  assert.deepEqual([state.state, state.bound, state.drifted, state.match], ['locked', false, false, null]);
   await page.context().close();
+});
+
+test('people\'s page loads send nothing about them: one cached map check an hour, no lookups or drift beacons', async () => {
+  const context = await browser.newContext();
+  const calls: string[] = [];
+  context.on('request', (r) => {
+    if (r.url().startsWith(registry.url)) calls.push(`${r.method()} ${new URL(r.url()).pathname}`);
+  });
+  const page = await context.newPage();
+  for (let i = 0; i < 3; i++) {
+    await page.goto(`${site.url}/quote/driver`);
+    await page.evaluate(() => window.usher.ready);
+  }
+  assert.deepEqual(calls.filter((c) => !c.endsWith('/usher.js')), ['GET /maps/current'], 'checked once, then cached');
+  await context.close();
 });
 
 test('page loads without a bound token are never logged', async () => {
@@ -168,13 +192,16 @@ test('rules: the consequential submit is held until the agent confirms; the serv
   await page.context().close();
 });
 
-test('drift: in layout B the script reports drift and the registry marks the maps', async () => {
+test('drift: in layout B the script compares locally, reports once per change, and the registry marks the maps', async () => {
   await site.setLayout('b');
   try {
-    const kinds: Record<string, string> = {};
+    const drifted: Record<string, boolean> = {};
     for (const step of ['driver', 'vehicle', 'cover'] as const) {
       const page = await open(step);
-      kinds[step] = (await page.evaluate(() => window.usher.state())).match?.kind ?? 'none';
+      drifted[step] = (await page.evaluate(() => window.usher.state())).drifted;
+      // A reload in the same browser does not report again.
+      await page.reload();
+      await page.evaluate(() => window.usher.ready);
       await page.waitForTimeout(100);
       await page.context().close();
     }
@@ -182,8 +209,8 @@ test('drift: in layout B the script reports drift and the registry marks the map
     assert.deepEqual(drift.map((d) => d.path), ['/quote/driver', '/quote/vehicle', '/quote/cover']);
     for (const record of await registry.registry.storage.mapsForOrigin(site.url)) assert.ok(record.drift, `${record.map.path} marked drifted`);
     const scores = Object.fromEntries(drift.map((d) => [d.path, d.score]));
-    console.log(`drift (layout B vs seeded layout A): ${JSON.stringify(kinds)} scores ${JSON.stringify(scores)}`);
-    assert.deepEqual(kinds, { driver: 'path', vehicle: 'near', cover: 'near' });
+    console.log(`drift (layout B vs seeded layout A): scores ${JSON.stringify(scores)}`);
+    assert.deepEqual(drifted, { driver: true, vehicle: true, cover: true });
   } finally {
     await site.setLayout('a');
   }

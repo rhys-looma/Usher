@@ -17,8 +17,10 @@ import {
   type TokenClaims,
   type UsherMap,
 } from '@usher/core';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
-import type { MapRecord, Policy, Rules, Session, SessionEvent, Storage } from './storage.ts';
+import { RateLimiter } from './rate-limit.ts';
+import type { MapRecord, Policy, Rules, Session, SessionEvent, Site, Storage } from './storage.ts';
 
 export const DEFAULT_RULES: Rules = { agents: 'allowed', confirm: ['consequential'], human_only: ['needs_user'] };
 
@@ -43,6 +45,7 @@ export interface MatchSummary {
 }
 
 const ok = (body: unknown): Reply => ({ status: 200, body });
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 const error = (status: number, code: string, message: string): Reply => ({ status, body: { error: code, message } });
 
 export function resolveRules(policy: Policy | undefined, intent: string | undefined, path: string): Rules {
@@ -57,6 +60,9 @@ export class Registry {
   private key?: SigningKey;
   private keySetCache?: KeySet;
   readonly threshold: number;
+  // Per site key for drift reports, per secret for session reads.
+  private readonly driftLimit = new RateLimiter(60, 60_000);
+  private readonly readLimit = new RateLimiter(120, 60_000);
 
   constructor(private readonly options: RegistryOptions) {
     this.threshold = options.threshold ?? DEFAULT_THRESHOLD;
@@ -202,7 +208,16 @@ export class Registry {
     if (invalid || !map) return error(400, 'invalid_map', invalid ?? 'No map.');
     if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
     const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
-    if (existing) return ok({ digest: existing.digest, stored: false });
+    if (existing) {
+      // The agent that built a map may come back with edges it learned by acting on it.
+      const edges = new Map(map.actions.filter((a) => a.leads_to).map((a) => [a.id, a.leads_to!]));
+      const learned = existing.submitted_by === check.agentId && existing.map.actions.some((a) => !a.leads_to && edges.has(a.id));
+      if (learned) {
+        existing.map.actions = existing.map.actions.map((a) => (a.leads_to || !edges.has(a.id) ? a : { ...a, leads_to: edges.get(a.id)! }));
+        await this.storage.putMap(existing);
+      }
+      return ok({ digest: existing.digest, stored: false, ...(learned && { edges: true }) });
+    }
     const record: MapRecord = { digest: map.fingerprint.digest, map: { ...map, provenance: { ...map.provenance, verified: false } }, added_at: this.now().toISOString(), submitted_by: check.agentId };
     await this.storage.putMap(record);
     return { status: 201, body: { digest: record.digest, stored: true } };
@@ -245,19 +260,55 @@ export class Registry {
     return ok({ recorded: (body as { events: unknown[] }).events.length });
   }
 
-  async getSession(sid: string): Promise<Reply> {
+  /** Registers an origin and issues its keys: a public site key and a secret key, shown once. */
+  async registerSite(body: unknown): Promise<Reply> {
+    const origin = (body as { origin?: unknown } | null)?.origin;
+    if (typeof origin !== 'string' || !/^https?:\/\/[^/]+$/.test(origin)) return error(400, 'invalid_request', 'Expected { "origin": "https://example.com" }.');
+    if (await this.storage.getSite(origin)) return error(409, 'site_exists', `${origin} is already registered.`);
+    const siteKey = `usp_${randomId(18)}`;
+    const secret = `uss_${randomId(24)}`;
+    await this.storage.putSite({ origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() });
+    return { status: 201, body: { origin, site_key: siteKey, secret_key: secret } };
+  }
+
+  /** The site whose secret key this Authorization header carries, if it is the given origin's. */
+  async siteForSecret(origin: string, authorization: string | undefined): Promise<Site | undefined> {
+    const secret = /^Bearer\s+(uss_\S+)$/.exec(authorization ?? '')?.[1];
+    const site = secret ? await this.storage.getSite(origin) : undefined;
+    if (!site || !secret) return undefined;
+    const a = Buffer.from(site.secret_sha256, 'hex');
+    const b = Buffer.from(sha256(secret), 'hex');
+    return a.length === b.length && timingSafeEqual(a, b) ? site : undefined;
+  }
+
+  /** The newest map for a page, so the site script can compare fingerprints locally. */
+  async currentMap(origin: string | null, path: string | null): Promise<Reply> {
+    if (!origin || !path) return error(400, 'invalid_request', 'Expected ?origin=&path=.');
+    const latest = (await this.storage.mapsForOrigin(origin)).filter((r) => r.map.path === path).sort((a, b) => b.added_at.localeCompare(a.added_at))[0];
+    return ok(latest ? { digest: latest.digest, signature: latest.map.fingerprint.signature } : { digest: null, signature: null });
+  }
+
+  /** A session's log, for its site only: Authorization: Bearer <secret key>. */
+  async getSession(sid: string, authorization?: string): Promise<Reply> {
+    if (!this.readLimit.allow(authorization ?? 'anonymous')) return error(429, 'rate_limited', 'Too many session reads; slow down.');
     const session = await this.storage.getSession(sid);
-    if (!session) return error(404, 'not_found', 'No such session.');
+    if (!session || !(await this.siteForSecret(session.origin, authorization))) return error(404, 'not_found', 'No such session for this site key.');
     // Events arrive from the page and the agent independently; show them in time order.
     const events = session.events.map((e, i) => [e, i] as const).sort(([a, i], [b, j]) => a.ts.localeCompare(b.ts) || i - j).map(([e]) => e);
     return ok({ ...session, events } satisfies Session);
   }
 
-  /** The site script saw a live form that differs from the registry's map for it. */
-  async drift(body: unknown): Promise<Reply> {
+  /**
+   * The site script saw a live form that differs from the registry's map for it. Needs the
+   * origin's public site key (Usher-Site-Key). Nothing about the visitor is stored.
+   */
+  async drift(body: unknown, siteKey: string | undefined): Promise<Reply> {
     const invalid = knockSchemaErrors('driftReport', body);
     if (invalid) return error(400, 'invalid_request', invalid);
     const report = body as { origin: string; path: string; map: string; fingerprint: Fingerprint };
+    const site = await this.storage.getSite(report.origin);
+    if (!site || site.site_key !== siteKey) return error(401, 'site_key_required', 'Send the site key for this origin as Usher-Site-Key.');
+    if (!this.driftLimit.allow(site.site_key)) return error(429, 'rate_limited', 'Too many drift reports.');
     const record = await this.storage.getMap(report.origin, report.map);
     if (!record) return error(404, 'not_found', 'No such map for that origin.');
     if (record.digest === report.fingerprint.digest) return ok({ drifted: false });

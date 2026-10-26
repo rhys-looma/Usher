@@ -8,7 +8,7 @@ import type { MapRecord } from './storage.ts';
 export type MatchKind = 'exact' | 'near' | 'path' | 'none';
 
 /** Default similarity needed for a near match. Tune from the match log. */
-export const DEFAULT_THRESHOLD = 0.5;
+export const DEFAULT_THRESHOLD = 0.3;
 
 export interface Scored {
   digest: string;

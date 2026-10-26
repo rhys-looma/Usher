@@ -25,10 +25,24 @@ export interface MockSite {
   stop(): Promise<void>;
 }
 
-export async function startMockSite(options: { registry?: string; variant?: 'a' | 'b' } = {}): Promise<MockSite> {
+export interface MockSiteOptions {
+  registry?: string;
+  variant?: 'a' | 'b';
+  /** Registers the site's origin before it starts and returns the site key for its script tag. */
+  register?: (origin: string) => Promise<string>;
+}
+
+export async function startMockSite(options: MockSiteOptions = {}): Promise<MockSite> {
   const port = await freePort();
+  const siteKey = await options.register?.(`http://localhost:${port}`);
   const child = spawn(process.execPath, [serverScript], {
-    env: { ...process.env, PORT: String(port), VARIANT: options.variant ?? 'a', ...(options.registry && { USHER_REGISTRY_URL: options.registry }) },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      VARIANT: options.variant ?? 'a',
+      ...(options.registry && { USHER_REGISTRY_URL: options.registry }),
+      ...(siteKey && { USHER_SITE_KEY: siteKey }),
+    },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise<void>((resolve, reject) => {

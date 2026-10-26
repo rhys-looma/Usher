@@ -26,7 +26,13 @@ const running = await startRegistry({
   ...(values.threshold && { threshold: Number(values.threshold) }),
 });
 if (values.seed) {
-  const maps = await seed(running.registry, values.seed, values['seed-origin']);
-  console.log(`seeded ${maps.length} maps for ${values['seed-origin']}`);
+  const origin = values['seed-origin'];
+  const maps = await seed(running.registry, values.seed, origin);
+  console.log(`seeded ${maps.length} maps for ${origin}`);
+  const site = await running.registry.registerSite({ origin });
+  if (site.status === 201) {
+    const { site_key, secret_key } = site.body as { site_key: string; secret_key: string };
+    console.log(`registered ${origin}\n  site key (script tag, USHER_SITE_KEY): ${site_key}\n  secret key (sessions, dashboard; shown once): ${secret_key}`);
+  }
 }
 console.log(`Usher registry on ${running.url}  (data ${values.data})`);

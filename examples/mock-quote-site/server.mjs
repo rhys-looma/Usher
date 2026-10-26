@@ -6,7 +6,8 @@
 //   VARIANT=b node server.mjs  start with the alternative form layout
 //   USHER_REGISTRY_URL=http://localhost:4200 node server.mjs
 //                              use Usher: discovery file and the server-side token check
-//                              (run `npm run build` at the repository root first)
+//                              (run `npm run build` at the repository root first;
+//                              USHER_SITE_KEY adds the site key the registry issued)
 //
 // Open /__admin to switch the form layout while the site is running (the live drift demo).
 
@@ -25,6 +26,7 @@ let variant = process.env.VARIANT === 'b' ? 'b' : 'a';
 // Usher, when a registry is configured. The check only applies to requests that identify as
 // agents, and to the API; people using the form are never checked.
 const REGISTRY = process.env.USHER_REGISTRY_URL?.replace(/\/$/, '');
+const SITE_KEY = process.env.USHER_SITE_KEY;
 const usher = REGISTRY
   ? (await import('../../packages/site-middleware/dist/index.js')).createUsherCheck({
       registry: REGISTRY,
@@ -119,7 +121,7 @@ function page(title, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} | Brightwater Motor</title>
 <link rel="stylesheet" href="/static/styles.css">
-${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}" defer></script>\n` : ''}</head>
+${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}"${SITE_KEY ? ` data-usher-site-key="${SITE_KEY}"` : ''} defer></script>\n` : ''}</head>
 <body>
 <div class="demo-banner">Demo site for the Usher project. Brightwater Motor is fictional; this is not a real insurer.</div>
 <header class="site-header"><a href="/" class="brand">Brightwater Motor</a><span class="tag">Car insurance</span></header>

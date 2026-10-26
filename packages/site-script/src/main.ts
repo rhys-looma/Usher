@@ -9,7 +9,7 @@
 // semantic key. Page loads without a bound token are never logged, and no event carries a value.
 
 import { extractForms, type ExtractedForm } from '@usher/core/extract';
-import { fingerprint, type Fingerprint } from '@usher/core/fingerprint';
+import { fingerprint, similarity, type Fingerprint } from '@usher/core/fingerprint';
 import { locatorKit } from '@usher/core/locators';
 import { verifyToken, type KeySet, type PublicJwk, type TokenClaims } from '@usher/core/token';
 
@@ -52,10 +52,15 @@ const script = document.currentScript as HTMLScriptElement | null;
 const registry = (script?.dataset.usherRegistry ?? (script?.src ? new URL(script.src).origin : '')).replace(/\/$/, '');
 const knockUrl = `${registry}/knock`;
 const keysUrl = `${registry}/.well-known/usher-keys.json`;
+/** The site's public key, for drift reports. */
+const siteKey = script?.dataset.usherSiteKey ?? '';
+const MAP_CACHE_MS = 60 * 60 * 1000;
 const TOKEN_FIELD = 'usher_token';
 const kit = locatorKit();
 
 let lookup: Lookup | null = null;
+let live: Fingerprint | null = null;
+let drifted = false;
 let token: string | null = null;
 let claims: TokenClaims | null = null;
 let state: State = 'locked';
@@ -92,25 +97,62 @@ async function post(path: string, body: unknown, headers: Record<string, string>
   return fetch(`${registry}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), keepalive: true, credentials: 'omit' });
 }
 
-// Fingerprints the live form, finds its map and reports drift once per page and map.
+function stored<T>(key: string): T | null {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null') as T | null;
+  } catch {
+    return null;
+  }
+}
+
+function store(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // No storage: fine, we just fetch again next time.
+  }
+}
+
+interface CurrentMap {
+  digest: string | null;
+  signature: string[] | null;
+  at: number;
+}
+
+// The registry's current map for this page, fetched at most hourly per browser. Nothing about
+// the visitor is sent: no cookies, no fingerprint of the page, just origin and path.
+async function currentMap(): Promise<CurrentMap | null> {
+  const cacheKey = `usher-map:${location.origin}${location.pathname}`;
+  const cached = stored<CurrentMap>(cacheKey);
+  if (cached && Date.now() - cached.at < MAP_CACHE_MS) return cached;
+  const res = await fetch(`${registry}/maps/current?origin=${encodeURIComponent(location.origin)}&path=${encodeURIComponent(location.pathname)}`, { credentials: 'omit' });
+  if (!res.ok) return cached;
+  const current = { ...((await res.json()) as Omit<CurrentMap, 'at'>), at: Date.now() };
+  store(cacheKey, current);
+  return current;
+}
+
+// Fingerprints the live form and compares it with the registry's map locally. Only a mismatch
+// is reported, once per map and live form.
 async function load(): Promise<void> {
   const extracted = mainForm(extractForms().forms);
   if (!extracted) return;
-  const fp = await fingerprint(extracted.elements);
-  const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: fp });
-  if (!res.ok) return;
-  lookup = (await res.json()) as Lookup;
-  if (lookup.map && lookup.match.kind !== 'exact') {
-    const seen = `usher-drift:${location.pathname}:${lookup.map.fingerprint.digest}:${fp.digest}`;
-    let reported = false;
-    try {
-      reported = sessionStorage.getItem(seen) === '1';
-      sessionStorage.setItem(seen, '1');
-    } catch {
-      // No storage: report anyway.
-    }
-    if (!reported) await post('/drift', { origin: location.origin, path: location.pathname, map: lookup.map.fingerprint.digest, fingerprint: fp, score: lookup.match.score });
-  }
+  live = await fingerprint(extracted.elements);
+  const current = await currentMap();
+  if (!current?.digest || current.digest === live.digest) return;
+  drifted = true;
+  const seen = `usher-drift:${location.pathname}:${current.digest}:${live.digest}`;
+  if (!siteKey || stored<boolean>(seen)) return;
+  store(seen, true);
+  const score = current.signature ? Math.round(similarity(live.signature, current.signature) * 1000) / 1000 : 0;
+  await post('/drift', { origin: location.origin, path: location.pathname, map: current.digest, fingerprint: live, score }, { 'Usher-Site-Key': siteKey });
+}
+
+// The map and rules for this page, fetched only once an agent has bound a token.
+async function lookupMap(): Promise<void> {
+  if (!live) return;
+  const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: live });
+  if (res.ok) lookup = (await res.json()) as Lookup;
 }
 
 let keys: KeySet | null = null;
@@ -222,8 +264,8 @@ export interface BindResult {
 async function bind(candidate: string): Promise<BindResult> {
   await ready;
   if (typeof candidate !== 'string') return { ok: false, error: 'malformed' };
-  // An agent that found no map may have just compiled and shared one: look again.
-  if (lookup?.match.kind !== 'exact') await load().catch(() => undefined);
+  // Look the map up now (an agent that found none may have just compiled and shared one).
+  if (lookup?.match.kind !== 'exact') await lookupMap().catch(() => undefined);
   const result = await verifyToken(candidate, {
     keys: keyFor,
     origin: location.origin,
@@ -283,7 +325,7 @@ const api = {
   bind,
   confirm,
   handoff,
-  state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, match: lookup?.match ?? null }),
+  state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, drifted, match: lookup?.match ?? null }),
 };
 
 declare global {
