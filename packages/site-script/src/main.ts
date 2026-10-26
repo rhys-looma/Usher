@@ -91,9 +91,11 @@ function addNotices(): void {
   }
 }
 
-// The form with the most fields, as the compiler picks it.
+// The form with the most fields, leaving cookie banners aside, as the compiler picks it.
 function mainForm(forms: ExtractedForm[]): ExtractedForm | undefined {
-  return [...forms].sort((a, b) => b.elements.filter((e) => e.kind === 'field').length - a.elements.filter((e) => e.kind === 'field').length)[0];
+  const fields = (f: ExtractedForm) => f.elements.filter((e) => e.kind === 'field').length;
+  const tiers = [forms.filter((f) => !f.pseudo && !f.banner && fields(f) > 0), forms.filter((f) => !f.banner && fields(f) > 0), forms];
+  return [...(tiers.find((t) => t.length) ?? [])].sort((a, b) => fields(b) - fields(a))[0];
 }
 
 async function post(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {

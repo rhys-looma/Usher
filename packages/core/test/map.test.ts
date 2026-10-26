@@ -44,6 +44,7 @@ test('hand-written labels for step 1 (layout A) merge into the example map, apar
 const form: ScannedForm = {
   index: 0,
   pseudo: false,
+  banner: false,
   groups: [
     { id: 'g1', label: 'Account' },
     { id: 'g2', label: 'Unused' },

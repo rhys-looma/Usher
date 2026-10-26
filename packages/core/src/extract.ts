@@ -96,6 +96,8 @@ export interface ExtractedForm {
   index: number;
   /** True for controls outside any <form>, grouped together. */
   pseudo: boolean;
+  /** Inside a cookie or consent banner: not the form a person came to fill in. */
+  banner: boolean;
   domId?: string;
   method?: string;
   /** Path of the form's action URL, without query or fragment. */
@@ -501,7 +503,17 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       nodes.push(target);
     }
 
-    const out: ExtractedForm = { index, pseudo: form === null, groups, elements };
+    // A cookie or consent banner: the form, or a container, says so in its id, class or label.
+    const BANNER = /cookie|consent|gdpr|onetrust|didomi|cookiebot|privacy-?banner/i;
+    const first = nodes[0];
+    let banner = false;
+    for (let n: Element | null = form ?? first?.parentElement ?? null; n && n !== doc.body; n = n.parentElement) {
+      if (BANNER.test(`${n.id} ${typeof n.className === 'string' ? n.className : ''} ${n.getAttribute('aria-label') ?? ''}`)) {
+        banner = true;
+        break;
+      }
+    }
+    const out: ExtractedForm = { index, pseudo: form === null, banner, groups, elements };
     if (form) {
       const domId = form.getAttribute('id');
       if (domId) out.domId = domId;
