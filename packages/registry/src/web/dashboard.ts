@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import type { Registry } from '../registry.ts';
-import type { RulesDraft, Session } from '../storage.ts';
+import type { MapRecord, RulesDraft, Session } from '../storage.ts';
 import { html, page, ruleBadge, when, type Raw } from './html.ts';
 
 const COOKIE = 'usher_site';
@@ -36,6 +36,13 @@ export interface DashboardHooks {
   explanations?: (origin: string) => Promise<ExplanationView[]>;
   /** Regenerates explanations; returns an error message or null. */
   explain?: (origin: string) => Promise<string | null>;
+}
+
+interface KeeperCheckView {
+  outcome: string;
+  checked_at: string;
+  review?: boolean;
+  detail: string;
 }
 
 export function shortAgent(id: string | undefined): string {
@@ -115,8 +122,14 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     const byAgent = new Map<string, Session[]>();
     for (const s of sessions) byAgent.set(s.agent, [...(byAgent.get(s.agent) ?? []), s]);
     const pending = drafts.filter((d) => d.status === 'pending');
-    const drifted = records.filter((r) => r.drift).length;
-    const forms = [...records].sort((a, b) => a.map.path.localeCompare(b.map.path) || b.added_at.localeCompare(a.added_at));
+    // One row per form: its current (newest) version, with what happened to the ones before.
+    const byPath = new Map<string, MapRecord[]>();
+    for (const r of records) byPath.set(r.map.path, [...(byPath.get(r.map.path) ?? []), r].sort((a, b) => b.added_at.localeCompare(a.added_at)));
+    const forms = [...byPath.values()].map((versions) => ({ current: versions[0]!, earlier: versions.slice(1) })).sort((a, b) => a.current.map.path.localeCompare(b.current.map.path));
+    const drifted = forms.filter((f) => f.current.drift).length;
+    const checks = new Map(
+      await Promise.all(forms.map(async (f) => [f.current.map.path, await storage.getCached<KeeperCheckView>('keeper-check', `${origin}|${f.current.map.path}`)] as const)),
+    );
 
     return page(
       `Dashboard · ${origin}`,
@@ -141,12 +154,15 @@ ${this.hooks.explain ? html`<form method="post" action="/dashboard/explain"><but
 
 <h2 id="forms">Forms and maps</h2>
 <div class="card"><table>
-<thead><tr><th>Form</th><th>Purpose</th><th>Elements</th><th>Map</th><th>Status</th></tr></thead>
-<tbody>${forms.length ? forms.map(
-        (r) => html`<tr><td><code>${r.map.path}</code></td><td>${r.map.form.purpose}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions</td>
+<thead><tr><th>Form</th><th>Purpose</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
+<tbody>${forms.length ? forms.map(({ current: r, earlier }) => {
+        const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
+        const check = checks.get(r.map.path);
+        return html`<tr><td><code>${r.map.path}</code></td><td>${r.map.form.purpose}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
 <td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span>` : r.map.provenance.compiler ?? r.map.provenance.source}<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a></td>
-<td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">No maps yet. They appear when the registry compiles your forms or an agent shares one.</td></tr>`}</tbody></table></div>
+<td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
+<td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
+      }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when the registry compiles your forms or an agent shares one.</td></tr>`}</tbody></table></div>
 
 <h2 id="rules">Rules</h2>
 <div class="card">${

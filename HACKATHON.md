@@ -20,6 +20,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | Explain agent sessions to site owners | Muse Spark `muse-spark-1.3`, or Muse Spark Open on Baseten for self-hosters (`--explain-open`); code computes the facts, the model writes 1 to 3 sentences. In use. |
 | Flag consequential fields and actions: a second opinion on every element's risk; disagreements keep the stricter risk and are flagged | Muse Spark Open on Baseten (open weights). In use: 95.6% agreement with Muse Spark on the mock site, 90% on five public forms ([report](reports/classifier-agreement.md)). |
 | Reference agent's fallback when a page has no map: labels the page, then acts on it | Muse Spark `muse-spark-1.3`. In use. |
+| Keeper triage: is a changed form's change cosmetic or real, and did anything consequential change? Cheap, so only real changes reach Muse Spark | Muse Spark Open on Baseten. In use: $0.004 to $0.005 per changed form; unchanged forms cost nothing. |
 | Second, independent agent using the registry (and its fallback when a page has no map) | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`; JSON mode, schema in the prompt). In use. |
 
 This table is updated as the build progresses.
@@ -44,3 +45,4 @@ This table is updated as the build progresses.
 | 26 Oct | Field-risk classifier on Muse Spark Open as a second opinion in the compiler (LU-33) |
 | 27 Oct | Postgres storage, Docker images and compose, deployment hardening, DEPLOY.md (LU-52) |
 | 27 Oct | Accuracy evaluation and review workflow; mock site and five public forms (LU-50) |
+| 27 Oct | Drift rebuilds and the keeper: Spark Open triage, Muse Spark recompile, map versions (LU-42, LU-51) |
