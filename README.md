@@ -2,43 +2,42 @@
 
 An open protocol and script tag that lets websites control AI agents on their forms, and gives agents a fast, trusted way in.
 
-> **Status:** being built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
+> **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
 
-## The idea
+## Map, knock, log
 
-Agents can read any page. Forms are different: that's where agents act, and where sites carry the risk.
+Agents can read any page. Forms are different: that's where agents act, and where sites carry the risk. Usher gives both sides three things.
 
-1. A site adds one script tag. Its forms now carry a machine-readable notice: *this form has an agent lane, knock here*.
-2. An agent **knocks**: a signed request with the URL and what it's trying to do.
-3. The registry returns a **map** of the form (fields, steps, which actions are consequential), the **site's rules**, and a short-lived **token**.
-4. The site's script unlocks the form under those rules and logs the agent's actions. It never tracks human visitors.
-5. The site's server checks the token on consequential submits. That's the real lock.
-6. No map, or a plan that breaks? The agent falls back to reading the page, exactly as today. Usher can only make things faster and safer.
-
-**For agents:** a shared map of the form instead of a 20k-token DOM, a plan that runs in seconds, and a trusted lane through the front door.
-**For sites:** see which agents use your forms and what they do, and set the rules: which forms, what needs a human, how often.
-
-## How it works
-
-Three things: a **map**, a **knock** and a **log**.
-
-- **Map.** A description of a form: each field and button by what it means (`person.dob`, `form.submit`), how risky it is to act on, and how to find it on the page. Built by Meta's Muse Spark from the page itself, checked by code, and shared. A map never holds anything a person typed.
-- **Knock.** Before an agent fills a form it knocks, saying who it is. It gets back the map, the site's rules for that form, and short-lived signed permission to use it. The site's page and server can check that permission on their own, without asking anyone.
+- **Map.** A description of a form: each field and button by what it means (`person.dob`, `form.submit`), how risky it is to act on, and how to find it on the page. Meta's Muse Spark builds it from the page, code checks it, and it is shared. A map never holds anything a person typed.
+- **Knock.** Before an agent fills a form, it knocks and says who it is, signing with its own key (Web Bot Auth). It gets back the map, the site's rules for that form, and short-lived signed permission. The site's page and server check that permission on their own.
 - **Log.** While a knocked agent works, the site sees each step by meaning ("filled date of birth", "asked the user before *Get my quote*"), never the values. People using the site are never logged.
 
-An agent that knocks gets a fast, trusted path: on the demo quote form, three pages take about 2.7 s with a map against about 15 s reading each page with the model. An agent that doesn't knock is treated as it is today, except where a site requires a knock (for example on its API).
+**For agents:** a map instead of a 20k-token page, and a trusted lane through the front door. On the demo quote form, three pages take 2.7 s with maps against 14 s reading each page with a model.
 
-## Quickstart
+**For sites:** see which agents use your forms and what they do, and set the rules in plain English: which forms, what needs the user's yes, and how often.
 
-**A site** registers its origin with the registry (`POST /sites`), which returns a public site key and a secret key, then adds one tag to its pages:
+**An agent that doesn't knock** is treated as it is today, except where the site's server requires a knock, for example on "Get my quote" or its API.
 
-```html
-<script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" data-usher-site-key="usp_…" defer></script>
-```
+## Quickstart: a site
 
-Optionally, it checks knocks on consequential endpoints on its server with [`@usher/site-middleware`](packages/site-middleware/), and publishes `/.well-known/usher.json` naming its registry.
+1. Register your origin with a registry. You get a public site key and a secret key, shown once:
 
-**An agent** adds one MCP server entry, which gives it `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key (created at `~/.usher/agent-key.json` on first use):
+   ```bash
+   curl -X POST http://localhost:4200/sites -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'
+   ```
+
+2. Prove you control the origin. Publish `{"usher_site":"0.1","site_key":"usp_…"}` at `/.well-known/usher-site.json`, or a DNS TXT record `usher-site=usp_…` at `_usher.quote.example`. Then press "Check now" in the dashboard.
+3. Add one tag to your pages:
+
+   ```html
+   <script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" data-usher-site-key="usp_…" defer></script>
+   ```
+
+Then lock consequential endpoints on your server with [`@usher/site-middleware`](packages/site-middleware/). The script in the page is a convenience; the server is the lock.
+
+## Quickstart: an agent
+
+Add one MCP server entry, pointed at a registry. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
 ```json
 {
@@ -52,36 +51,82 @@ Optionally, it checks knocks on consequential endpoints on its server with [`@us
 }
 ```
 
-**Try it locally with Docker:** `docker compose up --build`, then `npm run e2e:remote`; see [DEPLOY.md](DEPLOY.md).
+The MCP server runs where the agent runs, because it holds the agent's private key. Only the registry URL is shared.
 
-**Or with Node 20+:**
+## Try it
 
-```sh
-npm install && npm run build
-npm run registry -- --seed mock-site --allow-private                    # registry on :4200: map viewer, dashboard, demo maps; prints the site keys
-USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site   # demo site on :4100
-npm run agent -- http://localhost:4100/quote/driver --profile packages/agent/profiles/test-driver.json --mcp
+You need Node 20+ and a fresh clone:
+
+```bash
+npm install
+npm test
 ```
 
-The agent asks before *Get my quote* and leaves declarations to you. Open http://localhost:4200/dashboard with the secret key to see its session, write rules in English, and see blocked attempts; http://localhost:4200/viewer builds a map for any public form. Switch the demo site's layout at `http://localhost:4100/__admin` to see the site script report the change.
+`npm test` builds everything, installs Chromium for Playwright, and runs the suite offline from recorded model responses.
 
-## Open by design
+**The demo**, as in the video: six scenes on a local registry and the demo site, at http://localhost:4200/demo. Press 1 to 6, or 0 for all of them.
 
-The map schema, knock protocol, policy format, site script and middleware are open. Anyone can run a registry. Maps hold structure only, never the values anyone typed.
+```bash
+npm run demo
+```
 
-- Code: [Apache License 2.0](LICENSE)
-- Specifications in [`spec/`](spec/): CC BY 4.0
+**Each piece by hand.** Start the registry with demo maps (it prints the demo site's keys), then the demo site, then the agent:
 
-## Repository layout
+```bash
+npm run registry -- --seed mock-site --allow-private
+```
+
+```bash
+USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site
+```
+
+```bash
+npm run agent -- http://localhost:4100/quote/driver --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
+```
+
+- The dashboard at http://localhost:4200/dashboard, signed in with the secret key, shows the session, lets you write rules in English, and lists blocked attempts.
+- http://localhost:4200/viewer builds a map for any public form.
+- http://localhost:4100/__admin switches the demo form's layout, to watch the map go stale and rebuild.
+
+Live model calls need `MODEL_API_KEY` (Meta Model API) and `BASETEN_API_KEY` (Muse Spark Open) in `.env`. Without them, everything runs from recordings.
+
+**With Docker:** `docker compose up --build`, then `npm run e2e:remote`. [DEPLOY.md](DEPLOY.md) covers hosting.
+
+## Benchmark
+
+The same journeys three ways, five runs each, with model latency replayed from recordings. These are medians; [reports/benchmark.md](reports/benchmark.md) has the method and ranges.
+
+| Journey | Without Usher (reads every page) | With maps (knock or lookup) | With a plan, then maps |
+| --- | --- | --- | --- |
+| Demo quote site, 3 steps | 14.22 s · $0.031 (Muse Spark) / 14.01 s · $0.026 (Spark Open) | 2.68 s / 2.71 s · $0 | 2.69 s / 2.69 s · $0 |
+| httpbin.org/forms/post, 1 page | 11.12 s · $0.011 / 9.56 s · $0.013 | 2.53 s / 2.58 s · $0 | 2.54 s / 2.58 s · $0 |
+
+With a map, an agent spends no model tokens on the form at all. The map is built once, by the first agent or the registry, and kept fresh by the keeper.
+
+## Documents
+
+| | |
+| --- | --- |
+| [spec/](spec/) | The specifications, with JSON Schemas: [map](spec/map.md), [vocabulary](spec/vocabulary.md), [knock](spec/knock.md) (including Web Bot Auth and domain claims), [policy](spec/policy.md), [plan](spec/plan.md) |
+| [DEPLOY.md](DEPLOY.md) | Running a registry: Docker, Postgres, keys, configuration |
+| [docs/security.md](docs/security.md) | Threats, controls, and what Usher does not do |
+| [docs/finetune.md](docs/finetune.md) | The per-element fine-tuning set and how a small model would be tuned and scored |
+| [reports/](reports/) | [Benchmark](reports/benchmark.md), [drift and rebuild](reports/drift-demo.md), [map accuracy](reports/accuracy.md), [classifier agreement](reports/classifier-agreement.md) |
+| [HACKATHON.md](HACKATHON.md) | Build log and the Meta models used |
+
+## Repository
 
 | Path | What |
 | --- | --- |
-| [`spec/`](spec/) | Map, vocabulary, knock protocol, policy and plan specs with JSON Schemas |
-| [`packages/core/`](packages/core/) | Form extractor, locators, fingerprint, label validator and the Muse Spark map compiler |
-| [`packages/registry/`](packages/registry/) | The registry: knocks, maps, logs; HTTP and MCP |
+| [`packages/core/`](packages/core/) | Extraction, locators, fingerprints, tokens, signatures, and the Muse Spark map compiler |
+| [`packages/registry/`](packages/registry/) | The registry: knocks, maps, rules, logs, dashboard, keeper; HTTP and MCP |
 | [`packages/site-script/`](packages/site-script/) | The one-tag site script |
 | [`packages/site-middleware/`](packages/site-middleware/) | The server-side check |
-| [`packages/agent/`](packages/agent/) | A reference agent (Playwright, Muse Spark when there's no map) |
-| [`examples/mock-quote-site/`](examples/mock-quote-site/) | A fictional multi-step quote form used for development and the demo |
+| [`packages/agent/`](packages/agent/) | A reference agent, the benchmark and the demo runner |
+| [`examples/mock-quote-site/`](examples/mock-quote-site/) | A fictional multi-step quote form, for development and the demo |
+
+## Open by design
+
+The map schema, knock protocol, policy format, site script and middleware are open, and anyone can run a registry. Code is under the [Apache License 2.0](LICENSE); the specifications in [`spec/`](spec/) are CC BY 4.0.
 
 Built by Rhys at Looma.
