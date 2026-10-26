@@ -72,6 +72,10 @@ export interface AgentOptions {
   usePlan?: boolean;
   /** Check values against the map or plan before touching the page (default true). */
   preflight?: boolean;
+  /** Act as an agent without Usher: read every page with the model, no knock, nothing shared. */
+  noUsher?: boolean;
+  /** Fill each page but stop before its way forward (for public forms: never submit). */
+  dryRun?: boolean;
 }
 
 export interface PageRun {
@@ -241,7 +245,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
 
   try {
     // A plan lets the agent check the whole journey's data before opening a page.
-    if (options.usePlan !== false) {
+    if (options.usePlan !== false && !options.noUsher) {
       const plan = await options.registry.getPlan(options.url);
       if (plan) {
         planUsed = true;
@@ -254,23 +258,32 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
     }
     await page.goto(options.url, { waitUntil: 'load' });
     for (let step = 0; step < (options.maxPages ?? 10); step++) {
-      const knockUrl = await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
-      if (!knockUrl) break; // No form with an agent lane: the journey is over.
-      await page.evaluate(() => window.usher?.ready);
+      // Usher sites carry a knock notice; elsewhere the agent can still look a map up by fingerprint.
+      const knockUrl = options.noUsher ? null : await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
+      if (knockUrl) await page.evaluate(() => window.usher?.ready);
 
       const scan: Scan = await page.evaluate(scanScript());
-      const form = mainForm(scan);
-      if (!form) break;
+      const form = scan.forms.length ? mainForm(scan) : undefined;
+      // No form with fields: the journey is over.
+      if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) break;
       const fp = await fingerprint(form.elements);
       const path = new URL(page.url()).pathname;
 
       let t = performance.now();
-      const knock = await options.registry.knock({ url: page.url(), fingerprint: fp, ...(session && { session }), ...(options.intent && { intent: options.intent }) });
+      let knock: KnockResponse | null = null;
+      let found: UsherMap | null = null;
+      if (knockUrl) {
+        knock = await options.registry.knock({ url: page.url(), fingerprint: fp, ...(session && { session }), ...(options.intent && { intent: options.intent }) });
+        session = knock.session;
+        if (knock.match.kind === 'exact') found = knock.map;
+      } else if (!options.noUsher) {
+        const lookup = await options.registry.lookup(page.url(), fp).catch(() => null);
+        if (lookup?.match.kind === 'exact') found = lookup.map;
+      }
       const knockMs = ms(t);
-      session = knock.session;
 
       // Only an exact map is trusted as a plan; anything else is re-read.
-      let map: UsherMap | null = knock.match.kind === 'exact' ? knock.map : null;
+      let map: UsherMap | null = found;
       let modelMs = 0;
       let source: PageRun['map_source'] = 'registry';
       if (!map) {
@@ -288,17 +301,20 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         source = 'compiled';
         // Share it before acting, so the site script can log this run by semantic key and the
         // next agent gets the fast path.
-        if ((await options.registry.submitMap(map)).stored) submitted++;
+        if (knock && (await options.registry.submitMap(map)).stored) submitted++;
       }
 
-      const bound = await page.evaluate((token) => window.usher.bind(token), knock.token);
-      if (!bound.ok) throw new Error(`The page refused the token: ${bound.error}`);
+      if (knock) {
+        const bound = await page.evaluate((token) => window.usher.bind(token), knock.token);
+        if (!bound.ok) throw new Error(`The page refused the token: ${bound.error}`);
+      }
 
       // Fill by semantic key. needs_user goes to the user; conditions are checked against the profile.
       t = performance.now();
       let filled = 0;
       let handedOff = 0;
-      const ruleFor = (el: MapField | MapAction): ActionRule => knock.rules.actions[el.key] ?? FLOOR[el.risk];
+      // The site's rules when it has an agent lane; otherwise the map's own risk.
+      const ruleFor = (el: MapField | MapAction): ActionRule => knock?.rules.actions[el.key] ?? FLOOR[el.risk];
       // Check this page's values before touching it. Long option lists are cut to 20 in the map, so
       // read the whole list from the page (structure, not values) to check against.
       const fields: MapField[] = [];
@@ -317,7 +333,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       for (const field of map.fields) {
         if (!conditionHolds(field, profile)) continue;
         if (ruleFor(field) === 'forbid') {
-          await page.evaluate((key) => window.usher.handoff(key), field.key);
+          if (knock) await page.evaluate((key) => window.usher.handoff(key), field.key);
           await options.user.handoff(field, page);
           handedOff++;
           continue;
@@ -342,7 +358,19 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         reason = `"${advance.label}" is for the user to do.`;
         break;
       }
-      if (ruleFor(advance) === 'confirm') {
+      if (options.dryRun) {
+        // Filled and checked; the way forward is left alone.
+        pages.push({ path, match: knock?.match.kind ?? (found ? 'exact' : 'none'), map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: ms(t), filled, handed_off: handedOff });
+        reason = `dry run: stopped before "${advance.label}"`;
+        break;
+      }
+      if (ruleFor(advance) === 'confirm' && !knock) {
+        if (!(await options.user.confirm(advance, page))) {
+          outcome = 'stopped';
+          reason = `The user declined "${advance.label}".`;
+          break;
+        }
+      } else if (ruleFor(advance) === 'confirm' && knock) {
         // Pause: the user decides. Then knock again saying so, which is where the site's rules
         // (forbidden actions, rate limits) are applied, and tell the page.
         if (!(await options.user.confirm(advance, page))) {
@@ -374,7 +402,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       };
       let rejected = await submit(button);
       // Bind again on the page that came back, so the site script logs which keys were rejected.
-      if (rejected.length) await page.evaluate((token) => window.usher?.bind(token), knock.token).catch(() => undefined);
+      if (rejected.length && knock) await page.evaluate((token) => window.usher?.bind(token), knock.token).catch(() => undefined);
       if (rejected.length && options.user.correct) {
         // Fix what the site named, by key, and try once more without re-reading the page.
         for (const e of rejected) {
@@ -385,7 +413,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
             await fillField(page, field, value);
           }
         }
-        if (ruleFor(advance) === 'confirm') {
+        if (ruleFor(advance) === 'confirm' && knock) {
           const again = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
           await page.evaluate((token) => window.usher.bind(token), again.token);
           await page.evaluate((key) => window.usher.confirm(key), advance.key);
@@ -400,9 +428,9 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         break;
       }
       const fillMs = ms(t);
-      pages.push({ path, match: knock.match.kind, map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: fillMs, filled, handed_off: handedOff });
+      pages.push({ path, match: knock?.match.kind ?? (found ? 'exact' : 'none'), map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: fillMs, filled, handed_off: handedOff });
 
-      if (source === 'compiled') {
+      if (source === 'compiled' && knock) {
         // We now know where the way forward leads: record that edge on the map we shared.
         const leadsTo = new URL(page.url()).pathname;
         await options.registry.submitMap({ ...map, actions: map.actions.map((a) => (a.id === advance.id ? { ...a, leads_to: leadsTo } : a)) }).catch(() => undefined);

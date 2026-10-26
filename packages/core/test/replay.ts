@@ -74,7 +74,7 @@ export function replayAny(fixtures: LabelFixture[], options: { simulateLatency?:
  * Replays model responses from the compiler log (data/compiler-log/*.jsonl): any logged request
  * whose hash matches. Pages that changed since they were logged won't match.
  */
-export async function replayFromLog(dir: URL): Promise<{ chat: ChatFn; size: number }> {
+export async function replayFromLog(dir: URL, options: { simulateLatency?: boolean } = {}): Promise<{ chat: ChatFn; size: number }> {
   const { readdir } = await import('node:fs/promises');
   const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith('.jsonl'));
   const byHash = new Map<string, { content: string; usage: Usage; latency_ms: number }>();
@@ -90,6 +90,7 @@ export async function replayFromLog(dir: URL): Promise<{ chat: ChatFn; size: num
     chat: async (request) => {
       const hit = byHash.get(requestHash(request));
       if (!hit) throw new Error('not in the compiler log');
+      if (options.simulateLatency) await new Promise((r) => setTimeout(r, hit.latency_ms));
       return { ...hit, response: { replayed: 'compiler-log' } };
     },
   };

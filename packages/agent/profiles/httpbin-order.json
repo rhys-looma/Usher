@@ -1,0 +1,13 @@
+{
+  "_comment": "Test data for https://httpbin.org/forms/post (a test form). The benchmark fills it and never submits.",
+  "person.full_name": "Sam Taylor",
+  "contact.phone": "07700 900123",
+  "contact.email": "sam@example.com",
+  "custom.pizza_size": "medium",
+  "custom.pizza_topping_bacon": false,
+  "custom.pizza_topping_extra_cheese": true,
+  "custom.pizza_topping_onion": false,
+  "custom.pizza_topping_mushroom": true,
+  "booking.time": "19:30",
+  "custom.delivery_instructions": "Ring the bell"
+}
