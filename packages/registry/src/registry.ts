@@ -56,6 +56,8 @@ export interface RegistryOptions {
   signingKey?: PrivateJwk;
   /** Earlier public keys still published until their tokens expire. */
   retiredKeys?: PublicJwk[];
+  /** Called when a form is reported to have drifted (the keeper rebuilds it). */
+  onDrift?: (origin: string, path: string) => void;
   /** The model that explains sessions to site owners (Muse Spark, or Spark Open for self-hosters). */
   explainer?: { chat: ChatFn; model: string };
   /** Public URL of the registry, used as the token issuer. A function when it is known only after listening. */
@@ -97,6 +99,7 @@ export class Registry {
 
   constructor(private readonly options: RegistryOptions) {
     this.threshold = options.threshold ?? DEFAULT_THRESHOLD;
+    if (options.onDrift) this.onDrift = options.onDrift;
   }
 
   get url(): string {
@@ -327,6 +330,22 @@ export class Registry {
     const record: MapRecord = { digest: map.fingerprint.digest, map: { ...map, provenance: { ...map.provenance, verified: false } }, added_at: this.now().toISOString(), submitted_by: check.agentId };
     await this.storage.putMap(record);
     return { status: 201, body: { digest: record.digest, stored: true } };
+  }
+
+  /** Set by the server when a keeper runs: drift reports trigger a check of that form. */
+  onDrift?: (origin: string, path: string) => void;
+
+  /**
+   * Stores a new version of a form's map and marks the old one replaced (it is kept). The new
+   * version is current: it is the newest for its path.
+   */
+  async replaceMap(old: MapRecord, map: UsherMap): Promise<void> {
+    const at = this.now().toISOString();
+    const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
+    // A form that changed back gets its earlier version again, clean: no drift, not replaced.
+    await this.storage.putMap({ digest: map.fingerprint.digest, map: existing?.map ?? map, added_at: at, ...(existing?.submitted_by && { submitted_by: existing.submitted_by }) });
+    await this.storage.putMap({ ...old, replaced: { at, by: map.fingerprint.digest } });
+    await this.storage.appendLog('drift', { ts: at, origin: map.origin, path: map.path, map: old.digest, rebuilt: map.fingerprint.digest, changed_at: old.drift?.at ?? null });
   }
 
   /** Seeds or replaces a map directly (operator use, not over the public API). */
@@ -565,10 +584,12 @@ export class Registry {
     // Score it ourselves rather than trusting the reporter.
     const match = await this.lookup(report.origin, report.path, report.fingerprint, 'drift');
     const score = match.scores.find((s) => s.digest === record.digest)?.score ?? 0;
-    if (match.kind === 'exact') return ok({ drifted: false, current: match.record?.digest });
+    // An exact match to a version that was replaced: the form changed back, so the current one drifted.
+    if (match.kind === 'exact' && !match.record?.replaced) return ok({ drifted: false, current: match.record?.digest });
     record.drift = { at: this.now().toISOString(), live_digest: report.fingerprint.digest, score };
     await this.storage.putMap(record);
     await this.storage.appendLog('drift', { ts: record.drift.at, origin: report.origin, path: report.path, map: record.digest, live: report.fingerprint.digest, score });
+    this.onDrift?.(report.origin, report.path);
     return ok({ drifted: true, score });
   }
 }

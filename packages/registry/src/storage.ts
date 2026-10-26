@@ -12,6 +12,8 @@ export interface MapRecord {
   /** Agent id that submitted it, for maps from agents. */
   submitted_by?: string;
   drift?: { at: string; live_digest: string; score: number };
+  /** Replaced by a newer version after the form changed. */
+  replaced?: { at: string; by: string };
 }
 
 /** A site's confirmed policy, with the English it was written in when there was one. */

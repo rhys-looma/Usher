@@ -9,6 +9,7 @@ import type { AddressInfo } from 'node:net';
 import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
 import { Registry, type Reply } from './registry.ts';
 import { Web, type WebOptions } from './web/routes.ts';
+import { Keeper, type KeeperOptions } from './keeper.ts';
 import type { Storage } from './storage.ts';
 
 const MAX_BODY = 256_000;
@@ -164,6 +165,8 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 }
 
 export interface StartOptions extends Omit<HttpOptions, 'web'> {
+  /** The keeper: scheduled checks and drift rebuilds. */
+  keeper?: KeeperOptions;
   signingKey?: PrivateJwk;
   retiredKeys?: PublicJwk[];
   storage: Storage;
@@ -182,6 +185,7 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
 export interface RunningRegistry {
   url: string;
   registry: Registry;
+  keeper?: Keeper;
   server: Server;
   close(): Promise<void>;
 }
@@ -210,6 +214,12 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
   url ||= `http://localhost:${(server.address() as AddressInfo).port}`;
   await registry.signingKey();
+  const keeper = options.keeper ? new Keeper(registry, options.keeper) : undefined;
+  if (keeper) {
+    // A drift report from a site script triggers a check of that form, in the background.
+    registry.onDrift = (origin, path) => void keeper.check(origin, path).catch(() => undefined);
+    keeper.start();
+  }
   // Keep each site's sessions only as long as its policy says.
   const prune = async () => {
     for (const site of await options.storage.listSites()) await registry.pruneSessions(site.origin).catch(() => undefined);
@@ -224,12 +234,14 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   return {
     url,
     registry,
+    ...(keeper && { keeper }),
     server,
     close: async () => {
       await new Promise<void>((resolve) => {
         server.closeAllConnections();
         server.close(() => resolve());
       });
+      await keeper?.close();
       await options.storage.close?.();
     },
   };

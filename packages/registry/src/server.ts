@@ -12,6 +12,7 @@
 //   USHER_DAILY_MODEL_BUDGET_USD    hard daily cap on model spend (default 5)
 //   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses (local demos only)
 //   USHER_TRUST_PROXY=1             take the client address from X-Forwarded-For (behind a proxy)
+//   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
 //                                   register one site with fixed keys (local development only)
@@ -87,6 +88,8 @@ const running = await startRegistry({
   ...(spark && { chat: spark.chat, model: spark.model }),
   // Session explanations: Muse Spark, or Spark Open (--explain-open, for self-hosters).
   ...(explainer && { explainer }),
+  // The keeper: Spark Open triages a changed form, Muse Spark recompiles it when the change is real.
+  keeper: { intervalMinutes: Number(env.USHER_KEEPER_INTERVAL_MIN ?? 360), ...(spark && { compiler: spark }), ...(open && { triage: open }) },
   ...(values.url && { url: values.url }),
   ...(values.threshold && { threshold: Number(values.threshold) }),
 });
