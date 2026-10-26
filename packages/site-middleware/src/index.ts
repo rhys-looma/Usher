@@ -10,7 +10,7 @@
 // not bot detection.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ReplayCache, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
+import { ReplayCache, decodeToken, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
 import { vocabulary } from '@usher/core/vocabulary';
 
 // The least an action's default risk allows, so a token from a knock on an unmapped page can't
@@ -32,6 +32,8 @@ export interface UsherCheckOptions {
   isAgent?: (req: IncomingMessage) => boolean;
   fetch?: typeof fetch;
   replay?: ReplayCache;
+  /** The site's public key: when set, refusals are reported to the registry for the dashboard. */
+  siteKey?: string;
   now?: () => number;
 }
 
@@ -149,11 +151,23 @@ export function createUsherCheck(options: UsherCheckOptions) {
     };
   }
 
-  /** Sends the 403 knock_required response. */
-  function reject(req: IncomingMessage, res: ServerResponse, result?: UsherCheckResult): void {
-    const reply = knockRequired(req, result?.status === 'knock_required' ? result.reason : undefined);
+  /** Sends the 403 knock_required response, and reports it to the registry if a site key is set. */
+  function reject(req: IncomingMessage, res: ServerResponse, result?: UsherCheckResult, action?: string): void {
+    const reason = result?.status === 'knock_required' ? result.reason : undefined;
+    const reply = knockRequired(req, reason);
     res.writeHead(reply.status, reply.headers);
     res.end(JSON.stringify(reply.body));
+    if (options.siteKey) {
+      // Who: the agent id from the token, or what the agent called itself. Nothing about the visitor.
+      const token = tokenFrom(req);
+      const agent = (token && decodeToken(token)?.claims.sub) || (typeof req.headers['usher-agent'] === 'string' ? req.headers['usher-agent'].slice(0, 100) : undefined);
+      const path = new URL(req.url ?? '/', 'http://site').pathname;
+      void (options.fetch ?? fetch)(`${registry}/sites/${encodeURIComponent(originOf(req))}/blocked`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Usher-Site-Key': options.siteKey },
+        body: JSON.stringify({ path, reason: reason ?? 'knock_required', ...(agent && { agent }), ...(action && { action }) }),
+      }).catch(() => undefined);
+    }
   }
 
   return { check, reject, knockRequired, knockUrl };

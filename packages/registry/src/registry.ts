@@ -80,6 +80,7 @@ export class Registry {
   // Per site key for drift reports, per secret for session reads.
   private readonly driftLimit = new RateLimiter(60, 60_000);
   private readonly readLimit = new RateLimiter(120, 60_000);
+  private readonly blockedLimit = new RateLimiter(120, 60_000);
   // Sites' own rate limits, one sliding window per (max, window).
   private readonly policyLimits = new Map<string, RateLimiter>();
 
@@ -112,6 +113,13 @@ export class Registry {
       this.key = key;
     }
     return this.key;
+  }
+
+  /** A secret for one purpose (signing dashboard cookies), derived from the registry's signing key. */
+  async derivedSecret(purpose: string): Promise<string> {
+    await this.signingKey();
+    const stored = (await this.storage.signingKeys()).at(-1)!;
+    return createHash('sha256').update(`usher:${purpose}:${stored.private_jwk.d}`).digest('hex');
   }
 
   async keySet(): Promise<KeySet> {
@@ -165,6 +173,27 @@ export class Registry {
     return { kind: result.kind, score: result.score, digest: result.record?.digest ?? null, drifted: Boolean(result.record?.drift) };
   }
 
+  /** A refused agent attempt, for the site's dashboard. Never anything about who the visitor is beyond the agent id. */
+  async recordBlocked(entry: { origin: string; path: string; reason: string; source: 'registry' | 'site'; agent?: string; action?: string }): Promise<void> {
+    await this.storage.appendLog('blocked', { ts: this.now().toISOString(), ...entry });
+  }
+
+  /** The site's server check reporting a 403 it sent. Needs the site key. */
+  async reportBlocked(origin: string, siteKey: string | undefined, body: unknown): Promise<Reply> {
+    const site = await this.storage.getSite(origin);
+    if (!site || site.site_key !== siteKey) return error(401, 'site_key_required', 'Send the site key for this origin as Usher-Site-Key.');
+    if (!this.blockedLimit.allow(site.site_key)) return error(429, 'rate_limited', 'Too many reports.');
+    const b = body as { path?: unknown; reason?: unknown; agent?: unknown; action?: unknown } | null;
+    const short = (v: unknown) => (typeof v === 'string' && v.length <= 200 ? v : undefined);
+    const path = short(b?.path);
+    const reason = short(b?.reason);
+    if (!path?.startsWith('/') || !reason) return error(400, 'invalid_request', 'Expected { path, reason, agent?, action? }.');
+    const agent = short(b?.agent);
+    const action = short(b?.action);
+    await this.recordBlocked({ origin, path, reason, source: 'site', ...(agent && { agent }), ...(action && { action }) });
+    return ok({ recorded: true });
+  }
+
   async knock(request: unknown): Promise<Reply> {
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
@@ -180,14 +209,18 @@ export class Registry {
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
     const policy = await this.policy(page.origin);
     const effective = effectiveRules(policy, map, page.pathname);
-    if (!effective.agent_lane) return error(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
+    const refuse = async (status: number, code: string, message: string, action?: string) => {
+      await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }) });
+      return error(status, code, message);
+    };
+    if (!effective.agent_lane) return refuse(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
     const standing = agentStanding(policy, check.agentId);
-    if (standing !== 'allowed') return error(403, 'agent_blocked', `${page.origin} does not allow this agent.`);
+    if (standing !== 'allowed') return refuse(403, 'agent_blocked', `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
     const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
-    if (forbidden.length) return error(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`);
+    if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
     const limited = this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
-    if (limited) return error(429, 'rate_limited', `${page.origin}: ${limited}`);
+    if (limited) return refuse(429, 'rate_limited', `${page.origin}: ${limited}`, confirmed.join(',') || 'knock');
     const rules = knockRules(effective);
 
     let session = knock.session ? await this.storage.getSession(knock.session) : undefined;
@@ -354,7 +387,11 @@ export class Registry {
   /** Turns the owner's English into a draft policy, held until they confirm it. */
   async proposeRules(origin: string, authorization: string | undefined, body: unknown): Promise<Reply> {
     if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
-    const text = (body as { text?: unknown } | null)?.text;
+    return this.proposeRulesFor(origin, (body as { text?: unknown } | null)?.text);
+  }
+
+  /** As proposeRules, for a caller that has already authenticated the site (the dashboard). */
+  async proposeRulesFor(origin: string, text: unknown): Promise<Reply> {
     if (typeof text !== 'string' || !text.trim() || text.length > 4000) return error(400, 'invalid_request', 'Expected { "text": "…" } under 4000 characters.');
     if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'This registry has no model configured for rules.');
     const maps = (await this.storage.mapsForOrigin(origin)).map((r) => r.map);
@@ -365,13 +402,17 @@ export class Registry {
       return { status: 201, body: { ...draft, usage: result.usage, cost_usd: result.cost_usd, latency_ms: result.latency_ms } };
     } catch (err) {
       if (err instanceof RulesError) return error(422, 'invalid_rules', err.message);
-      throw err;
+      return error(502, 'model_error', `The model could not be reached or failed: ${err instanceof Error ? err.message.slice(0, 200) : 'unknown error'}`);
     }
   }
 
   /** Applies a draft the owner has read. Nothing changes until this is called. */
   async confirmRules(origin: string, id: string, authorization: string | undefined): Promise<Reply> {
     if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
+    return this.confirmRulesFor(origin, id);
+  }
+
+  async confirmRulesFor(origin: string, id: string): Promise<Reply> {
     const draft = await this.storage.getDraft(origin, id);
     if (!draft || draft.status !== 'pending') return error(404, 'not_found', 'No pending draft with that id.');
     for (const other of await this.storage.listDrafts(origin)) {

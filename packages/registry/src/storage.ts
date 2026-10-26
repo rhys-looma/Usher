@@ -98,9 +98,13 @@ export interface Storage {
   deleteSession(id: string): Promise<void>;
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined>;
 
+  /** Small cached values by kind and key (compiled labels by fingerprint, explanations). */
+  getCached<T>(kind: string, key: string): Promise<T | undefined>;
+  putCached(kind: string, key: string, value: unknown): Promise<void>;
+
   /** Append-only logs: lookups and their scores, run reports, drift reports. */
-  appendLog(name: 'matches' | 'runs' | 'drift', record: object): Promise<void>;
-  readLog(name: 'matches' | 'runs' | 'drift'): Promise<object[]>;
+  appendLog(name: 'matches' | 'runs' | 'drift' | 'blocked', record: object): Promise<void>;
+  readLog(name: 'matches' | 'runs' | 'drift' | 'blocked'): Promise<object[]>;
 }
 
 // Files under one directory: keys.json, agents.json, maps/<hex>.json, policies/<host>.json,
@@ -279,14 +283,26 @@ export class FileStorage implements Storage {
     });
   }
 
-  appendLog(name: 'matches' | 'runs' | 'drift', record: object): Promise<void> {
+  private cacheFile(kind: string, key: string): string {
+    return this.file('cache', kind.replace(/[^a-z0-9-]/gi, '_'), `${key.replace(/[^A-Za-z0-9_.-]/g, '_')}.json`);
+  }
+
+  getCached<T>(kind: string, key: string): Promise<T | undefined> {
+    return this.read<T>(this.cacheFile(kind, key));
+  }
+
+  putCached(kind: string, key: string, value: unknown): Promise<void> {
+    return this.write(this.cacheFile(kind, key), value);
+  }
+
+  appendLog(name: 'matches' | 'runs' | 'drift' | 'blocked', record: object): Promise<void> {
     return this.serial(async () => {
       await mkdir(this.dir, { recursive: true });
       await appendFile(this.file(`${name}.jsonl`), `${JSON.stringify(record)}\n`);
     });
   }
 
-  async readLog(name: 'matches' | 'runs' | 'drift'): Promise<object[]> {
+  async readLog(name: 'matches' | 'runs' | 'drift' | 'blocked'): Promise<object[]> {
     try {
       const text = await readFile(this.file(`${name}.jsonl`), 'utf8');
       return text.split('\n').filter(Boolean).map((l) => JSON.parse(l));
