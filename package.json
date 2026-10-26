@@ -1,0 +1,25 @@
+{
+  "name": "usher",
+  "private": true,
+  "description": "Open protocol and script tag that lets websites control AI agents on their forms.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "pretest": "playwright install chromium",
+    "test": "node scripts/test.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "ajv": "^8.20.0",
+    "playwright": "^1.64.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
