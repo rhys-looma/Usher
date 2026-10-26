@@ -9,8 +9,10 @@
 
 import type { Browser, Locator, Page } from 'playwright';
 import {
+  FLOOR,
   compilePage,
   costUsd,
+  type ActionRule,
   fingerprint,
   scanScript,
   type ChatFn,
@@ -28,8 +30,8 @@ import type { RegistryTransport } from './transport.ts';
 export type Profile = Record<string, string | boolean>;
 
 export interface UserChannel {
-  /** Asks the user to confirm a consequential action. */
-  confirm(action: MapAction, page: Page): Promise<boolean>;
+  /** Asks the user to confirm an action (or a field) the site's rules say needs them. */
+  confirm(element: MapAction | MapField, page: Page): Promise<boolean>;
   /** Hands a needs_user field to the user, who completes it in the browser. */
   handoff(field: MapField, page: Page): Promise<void>;
 }
@@ -207,14 +209,16 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       t = performance.now();
       let filled = 0;
       let handedOff = 0;
+      const ruleFor = (el: MapField | MapAction): ActionRule => knock.rules.actions[el.key] ?? FLOOR[el.risk];
       for (const field of map.fields) {
         if (!conditionHolds(field, options.profile)) continue;
-        if (knock.rules.human_only.includes(field.risk)) {
+        if (ruleFor(field) === 'forbid') {
           await page.evaluate((key) => window.usher.handoff(key), field.key);
           await options.user.handoff(field, page);
           handedOff++;
           continue;
         }
+        if (ruleFor(field) === 'confirm' && !(await options.user.confirm(field, page))) continue;
         const value = options.profile[field.key];
         if (value === undefined) {
           if (field.required) throw new Error(`The profile has no ${field.key} ("${field.label}"), which is required.`);
@@ -229,18 +233,29 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         reason = `No way forward on ${path}.`;
         break;
       }
-      if (knock.rules.human_only.includes(advance.risk)) {
+      if (ruleFor(advance) === 'forbid') {
         outcome = 'stopped';
         reason = `"${advance.label}" is for the user to do.`;
         break;
       }
-      if (knock.rules.confirm.includes(advance.risk)) {
-        // Pause: the user decides, and the page is told they did.
+      if (ruleFor(advance) === 'confirm') {
+        // Pause: the user decides. Then knock again saying so, which is where the site's rules
+        // (forbidden actions, rate limits) are applied, and tell the page.
         if (!(await options.user.confirm(advance, page))) {
           outcome = 'stopped';
           reason = `The user declined "${advance.label}".`;
           break;
         }
+        let confirmedKnock: KnockResponse;
+        try {
+          confirmedKnock = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
+        } catch (err) {
+          outcome = 'stopped';
+          reason = `The site refused "${advance.label}": ${err instanceof Error ? err.message : String(err)}`;
+          break;
+        }
+        const rebound = await page.evaluate((token) => window.usher.bind(token), confirmedKnock.token);
+        if (!rebound.ok) throw new Error(`The page refused the confirmed token: ${rebound.error}`);
         await page.evaluate((key) => window.usher.confirm(key), advance.key);
       }
       const button = await locate(page, advance);
