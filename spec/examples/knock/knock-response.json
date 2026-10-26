@@ -1,10 +1,10 @@
 {
   "usher": "0.1",
-  "session": "s_BUro3lMZ6-7W0kS2",
-  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6ImsxLUVuY0xUSnlPIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAiLCJraWQiOiJrMS1FbmNMVEp5TyIsInN1YiI6IjYyOEljMm9PQnBWNGdSQm9XNmRNMEltYUZBQWdmS1BySk1leTBvUVJMZGMiLCJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjQxMDAiLCJpbnRlbnQiOiJxdW90ZS5jYXJfaW5zdXJhbmNlIiwibWFwIjoic2hhMjU2OjEzYzQ0NWMyZDljMzAxN2EyZjY1YTE5ZTRhNzE4ODJmNTNjMDcwZmFkODI0YmI1Y2JhNGExMzU5YzMwNTE5ZTYiLCJzaWQiOiJzX0JVcm8zbE1aNi03VzBrUzIiLCJpYXQiOjE3OTMwOTUyMDAsImV4cCI6MTc5MzA5NTgwMCwianRpIjoibHR2WnVnWTZnZnBSYVZfRFFWY1hoUSJ9.uK6uqExTNe6DbLawzGkGyYEsM5F-xwuVo-cCf_ZYK3FtnCec6IDT7XgIvAmxkKZjN6lyxa4j3PFLLI2SzOxOAg",
+  "session": "s_Yk3nQ2xV8wLp4tRz",
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6IlFsNHZxTnJocUZCeTdoSXpRU3F3RXZiTG5BcThuQlRQRUV0SHNGRVhxd2MifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAiLCJzdWIiOiJ2MVRiMWx3d0lDRUFDTk9zOWpXVm1CRy1wNjVYZjhvT1dOYXExQWEzV0FnIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDo0MTAwIiwiaW50ZW50IjoicXVvdGUuY2FyX2luc3VyYW5jZSIsIm1hcCI6InNoYTI1NjoxM2M0NDVjMmQ5YzMwMTdhMmY2NWExOWU0YTcxODgyZjUzYzA3MGZhZDgyNGJiNWNiYTRhMTM1OWMzMDUxOWU2Iiwic2lkIjoic19ZazNuUTJ4Vjh3THA0dFJ6IiwiaWF0IjoxNzkzMDk1MjAwLCJleHAiOjE3OTMwOTU4MDAsImp0aSI6IlFtOXZaR3hsTFdwMGFTMWxlR0Z0Y0d4bCIsImtpZCI6IlFsNHZxTnJocUZCeTdoSXpRU3F3RXZiTG5BcThuQlRQRUV0SHNGRVhxd2MifQ.wPcAUnJTR8dsdUv9xmdkbp0NOeH-vbAI2CpikHa0IuqcMpXgHb_t307aiFwmdtWic_a0knmYV-KJoyeffd89Cg",
   "expires_at": "2026-10-27T10:10:00Z",
   "keys_url": "http://localhost:4200/.well-known/usher-keys.json",
-  "events_url": "http://localhost:4200/sessions/s_BUro3lMZ6-7W0kS2/events",
+  "events_url": "http://localhost:4200/sessions/s_Yk3nQ2xV8wLp4tRz/events",
   "match": {
     "kind": "exact",
     "score": 1,
