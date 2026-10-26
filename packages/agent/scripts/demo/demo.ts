@@ -12,6 +12,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +51,18 @@ for (const id of requested) {
   }
 }
 loadDotEnv();
+
+// Fixed ports, so the site's origin matches the recorded rule; say plainly if one is taken.
+for (const port of [values['registry-port'], values['site-port']]) {
+  const free = await new Promise<boolean>((resolve) => {
+    const probe = createServer().once('error', () => resolve(false));
+    probe.listen(Number(port), () => probe.close(() => resolve(true)));
+  });
+  if (!free) {
+    console.error(`Port ${port} is in use (an earlier demo still running?). Stop it, or pass --registry-port / --site-port.`);
+    process.exit(1);
+  }
+}
 
 const root = new URL('../../../../', import.meta.url);
 const SITE = `http://localhost:${values['site-port']}`;
