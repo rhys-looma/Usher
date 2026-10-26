@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { Browser } from 'playwright';
 import { CompileError, compilePage, type ChatFn, type ChatRequest, type UsherMap } from '../src/index.ts';
 import { LAYOUTS, STEPS, launch, openStep, type Layout, type Step } from './helpers.ts';
-import { mapSchemaErrors } from './map-schema.ts';
+import { mapSchemaErrors } from '../src/schemas.ts';
 import { readFixture, replayChat } from './replay.ts';
 
 const expectedKeys: Record<Layout, Record<Step, [string, string][]>> = JSON.parse(

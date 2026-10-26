@@ -12,3 +12,4 @@ export * from './compile/model.ts';
 export * from './compile/prompt.ts';
 export * from './compile/log.ts';
 export * from './compile/compile.ts';
+export * from './schemas.ts';

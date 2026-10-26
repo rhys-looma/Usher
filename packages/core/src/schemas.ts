@@ -1,3 +1,5 @@
+// JSON Schema validation of maps and knock documents against the specs (Node only).
+
 import { readFile } from 'node:fs/promises';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 
