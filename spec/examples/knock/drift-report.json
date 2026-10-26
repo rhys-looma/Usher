@@ -1,0 +1,20 @@
+{
+  "origin": "http://localhost:4100",
+  "path": "/quote/driver",
+  "map": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+    "signature": [
+      "69e4f5de482f",
+      "d0902a45a792",
+      "c8329abd70e6",
+      "abfe360db422",
+      "610c8ae3674e",
+      "9ff9fdeda520",
+      "2c17b6a25c43",
+      "22cf2de2473a"
+    ]
+  },
+  "score": 0.4
+}

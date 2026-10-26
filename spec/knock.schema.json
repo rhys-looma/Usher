@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rhys-looma/usher/spec/knock.schema.json",
+  "title": "Usher knock protocol",
+  "description": "Documents exchanged in the knock protocol. Each is a definition under $defs. Structure only, never values.",
+  "$defs": {
+    "risk": { "enum": ["safe", "consequential", "needs_user"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "origin": { "type": "string", "pattern": "^https?://[^/]+$" },
+    "intent": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+    "agentId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "description": "RFC 7638 JWK thumbprint (SHA-256, base64url) of the agent's Ed25519 public key."
+    },
+    "ed25519PublicJwk": {
+      "type": "object",
+      "required": ["kty", "crv", "x"],
+      "properties": {
+        "kty": { "const": "OKP" },
+        "crv": { "const": "Ed25519" },
+        "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+        "kid": { "type": "string" },
+        "alg": { "const": "EdDSA" },
+        "use": { "const": "sig" }
+      },
+      "not": { "required": ["d"] }
+    },
+    "fingerprint": {
+      "type": "object",
+      "required": ["algo", "digest", "signature"],
+      "additionalProperties": false,
+      "properties": {
+        "algo": { "const": "usher-fp-1" },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "signature": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{8,16}$" } }
+      }
+    },
+    "siteDiscovery": {
+      "description": "/.well-known/usher.json on the site's origin.",
+      "type": "object",
+      "required": ["usher", "registry", "knock_url", "keys_url"],
+      "additionalProperties": false,
+      "properties": {
+        "usher": { "const": "0.1" },
+        "registry": { "type": "string", "format": "uri" },
+        "knock_url": { "type": "string", "format": "uri" },
+        "keys_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "signedAgentFields": {
+      "type": "object",
+      "required": ["agent", "ts", "signature"],
+      "properties": {
+        "agent": {
+          "type": "object",
+          "required": ["id"],
+          "additionalProperties": false,
+          "properties": { "id": { "$ref": "#/$defs/agentId" }, "jwk": { "$ref": "#/$defs/ed25519PublicJwk" } }
+        },
+        "ts": { "$ref": "#/$defs/timestamp" },
+        "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
+      }
+    },
+    "knockRequest": {
+      "description": "POST <knock_url>.",
+      "allOf": [{ "$ref": "#/$defs/signedAgentFields" }],
+      "type": "object",
+      "required": ["usher", "url"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "usher": { "const": "0.1" },
+        "url": { "type": "string", "pattern": "^https?://[^/?#]+(/[^?#]*)?$" },
+        "intent": { "$ref": "#/$defs/intent" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "session": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rules": {
+      "description": "Interim per-form rules, until the policy format.",
+      "type": "object",
+      "required": ["agents", "confirm", "human_only"],
+      "additionalProperties": false,
+      "properties": {
+        "agents": { "enum": ["allowed", "denied"] },
+        "confirm": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
+        "human_only": { "type": "array", "items": { "$ref": "#/$defs/risk" } }
+      }
+    },
+    "match": {
+      "type": "object",
+      "required": ["kind", "score", "digest", "drifted"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["exact", "near", "none"] },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "digest": { "type": ["string", "null"] },
+        "drifted": { "type": "boolean" }
+      }
+    },
+    "knockResponse": {
+      "type": "object",
+      "required": ["usher", "session", "token", "expires_at", "keys_url", "events_url", "match", "map", "plan", "rules"],
+      "additionalProperties": false,
+      "properties": {
+        "usher": { "const": "0.1" },
+        "session": { "type": "string" },
+        "token": { "$ref": "#/$defs/token" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "keys_url": { "type": "string", "format": "uri" },
+        "events_url": { "type": "string", "format": "uri" },
+        "match": { "$ref": "#/$defs/match" },
+        "map": { "anyOf": [{ "$ref": "map.schema.json" }, { "type": "null" }] },
+        "plan": { "type": "null", "description": "Reserved for multi-step plans." },
+        "rules": { "$ref": "#/$defs/rules" }
+      }
+    },
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$" },
+    "tokenHeader": {
+      "type": "object",
+      "required": ["alg", "typ", "kid"],
+      "additionalProperties": false,
+      "properties": { "alg": { "const": "EdDSA" }, "typ": { "const": "usher+jwt" }, "kid": { "type": "string", "minLength": 1 } }
+    },
+    "tokenClaims": {
+      "type": "object",
+      "required": ["iss", "kid", "sub", "origin", "intent", "map", "sid", "iat", "exp", "jti"],
+      "additionalProperties": false,
+      "properties": {
+        "iss": { "type": "string", "format": "uri" },
+        "kid": { "type": "string" },
+        "sub": { "$ref": "#/$defs/agentId" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "intent": { "$ref": "#/$defs/intent" },
+        "map": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "sid": { "type": "string" },
+        "iat": { "type": "integer" },
+        "exp": { "type": "integer" },
+        "jti": { "type": "string", "minLength": 16 }
+      }
+    },
+    "keySet": {
+      "description": "/.well-known/usher-keys.json on the registry.",
+      "type": "object",
+      "required": ["keys"],
+      "additionalProperties": false,
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": { "allOf": [{ "$ref": "#/$defs/ed25519PublicJwk" }, { "type": "object", "required": ["kid", "alg", "use"] }] }
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["error"],
+      "properties": { "error": { "type": "string" }, "message": { "type": "string" } }
+    },
+    "knockRequired": {
+      "description": "Body of the 403 a site returns to an automated request without a valid token.",
+      "type": "object",
+      "required": ["error", "knock_url", "origin", "intent"],
+      "additionalProperties": false,
+      "properties": {
+        "error": { "const": "knock_required" },
+        "knock_url": { "type": "string", "format": "uri" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "intent": { "$ref": "#/$defs/intent" },
+        "reason": { "type": "string" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["ts", "source", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "ts": { "$ref": "#/$defs/timestamp" },
+        "source": { "enum": ["site", "agent", "registry"] },
+        "action": { "enum": ["knock", "fill", "select", "choose", "check", "uncheck", "click", "submit", "held", "confirm", "handoff", "run"] },
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+        "element": { "type": "string", "pattern": "^e[0-9]+$" },
+        "path": { "type": "string", "pattern": "^/" },
+        "detail": { "type": "object", "description": "Structure only: match kind, map digest, outcome, timings. Never values." }
+      }
+    },
+    "events": {
+      "description": "POST <events_url>.",
+      "type": "object",
+      "required": ["events"],
+      "additionalProperties": false,
+      "properties": { "events": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/event" } } }
+    },
+    "driftReport": {
+      "description": "POST <registry>/drift from the site script.",
+      "type": "object",
+      "required": ["origin", "path", "map", "fingerprint", "score"],
+      "additionalProperties": false,
+      "properties": {
+        "origin": { "$ref": "#/$defs/origin" },
+        "path": { "type": "string", "pattern": "^/" },
+        "map": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}
