@@ -15,3 +15,4 @@ export * from './compile/log.ts';
 export * from './compile/compile.ts';
 export * from './schemas.ts';
 export * from './compile/classify.ts';
+export * from './compile/budget.ts';

@@ -18,6 +18,10 @@ import {
   type UsherMap,
   type UsherPolicy,
   type ChatFn,
+  BudgetExceeded,
+  type PrivateJwk,
+  type PublicJwk,
+  publicPart,
   type ActionRule,
   type EffectiveRules,
   type Risk,
@@ -48,6 +52,10 @@ export interface RegistryOptions {
   /** Muse Spark, for turning site owners' plain-English rules into policy. */
   chat?: ChatFn;
   model?: string;
+  /** A signing key from configuration (USHER_SIGNING_KEY) instead of one kept in storage. */
+  signingKey?: PrivateJwk;
+  /** Earlier public keys still published until their tokens expire. */
+  retiredKeys?: PublicJwk[];
   /** The model that explains sessions to site owners (Muse Spark, or Spark Open for self-hosters). */
   explainer?: { chat: ChatFn; model: string };
   /** Public URL of the registry, used as the token issuer. A function when it is known only after listening. */
@@ -106,6 +114,7 @@ export class Registry {
   /** The current signing key, created and stored on first use. */
   async signingKey(): Promise<SigningKey> {
     if (this.key) return this.key;
+    if (this.options.signingKey) return (this.key = await importSigningKey(this.options.signingKey));
     const stored = await this.storage.signingKeys();
     const latest = stored.at(-1);
     if (latest) {
@@ -121,16 +130,21 @@ export class Registry {
   /** A secret for one purpose (signing dashboard cookies), derived from the registry's signing key. */
   async derivedSecret(purpose: string): Promise<string> {
     await this.signingKey();
-    const stored = (await this.storage.signingKeys()).at(-1)!;
-    return createHash('sha256').update(`usher:${purpose}:${stored.private_jwk.d}`).digest('hex');
+    const d = this.options.signingKey?.d ?? (await this.storage.signingKeys()).at(-1)!.private_jwk.d;
+    return createHash('sha256').update(`usher:${purpose}:${d}`).digest('hex');
   }
 
   async keySet(): Promise<KeySet> {
     if (!this.keySetCache) {
-      await this.signingKey();
-      const stored = await this.storage.signingKeys();
-      const keys = await Promise.all(stored.map(async (k) => (await importSigningKey(k.private_jwk)).publicJwk));
-      this.keySetCache = { keys };
+      const current = await this.signingKey();
+      const retired = (this.options.retiredKeys ?? []).map((k) => ({ ...publicPart(k), kid: k.kid ?? '', alg: 'EdDSA' as const, use: 'sig' as const }));
+      if (this.options.signingKey) {
+        this.keySetCache = { keys: [current.publicJwk, ...retired] };
+      } else {
+        const stored = await this.storage.signingKeys();
+        const keys = await Promise.all(stored.map(async (k) => (await importSigningKey(k.private_jwk)).publicJwk));
+        this.keySetCache = { keys: [...keys, ...retired] };
+      }
     }
     return this.keySetCache;
   }
@@ -366,6 +380,12 @@ export class Registry {
     return removed;
   }
 
+  /** Registers an origin with keys from configuration, if it isn't registered (for dev seeding only). */
+  async ensureSite(origin: string, siteKey: string, secret: string): Promise<void> {
+    if (await this.storage.getSite(origin)) return;
+    await this.storage.putSite({ origin, site_key: siteKey, secret_sha256: sha256(secret), created_at: this.now().toISOString() });
+  }
+
   /** Registers an origin and issues its keys: a public site key and a secret key, shown once. */
   async registerSite(body: unknown): Promise<Reply> {
     const origin = (body as { origin?: unknown } | null)?.origin;
@@ -405,6 +425,7 @@ export class Registry {
       return { status: 201, body: { ...draft, usage: result.usage, cost_usd: result.cost_usd, latency_ms: result.latency_ms } };
     } catch (err) {
       if (err instanceof RulesError) return error(422, 'invalid_rules', err.message);
+      if (err instanceof BudgetExceeded) return error(503, 'budget_reached', err.message);
       return error(502, 'model_error', `The model could not be reached or failed: ${err instanceof Error ? err.message.slice(0, 200) : 'unknown error'}`);
     }
   }
@@ -430,6 +451,18 @@ export class Registry {
   async getRules(origin: string, authorization: string | undefined): Promise<Reply> {
     if (!(await this.siteForSecret(origin, authorization))) return error(401, 'secret_key_required', 'Send the site\'s secret key as Authorization: Bearer.');
     return ok({ current: (await this.storage.getPolicy(origin)) ?? null, drafts: await this.storage.listDrafts(origin) });
+  }
+
+  /** For /healthz: is storage reachable? */
+  async health(): Promise<{ ok: boolean; storage: string }> {
+    const kind = this.storage.constructor.name === 'PostgresStorage' ? 'postgres' : 'file';
+    try {
+      const ping = (this.storage as { ping?: () => Promise<boolean> }).ping;
+      const ok = ping ? await ping.call(this.storage) : (await this.storage.listSites(), true);
+      return { ok, storage: kind };
+    } catch {
+      return { ok: false, storage: kind };
+    }
   }
 
   /** The newest map for each path on an origin. */
