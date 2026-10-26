@@ -334,7 +334,7 @@ const server = createServer(async (req, res) => {
         const params = new URLSearchParams(await body(req));
         // Requesting the quote is consequential: an agent needs a token from a knock.
         if (steps[key].final && usher) {
-          const check = await usher.check(req, { form: params });
+          const check = await usher.check(req, { form: params, action: 'form.submit' });
           if (check.status === 'knock_required') return usher.reject(req, res, check);
         }
         const values = readStep(key, params);
@@ -358,7 +358,7 @@ const server = createServer(async (req, res) => {
     if (section === 'api' && key === 'quote' && req.method === 'POST') {
       // The API is for software, so every call needs a token when Usher is on.
       if (usher) {
-        const check = await usher.check(req, { always: true });
+        const check = await usher.check(req, { always: true, action: 'form.submit' });
         if (check.status === 'knock_required') return usher.reject(req, res, check);
       }
       let input;

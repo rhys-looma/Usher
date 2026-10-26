@@ -1,0 +1,18 @@
+{
+  "model": "muse-spark-1.3",
+  "recorded_at": "2026-10-26T20:37:36.665Z",
+  "text": "Bots may do the quote journey; getting a price always needs the customer to say yes first, capped at 5/hr.",
+  "attempts": [
+    {
+      "request_sha256": "b33758b33867434c71bd38684210ed1f6d82526feecb6511ce5b7be4fce138c4",
+      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Bots may complete the quote journey but getting a price always requires customer confirmation first, capped at 5 per hour.\"}",
+      "usage": {
+        "prompt_tokens": 1523,
+        "completion_tokens": 1793,
+        "total_tokens": 3316,
+        "cached_tokens": 0
+      },
+      "latency_ms": 9335
+    }
+  ]
+}

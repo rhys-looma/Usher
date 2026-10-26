@@ -73,18 +73,29 @@
         "url": { "type": "string", "pattern": "^https?://[^/?#]+(/[^?#]*)?$" },
         "intent": { "$ref": "#/$defs/intent" },
         "fingerprint": { "$ref": "#/$defs/fingerprint" },
-        "session": { "type": "string", "minLength": 1 }
+        "session": { "type": "string", "minLength": 1 },
+        "confirmed": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+          "description": "Keys the agent states its user has confirmed, before acting on them."
+        }
       }
     },
     "rules": {
-      "description": "Interim per-form rules, until the policy format.",
+      "description": "The rules for the form, from the site's policy (policy.md).",
       "type": "object",
-      "required": ["agents", "confirm", "human_only"],
+      "required": ["agents", "confirm", "human_only", "actions"],
       "additionalProperties": false,
       "properties": {
         "agents": { "enum": ["allowed", "denied"] },
         "confirm": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
-        "human_only": { "type": "array", "items": { "$ref": "#/$defs/risk" } }
+        "human_only": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
+        "actions": {
+          "type": "object",
+          "description": "The effective rule for each key on the form (policy, raised to the map's risk).",
+          "additionalProperties": { "enum": ["allow", "confirm", "forbid"] }
+        }
       }
     },
     "match": {
@@ -136,7 +147,10 @@
         "sid": { "type": "string" },
         "iat": { "type": "integer" },
         "exp": { "type": "integer" },
-        "jti": { "type": "string", "minLength": 16 }
+        "jti": { "type": "string", "minLength": 16 },
+        "confirm": { "type": "array", "items": { "type": "string" } },
+        "forbid": { "type": "array", "items": { "type": "string" } },
+        "confirmed": { "type": "array", "items": { "type": "string" } }
       }
     },
     "keySet": {

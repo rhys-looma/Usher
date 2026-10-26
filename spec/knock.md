@@ -77,6 +77,7 @@ This scheme is deliberately small. It can be replaced by HTTP Message Signatures
 | `intent` | no | What the agent is trying to do, e.g. `quote.car_insurance`. Defaults to the map's intent |
 | `fingerprint` | no | The page's `usher-fp-1` fingerprint ([map.md](map.md)), computed by the agent from the live page. Used to find the map |
 | `session` | no | A session id from an earlier knock, to continue a multi-step journey in one log |
+| `confirmed` | no | Keys the agent states its user has just confirmed (e.g. `["form.submit"]`), when knocking right before acting on them. This is where the site's [policy](policy.md) refuses forbidden actions and counts rate limits |
 | `agent`, `ts`, `signature` | yes | As above |
 
 The registry then:
@@ -109,9 +110,9 @@ The registry then:
 - `match.kind` is `exact`, `near`, `path` or `none`; `score` is the signature similarity (1 for exact; 0 without a fingerprint). A `path` match is the map for this path whose structure no longer matches well: treat it as a hint, not a plan. `map` is `null` when nothing matched; the agent then reads the page as it would without Usher.
 - `drifted` is true when the site script has reported that the live page no longer matches this map.
 - `plan` is reserved for multi-step plans (a later spec).
-- `rules` (interim, until the policy format): whether agents may use the form, the risk levels that need the user's confirmation before the agent acts, and the risk levels only the user may act on. The default is the example above.
+- `rules`: from the site's [policy](policy.md) for this form. `actions` gives the effective rule (`allow`, `confirm` or `forbid`) for every key on the form, the policy raised to the floor each element's risk sets; `confirm` and `human_only` restate the risk-level defaults.
 
-Errors use `{"error": "<code>", "message": "…"}`: `400 invalid_request`, `401 bad_signature`, `401 unknown_agent`, `401 stale_request`, `403 agents_not_allowed`.
+Errors use `{"error": "<code>", "message": "…"}`: `400 invalid_request`, `401 bad_signature`, `401 unknown_agent`, `401 stale_request`, `403 agents_not_allowed`, `403 agent_blocked`, `403 action_forbidden`, `429 rate_limited`.
 
 ## 4. Token
 
@@ -130,6 +131,8 @@ Header: `{"alg":"EdDSA","typ":"usher+jwt","kid":"<key id>"}`.
 | `sid` | Session id, so the site script can log to the right session |
 | `iat`, `exp` | Issued and expiry times, seconds since the epoch. Tokens live 10 minutes |
 | `jti` | Unique token id |
+| `confirm`, `forbid` | Keys on the form that need the user's confirmation, and keys agents may not act on (from the policy) |
+| `confirmed` | Keys the agent stated its user confirmed, when it knocked |
 
 The registry publishes its public keys at `/.well-known/usher-keys.json` as a JWK set: `{"keys":[{"kty":"OKP","crv":"Ed25519","x":"…","kid":"…","alg":"EdDSA","use":"sig"}]}`. Sites cache it and verify tokens offline; they refetch only when they meet an unknown `kid`. Old keys stay published until every token they signed has expired.
 
@@ -167,7 +170,7 @@ Reading a session (`GET <registry>/sessions/<id>`) needs the site's secret key, 
 
 ## 7. Server-side check
 
-The script is a convenience; the server is the lock. On a consequential endpoint (requesting a quote, placing an order, an API that does the same), the site's server looks for a token in `Authorization: Usher <token>`, then `X-Usher-Token`, then the `usher_token` form field, and verifies it as in section 4.
+The script is a convenience; the server is the lock. On a consequential endpoint (requesting a quote, placing an order, an API that does the same), the site's server looks for a token in `Authorization: Usher <token>`, then `X-Usher-Token`, then the `usher_token` form field, and verifies it as in section 4. A check that knows the key it protects (say `form.submit`) also refuses it when the token lists it as forbidden or as needing confirmation it did not get (`reason: action_forbidden`, `confirmation_required`), and applies the key's default risk from the vocabulary as a floor, so a token from a knock on an unmapped page can't skip confirmation.
 
 The server checks requests that identify as automated: any request carrying a token or an `Usher-Agent` header, and every request to endpoints meant for software, such as an API. When the check fails it answers:
 

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rhys-looma/usher/spec/policy.schema.json",
+  "title": "Usher policy",
+  "description": "A site's rules for agents on its forms, for one origin.",
+  "type": "object",
+  "required": ["usher_policy", "origin", "default"],
+  "additionalProperties": false,
+  "properties": {
+    "usher_policy": { "const": "0.1" },
+    "origin": { "type": "string", "pattern": "^https?://[^/]+$" },
+    "default": { "$ref": "#/$defs/rules" },
+    "forms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["match"],
+        "additionalProperties": false,
+        "properties": {
+          "match": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string", "pattern": "^/" },
+              "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+            }
+          },
+          "agent_lane": { "type": "boolean" },
+          "actions": { "$ref": "#/$defs/actions" },
+          "rate_limits": { "$ref": "#/$defs/rateLimits" }
+        }
+      }
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "oneOf": [{ "const": "*" }, { "type": "array", "items": { "$ref": "#/$defs/agentId" } }] },
+        "block": { "type": "array", "items": { "$ref": "#/$defs/agentId" } }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "session_days": { "type": "integer", "minimum": 1, "maximum": 3650 } }
+    }
+  },
+  "$defs": {
+    "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "agentId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$", "description": "An agent id: the JWK thumbprint of its key (knock.md)." },
+    "rule": { "enum": ["allow", "confirm", "forbid"] },
+    "actions": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/key" },
+      "additionalProperties": { "$ref": "#/$defs/rule" }
+    },
+    "rateLimits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "per", "max", "window"],
+        "additionalProperties": false,
+        "properties": {
+          "action": { "anyOf": [{ "$ref": "#/$defs/key" }, { "const": "knock" }] },
+          "per": { "enum": ["agent", "origin"] },
+          "max": { "type": "integer", "minimum": 0 },
+          "window": { "enum": ["minute", "hour", "day"] }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agent_lane": { "type": "boolean" },
+        "actions": { "$ref": "#/$defs/actions" },
+        "rate_limits": { "$ref": "#/$defs/rateLimits" }
+      }
+    }
+  }
+}

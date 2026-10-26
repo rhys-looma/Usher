@@ -37,7 +37,10 @@ interface Rules {
   agents: 'allowed' | 'denied';
   confirm: Risk[];
   human_only: Risk[];
+  actions?: Record<string, 'allow' | 'confirm' | 'forbid'>;
 }
+
+const FLOOR: Record<Risk, 'allow' | 'confirm' | 'forbid'> = { safe: 'allow', consequential: 'confirm', needs_user: 'forbid' };
 
 interface Lookup {
   match: { kind: 'exact' | 'near' | 'path' | 'none'; score: number; digest: string | null; drifted: boolean };
@@ -224,9 +227,9 @@ function onClick(event: Event): void {
 function onSubmit(event: SubmitEvent): void {
   if (!token || !lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
-  const risk = el?.risk ?? 'safe';
-  if ((lookup.rules.confirm.includes(risk) || lookup.rules.human_only.includes(risk)) && !confirmed) {
-    // The site's rules say the user must confirm (or do) this first.
+  const rule = el ? (lookup.rules.actions?.[el.key] ?? FLOOR[el.risk]) : 'allow';
+  if (rule === 'forbid' || (rule === 'confirm' && !confirmed)) {
+    // The site's rules: the user must confirm this first, or only the user may do it.
     event.preventDefault();
     heldKey = el?.key;
     setState('awaiting_confirmation');

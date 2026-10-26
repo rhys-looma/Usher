@@ -16,8 +16,8 @@ export function terminalUser(): UserChannel {
     }
   };
   return {
-    async confirm(action: MapAction) {
-      const answer = await ask(`The agent is about to "${action.label}" (${action.key}, ${action.risk}). Go ahead? [y/N] `);
+    async confirm(action: MapAction | MapField) {
+      const answer = await ask(`The agent is about to act on "${action.label}" (${action.key}, ${action.risk}). Go ahead? [y/N] `);
       return /^y(es)?$/i.test(answer.trim());
     },
     async handoff(field: MapField) {
@@ -36,7 +36,7 @@ export function scriptedUser(profile: Profile, options: { confirm?: boolean } = 
   return {
     confirmations,
     handoffs,
-    async confirm(action: MapAction) {
+    async confirm(action: MapAction | MapField) {
       confirmations.push(action.key);
       return options.confirm ?? true;
     },

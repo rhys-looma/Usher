@@ -8,6 +8,7 @@ export * from './inpage.ts';
 export * from './vocabulary.ts';
 export * from './labels.ts';
 export * from './map.ts';
+export * from './policy.ts';
 export * from './compile/model.ts';
 export * from './compile/prompt.ts';
 export * from './compile/log.ts';

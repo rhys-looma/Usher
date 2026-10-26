@@ -103,7 +103,9 @@ test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote an
   }
   for (const key of ['person.title', 'person.occupation', 'policy.voluntary_excess']) assert.ok(actions.includes(`site:select:${key}`), key);
   for (const key of ['person.employment_status', 'person.claims.has_any', 'vehicle.use', 'policy.cover_level']) assert.ok(actions.includes(`site:choose:${key}`), key);
-  assert.equal(actions.filter((a) => a === 'registry:knock').length, 3);
+  // One knock per page, and one more before "Get my quote", stating the user confirmed it.
+  assert.equal(actions.filter((a) => a === 'registry:knock').length, 4);
+  assert.equal(log.events.filter((e) => e.action === 'knock').at(-1)!.detail?.confirmed, 'form.submit');
   assert.ok(actions.includes('site:handoff:consent.declaration') && actions.includes('site:check:consent.declaration'));
   // The agent asked its user, told the page, then submitted.
   assert.deepEqual(actions.slice(-3), ['site:confirm:form.submit', 'site:submit:form.submit', 'agent:run']);

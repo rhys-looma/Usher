@@ -4,6 +4,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
+import type { ChatFn } from '@usher/core';
 import { Registry, type Reply } from './registry.ts';
 import type { Storage } from './storage.ts';
 
@@ -62,6 +63,13 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       if (route === 'GET /maps/current') {
         return send(res, await registry.currentMap(url.searchParams.get('origin'), url.searchParams.get('path')), { 'Cache-Control': 'public, max-age=3600' });
       }
+      const rules = /^\/sites\/([^/]+)\/rules(?:\/(r_[A-Za-z0-9_-]+)\/confirm)?$/.exec(url.pathname);
+      if (rules) {
+        const origin = decodeURIComponent(rules[1]!);
+        if (req.method === 'GET' && !rules[2]) return send(res, await registry.getRules(origin, req.headers.authorization));
+        if (req.method === 'POST' && !rules[2]) return send(res, await registry.proposeRules(origin, req.headers.authorization, await readJson(req)));
+        if (req.method === 'POST' && rules[2]) return send(res, await registry.confirmRules(origin, rules[2], req.headers.authorization));
+      }
       const map = /^\/maps\/(sha256:[0-9a-f]{64})$/.exec(url.pathname);
       if (map && req.method === 'GET') {
         const origin = url.searchParams.get('origin');
@@ -82,6 +90,8 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 
 export interface StartOptions extends HttpOptions {
   storage: Storage;
+  chat?: ChatFn;
+  model?: string;
   port?: number;
   host?: string;
   /** Public URL; defaults to http://localhost:<port>. */
@@ -98,11 +108,24 @@ export interface RunningRegistry {
 
 export async function startRegistry(options: StartOptions): Promise<RunningRegistry> {
   let url = options.url ?? '';
-  const registry = new Registry({ storage: options.storage, url: () => url, ...(options.threshold !== undefined && { threshold: options.threshold }) });
+  const registry = new Registry({
+    storage: options.storage,
+    url: () => url,
+    ...(options.threshold !== undefined && { threshold: options.threshold }),
+    ...(options.chat && options.model && { chat: options.chat, model: options.model }),
+  });
   const server = createServer(registryHandler(registry, options));
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
   url ||= `http://localhost:${(server.address() as AddressInfo).port}`;
   await registry.signingKey();
+  // Keep each site's sessions only as long as its policy says.
+  const prune = async () => {
+    for (const site of await options.storage.listSites()) await registry.pruneSessions(site.origin).catch(() => undefined);
+  };
+  void prune();
+  const pruning = setInterval(prune, 3_600_000);
+  pruning.unref();
+  server.on('close', () => clearInterval(pruning));
   return {
     url,
     registry,
