@@ -1,0 +1,86 @@
+{
+  "a": {
+    "driver": [
+      ["Title", "person.title"],
+      ["First name", "person.first_name"],
+      ["Last name", "person.last_name"],
+      ["Date of birth", "person.dob"],
+      ["Email address", "contact.email"],
+      ["Phone number (optional)", "contact.phone"],
+      ["Postcode", "address.postcode"],
+      ["First line of address", "address.line1"],
+      ["Occupation", "person.occupation"],
+      ["Employment status", "person.employment_status"],
+      ["Have you made any claims in the last 5 years?", "person.claims.has_any"],
+      ["Date of the claim", "person.claims.date"],
+      ["Type of claim", "person.claims.type"],
+      ["Continue", "nav.next"]
+    ],
+    "vehicle": [
+      ["Registration number", "vehicle.registration"],
+      ["Find car", "lookup.vehicle"],
+      ["Make", "vehicle.make"],
+      ["Model", "vehicle.model"],
+      ["Year of manufacture", "vehicle.year"],
+      ["Estimated annual mileage", "vehicle.annual_mileage"],
+      ["What do you use the car for?", "vehicle.use"],
+      ["Where is the car kept overnight?", "vehicle.overnight_location"],
+      ["Has the car been modified?", "vehicle.modifications.has_any"],
+      ["Back", "nav.back"],
+      ["Continue", "nav.next"]
+    ],
+    "cover": [
+      ["Cover start date", "policy.start_date"],
+      ["Level of cover", "policy.cover_level"],
+      ["Voluntary excess", "policy.voluntary_excess"],
+      ["Years of no-claims discount", "policy.no_claims_years"],
+      ["How would you like to pay?", "policy.payment_frequency"],
+      ["I confirm the information I have given is true and complete", "consent.declaration"],
+      ["Send me offers by email (optional)", "consent.marketing"],
+      ["Back", "nav.back"],
+      ["Get my quote", "form.submit"]
+    ]
+  },
+  "b": {
+    "driver": [
+      ["Email", "contact.email"],
+      ["Phone number (optional)", "contact.phone"],
+      ["Title", "person.title"],
+      ["First name", "person.first_name"],
+      ["Surname", "person.last_name"],
+      ["Your date of birth", "person.dob"],
+      ["Postcode", "address.postcode"],
+      ["House number and street", "address.line1"],
+      ["Main occupation", "person.occupation"],
+      ["Employment status", "person.employment_status"],
+      ["Have you made any claims in the last 5 years?", "person.claims.has_any"],
+      ["Date of the claim", "person.claims.date"],
+      ["Type of claim", "person.claims.type"],
+      ["Next", "nav.next"]
+    ],
+    "vehicle": [
+      ["Car registration", "vehicle.registration"],
+      ["Find car", "lookup.vehicle"],
+      ["Make", "vehicle.make"],
+      ["Model", "vehicle.model"],
+      ["Year of manufacture", "vehicle.year"],
+      ["Miles per year", "vehicle.annual_mileage"],
+      ["What do you use the car for?", "vehicle.use"],
+      ["Where is the car kept overnight?", "vehicle.overnight_location"],
+      ["Has the car been modified?", "vehicle.modifications.has_any"],
+      ["Back", "nav.back"],
+      ["Next", "nav.next"]
+    ],
+    "cover": [
+      ["When should cover start?", "policy.start_date"],
+      ["Level of cover", "policy.cover_level"],
+      ["Voluntary excess", "policy.voluntary_excess"],
+      ["Years of no-claims discount", "policy.no_claims_years"],
+      ["How would you like to pay?", "policy.payment_frequency"],
+      ["I confirm the information I have given is true and complete", "consent.declaration"],
+      ["Send me offers by email (optional)", "consent.marketing"],
+      ["Back", "nav.back"],
+      ["Get my quote", "form.submit"]
+    ]
+  }
+}

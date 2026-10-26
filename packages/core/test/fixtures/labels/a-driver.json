@@ -1,0 +1,19 @@
+{
+  "model": "muse-spark-1.3",
+  "recorded_at": "2026-10-26T19:25:16.844Z",
+  "layout": "a",
+  "step": "driver",
+  "attempts": [
+    {
+      "request_sha256": "86619d004e64f8fa40f38af263415c6c6a637b17b261e59e9b75a21374c5172b",
+      "content": "{\"advance_action_id\": \"e14\", \"elements\": [{\"id\": \"e1\", \"key\": \"person.title\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"person.first_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"person.last_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"contact.email\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"contact.phone\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"address.postcode\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"address.line1\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"person.occupation\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"person.employment_status\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"person.claims.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e12\", \"key\": \"person.claims.date\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e11\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e13\", \"key\": \"person.claims.type\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e11\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e14\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: driver details\"}}",
+      "usage": {
+        "prompt_tokens": 5310,
+        "completion_tokens": 1364,
+        "total_tokens": 6674,
+        "cached_tokens": 0
+      },
+      "latency_ms": 5605
+    }
+  ]
+}
