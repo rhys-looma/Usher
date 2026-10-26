@@ -56,12 +56,12 @@ Optionally, it checks knocks on consequential endpoints on its server with [`@us
 
 ```sh
 npm install && npm run build
-npm run registry -- --seed mock-site                                    # registry on :4200 with the demo maps; prints the site keys
+npm run registry -- --seed mock-site --allow-private                    # registry on :4200: map viewer, dashboard, demo maps; prints the site keys
 USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site   # demo site on :4100
 npm run agent -- http://localhost:4100/quote/driver --profile packages/agent/profiles/test-driver.json --mcp
 ```
 
-The agent asks before *Get my quote* and leaves declarations to you. Switch the demo site's layout at `http://localhost:4100/__admin` to see the site script report the change.
+The agent asks before *Get my quote* and leaves declarations to you. Open http://localhost:4200/dashboard with the secret key to see its session, write rules in English, and see blocked attempts; http://localhost:4200/viewer builds a map for any public form. Switch the demo site's layout at `http://localhost:4100/__admin` to see the site script report the change.
 
 ## Open by design
 
