@@ -119,7 +119,7 @@ function page(title, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} | Brightwater Motor</title>
 <link rel="stylesheet" href="/static/styles.css">
-</head>
+${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}" defer></script>\n` : ''}</head>
 <body>
 <div class="demo-banner">Demo site for the Usher project. Brightwater Motor is fictional; this is not a real insurer.</div>
 <header class="site-header"><a href="/" class="brand">Brightwater Motor</a><span class="tag">Car insurance</span></header>
