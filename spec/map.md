@@ -1,0 +1,122 @@
+# Usher map, draft 0.1
+
+A **map** describes one state of one web form: what its fields mean, how to find them, and which actions matter. Agents use a map instead of reading the raw page.
+
+A **plan** (separate spec, to follow) is a journey through several maps, joined by the actions that move between them.
+
+## Principles
+
+1. **Structure, never values.** A map never holds anything a person typed, and never holds page content beyond field labels and option lists. It is safe to share openly.
+2. **The model labels, the code locates.** Element records and locators are produced by deterministic code (the extractor). A model only adds meaning: semantic keys, risk, conditions. A model never writes a selector.
+3. **Several locators per element.** Pages change. Each element carries locators in priority order, so a renamed `id` still resolves by label or role.
+4. **Risk is explicit.** Every field and action says whether an agent may act on it freely, whether it is consequential, or whether a human must do it.
+5. **Fail safe.** If a map doesn't match the page, the agent reads the page as it would have anyway.
+
+## Document shape
+
+```json
+{
+  "usher": "0.1",
+  "origin": "https://quote.example",
+  "path": "/quote/driver",
+  "fingerprint": { "algo": "usher-fp-1", "digest": "sha256:…", "signature": ["…"] },
+  "form": { "purpose": "Car insurance quote: driver details", "intent": "quote.car_insurance", "step": 1 },
+  "groups": [ … ],
+  "fields": [ … ],
+  "actions": [ … ],
+  "provenance": { "source": "compiled", "compiler": "muse-spark", "created_at": "2026-10-27T10:00:00Z", "verified": false }
+}
+```
+
+The full, normative definition is [`map.schema.json`](map.schema.json). An annotated example is [`examples/quote-driver.map.json`](examples/quote-driver.map.json).
+
+### Top level
+
+| Property | Required | Meaning |
+| --- | --- | --- |
+| `usher` | yes | Spec version, `"0.1"` |
+| `origin` | yes | Scheme, host and port of the page |
+| `path` | yes | Path pattern. `:param` marks a variable segment, e.g. `/quote/:session/driver` |
+| `fingerprint` | yes | Structural identity of the form (below) |
+| `form` | yes | What the form is for |
+| `groups` | no | Visible sections (fieldsets, headed blocks) |
+| `fields` | yes | Inputs, selects, radio groups, checkboxes, text areas |
+| `actions` | yes | Buttons and links that act on the form or move the journey |
+| `provenance` | yes | Who produced the map and whether it is verified |
+
+### Fingerprint
+
+Identifies the form by its structure, not its URL, so A/B variants and minor redesigns still match.
+
+- `algo`: fingerprint algorithm, `usher-fp-1` in this draft.
+- `signature`: one short hash per field and action, in document order. Each hash covers the control type, the normalised label text and the required flag. It never covers values, ids or CSS classes.
+- `digest`: a hash of the whole signature list, for exact lookups.
+
+Lookups match on `digest` first, then on signature similarity (a Jaccard score over the `signature` sets). The threshold is set by the registry.
+
+### Fields
+
+| Property | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | Element id assigned by the extractor (`e1`, `e2`, …), stable within this map only |
+| `key` | yes | Semantic key from the [vocabulary](vocabulary.md), or `custom.<slug>` |
+| `label` | yes | The visible label, normalised whitespace |
+| `control` | yes | `text`, `email`, `tel`, `number`, `date`, `select`, `radio`, `checkbox`, `textarea`, `file`, `password` |
+| `required` | yes | Whether the form requires it |
+| `risk` | yes | `safe`, `consequential` or `needs_user` (below) |
+| `sensitive` | no | `true` for payment details, passwords, government ids. Plans never fill these |
+| `constraints` | no | `pattern`, `min`, `max`, `min_length`, `max_length`, `format` |
+| `options` | for select/radio | `items` (value and label), `total`, `truncated` |
+| `group` | no | Id of the containing group |
+| `shown_if` | no | A condition; the field is only present when it holds |
+| `locators` | yes | At least one locator, in priority order |
+
+### Actions
+
+| Property | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | Element id |
+| `key` | yes | Semantic key, e.g. `nav.next`, `form.submit`, `lookup.address` |
+| `label` | yes | Visible text or accessible name |
+| `kind` | yes | `submit`, `button` or `link` |
+| `risk` | yes | `safe`, `consequential` or `needs_user` |
+| `locators` | yes | At least one locator |
+| `leads_to` | no | Path of the map this action moves to, once known (an **edge**) |
+
+### Risk
+
+| Value | Meaning | Agent behaviour |
+| --- | --- | --- |
+| `safe` | Reversible, no effect outside the session (typing in a field, moving to the next step) | Act freely |
+| `consequential` | Has an effect the user should know about (requesting a quote, sending a message, creating a booking) | Act only if the user's instruction covers it and the site's rules allow it |
+| `needs_user` | Commits the user legally or financially, or needs their own judgement (declarations, consent, payment, passwords) | Never act; hand to the user |
+
+Site rules (policy format, to follow) can make an action stricter than its map says, never looser.
+
+### Locators
+
+Each locator is `{ "by": …, "value": …, "name"?: … }`:
+
+| `by` | `value` |
+| --- | --- |
+| `id` | Element `id` attribute |
+| `name` | Element `name` attribute |
+| `label` | Visible label text |
+| `role` | ARIA role, with the accessible name in `name` |
+| `placeholder` | Placeholder text |
+| `css` | A CSS selector generated by the extractor; last resort |
+
+A runtime tries locators in order and uses the first that resolves to exactly one element.
+
+### Conditions
+
+`shown_if` is `{ "field": <key>, "op": <op>, "value"?: <value> }`, where `op` is `equals`, `not_equals`, `in`, `checked` or `filled`. The `value` is an option value from the map, never user data.
+
+### Provenance
+
+| Property | Meaning |
+| --- | --- |
+| `source` | `compiled` (built by a compiler), `site` (published by the site's own script) or `agent` (recorded from an agent's run) |
+| `compiler` | Model or tool that compiled it |
+| `created_at` | ISO 8601 timestamp |
+| `verified` | `true` once enough independent runs succeed, or when `source` is `site` |

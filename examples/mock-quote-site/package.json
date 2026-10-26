@@ -1,0 +1,13 @@
+{
+  "name": "usher-mock-quote-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fictional multi-step car insurance quote form used to develop and demonstrate Usher. Not a real insurer.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "start:b": "VARIANT=b node server.mjs"
+  }
+}
