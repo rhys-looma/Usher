@@ -11,10 +11,11 @@
 import { extractForms, type ExtractedForm } from '@usher/core/extract';
 import { fingerprint, similarity, type Fingerprint } from '@usher/core/fingerprint';
 import { locatorKit } from '@usher/core/locators';
+import { readValidationErrors, type PageError } from '@usher/core/page-errors';
 import { verifyToken, type KeySet, type PublicJwk, type TokenClaims } from '@usher/core/token';
 
 type Risk = 'safe' | 'consequential' | 'needs_user';
-type Action = 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff';
+type Action = 'fill' | 'select' | 'choose' | 'check' | 'uncheck' | 'click' | 'submit' | 'held' | 'confirm' | 'handoff' | 'invalid';
 
 interface MapElement {
   id: string;
@@ -285,6 +286,8 @@ async function bind(candidate: string): Promise<BindResult> {
   elements = lookup?.map ? indexElements(lookup.map) : new Map();
   setState('unlocked');
   listen();
+  // The site sent the page back with errors: log which keys, never the messages (they can echo values).
+  for (const e of errors()) log('invalid', [...elements.values()].find((m) => m.key === e.key));
   return { ok: true, session: result.claims.sid };
 }
 
@@ -297,6 +300,12 @@ function confirm(key?: string): boolean {
   log('confirm', el);
   setState('unlocked');
   return true;
+}
+
+/** The page's validation errors, by semantic key, from the map's locators. */
+function errors(): PageError[] {
+  if (!lookup?.map) return [];
+  return readValidationErrors(kit, [...lookup.map.fields, ...lookup.map.actions].map((e) => ({ key: e.key, locators: e.locators as Parameters<typeof readValidationErrors>[1][number]['locators'] })));
 }
 
 /** Called by the agent when it hands an element to its user (needs_user). */
@@ -330,6 +339,7 @@ const api = {
   bind,
   confirm,
   handoff,
+  errors,
   state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, drifted, match: lookup?.match ?? null }),
 };
 

@@ -7,10 +7,11 @@ const spec = new URL('../../../spec/', import.meta.url);
 const mapSchema = JSON.parse(await readFile(new URL('map.schema.json', spec), 'utf8'));
 const knockSchema = JSON.parse(await readFile(new URL('knock.schema.json', spec), 'utf8'));
 const policySchema = JSON.parse(await readFile(new URL('policy.schema.json', spec), 'utf8'));
+const planSchema = JSON.parse(await readFile(new URL('plan.schema.json', spec), 'utf8'));
 
 // Ajv's strict lints that the spec schemas deliberately trip: if/then blocks requiring
 // properties declared on the parent, and union types (min/max are numbers or date strings).
-const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true, schemas: [mapSchema, knockSchema, policySchema] });
+const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true, schemas: [mapSchema, knockSchema, policySchema, planSchema] });
 // RFC 3339 date-time and absolute URIs, the only formats the schemas use.
 ajv.addFormat('date-time', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i);
 ajv.addFormat('uri', /^[a-z][a-z0-9+.-]*:[^\s]*$/i);
@@ -34,4 +35,9 @@ export function knockSchemaErrors(def: string, doc: unknown): string | null {
 /** Validates a policy against spec/policy.schema.json. */
 export function policySchemaErrors(policy: unknown): string | null {
   return errorsFor(policySchema.$id, policy);
+}
+
+/** Validates a plan against spec/plan.schema.json. */
+export function planSchemaErrors(plan: unknown): string | null {
+  return errorsFor(planSchema.$id, plan);
 }

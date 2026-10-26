@@ -3,6 +3,7 @@
 
 import { extractForms, type ExtractOptions, type Extraction, type ExtractedElement, type ExtractedForm } from './extract.ts';
 import { locatorKit, type Locator } from './locators.ts';
+import { readValidationErrors } from './page-errors.ts';
 
 export interface ScannedElement extends ExtractedElement {
   locators: Locator[];
@@ -54,5 +55,15 @@ export function checkLocatorsScript(lists: Locator[][]): string {
     const first = found[0]?.[0];
     return { counts: found.map((f) => f.length), agree: found.every((f) => f.length === 1 && f[0] === first) };
   });
+})()`;
+}
+
+/** Script that reads the page's validation errors and maps them to these elements' keys. Evaluates to PageError[]. */
+export function validationErrorsScript(elements: { key: string; locators: Locator[] }[]): string {
+  return `(() => {
+  ${PRELUDE}
+  const locatorKit = ${locatorKit.toString()};
+  const readValidationErrors = ${readValidationErrors.toString()};
+  return readValidationErrors(locatorKit(), ${JSON.stringify(elements)});
 })()`;
 }

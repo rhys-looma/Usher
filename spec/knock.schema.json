@@ -190,7 +190,7 @@
       "properties": {
         "ts": { "$ref": "#/$defs/timestamp" },
         "source": { "enum": ["site", "agent", "registry"] },
-        "action": { "enum": ["knock", "fill", "select", "choose", "check", "uncheck", "click", "submit", "held", "confirm", "handoff", "run"] },
+        "action": { "enum": ["knock", "fill", "select", "choose", "check", "uncheck", "click", "submit", "held", "confirm", "handoff", "run", "invalid"] },
         "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
         "element": { "type": "string", "pattern": "^e[0-9]+$" },
         "path": { "type": "string", "pattern": "^/" },

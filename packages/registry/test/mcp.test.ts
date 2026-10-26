@@ -25,7 +25,7 @@ test('MCP server: knock, get_map, submit_map and report_run as tools, signing wi
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ['get_map', 'knock', 'report_run', 'submit_map']);
+    assert.deepEqual(tools, ['get_map', 'get_plan', 'knock', 'report_run', 'submit_map']);
 
     const call = async (name: string, args: Record<string, unknown>) => {
       const result = await client.callTool({ name, arguments: args });
@@ -53,6 +53,31 @@ test('MCP server: knock, get_map, submit_map and report_run as tools, signing wi
 
     const bad = await client.callTool({ name: 'get_map', arguments: { url: 'http://localhost:4100/' } });
     assert.equal(bad.isError, true);
+  } finally {
+    await client.close();
+    await running.close();
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('get_plan over HTTP and MCP', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'usher-plan-'));
+  const running = await startRegistry({ storage: await testStorage(join(dir, 'registry')) });
+  await seed(running.registry, 'mock-site', 'http://localhost:4100');
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ['--disable-warning=ExperimentalWarning', '--import', 'tsx', fileURLToPath(new URL('../src/mcp.ts', import.meta.url))],
+    env: { ...(process.env as Record<string, string>), USHER_REGISTRY_URL: running.url, USHER_AGENT_KEY_FILE: join(dir, 'key.json') },
+    stderr: 'inherit',
+  });
+  const client = new Client({ name: 'usher-test', version: '0.0.0' });
+  try {
+    const http = await (await fetch(`${running.url}/plans?url=${encodeURIComponent('http://localhost:4100/quote/driver')}`)).json();
+    assert.equal(http.steps.length, 3);
+    assert.equal((await fetch(`${running.url}/plans?url=${encodeURIComponent('http://localhost:4100/elsewhere')}`)).status, 404);
+    await client.connect(transport);
+    const result = await client.callTool({ name: 'get_plan', arguments: { url: 'http://localhost:4100/quote/driver' } });
+    assert.deepEqual(result.structuredContent, http);
   } finally {
     await client.close();
     await running.close();

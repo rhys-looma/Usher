@@ -3,7 +3,7 @@
 import { createInterface } from 'node:readline/promises';
 import type { Page } from 'playwright';
 import type { MapAction, MapField } from '@usher/core';
-import type { Profile, UserChannel } from './agent.ts';
+import type { Correction, Profile, UserChannel } from './agent.ts';
 
 /** Asks in the terminal. needs_user fields are completed by the user in the (headed) browser. */
 export function terminalUser(): UserChannel {
@@ -22,6 +22,11 @@ export function terminalUser(): UserChannel {
     },
     async handoff(field: MapField) {
       await ask(`Over to you: "${field.label}" (${field.key}) is yours to answer in the browser. Press Enter when done. `);
+    },
+    async correct(problem: Correction) {
+      const answer = await ask(`"${problem.label}" (${problem.key}): ${problem.message}${problem.expected ? ` Expected: ${problem.expected}.` : ''} Corrected value (Enter to skip): `);
+      if (!answer.trim()) return null;
+      return /^(true|false)$/i.test(answer.trim()) ? answer.trim().toLowerCase() === 'true' : answer.trim();
     },
   };
 }

@@ -6,6 +6,7 @@
 | [Field and action vocabulary](vocabulary.md) | Draft 0.1 |
 | [Knock protocol](knock.md) ([JSON Schema](knock.schema.json)) | Draft 0.1 |
 | [Policy format](policy.md) ([JSON Schema](policy.schema.json)) | Draft 0.1 |
+| [Plan](plan.md) ([JSON Schema](plan.schema.json)) | Draft 0.1 |
 
 Example documents live in [`examples/`](examples/).
 

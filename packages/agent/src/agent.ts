@@ -10,6 +10,11 @@
 import type { Browser, Locator, Page } from 'playwright';
 import {
   FLOOR,
+  preflight,
+  validationErrorsScript,
+  type FieldSpec,
+  type PageError,
+  type PreflightProblem,
   compilePage,
   pickForm,
   costUsd,
@@ -30,7 +35,16 @@ import type { RegistryTransport } from './transport.ts';
 /** The user's data by vocabulary key. Selects and radios hold option values. */
 export type Profile = Record<string, string | boolean>;
 
+export interface Correction {
+  key: string;
+  label: string;
+  message: string;
+  expected?: string;
+}
+
 export interface UserChannel {
+  /** Asks the user for a corrected value; null if they have none. Without it, problems fail the run. */
+  correct?(problem: Correction): Promise<string | boolean | null>;
   /** Asks the user to confirm an action (or a field) the site's rules say needs them. */
   confirm(element: MapAction | MapField, page: Page): Promise<boolean>;
   /** Hands a needs_user field to the user, who completes it in the browser. */
@@ -54,6 +68,10 @@ export interface AgentOptions {
   /** What the user asked for, e.g. quote.car_insurance. Needed when the registry has no map yet. */
   intent?: string;
   maxPages?: number;
+  /** Use the registry's plan for the journey when there is one (default true). */
+  usePlan?: boolean;
+  /** Check values against the map or plan before touching the page (default true). */
+  preflight?: boolean;
 }
 
 export interface PageRun {
@@ -81,9 +99,18 @@ export interface RunResult {
   fill_ms: number;
   usage: Usage;
   cost_usd: number;
+  /** Whether a plan for the whole journey was used. */
+  plan_used: boolean;
+  /** Values that failed pre-flight, by semantic key (nothing was entered). */
+  problems?: PreflightProblem[];
+  /** The site's own errors when it rejected a step, by semantic key. */
+  errors?: PageError[];
 }
 
 const ADVANCE_KEYS = ['form.submit', 'nav.next'];
+
+/** Ends a run early on purpose (the outcome and reason are already set). */
+class StopRun extends Error {}
 const ZERO: Usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 };
 const ms = (start: number) => Math.round(performance.now() - start);
 
@@ -115,6 +142,21 @@ const MORE_CONSENT = /\b(accept|allow|agree|ok|got it|consent|yes)\b/i;
 export function leastConsent(actions: MapAction[]): MapAction | null {
   const dismiss = actions.filter((a) => a.key === 'ui.dismiss');
   return dismiss.find((a) => LEAST_CONSENT.test(a.label)) ?? dismiss.find((a) => !MORE_CONSENT.test(a.label)) ?? null;
+}
+
+/** Every option of a select or radio group, from the page. */
+async function fullOptions(page: Page, field: MapField): Promise<MapField['options'] | null> {
+  const target = await locate(page, field);
+  if (!target) return null;
+  // No named helpers inside: the function is serialised into the page as it is.
+  const items = await target.first().evaluate((node) =>
+    node.tagName === 'SELECT'
+      ? Array.from((node as HTMLSelectElement).querySelectorAll('option'))
+          .map((o) => ({ value: o.getAttribute('value') ?? (o.textContent ?? '').replace(/\s+/g, ' ').trim(), label: (o.textContent ?? '').replace(/\s+/g, ' ').trim() }))
+          .filter((o) => o.value !== '')
+      : [],
+  );
+  return items.length ? { items, total: items.length, truncated: false } : null;
 }
 
 function conditionHolds(field: MapField, profile: Profile): boolean {
@@ -174,8 +216,42 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   let submitted = 0;
   let outcome: RunResult['outcome'] = 'completed';
   let reason: string | undefined;
+  let profile = { ...options.profile };
+  let planUsed = false;
+  let problems: PreflightProblem[] | undefined;
+  let errors: PageError[] | undefined;
+
+  // Checks values; asks the user to correct what fails. False if anything is still wrong.
+  const check = async (fields: FieldSpec[]): Promise<boolean> => {
+    if (options.preflight === false) return true;
+    let result = preflight(fields, profile);
+    if (!result.ok && options.user.correct) {
+      for (const p of result.problems) {
+        const value = await options.user.correct(p);
+        if (value !== null) profile = { ...profile, [p.key]: value };
+      }
+      result = preflight(fields, profile);
+    }
+    profile = result.normalised;
+    if (!result.ok) problems = result.problems;
+    return result.ok;
+  };
+  // The user's answers to what the agent may fill; needs_user fields are theirs to give on the page.
+  const agentFields = <T extends FieldSpec>(fields: T[], rule: (f: T) => string) => fields.filter((f) => rule(f) !== 'forbid' && f.risk !== 'needs_user');
 
   try {
+    // A plan lets the agent check the whole journey's data before opening a page.
+    if (options.usePlan !== false) {
+      const plan = await options.registry.getPlan(options.url);
+      if (plan) {
+        planUsed = true;
+        if (!(await check(agentFields(plan.inputs, () => 'allow')))) {
+          outcome = 'failed';
+          reason = `Some answers need correcting before starting: ${problems!.map((p) => p.key).join(', ')}.`;
+          throw new StopRun();
+        }
+      }
+    }
     await page.goto(options.url, { waitUntil: 'load' });
     for (let step = 0; step < (options.maxPages ?? 10); step++) {
       const knockUrl = await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
@@ -223,6 +299,15 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       let filled = 0;
       let handedOff = 0;
       const ruleFor = (el: MapField | MapAction): ActionRule => knock.rules.actions[el.key] ?? FLOOR[el.risk];
+      // Check this page's values before touching it. Long option lists are cut to 20 in the map, so
+      // read the whole list from the page (structure, not values) to check against.
+      const fields: MapField[] = [];
+      for (const f of agentFields(map.fields, ruleFor)) fields.push(f.options?.truncated ? { ...f, options: (await fullOptions(page, f)) ?? f.options } : f);
+      if (!(await check(fields))) {
+        outcome = 'failed';
+        reason = `Some answers need correcting for ${path}: ${problems!.map((p) => p.key).join(', ')}.`;
+        break;
+      }
       // Cookie banners first, with the least consent on offer.
       const banner = leastConsent(map.actions);
       if (banner) {
@@ -230,7 +315,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         if (button && (await button.isVisible())) await button.click().catch(() => undefined);
       }
       for (const field of map.fields) {
-        if (!conditionHolds(field, options.profile)) continue;
+        if (!conditionHolds(field, profile)) continue;
         if (ruleFor(field) === 'forbid') {
           await page.evaluate((key) => window.usher.handoff(key), field.key);
           await options.user.handoff(field, page);
@@ -238,7 +323,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           continue;
         }
         if (ruleFor(field) === 'confirm' && !(await options.user.confirm(field, page))) continue;
-        const value = options.profile[field.key];
+        const value = profile[field.key];
         if (value === undefined) {
           if (field.required) throw new Error(`The profile has no ${field.key} ("${field.label}"), which is required.`);
           continue;
@@ -279,7 +364,41 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       }
       const button = await locate(page, advance);
       if (!button) throw new Error(`Could not find "${advance.label}".`);
-      await Promise.all([page.waitForURL((u) => u.pathname !== path, { timeout: 15_000 }), button.click()]);
+      // Click, wait for the next document, and read the site's errors if it sent the page back.
+      const elements = [...map.fields, ...map.actions].map((e) => ({ key: e.key, locators: e.locators }));
+      const submit = async (target: Locator): Promise<PageError[]> => {
+        await Promise.all([page.waitForEvent('framenavigated', { predicate: (f) => f === page.mainFrame(), timeout: 15_000 }), target.click()]);
+        await page.waitForLoadState('load');
+        if (new URL(page.url()).pathname !== path) return [];
+        return (await page.evaluate(validationErrorsScript(elements))) as PageError[];
+      };
+      let rejected = await submit(button);
+      // Bind again on the page that came back, so the site script logs which keys were rejected.
+      if (rejected.length) await page.evaluate((token) => window.usher?.bind(token), knock.token).catch(() => undefined);
+      if (rejected.length && options.user.correct) {
+        // Fix what the site named, by key, and try once more without re-reading the page.
+        for (const e of rejected) {
+          const field = map.fields.find((f) => f.key === e.key);
+          const value = field ? await options.user.correct({ key: e.key, label: field.label, message: e.message }) : null;
+          if (field && value !== null) {
+            profile = { ...profile, [e.key]: value };
+            await fillField(page, field, value);
+          }
+        }
+        if (ruleFor(advance) === 'confirm') {
+          const again = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
+          await page.evaluate((token) => window.usher.bind(token), again.token);
+          await page.evaluate((key) => window.usher.confirm(key), advance.key);
+        }
+        const retry = await locate(page, advance);
+        if (retry) rejected = await submit(retry);
+      }
+      if (new URL(page.url()).pathname === path) {
+        errors = rejected;
+        outcome = 'failed';
+        reason = rejected.length ? `${path} was rejected: ${rejected.map((e) => `${e.key} (${e.message})`).join('; ')}.` : `${path} did not move on.`;
+        break;
+      }
       const fillMs = ms(t);
       pages.push({ path, match: knock.match.kind, map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: fillMs, filled, handed_off: handedOff });
 
@@ -290,8 +409,10 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       }
     }
   } catch (err) {
-    outcome = 'failed';
-    reason = err instanceof Error ? err.message : String(err);
+    if (!(err instanceof StopRun)) {
+      outcome = 'failed';
+      reason = err instanceof Error ? err.message : String(err);
+    }
   }
 
   const finalUrl = page.url();
@@ -311,6 +432,9 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
     fill_ms: sum('fill_ms'),
     usage,
     cost_usd: Math.round(cost * 1e6) / 1e6,
+    plan_used: planUsed,
+    ...(problems && { problems }),
+    ...(errors && { errors }),
   };
   if (session) {
     await options.registry
