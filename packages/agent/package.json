@@ -1,0 +1,21 @@
+{
+  "name": "@usher/agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference Usher agent: knocks, binds, fills by semantic key, asks before consequential actions.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@usher/core": "*",
+    "@usher/registry": "*"
+  },
+  "devDependencies": {
+    "@usher/site-middleware": "*"
+  }
+}

@@ -1,0 +1,53 @@
+// How the agent talks to the registry: HTTP directly, or through the Usher MCP server, which
+// signs with the same key file. Both give the agent the same three calls.
+
+import { fileURLToPath } from 'node:url';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import type { UsherMap } from '@usher/core';
+import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type RunReport } from '@usher/registry';
+
+export interface RegistryTransport {
+  readonly kind: 'http' | 'mcp';
+  knock(input: KnockInput): Promise<KnockResponse>;
+  submitMap(map: UsherMap): Promise<{ digest: string; stored: boolean }>;
+  reportRun(report: RunReport): Promise<{ recorded: boolean }>;
+  close(): Promise<void>;
+}
+
+export async function httpTransport(registryUrl: string, keyFile?: string): Promise<RegistryTransport> {
+  const client = new RegistryClient(registryUrl, await loadOrCreateIdentity(keyFile));
+  return {
+    kind: 'http',
+    knock: (input) => client.knock(input),
+    submitMap: (map) => client.submitMap(map),
+    reportRun: (report) => client.reportRun(report),
+    close: async () => undefined,
+  };
+}
+
+const MCP_SERVER = fileURLToPath(new URL('../../registry/src/mcp.ts', import.meta.url));
+
+/** Starts the Usher MCP server as a child process and calls its tools. */
+export async function mcpTransport(registryUrl: string, keyFile?: string): Promise<RegistryTransport> {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ['--disable-warning=ExperimentalWarning', '--import', 'tsx', MCP_SERVER],
+    env: { ...(process.env as Record<string, string>), USHER_REGISTRY_URL: registryUrl, ...(keyFile && { USHER_AGENT_KEY_FILE: keyFile }) },
+    stderr: 'inherit',
+  });
+  const client = new Client({ name: 'usher-agent', version: '0.1.0' });
+  await client.connect(transport);
+  const call = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
+    const result = await client.callTool({ name, arguments: args });
+    if (result.isError) throw new Error(`${name}: ${(result.content as { text?: string }[])[0]?.text ?? 'failed'}`);
+    return result.structuredContent as T;
+  };
+  return {
+    kind: 'mcp',
+    knock: (input) => call('knock', { ...input }),
+    submitMap: (map) => call('submit_map', { map }),
+    reportRun: (report) => call('report_run', { ...report }),
+    close: () => client.close(),
+  };
+}
