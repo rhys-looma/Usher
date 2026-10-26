@@ -30,19 +30,19 @@ How it is built:
 
 ### How many examples there are
 
-From this machine's compiler log on 26 October:
+From this machine's compiler log on 26 October, after the live accuracy run over `evals/forms.json` (23 of 34 pages compiled; the rest refuse automated browsers, render their form with script only, or failed validation):
 
 | | |
 | --- | --- |
-| Labelling calls by Muse Spark | 88 (4 failed validation) |
-| Element examples before de-duplication | 241 |
-| **Unique examples** | **104** |
-| Train | 74, from 6 forms |
-| Eval | 30, from 3 forms: the mock site's cover step, GOV.UK contact, Travelodge search |
-| By source | mock quote site 62, httpbin 11, Travelodge 11, Aviva 8, GOV.UK 7, Wikipedia 3, Mozilla 2 |
-| By risk | safe 95, consequential 6, needs_user 3 |
+| Labelling calls by Muse Spark | 133 (11 failed validation) |
+| Element examples before de-duplication | 316 |
+| **Unique examples** | **161** (2 elements labelled two ways, settled by majority) |
+| Train | 120, from 12 forms |
+| Eval | 41, from 6 forms: the mock site's cover step, GOV.UK contact and site search, ICO, Churchill, Eventbrite |
+| By source | mock quote site 62, Direct Line 24, GOV.UK 23, httpbin 11, Travelodge 11, Aviva 8, National Rail 4, Wikipedia 3, Admiral 3, Churchill 3, and 2 or fewer each from Mozilla, ICO, NHS, BBC, Eventbrite |
+| By risk | safe 148, consequential 8, needs_user 5 |
 
-That is far too few to tune on. It shows the pipeline, not a training set. Consequential and needs_user elements are rare, and they are the ones that matter. To grow it, run the accuracy evaluation over the 28 forms in `evals/forms.json` (`npm run accuracy`, about $0.01 a form). The keeper's recompiles and the map viewer write to the same log. A few hundred forms would give a few thousand elements. Before tuning, oversample the consequential and needs_user examples, or weight them.
+That is still far too few to tune on. It shows the pipeline, not a training set. Consequential and needs_user elements are rare, and they are the ones that matter. Growing it means more forms: more entries in `evals/forms.json` (`npm run accuracy -- --forms all --live`, about $0.01 a form), plus the keeper's recompiles and the map viewer, which write to the same log. A few hundred forms would give a few thousand elements. Before tuning, oversample the consequential and needs_user examples, or weight them.
 
 ## Tuning Muse Glimmer with LoRA
 
@@ -88,18 +88,19 @@ It reports:
 
 `--save` keeps the predictions and `--report` writes the table.
 
-Results on the 30 held-out elements, with the prompt in `packages/core/scripts/finetune-shared.ts` (live on 26 October):
+Results on the 41 held-out elements, with the prompt in `packages/core/scripts/finetune-shared.ts` (live on 26 October):
 
 | Predictions | Key | Risk | Both | Risk under-called | Spend |
 | --- | --- | --- | --- | --- | --- |
-| Baseline: commonest per control | 6.7% | 83.3% | 6.7% | 5 | $0 |
-| Muse Spark Open, untuned, per element | 86.7% | 96.7% | 86.7% | 1 | $0.098 |
-| Muse Spark, per element | 83.3% | 96.7% | 83.3% | 1 | $0.136 |
+| Baseline: commonest per control | 7.3% | 85.4% | 7.3% | 6 | $0 |
+| Muse Spark Open, untuned, per element | 56.1% | 92.7% | 56.1% | 2 (1 more unanswered) | $0.183 |
+| Muse Spark, per element | 61.0% | 92.7% | 61.0% | 2 | $0.219 |
 
-Both models see one element at a time here, and the reference labels came from Muse Spark seeing the whole form with a screenshot. So the misses are mostly where the whole form matters:
+Both models see one element at a time here, and the reference labels came from Muse Spark seeing the whole form with a screenshot.
 
-- **Room-occupancy pickers.** Travelodge's "Room 1" adults and children pickers came out as `booking.party_size`.
-- **"Add another room".** Called `custom.add_another_room` where the teacher said `ui.expand`.
-- **Travelodge's "Search" button.** The teacher called it `form.submit` and consequential; both models coined a safe custom key. That is the one under-call. In a real map the compiler's floor applies only to vocabulary keys, which is why the classifier's stricter-risk reconciliation matters.
+- **Key misses.** Every miss by Muse Spark involves a `custom.*` key on one side or the other, and all but one by Spark Open. These are elements outside the vocabulary named differently (`custom.room_count` against `booking.party_size`), not wrong meanings. Exact-match key accuracy is a harsh measure for custom keys; scoring custom keys by vocabulary-or-not would be fairer.
+- **The risk under-calls are all search boxes.** The "Search" buttons on ICO's and GOV.UK's site search were labelled `form.submit` and consequential by the teacher, and a safe custom key by both models. Arguably the teacher over-calls here: a site search commits to nothing. The vocabulary could say so, with a `search.submit` key that defaults to safe.
 
-A tuned Muse Glimmer would need to beat 86.7% on keys with no risk under-calls to earn its place.
+On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
+
+A tuned Muse Glimmer would need to match the untuned models' key accuracy with no risk under-calls, outside search, to earn its place.
