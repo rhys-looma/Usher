@@ -34,6 +34,10 @@ const evalSet = await readJsonl<Example>(join(values.data, 'eval.jsonl')).catch(
   console.error(`No eval set at ${join(values.data, 'eval.jsonl')}. Run npm run finetune:export first.`);
   process.exit(1);
 });
+if (!evalSet.length) {
+  console.error(`The eval set at ${join(values.data, 'eval.jsonl')} is empty. Compile more forms, then run npm run finetune:export again.`);
+  process.exit(1);
+}
 const vocabulary = JSON.parse(await readFile(new URL('../../../spec/vocabulary.json', import.meta.url), 'utf8')) as { entries: { key: string }[] };
 const keys = new Set(vocabulary.entries.map((e) => e.key));
 
