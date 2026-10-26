@@ -20,7 +20,8 @@
     "fixtures:record": "node scripts/record-fixtures.mjs",
     "registry": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/src/server.ts",
     "seed:build": "node scripts/with-mock-sites.mjs node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/build-seed.ts",
-    "agent": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/src/cli.ts"
+    "agent": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/src/cli.ts",
+    "fixtures:record:open": "node scripts/record-fixtures.mjs --open"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

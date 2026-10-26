@@ -1,15 +1,19 @@
-// Records the model's labels for every mock-site step and layout into test/fixtures/labels.
-// Run through `npm run fixtures:record`, which starts the mock sites. Needs MODEL_API_KEY.
+// Records the model's labels for every mock-site step and layout. Run through
+// `npm run fixtures:record` (Muse Spark, MODEL_API_KEY, into test/fixtures/labels) or
+// `npm run fixtures:record:open` (Muse Spark Open on Baseten, BASETEN_API_KEY, into
+// test/fixtures/labels-open), which start the mock sites.
 
-import { writeFile } from 'node:fs/promises';
-import { CompileError, compilePage, compilerModel, modelApi } from '../src/index.ts';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { CompileError, compilePage, compilerModel, modelApi, openModel } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
 import { LAYOUTS, STEPS, launch, openStep } from '../test/helpers.ts';
 import { fixtureUrl, recordingChat, type LabelFixture, type RecordedAttempt } from '../test/replay.ts';
 
 loadDotEnv();
-const chat = modelApi();
-const model = compilerModel();
+const open = process.argv.includes('--open');
+const chat = modelApi({ provider: open ? 'baseten' : 'meta' });
+const model = open ? openModel() : compilerModel();
+const set = open ? 'labels-open' : 'labels';
 const browser = await launch();
 const rows: string[] = [];
 let failed = false;
@@ -34,7 +38,8 @@ for (const layout of LAYOUTS) {
     }
     await context.close();
     const fixture: LabelFixture = { model, recorded_at: new Date().toISOString(), layout, step, attempts };
-    await writeFile(fixtureUrl(layout, step), `${JSON.stringify(fixture, null, 2)}\n`);
+    await mkdir(new URL(`../test/fixtures/${set}/`, import.meta.url), { recursive: true });
+    await writeFile(fixtureUrl(layout, step, set), `${JSON.stringify(fixture, null, 2)}\n`);
   }
 }
 await browser.close();
