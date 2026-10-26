@@ -15,7 +15,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 
 | Job | Model |
 | --- | --- |
-| Compile forms into maps (semantic labels, risk, conditions) | Muse Spark (Meta Model API) |
+| Compile forms into maps (semantic labels, risk, conditions) | Muse Spark `muse-spark-1.3` (Meta Model API): strict structured output from the extraction plus a screenshot. In use. |
 | Turn site rules written in plain English into a policy file | Muse Spark |
 | Explain agent sessions to site owners | Muse Spark |
 | Flag consequential fields and actions | Muse Glimmer / Muse Spark Open (open weights) |
@@ -29,3 +29,5 @@ This table is updated as the build progresses.
 | --- | --- |
 | 26 Oct | Repository, map schema spec and vocabulary, mock quote site |
 | 26 Oct | Workspace and test runner; form extractor, locators and usher-fp-1 fingerprint |
+| 26 Oct | Vocabulary as data, label validator and map merge (LU-49) |
+| 26 Oct | Muse Spark map compiler with request log, CLI and recorded fixtures (LU-19) |

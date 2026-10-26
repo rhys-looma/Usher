@@ -14,12 +14,13 @@
     "pretest": "playwright install chromium",
     "test": "node scripts/test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "vocabulary": "tsx packages/core/scripts/build-vocabulary.ts"
+    "vocabulary": "tsx packages/core/scripts/build-vocabulary.ts",
+    "compile": "tsx packages/core/src/compile/cli.ts",
+    "fixtures:record": "node scripts/record-fixtures.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "ajv": "^8.20.0",
-    "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
