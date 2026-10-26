@@ -107,7 +107,8 @@ export function validateLabels(raw: unknown, elements: readonly ExtractedElement
   const excluded: Exclusion[] = [];
   const err = (path: string, code: string, message: string) => errors.push({ path, code, message });
 
-  // Shape: exactly the properties the Labels type defines, nothing more.
+  // Shape: exactly the properties the Labels type defines, nothing more. Extra properties are
+  // reported but don't stop the other checks; missing or mistyped ones do.
   function shaped(value: unknown, shape: Shape, path: string): value is Record<string, unknown> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       err(path || '$', 'invalid_type', `Expected an object.`);
@@ -117,7 +118,6 @@ export function validateLabels(raw: unknown, elements: readonly ExtractedElement
     for (const prop of Object.keys(value)) {
       if (!(prop in shape)) {
         err(`${path ? `${path}.` : ''}${prop}`, 'unknown_property', `"${prop}" is not part of the labels format. ${HINT}`);
-        ok = false;
       }
     }
     for (const [prop, type] of Object.entries(shape)) {
