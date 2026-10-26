@@ -1,0 +1,15 @@
+{
+  "usher_policy": "0.1",
+  "origin": "http://localhost:4100",
+  "default": {
+    "agent_lane": true,
+    "actions": { "form.submit": "confirm" },
+    "rate_limits": [{ "action": "form.submit", "per": "agent", "max": 5, "window": "hour" }]
+  },
+  "forms": [
+    { "match": { "path": "/quote/*" }, "actions": { "consent.marketing": "forbid" } },
+    { "match": { "path": "/account/**" }, "agent_lane": false }
+  ],
+  "agents": { "allow": "*", "block": [] },
+  "retention": { "session_days": 30 }
+}
