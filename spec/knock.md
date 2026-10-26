@@ -136,7 +136,7 @@ The agent hands the token to the site script in the page, in either of two ways:
 The script verifies the token as above against the cached keys (signature, issuer, expiry, origin; and intent when it knows the form's map). Once bound, for that page:
 
 - the form is unlocked: `data-usher-state="unlocked"`;
-- the site's rules apply: a submit that is `consequential` is held (`data-usher-state="awaiting_confirmation"`) until the agent calls `window.usher.confirm()` after asking its user;
+- the site's rules apply: a submit that is `consequential` is held (`data-usher-state="awaiting_confirmation"`) until the agent calls `window.usher.confirm(key?)` after asking its user (an agent may confirm before it clicks, naming the action's key);
 - agent actions are logged to the session (below);
 - on submit, the script adds the token to the form as a hidden `usher_token` field, so the site's server can check it on an ordinary form post.
 

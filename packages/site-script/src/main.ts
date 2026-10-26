@@ -222,6 +222,8 @@ export interface BindResult {
 async function bind(candidate: string): Promise<BindResult> {
   await ready;
   if (typeof candidate !== 'string') return { ok: false, error: 'malformed' };
+  // An agent that found no map may have just compiled and shared one: look again.
+  if (lookup?.match.kind !== 'exact') await load().catch(() => undefined);
   const result = await verifyToken(candidate, {
     keys: keyFor,
     origin: location.origin,
@@ -239,11 +241,12 @@ async function bind(candidate: string): Promise<BindResult> {
   return { ok: true, session: result.claims.sid };
 }
 
-/** Called by the agent after its user has confirmed the held action. */
-function confirm(): boolean {
+/** Called by the agent after its user has confirmed an action: the held one, or the one named. */
+function confirm(key?: string): boolean {
   if (!token) return false;
   confirmed = true;
-  const el = heldKey ? [...elements.values()].find((e) => e.key === heldKey) : undefined;
+  const confirmedKey = heldKey ?? key;
+  const el = confirmedKey ? [...elements.values()].find((e) => e.key === confirmedKey) : undefined;
   log('confirm', el);
   setState('unlocked');
   return true;

@@ -19,6 +19,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | Turn site rules written in plain English into a policy file | Muse Spark |
 | Explain agent sessions to site owners | Muse Spark |
 | Flag consequential fields and actions | Muse Glimmer / Muse Spark Open (open weights) |
+| Reference agent's fallback when a page has no map: labels the page, then acts on it | Muse Spark `muse-spark-1.3`. In use. |
 | Second, independent agent using the registry | Muse Spark Open |
 
 This table is updated as the build progresses.
@@ -31,3 +32,7 @@ This table is updated as the build progresses.
 | 26 Oct | Workspace and test runner; form extractor, locators and usher-fp-1 fingerprint |
 | 26 Oct | Vocabulary as data, label validator and map merge (LU-49) |
 | 26 Oct | Muse Spark map compiler with request log, CLI and recorded fixtures (LU-19) |
+| 26 Oct | Knock protocol spec (LU-14); Ed25519 tokens and signed agent requests (LU-22) |
+| 26 Oct | Registry over HTTP and MCP with fingerprint matching, sessions and drift (LU-21, LU-23) |
+| 26 Oct | Server-side check (LU-26) and one-tag site script (LU-25) on the mock site |
+| 26 Oct | Reference agent with a Muse Spark fallback; end-to-end test and first benchmark (LU-28, LU-29) |
