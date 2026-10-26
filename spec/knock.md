@@ -162,7 +162,7 @@ The site script and the agent append events to the session with `POST <events_ur
 { "events": [{ "ts": "2026-10-27T10:01:12Z", "source": "site", "action": "fill", "key": "person.first_name", "element": "e2", "path": "/quote/driver" }] }
 ```
 
-`action` is one of `knock`, `fill`, `select`, `choose`, `check`, `uncheck`, `click`, `submit`, `held`, `confirm`, `handoff`, `run`. `key` is the element's semantic key from the map. **Events never carry values**: not what was typed, not which option was chosen. The site script logs nothing for page loads without a bound token, so people using the site are never logged.
+`action` is one of `knock`, `fill`, `select`, `choose`, `check`, `uncheck`, `click`, `submit`, `held`, `confirm`, `handoff`, `run`, `invalid` (the site rejected the answer for that key; see [plan.md](plan.md)). `key` is the element's semantic key from the map. **Events never carry values**: not what was typed, not which option was chosen. The site script logs nothing for page loads without a bound token, so people using the site are never logged.
 
 The script also checks the live form against the registry's map, without telling the registry about the visit: it fetches the current map digest for the page (`GET <registry>/maps/current?origin=…&path=…`, no cookies) at most once an hour per browser, compares it with the live form's fingerprint locally, and only on a mismatch sends a **drift report** (`POST /drift` with the site key in `Usher-Site-Key`, the map digest, the live fingerprint and the score), once per change. Drift reports carry structure only; the registry keeps nothing about the visitor (no IP address, no user agent) and rate-limits them per site key.
 
