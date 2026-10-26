@@ -32,7 +32,8 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
 | `packages/site-script/` | The one-tag site script, bundled to `dist/usher.js` and served by the registry at `/usher.js` |
 | `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test |
-| `data/compiler-log/` | Gitignored JSONL of every model request and response (future fine-tuning set) |
+| `data/` | Gitignored: compiler log (fine-tuning set), file-store registry data |
+| `Dockerfile.*`, `docker-compose.yml`, `DEPLOY.md` | Images, local stack (Postgres + registry + mock site), deployment |
 
 ## Core package
 
@@ -64,7 +65,7 @@ npm run compile -- <url> [--out file] [--classify]   # compile one page with Mus
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
 npm run fixtures:record:open            # same for Muse Spark Open (needs BASETEN_API_KEY)
 npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps (data in data/registry)
-npm run seed:build                      # rebuild seed maps from recorded labels
+DATABASE_URL=… npm test                 # the suite against Postgres (file store otherwise)
 npm run agent -- <url> --profile packages/agent/profiles/test-driver.json [--mcp] [--auto-confirm]
 USHER_LIVE=1 npm test                   # also run the live model test
 ```
