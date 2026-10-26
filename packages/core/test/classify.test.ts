@@ -33,6 +33,12 @@ test('reconcile: the stricter risk is kept and every disagreement is flagged', (
   assert.equal(agreement, 1 / 3);
 });
 
+test('ui.dismiss is authoritative: flagged, never raised above safe', () => {
+  const { risks, flags } = reconcile([{ id: 'e1', key: 'ui.dismiss', label: 'Essential cookies only', risk: 'safe' }], [{ id: 'e1', risk: 'needs_user', reason: 'cookie consent' }]);
+  assert.equal(risks.get('e1'), 'safe');
+  assert.deepEqual(flags.map((f) => [f.classifier, f.kept]), [['needs_user', 'safe']]);
+});
+
 const box = { x: 0, y: 0, width: 1, height: 1 };
 const els: ExtractedElement[] = [
   { id: 'e1', kind: 'field', tag: 'input', control: 'text', required: true, label: 'Name', labelSource: 'label-for', box, visible: true },
