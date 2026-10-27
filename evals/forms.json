@@ -26,6 +26,7 @@
     { "id": "churchill-car", "category": "insurance first step", "url": "https://www.churchill.com/car-insurance" },
     { "id": "nationwide-mortgage", "category": "finance first step", "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/" },
     { "id": "barclays-loans", "category": "finance first step", "url": "https://www.barclays.co.uk/loans/" },
-    { "id": "hl-isa", "category": "finance first step", "url": "https://www.hl.co.uk/investment-services/isa" }
+    { "id": "hl-isa", "category": "finance first step", "url": "https://www.hl.co.uk/investment-services/isa" },
+    { "id": "mse-mortgage", "category": "finance first step", "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/" }
   ]
 }
