@@ -32,7 +32,7 @@ import type { MapRecord } from './storage.ts';
 
 export const KEEPER_AGENT = 'UsherKeeper/0.1';
 
-export type CheckOutcome = 'unchanged' | 'restored' | 'cosmetic' | 'rebuilt' | 'unreachable' | 'robots' | 'error' | 'no_model';
+export type CheckOutcome = 'unchanged' | 'restored' | 'cosmetic' | 'rebuilt' | 'unreachable' | 'robots' | 'error' | 'no_model' | 'paused';
 
 /** The keeper's last word on a form, shown on the dashboard. */
 export interface KeeperCheck {
@@ -59,6 +59,12 @@ export interface KeeperOptions {
   intervalMinutes?: number;
   /** Fetches robots.txt (tests replace it). */
   fetch?: typeof fetch;
+  /**
+   * The only origins the keeper opens (USHER_KEEPER_ORIGINS). It loads pages in a browser, and a
+   * page can redirect or send requests anywhere, so in production it visits only sites we trust
+   * (our own demo site) until every request it makes is checked. Unset: every registered site.
+   */
+  origins?: string[];
   now?: () => Date;
 }
 
@@ -176,6 +182,7 @@ export class Keeper {
   async runAll(): Promise<KeeperCheck[]> {
     const results: KeeperCheck[] = [];
     for (const site of await this.registry.storage.listSites()) {
+      if (!this.listed(site.origin)) continue;
       for (const record of await this.currentMaps(site.origin)) results.push(await this.check(site.origin, record.map.path));
     }
     return results;
@@ -190,8 +197,13 @@ export class Keeper {
     return [...latest.values()];
   }
 
+  private listed(origin: string): boolean {
+    return !this.options.origins || this.options.origins.includes(origin);
+  }
+
   /** Checks one form; concurrent requests for the same form share one check. */
   check(origin: string, path: string): Promise<KeeperCheck> {
+    if (!this.listed(origin)) return Promise.resolve({ origin, path, checked_at: this.now().toISOString(), outcome: 'paused', detail: 'The keeper only visits listed sites for now.', cost_usd: 0, ms: 0 });
     const key = `${origin}|${path}`;
     const running = this.queue.get(key);
     if (running) return running;
