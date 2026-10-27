@@ -9,7 +9,7 @@ The pieces everything else is built on. Structure only: nothing here reads what 
 | `fingerprint.ts` | `usher-fp-1`: a digest of a form's structure, and a similarity score for near matches. |
 | `forms.ts` | Which forms on a page a map could be for: never a cookie widget, site search or newsletter box unless the intent asks. The compiler's model chooses between the rest (`compile/choose.ts`). |
 | `labels.ts`, `map.ts` | Validates a model's labels against the extraction and the vocabulary, applies risk floors, and builds the map. |
-| `compile/` | The Muse Spark map compiler: choosing the form by intent, the short list of candidate keys, prompt, model client (Meta Model API, Baseten), budget cap, compiler log, risk classifier. |
+| `compile/` | The Muse Spark map compiler: choosing the form by intent, the short list of candidate keys, retrieval few-shot for Spark Open, prompt, model client (Meta Model API, Baseten), budget cap, compiler log, risk classifier. |
 | `token.ts`, `identity.ts`, `http-signatures.ts` | Ed25519 tokens (compact JWS), agent ids (JWK thumbprints), the signed-body scheme, and Web Bot Auth (RFC 9421) signing, verification and key directories. |
 | `policy.ts`, `plan.ts`, `preflight.ts` | Site rules and how they combine with a map; journey plans; checking an agent's data against a map before filling. |
 | `schemas.ts`, `vocabulary.ts` | The JSON Schemas and semantic-key vocabulary from [`spec/`](../../spec/). |

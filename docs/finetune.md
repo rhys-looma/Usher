@@ -1,6 +1,38 @@
-# Fine-tuning a small labeller
+# A small labeller: no training first, fine-tuning later
 
-Muse Spark labels whole forms well, but most of what it does per element is routine: "First name" is `person.first_name`, and "Get my quote" is `form.submit` and consequential. A small open-weights model tuned on Muse Spark's own labels could do that part cheaply, and could run beside a self-hosted registry. That model would be Muse Glimmer, LoRA-tuned. This page covers the dataset, how the tuning would run, and how to score the result. **No training has been run.**
+Muse Spark labels whole forms well, but most of what it does per element is routine: "First name" is `person.first_name`, and "Get my quote" is `form.submit` and consequential. A small open-weights model could do that part cheaply, beside a self-hosted registry. There are two ways to get it there:
+
+- **No training** (built, and measured below): code proposes the candidate keys for each element (the short list), and the nearest labelled examples from other sites go into the prompt (retrieval few-shot). This works with Muse Spark Open as it is.
+- **Fine-tuning** (future work): a LoRA-tuned Muse Glimmer on Muse Spark's own labels. The dataset export, the eval and the run plan are ready; **no training has been run**, and there are too few examples yet.
+
+## The no-training path
+
+### Retrieval few-shot
+
+Before Muse Spark Open labels or classifies an element, the nearest labelled examples go into its prompt, as `control: "label" → key (risk)` (`packages/core/src/compile/retrieval.ts`):
+
+- **Where they come from:** the exported training set (`data/finetune/train.jsonl`), so never from a form held out for eval. 97 distinct labelled elements once repeats of the same label and key are merged.
+- **Nearest:** the same kind (field or action), ranked by the words shared between labels and options (Jaccard, the same word handling as the short list), with a little extra for the same control. Only examples that share a word are used: unrelated ones mislead (a declaration tick box was being shown pizza toppings).
+- **Per element:** up to five, for the per-element eval. **Per form:** the nearest few for each element without repeats, at most 40, for the whole-form labeller and the risk classifier.
+
+It is optional everywhere: `npm run compile -- <url> --open --examples data/finetune/train.jsonl` labels with Spark Open with retrieval, `--classify --examples …` adds it to the classifier, and `npm run finetune:eval -- --model … --retrieval` measures it.
+
+### Results
+
+Per element on the 41 held-out elements, with the short list in every row, live on 27 October. Spark Open three times each way, because its answers change between runs at temperature 0:
+
+| Model | Key, exact | Key, equivalent | Risk | Risk under-called | Spend a run |
+| --- | --- | --- | --- | --- | --- |
+| Muse Spark | 73.2% | 80.5% | 95.1% | 2 | $0.246 |
+| Muse Spark Open (`-1026`), short list only | 65.9% / 61.0% / 68.3% (mean 65.0%) | 70.7% / 75.6% / 75.6% (mean 74.0%) | 95.1% / 95.1% / 92.7% | 2 / 2 / 2 | $0.13 |
+| Muse Spark Open (`-1026`), short list and retrieval | 63.4% / 61.0% / 65.9% (mean 63.4%) | 70.7% / 70.7% / 75.6% (mean 72.4%) | 92.7% / 92.7% / 92.7% | 2 / 2 / 2 | $0.13 |
+
+**Retrieval doesn't help yet.** Between the two Spark Open rows, only 3 of the 41 elements changed how often they were right, and all three are custom-key wording ("Next page" as `nav.next` once with retrieval, against never without). The differences are within run-to-run noise. Why:
+
+- **Few examples, from different kinds of form.** 26 of the 41 eval elements get any example at all, and only 14 get one with the right key. Those 14 were already right with the short list, which carries the vocabulary meanings the examples would teach.
+- **Some examples are out of date.** The training labels come from compiles on 26 October, before `search.submit`: three "Search" buttons are `form.submit`, `custom.search` and `nav.next`. Retrieval passes old mistakes on, so the examples should be re-exported from labels compiled with today's prompt before it is used for real.
+
+Retrieval should earn its place when the log covers many more forms, and above all for custom keys that recur across sites (`custom.how_did_you_hear`), where examples are the only guide. The short list is what moved the numbers: Spark Open went from 56.1% and 53.7% to 65.9% and 61.0% exact (see [The short list](#the-short-list) below).
 
 ## The dataset
 
@@ -43,33 +75,6 @@ From this machine's compiler log on 26 October, after the live accuracy run over
 | By risk | safe 148, consequential 8, needs_user 5 |
 
 That is still far too few to tune on. It shows the pipeline, not a training set. Consequential and needs_user elements are rare, and they are the ones that matter. Growing it means more forms: more entries in `evals/forms.json` (`npm run accuracy -- --forms all --live`, about $0.01 a form), plus the keeper's recompiles and the map viewer, which write to the same log. A few hundred forms would give a few thousand elements. Before tuning, oversample the consequential and needs_user examples, or weight them.
-
-## Tuning Muse Glimmer with LoRA
-
-The task is narrow (one JSON object of two fields out) and the prompt is fixed, so a low-rank adapter on the attention projections is enough. A reasonable first run:
-
-- **LoRA:** rank 16, alpha 32, dropout 0.05, on the q, k, v and o projections.
-- **Training:** 3 epochs, learning rate 1e-4 with a short warmup, sequence length 1,024. The system prompt with the vocabulary is about 2,600 characters; an element is a few hundred more.
-- **Loss on the assistant turn only**, so the model learns the answer, not the prompt.
-- **Base model:** Muse Glimmer's published open weights. Use the non-contributor licence terms, as everywhere in Usher.
-
-### On Fireworks
-
-Fireworks runs supervised fine-tuning as a managed job on chat-format JSONL, which is exactly `train.chat.jsonl`.
-
-1. Upload the dataset: `firectl create dataset usher-labels data/finetune/train.chat.jsonl`.
-2. Start the job against the Muse Glimmer base Fireworks lists, with the LoRA settings above and `eval.chat.jsonl` as the evaluation set. Check the flag names against the current `firectl` documentation.
-3. Deploy the resulting adapter on a serverless or on-demand deployment. It is called through Fireworks' OpenAI-compatible endpoint, the same shape as the model client in `packages/core/src/compile/model.ts`. Adding Fireworks there means one more provider entry.
-
-### On Modal
-
-On Modal you run the training yourself on a rented GPU, with full control:
-
-1. Write a Modal function on one A100 or H100 with `transformers`, `peft` and `trl` installed. It pulls the base weights into a Modal volume once.
-2. Upload `data/finetune/` to the volume, and run TRL's `SFTTrainer` with a `LoraConfig` matching the settings above, on the chat-format files with completion-only loss.
-3. Save the adapter to the volume. Serve it with vLLM on Modal behind an OpenAI-compatible endpoint, or merge it into the base for a single artefact.
-
-Either way, the tuned model would be a third provider for the classifier step. That step already takes a second opinion on risk from Muse Spark Open (see `packages/core/src/compile/classify.ts`), and the compiler's reconciliation keeps the stricter risk. A small model that under-calls risk can't make a map less safe.
 
 ## Scoring a model
 
@@ -114,4 +119,32 @@ Spark Open's answers change between runs at temperature 0, so it is shown twice.
 
 On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
 
-A tuned Muse Glimmer would need to match the untuned models' key accuracy with no risk under-calls, outside search, to earn its place.
+A tuned Muse Glimmer would need to match Spark Open with the short list (about 65% of keys exact, 74% equivalent) with no risk under-calls, outside search, to earn its place.
+
+## Future work: tuning Muse Glimmer with LoRA
+
+The task is narrow (one JSON object of two fields out) and the prompt is fixed, so a low-rank adapter on the attention projections is enough. A reasonable first run:
+
+- **LoRA:** rank 16, alpha 32, dropout 0.05, on the q, k, v and o projections.
+- **Training:** 3 epochs, learning rate 1e-4 with a short warmup, sequence length 1,024. The system prompt with the vocabulary is about 2,600 characters; an element is a few hundred more.
+- **Loss on the assistant turn only**, so the model learns the answer, not the prompt.
+- **Base model:** [`meta-models/Muse-Glimmer-30B`](https://huggingface.co/meta-models/Muse-Glimmer-30B), checked on Hugging Face on 27 October: Apache-2.0, not gated, `transformers`, image-text-to-text, about 29.8 billion parameters, last updated 22 October. Meta also publishes GGUF and ExecuTorch builds and an `-assistant` variant; tune the base.
+- **Data:** 161 unique examples today, 120 train and 41 eval (see [How many examples there are](#how-many-examples-there-are)). That is too few: the plan starts when the log holds a few thousand.
+
+### On Fireworks
+
+Fireworks runs supervised fine-tuning as a managed job on chat-format JSONL, which is exactly `train.chat.jsonl`.
+
+1. Upload the dataset: `firectl create dataset usher-labels data/finetune/train.chat.jsonl`.
+2. Start the job against `meta-models/Muse-Glimmer-30B` (or the name Fireworks lists it under), with the LoRA settings above and `eval.chat.jsonl` as the evaluation set. Check the flag names against the current `firectl` documentation.
+3. Deploy the resulting adapter on a serverless or on-demand deployment. It is called through Fireworks' OpenAI-compatible endpoint, the same shape as the model client in `packages/core/src/compile/model.ts`. Adding Fireworks there means one more provider entry.
+
+### On Modal
+
+On Modal you run the training yourself on a rented GPU, with full control:
+
+1. Write a Modal function on one A100 or H100 with `transformers`, `peft` and `trl` installed. It pulls the base weights into a Modal volume once.
+2. Upload `data/finetune/` to the volume, and run TRL's `SFTTrainer` with a `LoraConfig` matching the settings above, on the chat-format files with completion-only loss.
+3. Save the adapter to the volume. Serve it with vLLM on Modal behind an OpenAI-compatible endpoint, or merge it into the base for a single artefact.
+
+Either way, the tuned model would be a third provider for the classifier step. That step already takes a second opinion on risk from Muse Spark Open (see `packages/core/src/compile/classify.ts`), and the compiler's reconciliation keeps the stricter risk. A small model that under-calls risk can't make a map less safe.
