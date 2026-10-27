@@ -15,7 +15,7 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, modelApi, type ChatFn, type MapAction, type MapField, type SpendLedger } from '@usher/core';
+import { budgeted, compilerModel, modelApi, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger } from '@usher/core';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type Profile, type RunResult, type UserChannel } from '../../agent/src/index.ts';
 
@@ -93,6 +93,13 @@ const describe = (job: Job) => ({ page: job.page?.url() });
 
 export function registerFillTools(server: McpServer, options: FillOptions): { close: () => Promise<void> } {
   const jobs = new Map<string, Job>();
+  // Every vocabulary field the user can give up front, by name, so clients that build forms from a
+  // tool's schema (rather than passing free JSON) see the keys; custom.* and the rest pass through.
+  // Untyped beyond that, and checked in the tool: some clients can't read a union of types.
+  const valuesSchema = z
+    .object(Object.fromEntries(vocabulary.entries.filter((e) => e.kind === 'field' && e.default_risk !== 'needs_user').map((e) => [e.key, z.string().optional().describe(e.meaning)])))
+    .catchall(z.any())
+    .describe('The user\'s values by vocabulary key: text, numbers or true/false. Select and radio values are the option values.');
   const limiter = new RateLimiter(options.perHour ?? 20, 3_600_000);
   let browser: Promise<Browser> | undefined;
   const stepTimeout = options.stepTimeoutMs ?? 120_000;
@@ -162,9 +169,11 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       title: 'Fill a form with Usher',
       description:
         'Fill a whole form journey for your user, by meaning, in one call. Pass the starting page URL, the intent (for example quote.car_insurance) and the user\'s values keyed by Usher vocabulary keys (person.first_name, contact.email, vehicle.registration, …). Usher knocks with your key, fills every page from the site\'s map in its own browser, and stops at each decision for your user: a consequential action (such as Get my quote) or a field only the user may answer (such as a declaration). Ask your user, then call usher_confirm with the id (and the user\'s answer for a needs_user field) or usher_cancel. Invalid values come back first as problems by key, before anything runs.',
-      inputSchema: { url: z.string().url(), intent: z.string(), values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) },
+      inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema },
     },
     async (args) => {
+      const odd = Object.entries(args.values).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
+      if (odd.length) return { isError: true, content: [{ type: 'text' as const, text: `Values must be text, numbers or true/false: ${odd.join(', ')}.` }] };
       if (!limiter.allow('fill')) return { isError: true, content: [{ type: 'text' as const, text: 'Too many fills this hour; try again later.' }] };
       browser ??= (options.browser ?? launchChromium)();
       const transport = await httpTransport(options.registryUrl, options.keyFile);
@@ -244,14 +253,14 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     {
       title: 'Go ahead with a decision',
       description: 'Your user agreed to the decision usher_fill stopped at: go ahead and continue to the end, or to the next decision. For a needs_user field, pass the user\'s own answer (true or false for a checkbox, otherwise the text).',
-      inputSchema: { id: z.string(), answer: z.union([z.boolean(), z.string()]).optional() },
+      inputSchema: { id: z.string(), answer: z.any().optional().describe('For a needs_user field: true or false for a checkbox, otherwise the text.') },
     },
     async (args) => {
       const job = jobs.get(args.id);
       if (!job?.decision) return { isError: true, content: [{ type: 'text' as const, text: `Nothing is waiting under ${args.id}.` }] };
       const { answer } = job.decision;
       job.decision = undefined;
-      answer(args.answer ?? true);
+      answer(typeof args.answer === 'boolean' || typeof args.answer === 'string' ? args.answer : args.answer == null ? true : String(args.answer));
       return next(job);
     },
   );
