@@ -154,7 +154,7 @@ test('dashboard: agent sessions as timelines, blocked attempts from registry and
   assert.match(overview, /curious-bot/);
   assert.match(overview, /forbidden by your rules/);
   assert.match(overview, /your server/);
-  assert.match(overview, /the registry/);
+  assert.match(overview, /<td class="small">Usher<\/td>/, 'refused by Usher, not the site');
   assert.match(overview, /drifted/);
   assert.match(overview, /<code>\/quote\/cover<\/code>/);
   assert.match(overview, /verified identity<\/span> <span class="small muted">Web Bot Auth · key in the knock/);

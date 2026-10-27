@@ -103,7 +103,7 @@ export class Viewer {
         const map = await mapFromLabels(tab, cached.labels, { compiler: cached.model, created_at: cached.created_at }, digest);
         if (map) return { ok: true, map, cached: true, model: cached.model, cost_usd: 0, ms: Math.round(performance.now() - started) };
       }
-      if (!this.options.chat || !this.options.model) return fail('no_model', 'This registry has no model configured to compile maps.');
+      if (!this.options.chat || !this.options.model) return fail('no_model', 'No model is set up here to read pages yet.');
       try {
         const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model, ...(this.options.classifier && { classifier: this.options.classifier }) });
         const flags = result.classifier && !('error' in result.classifier) ? result.classifier.flags : undefined;
@@ -146,7 +146,8 @@ function locators(el: { locators: UsherMap['fields'][number]['locators'] }): Raw
 }
 
 /** A map, readable: purpose, fields with key and risk, actions, locators, fingerprint, raw JSON. */
-export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord; flags?: RiskFlag[] }): string {
+/** A map as a page. For a site owner (owner: true), without the structure signature and the raw file, which are for developers. */
+export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord; flags?: RiskFlag[]; owner?: boolean }): string {
   const drift = info.record?.drift;
   return page(
     map.form.purpose,
@@ -168,9 +169,13 @@ ${info.flags?.length ? html`<div class="card warn"><b>Second opinion.</b> The op
 <tbody>${map.actions.map(
       (a) => html`<tr><td>${a.label}</td><td><code>${a.key}</code></td><td>${a.kind}</td><td>${riskBadge(a.risk)}</td><td>${a.leads_to ? html`<code>${a.leads_to}</code>` : html`<span class="muted">–</span>`}</td><td>${locators(a)}</td></tr>`,
     )}</tbody></table></div>
-<h2>Fingerprint</h2>
+${
+      info.owner
+        ? html`<p class="small muted"><a href="/maps/${map.fingerprint.digest}?origin=${encodeURIComponent(map.origin)}">Download the map file</a> (JSON, for developers).</p>`
+        : html`<h2>Fingerprint</h2>
 <div class="card"><p class="mono small">${map.fingerprint.digest}</p><p class="small muted">${map.fingerprint.signature.length} element signatures: ${map.fingerprint.signature.join(' ')}</p></div>
 <h2>Raw map</h2>
-<pre>${JSON.stringify(map, null, 2)}</pre>`,
+<pre>${JSON.stringify(map, null, 2)}</pre>`
+    }`,
   );
 }

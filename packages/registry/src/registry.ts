@@ -601,6 +601,22 @@ export class Registry {
     return this.verifySiteFor(origin);
   }
 
+  /**
+   * A new secret key for a site whose owner lost theirs, only after a fresh check of the domain
+   * claim (whatever was proved before): whoever can publish the file or the DNS record controls
+   * the origin. The old key stops working. Shown once, like the first.
+   */
+  async reissueSecret(origin: string): Promise<Reply> {
+    const site = await this.storage.getSite(origin);
+    if (!site) return error(404, 'not_found', `${origin} is not registered.`);
+    const { method, tried } = await this.checkClaim(site);
+    if (!method) return error(422, 'claim_not_found', `Neither proof was found: ${tried.map((t) => `${t.method}: ${t.result}`).join('; ')}.`, { claim: claimInstructions(site), tried });
+    const secret = `uss_${randomId(24)}`;
+    const at = this.now().toISOString();
+    await this.storage.putSite({ ...site, secret_sha256: sha256(secret), claim: { method, verified_at: at, checked_at: at } });
+    return ok({ origin, site_key: site.site_key, secret_key: secret });
+  }
+
   async verifySiteFor(origin: string): Promise<Reply> {
     const site = await this.storage.getSite(origin);
     if (!site) return error(404, 'not_found', `${origin} is not registered.`);
@@ -669,7 +685,7 @@ export class Registry {
   /** As proposeRules, for a caller that has already authenticated the site (the dashboard). */
   async proposeRulesFor(origin: string, text: unknown): Promise<Reply> {
     if (typeof text !== 'string' || !text.trim() || text.length > 4000) return error(400, 'invalid_request', 'Expected { "text": "…" } under 4000 characters.');
-    if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'This registry has no model configured for rules.');
+    if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'Rules in plain English need a model, and none is set up here yet.');
     const maps = (await this.storage.mapsForOrigin(origin)).map((r) => r.map);
     try {
       const result = await compileRules(this.options.chat, this.options.model, text.trim(), origin, maps);
@@ -753,7 +769,7 @@ export class Registry {
    * reusing a cached explanation when nothing has changed. Returns an error message or null.
    */
   async explainOrigin(origin: string): Promise<string | null> {
-    if (!this.options.explainer) return 'This registry has no model configured for explanations.';
+    if (!this.options.explainer) return 'Explanations need a model, and none is set up here yet.';
     const all = await this.storage.listSessions(origin);
     const dayAgo = new Date(this.now().getTime() - 86_400_000).toISOString();
     const recent = all.filter((s) => s.created_at >= dayAgo);

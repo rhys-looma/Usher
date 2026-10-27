@@ -70,6 +70,8 @@ input[type=text], input[type=url], input[type=password], textarea { font:inherit
 input[type=url], input[type=text] { flex:1; min-width:260px; } textarea { width:100%; min-height:96px; }
 button { font:inherit; font-weight:600; padding:9px 16px; border:0; border-radius:8px; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
 button.secondary { background:var(--code); color:var(--ink); }
+a.button { display:inline-block; font-weight:600; padding:9px 16px; border-radius:8px; background:var(--accent); color:var(--accent-ink); text-decoration:none; }
+pre.key { white-space:pre-wrap; word-break:break-all; }
 ol.timeline { list-style:none; padding:0; margin:0; } ol.timeline li { display:grid; grid-template-columns:150px 110px 1fr; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:15px; }
 ol.timeline .src { color:var(--muted); }
 details summary { cursor:pointer; color:var(--accent); }
@@ -88,7 +90,7 @@ export function page(title: string, body: Raw, options: { nav?: Raw } = {}): str
 <body>
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/viewer">Map viewer</a><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>
 <main>${body}</main>
-<footer>Usher registry · maps hold structure, never values</footer>
+<footer>Usher · maps hold structure, never values</footer>
 </body>
 </html>`;
 }

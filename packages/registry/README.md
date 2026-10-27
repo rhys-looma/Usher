@@ -9,7 +9,8 @@ The registry. It holds maps per origin, answers knocks with a map, the site's ru
   - `/.well-known/usher-keys.json`, and the site script at `/usher.js`.
 - **Web pages** (`web/`):
   - the front page (`/`): what Usher is, the map viewer inline, both quickstarts with this registry's address, the numbers from `reports/`, and an interest form that carries Usher's own tag and is locked to agents that didn't knock, like any site's;
-  - the site dashboard (sessions, rules in plain English, blocked attempts, drift), which shows a site nothing until it has claimed its origin;
+  - self-serve signup (`/sites/new`): keys shown once with a download, the tag, the domain claim checked live, then the dashboard signed in; and `/sites/lost`, a new secret key after a fresh claim check;
+  - the site dashboard (sessions, rules in plain English, blocked attempts, drift), which shows a site only what's missing until it has claimed its origin;
   - `/spec/`, the specifications, with this registry's address in their examples, and `/admin` (with `USHER_ADMIN_KEY`), the interest list.
 - **Usher's own site:** the registry registers its own origin, serves its claim file at `/.well-known/usher-site.json`, and runs the server-side check on its interest form (`contact.interest`).
 - **MCP server** (`mcp.ts`), run where the agent runs, since it holds the agent's key. It offers the tools `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`.

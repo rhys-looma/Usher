@@ -100,6 +100,11 @@ export class Dashboard {
     return origin;
   }
 
+  /** Signs this browser in to a site it just proved it holds (new keys, or keys re-issued after a claim check). */
+  signIn(res: ServerResponse, origin: string): void {
+    this.setCookie(res, origin);
+  }
+
   logout(res: ServerResponse): void {
     this.setCookie(res, null);
   }
@@ -108,32 +113,14 @@ export class Dashboard {
     return page(
       'Site dashboard',
       html`<h1>Site dashboard</h1>
-<p class="lede">See which agents use your forms and what they do, set the rules they follow, and spot forms whose maps have drifted. Sign in with the secret key the registry gave you when you registered your site.</p>
+<p class="lede">See which agents use your forms and what they do, set the rules they follow, and spot forms that have changed. Sign in with the secret key you were given when you got your keys.</p>
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card" method="post" action="/dashboard/login">
   <p><label>Site origin<br><input type="text" name="origin" required placeholder="https://quote.example"></label></p>
   <p><label>Secret key<br><input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label></p>
   <button type="submit">Sign in</button>
-</form>`,
-    );
-  }
-
-  /** All an unclaimed site sees: how to prove it controls its origin. */
-  claimPage(site: { origin: string; site_key: string }, notice?: Raw): string {
-    const c = claimInstructions(site);
-    return page(
-      'Claim your site',
-      html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>
-<h1>Claim ${site.origin}</h1>
-<p class="lede">Before the dashboard shows anything, prove you control this origin. Publish either of these, then check. The registry checks again every day.</p>
-${notice ?? ''}
-<div class="card"><h2>A file on your site</h2>
-<p>Serve this at <code>${c.well_known.url}</code>:</p>
-<pre>${JSON.stringify(c.well_known.content, null, 2)}</pre></div>
-<div class="card"><h2>Or a DNS record</h2>
-<p>A <code>TXT</code> record at <code>${c.dns.name}</code> with the value:</p>
-<pre>${c.dns.value}</pre></div>
-<form method="post" action="/dashboard/verify"><button type="submit">Check now</button></form>`,
+</form>
+<p class="small muted">No keys yet? <a href="/sites/new">Get your keys</a>. Lost your secret key? <a href="/sites/lost">Get a new one</a>.</p>`,
     );
   }
 
@@ -191,7 +178,7 @@ ${this.hooks.explain ? html`<form method="post" action="/dashboard/explain"><but
 <td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span>` : r.map.provenance.compiler ?? r.map.provenance.source}<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a></td>
 <td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
 <td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
-      }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when the registry compiles your forms or an agent shares one.</td></tr>`}</tbody></table></div>
+      }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when Usher reads your forms or an agent shares one.</td></tr>`}</tbody></table></div>
 
 <h2 id="rules">Rules</h2>
 <div class="card">${
@@ -219,7 +206,7 @@ ${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
 <div class="card"><table>
 <thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
 <tbody>${blocked.length ? blocked.slice(0, 50).map(
-        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent)}</td><td class="small">${b.source === 'site' ? 'your server' : 'the registry'}</td></tr>`,
+        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
       ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>`,
     );
   }
