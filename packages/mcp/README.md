@@ -75,6 +75,11 @@ For example:
 | `get_plan` | Every step of a multi-page journey, and every input it will ask for by meaning, so you can check your user's data before starting. |
 | `submit_map` | Share a map you built for a page that had none. It serves only you until a second agent or the registry's keeper confirms it, then every agent. |
 | `report_run` | Tell the site how the run went: structure and timings, never values. |
+| `usher_fill` | Fill a whole form journey for you: `url`, `intent` and `values` keyed by meaning (for example `person.first_name`). Runs in its own headless browser, fills every page, and stops at the first thing your user must decide (a consent, or a consequential action such as "Get my quote"), returning what it is about to do and an `id`. Values that won't fit come back first, by key, and nothing runs. |
+| `usher_confirm` | Answer the pause for `id` (`answer`, default yes) and carry on. Returns the next pause, or the outcome, the session id and every action taken by key. |
+| `usher_cancel` | Abandon the fill for `id`. Nothing more is entered or submitted. |
+
+`usher_fill` never fills a field the map marks as the user's own to decide; it asks. On a page with no map it reads the page with a model (when `MODEL_API_KEY` is set, capped by `USHER_DAILY_MODEL_BUDGET_USD`, default $1 a day) and says which pages it read that way. The first `usher_fill` installs Playwright's Chromium if it isn't there.
 
 Every request is signed with your agent's key (Web Bot Auth, RFC 9421). Maps hold structure, never values: nothing anyone types is read, sent or stored.
 
