@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
-import { clientAddress, requestUrl } from './forwarded.ts';
+import { clientAddress, requestScheme, requestUrl } from './forwarded.ts';
 import { RateLimiter } from './rate-limit.ts';
 import type { AddressInfo } from 'node:net';
 import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
@@ -22,10 +22,11 @@ export interface HttpOptions {
   /** The map viewer and dashboard pages. */
   web?: Web;
   /**
-   * Behind a trusted load balancer (one hop, such as an AWS ALB): the client is the last
-   * X-Forwarded-For address, the one the load balancer added, and the scheme is X-Forwarded-Proto.
+   * Trusted proxies in front (TRUSTED_PROXY_HOPS; CloudFront then the ALB is 2): the client is the
+   * X-Forwarded-For entry that many from the right, and the scheme is CloudFront-Forwarded-Proto,
+   * else X-Forwarded-Proto. 0 trusts no forwarded header.
    */
-  trustProxy?: boolean;
+  proxyHops?: number;
   /** Send Strict-Transport-Security (when served over HTTPS). */
   hsts?: boolean;
   /** Per-client-address limits per minute, by route group. */
@@ -34,7 +35,7 @@ export interface HttpOptions {
   demo?: DemoHandler;
 }
 
-export { clientAddress, requestUrl };
+export { clientAddress, requestScheme, requestUrl };
 
 export type DemoHandler = (req: IncomingMessage, res: ServerResponse, url: URL) => Promise<void>;
 
@@ -98,6 +99,9 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Nothing is cached unless its route says so (the site script, keys, specifications, images):
+    // CloudFront and browsers follow these headers.
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'same-origin');
     if (options.hsts) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     try {
@@ -116,7 +120,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       }
 
       // Per client address, in memory only.
-      const client = clientAddress(req, options.trustProxy);
+      const client = clientAddress(req, options.proxyHops);
       const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : /^POST \/sessions\/[^/]+\/events$/.test(route) ? 'events' : req.method === 'GET' ? 'read' : 'write';
       if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });
 
@@ -146,7 +150,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       // Agent writes: the body, and the Web Bot Auth signature over it if the agent sent one.
       const signed = async () => {
         const raw = await readRaw(req);
-        const via = await registry.verifyHttpAgent({ method: req.method ?? 'POST', url: requestUrl(req, options.trustProxy), headers: req.headers }, raw);
+        const via = await registry.verifyHttpAgent({ method: req.method ?? 'POST', url: requestUrl(req, options.proxyHops), headers: req.headers }, raw);
         return { body: JSON.parse(Buffer.from(raw).toString('utf8') || 'null') as unknown, via };
       };
       if (route === 'POST /knock') {
@@ -249,12 +253,12 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.directories && { directories: options.directories }),
     ...(options.claims && { claims: options.claims }),
   });
-  const web = options.web ? new Web(registry, { ...options.web, ...(options.trustProxy && { trustProxy: true }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const web = options.web ? new Web(registry, { ...options.web, ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
     registryHandler(registry, {
       ...(options.siteScript && { siteScript: options.siteScript }),
       ...(web && { web }),
-      ...(options.trustProxy && { trustProxy: true }),
+      ...(options.proxyHops && { proxyHops: options.proxyHops }),
       ...(options.hsts && { hsts: true }),
       ...(options.limits && { limits: options.limits }),
       ...(options.demo && { demo: options.demo }),

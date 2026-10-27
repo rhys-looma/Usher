@@ -28,5 +28,11 @@ export function productionProblems(env: Env): string[] {
   return problems;
 }
 
-/** Behind the load balancer by default in production; USHER_TRUST_PROXY=0 turns it off. */
-export const trustProxy = (env: Env): boolean => (isProduction(env) ? env.USHER_TRUST_PROXY !== '0' : env.USHER_TRUST_PROXY === '1');
+/** Trusted proxy hops: TRUSTED_PROXY_HOPS, else 2 in production (CloudFront, then the ALB) and 0 elsewhere. */
+export function proxyHops(env: Env): number {
+  const raw = env.TRUSTED_PROXY_HOPS?.trim();
+  if (!raw) return isProduction(env) ? 2 : 0;
+  const hops = Number(raw);
+  if (!Number.isInteger(hops) || hops < 0 || hops > 5) throw new Error('TRUSTED_PROXY_HOPS must be a whole number from 0 to 5.');
+  return hops;
+}
