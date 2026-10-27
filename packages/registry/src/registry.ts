@@ -40,6 +40,7 @@ import {
   vocabulary,
 } from '@usher/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { publicFetch } from '@usher/core/public-fetch';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
 import { RateLimiter } from './rate-limit.ts';
 import { RulesError, compileRules } from './rules.ts';
@@ -76,6 +77,12 @@ export interface RegistryOptions {
   now?: () => Date;
   /** Fetching agents' key directories (Signature-Agent): allow http:// and private hosts (local development only). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
+  /**
+   * Store maps agents submit and share them with other agents (default true). An agent's map is
+   * kept unverified with risk floors, but its keys and locators are the agent's word, so a hostile
+   * agent could mislabel a form for everyone: production keeps this off for now (USHER_ACCEPT_MAPS).
+   */
+  acceptMaps?: boolean;
   /** Checking domain claims: allow localhost and private origins (local development), and test doubles. */
   claims?: { allowPrivate?: boolean; fetch?: typeof fetch; resolveTxt?: (name: string) => Promise<string[][]> };
 }
@@ -276,7 +283,8 @@ export class Registry {
     let keys: PublicJwk[] = [];
     try {
       if (!allowHttp && PRIVATE_HOST.test(new URL(signatureAgent).hostname)) throw new Error('private host');
-      keys = await fetchKeyDirectory(signatureAgent, { allowHttp, ...(this.options.directories?.fetch && { fetch: this.options.directories.fetch }) });
+      // An agent names its own directory: only the public internet, checked where it connects.
+      keys = await fetchKeyDirectory(signatureAgent, { allowHttp, fetch: this.options.directories?.fetch ?? (allowHttp ? fetch : publicFetch) });
     } catch {
       keys = [];
     }
@@ -430,6 +438,7 @@ export class Registry {
 
   /** A signed request from an agent carrying a map it built. */
   async submitMap(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
+    if (this.options.acceptMaps === false) return error(403, 'maps_closed', 'This registry is not accepting maps from agents for now. Use the map you built yourself.');
     const check = await this.agentOf(request, via);
     if (!check.ok) return error(check.status, check.error, check.message);
     const map = (request as { map?: UsherMap }).map;
@@ -506,6 +515,12 @@ export class Registry {
   }
 
   /** Deletes sessions older than each site's retention (policy, or the default). */
+  /** Sessions for origins nobody registered: nobody can read them, so they go after the default retention. */
+  async pruneUnregisteredSessions(): Promise<number> {
+    const cutoff = new Date(this.now().getTime() - DEFAULT_RETENTION_DAYS * 86_400_000).toISOString();
+    return this.storage.deleteSessionsBefore(cutoff, (await this.storage.listSites()).map((s) => s.origin));
+  }
+
   async pruneSessions(origin: string): Promise<number> {
     const days = (await this.policy(origin))?.retention?.session_days ?? DEFAULT_RETENTION_DAYS;
     const cutoff = this.now().getTime() - days * 86_400_000;
@@ -576,7 +591,8 @@ export class Registry {
       return { method: null, tried: [{ method: 'well-known', result: 'a private or local address can only be claimed with development keys' }] };
     }
     try {
-      const res = await (this.options.claims?.fetch ?? fetch)(instructions.well_known.url, { signal: AbortSignal.timeout(5000), redirect: 'error', headers: { Accept: 'application/json' } });
+      // The registrant chose this origin: only the public internet, checked where it connects.
+      const res = await (this.options.claims?.fetch ?? (this.options.claims?.allowPrivate ? fetch : publicFetch))(instructions.well_known.url, { signal: AbortSignal.timeout(5000), redirect: 'error', headers: { Accept: 'application/json' } });
       const text = res.ok ? await res.text() : '';
       const body = text.length < 10_000 ? (JSON.parse(text || 'null') as { site_key?: unknown } | null) : null;
       if (body?.site_key === site.site_key) return { method: 'well-known', tried };

@@ -21,7 +21,8 @@
         { "name": "USHER_DAILY_MODEL_BUDGET_USD", "value": "${DAILY_MODEL_BUDGET_USD}" },
         { "name": "USHER_CONTACT_EMAIL", "value": "${CONTACT_EMAIL}" },
         { "name": "USHER_SEED", "value": "mock-site" },
-        { "name": "USHER_SEED_ORIGIN", "value": "https://${SITE_HOST}" }
+        { "name": "USHER_SEED_ORIGIN", "value": "https://${SITE_HOST}" },
+        { "name": "USHER_KEEPER_ORIGINS", "value": "https://${SITE_HOST}" }
       ],
       "secrets": [
         { "name": "DATABASE_URL", "valueFrom": "${SECRET_ARN_DATABASE_URL}" },

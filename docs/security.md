@@ -42,7 +42,11 @@ Drift reports need the site's key and are limited to 60 a minute per site. The r
 
 - **Rate limits** on every registry endpoint, per address and per key, plus the site's own limits per agent (for example, five quotes an hour).
 - **A daily cap on model spend.**
-- **The map viewer** is off unless `USHER_VIEWER=1`, and production refuses that setting. It checks only the address it is given, but its browser follows redirects, and the page's own requests can reach private addresses behind that check. It stays off until its browser's every request is checked.
+- **Outbound requests to addresses outsiders choose:** a site's claim file, an agent's key directory (in the registry and in the site middleware), and robots.txt. These go only to public internet addresses, checked on the address actually connected to, so a hostname that resolves or re-resolves to a private address is refused. They never follow redirects, and responses are capped.
+- **Locked down for launch** (see DEPLOY.md, "Locked down for now"):
+  - The map viewer is off, and production refuses `USHER_VIEWER=1`. Its browser follows redirects, and the page's own requests can reach private addresses behind its address check.
+  - The keeper opens only the origins in `USHER_KEEPER_ORIGINS` (our own demo site), for the same reason.
+  - Maps submitted by agents are not accepted (`USHER_ACCEPT_MAPS`). A hostile agent could otherwise mislabel a form for every other agent.
 - **Security headers:** a strict Content-Security-Policy on every page, and CORS open only on the few endpoints the site script calls.
 - **The registry's signing key** can be rotated, with old public keys kept published until their tokens expire.
 

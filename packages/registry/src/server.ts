@@ -16,6 +16,9 @@
 //   TRUSTED_PROXY_HOPS              proxies in front whose forwarded headers are trusted (default 2 in
 //                                   production: CloudFront, then the ALB; 0 elsewhere)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
+//   USHER_ACCEPT_MAPS=1             in production, store and share maps agents submit (off by default)
+//   USHER_KEEPER_ORIGINS            in production, the only origins the keeper opens (comma-separated;
+//                                   none by default)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
@@ -93,6 +96,8 @@ const running = await startRegistry({
   host: values.host,
   siteScript,
   proxyHops: proxyHops(env),
+  // Agents' maps are shared with every other agent: closed in production unless USHER_ACCEPT_MAPS=1.
+  acceptMaps: !production || env.USHER_ACCEPT_MAPS === '1',
   hsts: (values.url ?? '').startsWith('https://'),
   ...(signingKey && { signingKey }),
   ...(retiredKeys && { retiredKeys }),
@@ -112,7 +117,13 @@ const running = await startRegistry({
   // Session explanations: Muse Spark, or Spark Open (--explain-open, for self-hosters).
   ...(explainer && { explainer }),
   // The keeper: Spark Open triages a changed form, Muse Spark recompiles it when the change is real.
-  keeper: { intervalMinutes: Number(env.USHER_KEEPER_INTERVAL_MIN ?? 360), ...(spark && { compiler: spark }), ...(open && { triage: open }) },
+  keeper: {
+    intervalMinutes: Number(env.USHER_KEEPER_INTERVAL_MIN ?? 360),
+    // In production only the listed origins (our own demo site): it opens pages in a browser.
+    ...(production && { origins: (env.USHER_KEEPER_ORIGINS ?? '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean) }),
+    ...(spark && { compiler: spark }),
+    ...(open && { triage: open }),
+  },
   ...(values.url && { url: values.url }),
   ...(values.threshold && { threshold: Number(values.threshold) }),
 });

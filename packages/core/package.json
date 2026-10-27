@@ -18,7 +18,8 @@
     "./schemas": "./src/schemas.ts",
     "./policy": "./src/policy.ts",
     "./vocabulary": "./src/vocabulary.ts",
-    "./page-errors": "./src/page-errors.ts"
+    "./page-errors": "./src/page-errors.ts",
+    "./public-fetch": "./src/public-fetch.ts"
   },
   "scripts": {
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",

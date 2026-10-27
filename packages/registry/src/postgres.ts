@@ -227,6 +227,10 @@ export class PostgresStorage implements Storage {
     await this.pool.query('DELETE FROM sessions WHERE id = $1', [id]);
   }
 
+  async deleteSessionsBefore(before: string, keep: string[]): Promise<number> {
+    return (await this.pool.query('DELETE FROM sessions WHERE created_at < $1 AND NOT (origin = ANY($2))', [before, keep])).rowCount ?? 0;
+  }
+
   async appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined> {
     if (!(await this.rows('SELECT 1 FROM sessions WHERE id = $1', [id])).length) return undefined;
     await this.insertEvents(id, events);

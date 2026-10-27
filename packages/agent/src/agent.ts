@@ -369,7 +369,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         emit({ type: 'model', path, done: true, usage, cost_usd: cost });
         // Share it before acting, so the site script can log this run by semantic key and the
         // next agent gets the fast path.
-        if (knock && (await options.registry.submitMap(map)).stored) submitted++;
+        // A registry may not accept maps (403 maps_closed); the run goes on with this one.
+        if (knock && (await options.registry.submitMap(map).catch(() => ({ stored: false }))).stored) submitted++;
       }
 
       if (knock) {
