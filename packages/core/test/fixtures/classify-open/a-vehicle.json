@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T09:43:24.393Z",
+  "recorded_at": "2026-10-27T10:02:26.849Z",
   "layout": "a",
   "step": "vehicle",
   "attempts": [
     {
-      "request_sha256": "56223fba5c7d7cb282cd2d78f6146cd2eaa366d3f745777f95102c99d395941b",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering vehicle registration is reversible data entry with no external effect in this session.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a lookup/search action to populate vehicle details, no commitment outside session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible factual data entry for quote preparation.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible factual data entry with no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible factual data entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible estimate, no legal or financial commitment.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is reversible choice within quote flow.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is reversible factual choice with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering about modifications is reversible factual choice.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation to previous step, reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Continue advances to next step of quote flow, reversible navigation not final quote request or commitment.\"}]}",
+      "request_sha256": "66300102fa76e74567b8d67ac78822b40c6ca3f2f7613840fc43fecc5c1ee7e4",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering registration number is reversible data entry for the quote with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a lookup/search action within the session, reversible with no external commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering car make is factual data entry for the quote, reversible and session-local.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering car model is factual data entry for the quote, reversible and session-local.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is factual data entry for the quote, reversible and session-local.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is factual data entry for the quote, reversible and session-local.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is a reversible choice within the form with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is a reversible choice within the form with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering about modifications is a reversible choice within the form with no external effect.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation to previous step, reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Continue advances to next step of multi-step quote flow, does not itself request quote or create commitment.\"}]}",
       "usage": {
         "prompt_tokens": 736,
-        "completion_tokens": 1720,
-        "total_tokens": 2456,
-        "cached_tokens": 640
+        "completion_tokens": 1567,
+        "total_tokens": 2303,
+        "cached_tokens": 384
       },
-      "latency_ms": 6655
+      "latency_ms": 5750
     }
   ]
 }

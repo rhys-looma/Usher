@@ -44,7 +44,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 - `src/vocabulary.ts`: vocabulary as data. `spec/vocabulary.md` is the source; `npm run vocabulary` regenerates `spec/vocabulary.json` and a test keeps them in sync.
 - `src/labels.ts`: the `Labels` a labeller returns (meaning only) and `validateLabels()`, which returns structured errors to feed back to a model, clamps risk to key defaults and drops hidden unconditioned fields (honeypots).
 - `src/map.ts`: `mergeMap()` joins extraction, locators, fingerprint and validated labels into a schema-valid map.
-- `src/compile/`: the Muse Spark compiler. `model.ts` (fetch client, prices, refuses `-contributor` models), `prompt.ts` (system prompt, per-page strict schema), `compile.ts` (page → map, one retry with validation errors), `log.ts`, `cli.ts`.
+- `src/compile/`: the Muse Spark compiler. `model.ts` (fetch client, prices, refuses `-contributor` models), `shortlist.ts` (candidate vocabulary keys per element, by code), `prompt.ts` (system prompt, per-page strict schema), `compile.ts` (page → map, one retry with validation errors), `log.ts`, `cli.ts`.
 
 ## Model API
 

@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T09:43:17.594Z",
+  "recorded_at": "2026-10-27T10:02:20.961Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "a427541f9ba6afda8253de7fe1b1324d65ad4c2dc77d5e96ad42e8540c148605",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Selecting title is reversible personal detail entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Typing first name is reversible data entry within the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Typing last name is reversible data entry with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering date of birth is reversible personal data for quote calculation, no legal/financial effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering email address is reversible contact detail entry, no message or subscription yet.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible and has no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Entering postcode is reversible address detail for quoting.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Entering address line is reversible personal data entry.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation from list is reversible choice to inform quote.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Choosing employment status is reversible option selection.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history Yes/No is reversible factual input.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering date of claim is reversible detail entry.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting type of claim is reversible option choice.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step of multi-step quote flow, reversible with no quote request or commitment yet.\"}]}",
+      "request_sha256": "4b1a8f7883a35c31e1f0cf25ef600ae6677785b830f34dd277b6cc6585b3db14",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection for quote personalization, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name entry for quote, reversible data input with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name entry for quote, reversible data input with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth for risk assessment, reversible input, not a legal/financial commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address for quote contact, reversible input, no subscription or sending implied.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number, reversible contact detail with no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode for address/risk rating, reversible quote data.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Address line for quote, reversible data input.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection for underwriting, reversible choice.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection, reversible factual choice for quote.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history yes/no for quote rating, reversible factual answer, not a formal declaration.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim detail, reversible factual input for quote.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection, reversible detail for quote.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue button moves to next step of quote flow, reversible navigation with no quote commitment yet.\"}]}",
       "usage": {
         "prompt_tokens": 861,
-        "completion_tokens": 2303,
-        "total_tokens": 3164,
-        "cached_tokens": 256
+        "completion_tokens": 2019,
+        "total_tokens": 2880,
+        "cached_tokens": 0
       },
-      "latency_ms": 7377
+      "latency_ms": 6786
     }
   ]
 }
