@@ -37,14 +37,13 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
     {
       title: 'Knock on a form',
       description:
-        'Knock before filling a form on a site that uses Usher (its forms carry data-usher-knock). Returns the map of the form (fields by semantic key, risk, locators), the site rules, and a short-lived token to bind in the page with window.usher.bind(token). Pass the page fingerprint for an exact match and the session id to continue a multi-step journey. If the page publishes its own map (<script type="application/usher+json" data-usher-map>), use that and pass its digest as have_map: the reply then carries only the rules and token.',
+        'Knock before filling a form on a site that uses Usher (its forms carry data-usher-knock). Returns the map of the form (fields by semantic key, risk, locators), the site rules, and a short-lived token to bind in the page with window.usher.bind(token). Pass the page fingerprint for an exact match and the session id to continue a multi-step journey.',
       inputSchema: {
         url: z.string().url(),
         intent: z.string().optional(),
         fingerprint: fingerprint.optional(),
         session: z.string().optional(),
         confirmed: z.array(z.string()).optional().describe('Keys your user has just confirmed (e.g. form.submit), when knocking right before acting on them.'),
-        have_map: z.string().optional().describe('The digest of the map the page publishes itself (data-usher-digest), if you are using it.'),
       },
     },
     (args) =>
@@ -55,7 +54,6 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
           ...(args.fingerprint && { fingerprint: args.fingerprint as Fingerprint }),
           ...(args.session && { session: args.session }),
           ...(args.confirmed && { confirmed: args.confirmed }),
-          ...(args.have_map && { have_map: args.have_map }),
         }),
       ),
   );
