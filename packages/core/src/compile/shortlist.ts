@@ -141,11 +141,17 @@ export interface ShortlistElement {
   autocomplete?: string;
 }
 
-const index = new WeakMap<Vocabulary, { entry: VocabularyEntry; words: Set<string> }[]>();
+const index = new WeakMap<Vocabulary, { entry: VocabularyEntry; words: Set<string>; named: Set<string> }[]>();
 function indexed(vocab: Vocabulary) {
   let entries = index.get(vocab);
   if (!entries) {
-    entries = vocab.entries.map((entry) => ({ entry, words: words(`${entry.meaning} ${entry.key.replace(/[._]/g, ' ')} ${ALIASES[entry.key] ?? ''}`) }));
+    entries = vocab.entries.map((entry) => ({
+      entry,
+      words: words(`${entry.meaning} ${entry.key.replace(/[._]/g, ' ')} ${ALIASES[entry.key] ?? ''}`),
+      // The words of the key's own name: a label word there outweighs one only in its meaning
+      // ("address" is in contact.email's meaning, "Email address", but names address.line1).
+      named: words(entry.key.replace(/[._]/g, ' ')),
+    }));
     index.set(vocab, entries);
   }
   return entries;
@@ -166,9 +172,9 @@ export function shortlist(element: ShortlistElement, size = 6, vocab: Vocabulary
   const named = (element.autocomplete ?? '').split(/\s+/).map((t) => AUTOCOMPLETE[t]).filter(Boolean);
   const keys = indexed(vocab)
     .filter(({ entry }) => entry.kind === kind)
-    .map(({ entry, words: w }, order) => {
+    .map(({ entry, words: w, named: own }, order) => {
       let score = 0;
-      for (const x of label) if (w.has(x)) score += 1;
+      for (const x of label) if (w.has(x)) score += own.has(x) ? 1.5 : 1;
       for (const x of options) if (w.has(x)) score += 0.5;
       for (const x of hint) if (w.has(x)) score += 0.5;
       if (nudged.includes(entry.key)) score += 1;

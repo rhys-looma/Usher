@@ -9,6 +9,10 @@ test('short list: the closest vocabulary keys for a field, best first', () => {
   assert.equal(shortlist({ kind: 'field', control: 'text', label: 'Name', autocomplete: 'given-name' })[0], 'person.first_name', 'autocomplete names the key');
   assert.ok(shortlist({ kind: 'field', control: 'radio', label: 'How will you use the car?', options: ['Social only', 'Social and commuting'] }).includes('vehicle.use'));
   assert.ok(shortlist({ kind: 'field', control: 'text', label: 'Favourite colour' }).length === 0, 'nothing in common: no candidates');
+  // "address" is in contact.email's meaning (Email address), but it names address.line1.
+  assert.equal(shortlist({ kind: 'field', control: 'url', label: 'Address of a page with a form' })[0], 'address.line1');
+  assert.equal(shortlist({ kind: 'field', control: 'text', label: 'Address' })[0], 'address.line1');
+  assert.equal(shortlist({ kind: 'field', control: 'text', label: 'Your email address' })[0], 'contact.email');
   assert.ok(shortlist({ kind: 'field', control: 'text', label: 'First name' }).every((k) => !['nav.next', 'form.submit'].includes(k)), 'fields get field keys');
 });
 
