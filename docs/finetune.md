@@ -89,20 +89,28 @@ It reports:
 
 `--save` keeps the predictions and `--report` writes the table.
 
-Results on the 41 held-out elements, with the prompt in `packages/core/scripts/finetune-shared.ts` (live on 26 and 27 October):
+Results on the 41 held-out elements (live on 27 October). Both models see one element at a time here; the reference labels came from Muse Spark seeing the whole form with a screenshot, on 26 October.
 
-| Predictions | Key | Risk | Both | Risk under-called | Spend |
-| --- | --- | --- | --- | --- | --- |
-| Baseline: commonest per control | 7.3% | 85.4% | 7.3% | 6 | $0 |
-| Muse Spark Open (`meta-models/muse-spark-open-1026`), untuned, per element, two runs | 56.1% / 63.4% | 87.8% / 92.7% | 56.1% / 63.4% | 2 / 2 | $0.175 / $0.184 |
-| Muse Spark, per element | 61.0% | 92.7% | 61.0% | 2 | $0.219 |
+### The short list
 
-Both models see one element at a time here, and the reference labels came from Muse Spark seeing the whole form with a screenshot.
+Before the model labels anything, code proposes candidates for each element: the vocabulary keys whose meaning is closest to its label, best first (`packages/core/src/compile/shortlist.ts`). Words in the label, options and placeholder are matched against each key's meaning, its own words and the usual ways sites say it; the control type and the HTML `autocomplete` token add a nudge. Fields get up to six field keys, or none when nothing matches. An action gets the action keys it has words in common with, plus `ui.expand` when it is a button, because a button labelled by its content (an FAQ question, a cover feature) usually reveals more. A link with nothing in common gets none, because it usually leads somewhere else.
 
-Spark Open's answers change between runs at temperature 0, so it is shown twice: the same 41 elements and prompt, run minutes apart. Its risk misses beyond the two under-calls are over-calls (safe fields marked `needs_user`), which only make an agent ask more. An earlier run on 26 October used the `meta-models/muse-spark-open` alias, before `-1026` was available on our key, and scored 56.1% and 92.7%.
+The prompt then says: choose the most specific candidate that fits, never invent a custom key when a vocabulary key fits, use `custom.*` only when no candidate fits, and treat `nav.next` and `form.submit` as the form's own way forward, never a link to another page. The compiler's whole-form prompt and the per-element prompt both work this way. The right key is among the candidates for every element of the mock site's maps, and for 124 of the 129 elements with vocabulary keys in train and eval. Of the 5 that aren't, four are "Search" buttons the reference labelled `form.submit` or `nav.next`, from before `search.submit` existed, and one is National Rail's "Show live trains", labelled `nav.next`.
 
-- **Key misses.** `npm run keys:disagreements` writes [reports/key-disagreements.md](../reports/key-disagreements.md): every element where Muse Spark's key isn't settled, between runs, per element against whole form, or against the review, grouped by kind. Of Muse Spark's 16 per-element misses, 13 are on one page, GOV.UK's search results, where links to services get a specific custom key from the whole form and `custom.search_result_link` per element. None is two different vocabulary keys: 9 are custom keys worded differently and 7 are a custom key against a vocabulary key (the search buttons, `lookup.vehicle` for "Check the MOT history", "Reject all"). Re-scored with equivalence, the saved predictions give Muse Spark 61.0% either way and Spark Open (`-1026`) 63.4% and 68.3% for its two runs.
-- **The risk under-calls are all search boxes.** The "Search" buttons on ICO's and GOV.UK's site search were labelled `form.submit` and consequential by the teacher, and a safe custom key by both models. Arguably the teacher over-calls here: a site search commits to nothing. The vocabulary could say so, with a `search.submit` key that defaults to safe.
+| Per element, 41 held-out elements | Key, exact | Key, equivalent | Risk | Risk under-called | Custom keys used | Spend |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline: commonest per control | 7.3% | 7.3% | 85.4% | 6 | – | $0 |
+| Muse Spark, before | 65.9% | 68.3% | 92.7% | 2 | 12 | $0.202 |
+| Muse Spark, with the short list | **73.2%** | **80.5%** | **95.1%** | 2 | 16 | $0.246 |
+| Muse Spark Open (`-1026`), before, two runs | 56.1% / 53.7% | 63.4% / 63.4% | 95.1% / 92.7% | 2 / 2 | 14 / 13 | $0.185 / $0.165 |
+| Muse Spark Open (`-1026`), with the short list, two runs | **65.9% / 61.0%** | **70.7% / 75.6%** | 95.1% / 95.1% | 2 / 2 | 13 / 15 | $0.139 / $0.134 |
+
+"Before" is today's prompt without candidates. On 26 October, before `search.submit` was in the vocabulary, the same prompt scored 61.0% for Muse Spark. A first version of the short list offered every action key to every action, in vocabulary order. Muse Spark then labelled three GOV.UK search-result links `nav.next` (63.4% exact); the link rule and the `ui.expand` fallback fixed that.
+
+Spark Open's answers change between runs at temperature 0, so it is shown twice.
+
+- **Key misses.** `npm run keys:disagreements` writes [reports/key-disagreements.md](../reports/key-disagreements.md): every element where Muse Spark's key isn't settled, between runs, per element against whole form, or against the review, grouped by kind. Before the short list, 13 of Muse Spark's 16 per-element misses were on one page, GOV.UK's search results, where links to services got a specific custom key from the whole form and `custom.search_result_link` per element. None was two different vocabulary keys.
+- **The risk under-calls are the two "Search" buttons.** The reference has them as `form.submit`, consequential; both models now say `search.submit`, safe, which the vocabulary has since added. The reference is out of date there rather than the models wrong; a fresh export from labels compiled with today's prompt would fix it.
 
 On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
 
