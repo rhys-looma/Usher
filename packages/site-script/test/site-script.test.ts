@@ -89,7 +89,7 @@ test('every form carries the knock notice and starts locked; nothing a person se
   await page.context().close();
 });
 
-test('people\'s page loads send nothing about them: one cached map check an hour, no lookups or drift beacons', async () => {
+test('people\'s page loads send nothing about them: one cached map check an hour, the map itself once per version, no lookups or drift beacons', async () => {
   const context = await browser.newContext();
   const calls: string[] = [];
   context.on('request', (r) => {
@@ -100,7 +100,7 @@ test('people\'s page loads send nothing about them: one cached map check an hour
     await page.goto(`${site.url}/quote/driver`);
     await page.evaluate(() => window.usher.ready);
   }
-  assert.deepEqual(calls.filter((c) => !c.endsWith('/usher.js')), ['GET /maps/current'], 'checked once, then cached');
+  assert.deepEqual(calls.filter((c) => !c.endsWith('/usher.js')), ['GET /maps/current', 'GET /maps/public'], 'checked once, then cached');
   await context.close();
 });
 
