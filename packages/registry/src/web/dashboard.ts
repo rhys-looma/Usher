@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import { claimInstructions, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session } from '../storage.ts';
-import { html, page, ruleBadge, when, type Raw } from './html.ts';
+import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
 function identityBadge(session: Session | undefined): Raw {
@@ -116,6 +116,7 @@ export class Dashboard {
       'Site dashboard',
       html`<h1>Site dashboard</h1>
 <p class="lede">See which agents use your forms and what they do, set the rules they follow, and spot forms that have changed. Sign in with the secret key you were given when you got your keys.</p>
+${siteClaims()}
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card" method="post" action="/dashboard/login">
   <p><label>Site origin<br><input type="text" name="origin" required placeholder="https://quote.example"></label></p>
