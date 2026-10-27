@@ -27,8 +27,8 @@ export function privacyPage(o: { contact?: string; url: string }): string {
 <div class="card"><h2>Agent sessions</h2>
 <p>When an agent knocks, we record which agent it was (the public key it identified itself with), the site, what it came to do, and the actions logged above. The site's owner can read their own sites' sessions in their dashboard. Sessions are deleted after ${DEFAULT_RETENTION_DAYS} days, or sooner if the site's owner sets a shorter time.</p></div>
 
-<div class="card"><h2>Maps and the map viewer</h2>
-<p>Maps describe the structure of public forms: labels, field types and buttons. They never hold values. When a map is built, the page's structure and a screenshot of it are sent to the AI models that label it (Muse Spark from Meta, and Muse Spark Open through Baseten). Only use the viewer on public pages.</p></div>
+<div class="card"><h2>Maps</h2>
+<p>Maps describe the structure of public forms: labels, field types and buttons. They never hold values. When a map is built, the page's structure and a screenshot of it are sent to the AI models that label it (Muse Spark from Meta, and Muse Spark Open through Baseten).</p></div>
 
 <div class="card"><h2>Cookies and addresses</h2>
 <p>The only cookies are the ones that keep a site owner or an administrator signed in. They are strictly necessary, so there is no cookie banner. Your IP address is used in memory to limit how often one address can call us, and it is never stored.</p></div>

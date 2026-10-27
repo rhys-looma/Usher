@@ -1,5 +1,6 @@
 // Usher's own front page is agent-ready: the reference agent, asked to register interest, knocks,
-// reads the page with a (scripted) model, chooses the interest form over the viewer box, asks its
+// reads the page with a (scripted) model, chooses the interest form over the viewer box (the viewer is
+// on here; deployments leave it off), asks its
 // user before sending, and the server-side check lets it through. The admin list says an agent sent it.
 
 import { test, before, after } from 'node:test';
@@ -44,7 +45,7 @@ let registry: RunningRegistry;
 let browser: Browser;
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-landing-agent-'));
-  registry = await startRegistry({ storage: await testStorage(join(dir, 'registry')), siteScript, web: { adminKey: 'admin-test-key' } });
+  registry = await startRegistry({ storage: await testStorage(join(dir, 'registry')), siteScript, web: { adminKey: 'admin-test-key', viewer: true } });
   browser = await chromium.launch();
 });
 after(async () => {

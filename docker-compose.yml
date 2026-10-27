@@ -33,6 +33,8 @@ services:
       REGISTRY_PUBLIC_URL: http://localhost:4200
       # The demo site is on a private address; public deployments leave this off.
       USHER_ALLOW_PRIVATE: "1"
+      # The map viewer, for local demos; deployments leave it off.
+      USHER_VIEWER: "1"
       USHER_DAILY_MODEL_BUDGET_USD: ${USHER_DAILY_MODEL_BUDGET_USD:-1}
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       BASETEN_API_KEY: ${BASETEN_API_KEY:-}

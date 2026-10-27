@@ -23,6 +23,12 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   adminKey?: string;
   /** USHER_CONTACT_EMAIL: named on /privacy and in security.txt. */
   contact?: string;
+  /**
+   * The public map viewer (/viewer and the front page's "Try it"). Off unless set: it opens any URL
+   * a visitor gives in a browser, and redirects or the page's own requests can reach private
+   * addresses behind the first check. USHER_VIEWER=1; production refuses it until that is fixed.
+   */
+  viewer?: boolean;
   /** Trusted proxy hops: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
   proxyHops?: number;
 }
@@ -100,7 +106,7 @@ export class Web {
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
     this.numbers ??= loadNumbers();
     const own = await this.registry.ownSite();
-    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, ...extra });
+    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, viewerOn: Boolean(this.options.viewer), ...extra });
   }
 
   /** The server-side check on the interest form, as any site would run it. Keys come from this registry directly. */
@@ -293,6 +299,7 @@ export class Web {
   async handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const route = `${req.method} ${url.pathname}`;
     if (await this.site(req, res, url, route)) return true;
+    if (url.pathname === '/viewer' && !this.options.viewer) return sendHtml(res, 404, page('Map viewer', html`<h1>The map viewer is switched off for now</h1><p class="lede"><a href="/">Back to the front page</a>.</p>`)), true;
     if (route === 'GET /viewer') return sendHtml(res, 200, viewerPage()), true;
     if (route === 'POST /viewer') {
       const form = await readForm(req);

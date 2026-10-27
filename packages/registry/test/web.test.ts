@@ -25,7 +25,7 @@ let browser: Browser;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-web-'));
-  registry = await startRegistry({ storage: await testStorage(dir), siteScript, chat: replayAny([...labels, ...rules]), model: 'muse-spark-1.3', web: { allowPrivate: true } });
+  registry = await startRegistry({ storage: await testStorage(dir), siteScript, chat: replayAny([...labels, ...rules]), model: 'muse-spark-1.3', web: { allowPrivate: true, viewer: true } });
   site = await startMockSite({
     registry: registry.url,
     register: async (origin) => {

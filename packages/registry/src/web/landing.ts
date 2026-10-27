@@ -1,4 +1,4 @@
-// The front page (LU-53): what Usher is, the map viewer inline, the two quickstarts, the numbers
+// The front page (LU-53): what Usher is, the map viewer inline (when it is on), the two quickstarts, the numbers
 // from the committed reports, and an interest form that carries Usher's own script tag.
 
 import { readFile } from 'node:fs/promises';
@@ -116,6 +116,8 @@ export interface LandingOptions {
   /** Usher's own site key, for the tag on the interest form. */
   siteKey?: string;
   numbers: Numbers;
+  /** Whether the map viewer is on: the "Try it" box. */
+  viewerOn?: boolean;
   /** The viewer box: what was pasted, and a reason if it failed. */
   viewer?: { url: string; error: string };
   interest?: { error?: string };
@@ -136,14 +138,14 @@ export function landingPage(o: LandingOptions): string {
 <div class="card"><h3>Log</h3><p>The site sees what each agent did, step by step, by meaning, while people using the form are never tracked.</p></div>
 </section>
 
-<section id="try"><h2>Try it</h2>
+${o.viewerOn ? html`<section id="try"><h2>Try it</h2>
 <form class="inline card" method="post" action="/viewer">
 <input type="hidden" name="from" value="home">
 <input type="url" name="url" required placeholder="https://example.com/contact" value="${o.viewer?.url ?? ''}" aria-label="Address of a page with a form">
 <button type="submit">See the map</button>
 </form>
 ${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : html`<p class="small muted">Paste the address of a page with a form. Usher reads its structure, never anything typed, and Muse Spark says what each field means and how risky it is to act on. Nothing is submitted.</p>`}
-</section>
+</section>` : ''}
 
 <section class="grid two" id="start">
 <div class="card"><h2>For sites</h2>
@@ -189,7 +191,7 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <style>${LANDING_STYLE}</style>
 ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o.url)}" data-usher-site-key="${esc(o.siteKey)}" defer></script>\n` : ''}</head>
 <body>
-<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="#try">Try it</a><a href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
+<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav>${o.viewerOn ? '<a href="#try">Try it</a>' : ''}<a href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
 <main>${body}</main>
 <footer><nav>
 <a href="/dashboard">Site dashboard</a>
