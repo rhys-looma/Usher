@@ -2,6 +2,8 @@
 
 An open protocol and script tag that lets websites control AI agents on their forms, and gives agents a fast, trusted way in.
 
+**Usher makes sites with complex forms agent-ready without integrating new systems, standards or products.** Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt. The site adds one script tag, plus a server-side check where it matters. The description agents need is built from the live page itself and kept up to date when the form changes.
+
 > **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
 
 ## Map, knock, log
