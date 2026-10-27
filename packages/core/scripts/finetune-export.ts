@@ -4,7 +4,10 @@
 // validation and risk floors. De-duplicated, and split into train and eval by form, so no eval form
 // is ever seen in training. Structure only: the compiler log never holds anything anyone typed.
 //
-//   npm run finetune:export -- [--log data/compiler-log] [--out data/finetune] [--models muse-spark-1.3] [--eval-share 0.2]
+//   npm run finetune:export -- [--log data/compiler-log] [--out data/finetune] [--models muse-spark-1.3] [--eval-share 0.2] [--since 2026-10-27T10:00Z]
+//
+// --since keeps only labels logged from then on, so a set can be rebuilt from one prompt's labels
+// without older runs outvoting them.
 
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -19,10 +22,16 @@ const { values } = parseArgs({
     // The teacher: Muse Spark's labels by default (Spark Open's are a different student).
     models: { type: 'string', default: 'muse-spark-1.3' },
     'eval-share': { type: 'string', default: '0.2' },
+    since: { type: 'string' },
   },
 });
 const models = new Set(values.models.split(','));
 const evalShare = Number(values['eval-share']);
+const since = values.since ? Date.parse(values.since) : null;
+if (since !== null && Number.isNaN(since)) {
+  console.error(`--since ${values.since} is not a date.`);
+  process.exit(2);
+}
 
 interface Extracted {
   id: string;
@@ -58,6 +67,7 @@ let skipped = 0;
 for (const file of files) {
   for (const line of (await readFile(join(values.log, file), 'utf8')).split('\n').filter(Boolean)) {
     const r = JSON.parse(line) as {
+      ts: string;
       task?: string;
       model: string;
       url: string;
@@ -66,7 +76,7 @@ for (const file of files) {
       validation?: { ok: boolean; clamps: { id: string; final: string }[]; excluded: { id: string }[] };
     };
     // Labelling calls only, by the teacher, that passed validation.
-    if (r.task || !models.has(r.model)) continue;
+    if (r.task || !models.has(r.model) || (since !== null && Date.parse(r.ts) < since)) continue;
     records++;
     if (!r.validation?.ok) {
       skipped++;
