@@ -44,11 +44,31 @@ Drift reports need the site's key and are limited to 60 a minute per site. The r
 - **A daily cap on model spend.**
 - **Outbound requests to addresses outsiders choose:** a site's claim file, an agent's key directory (in the registry and in the site middleware), and robots.txt. These go only to public internet addresses, checked on the address actually connected to, so a hostname that resolves or re-resolves to a private address is refused. They never follow redirects, and responses are capped.
 - **Locked down for launch** (see DEPLOY.md, "Locked down for now"):
-  - The map viewer is off, and production refuses `USHER_VIEWER=1`. Its browser follows redirects, and the page's own requests can reach private addresses behind its address check.
+  - The map viewer no longer takes an address from the public (see "The map viewer" below).
   - The keeper opens only the origins in `USHER_KEEPER_ORIGINS` (our own demo site), for the same reason.
   - Maps submitted by agents are not accepted (`USHER_ACCEPT_MAPS`). A hostile agent could otherwise mislabel a form for every other agent.
 - **Security headers:** a strict Content-Security-Policy on every page, and CORS open only on the few endpoints the site script calls.
 - **The registry's signing key** can be rotated, with old public keys kept published until their tokens expire.
+
+## The map viewer
+
+The viewer loads a page in a browser on Usher's server, maps its form with the model, and shows the map.
+
+**Why the open endpoint was removed.** It used to take any address. That made it a tool for probing other people's sites from Usher's servers:
+- anyone could make Usher load pages they chose, as often as the rate limits allowed, and read the result;
+- its browser followed redirects and ran each page's own requests, so a public address could lead it on to private ones behind the first check. We confirmed this with a redirect to a local service.
+
+**What replaced it:**
+- **Visitors pick, they don't type.** They choose one of ten public forms from a fixed list (`packages/registry/src/web/picker.ts`) by its id, and no address reaches the server. Results are cached by fingerprint digest and refreshed after each keeper run. A form that hasn't changed reuses its labels, so a refresh costs no model call. All of it is within the daily model budget.
+- **Owners map their own pages.** A site owner signed in to the dashboard can map any page on the origin they have proved they control, and no other.
+- **Every request is checked.** Whatever the page, every request the viewer's browser makes (the page, redirects, scripts, frames) is checked against the address it resolves to, and stopped if that is private.
+- **Open mode is local only.** `USHER_VIEWER=open`, for local demos, and production refuses it.
+
+**Why there is no CAPTCHA.** There's nothing left for a CAPTCHA to protect:
+- the public can only choose from ten cached forms, so a request costs Usher nothing new;
+- the one open input belongs to authenticated owners, and only reaches their own site.
+
+A CAPTCHA would also mean a third party's script and cookies on the front page, contradicting the privacy notice and the "no cookie banner" promise. We would revisit it only if the rate limits proved not enough.
 
 ## What Usher does not do
 

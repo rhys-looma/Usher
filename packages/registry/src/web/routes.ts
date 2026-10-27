@@ -14,8 +14,9 @@ import { Dashboard, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
+import { SITE_JS } from './site-js.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
-import { Viewer, mapPage, viewerPage, type ViewerOptions } from './viewer.ts';
+import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
@@ -24,11 +25,11 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   /** USHER_CONTACT_EMAIL: named on /privacy and in security.txt. */
   contact?: string;
   /**
-   * The public map viewer (/viewer and the front page's "Try it"). Off unless set: it opens any URL
-   * a visitor gives in a browser, and redirects or the page's own requests can reach private
-   * addresses behind the first check. USHER_VIEWER=1; production refuses it until that is fixed.
+   * The map viewer (/viewer and the front page's "Try it"). 'picker' (the default): anyone picks
+   * one of `forms`, and a signed-in owner may map pages on their own claimed origin. 'open': any
+   * address, for local demos only (USHER_VIEWER=open; production refuses it).
    */
-  viewer?: boolean;
+  viewer?: 'picker' | 'open';
   /** Trusted proxy hops: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
   proxyHops?: number;
 }
@@ -106,7 +107,7 @@ export class Web {
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
     this.numbers ??= loadNumbers();
     const own = await this.registry.ownSite();
-    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, viewerOn: Boolean(this.options.viewer), ...extra });
+    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, ...extra });
   }
 
   /** The server-side check on the interest form, as any site would run it. Keys come from this registry directly. */
@@ -155,6 +156,10 @@ export class Web {
     // Usher's own claim to its origin, like any site's.
     if (route === 'GET /privacy') return sendHtml(res, 200, privacyPage({ url: this.registry.url, ...(this.options.contact && { contact: this.options.contact }) })), true;
     if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
+    if (route === 'GET /site.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(SITE_JS), true;
+    }
     if (route === 'GET /.well-known/security.txt') {
       const text = securityTxt({ url: this.registry.url, started: this.started, ...(this.options.contact && { contact: this.options.contact }) });
       return text ? (sendText(res, text), true) : false;
@@ -290,6 +295,12 @@ export class Web {
     return page('Admin', html`<h1>Admin</h1>${error ? html`<div class="card error">${error}</div>` : ''}<form class="card" method="post" action="/admin/login"><p><label>Admin key<br><input type="password" name="key" required autocomplete="off"></label></p><button type="submit">Sign in</button></form>`);
   }
 
+  /** The origin this browser is signed in to, once that site has proved it controls it. */
+  private async claimedOrigin(req: IncomingMessage): Promise<string | undefined> {
+    const origin = (await this.board()).originOf(req);
+    return origin && (await this.registry.storage.getSite(origin))?.claim ? origin : undefined;
+  }
+
   private async board(): Promise<Dashboard> {
     this.dashboard ??= new Dashboard(this.registry, await this.registry.derivedSecret('dashboard'), this.hooks);
     return this.dashboard;
@@ -299,17 +310,26 @@ export class Web {
   async handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const route = `${req.method} ${url.pathname}`;
     if (await this.site(req, res, url, route)) return true;
-    if (url.pathname === '/viewer' && !this.options.viewer) return sendHtml(res, 404, page('Map viewer', html`<h1>The map viewer is switched off for now</h1><p class="lede"><a href="/">Back to the front page</a>.</p>`)), true;
-    if (route === 'GET /viewer') return sendHtml(res, 200, viewerPage()), true;
-    if (route === 'POST /viewer') {
+    if (route === 'GET /viewer' || route === 'POST /viewer') {
+      const open = this.options.viewer === 'open';
+      const owner = await this.claimedOrigin(req);
+      const forms = this.viewer.forms;
+      if (route === 'GET /viewer') return sendHtml(res, 200, viewerPage({ forms, open, ...(owner && { owner }) })), true;
       const form = await readForm(req);
+      const id = form.get('form');
       const target = form.get('url') ?? '';
       // The client address limits how often one visitor can compile; it is never stored.
-      const result = await this.viewer.compile(target, clientAddress(req, this.options.proxyHops));
+      const client = clientAddress(req, this.options.proxyHops);
+      // A picked form by id; an address only from a signed-in owner (their own origin) or a local demo.
+      const result: ViewerResult = id
+        ? await this.viewer.pick(id, client)
+        : target && (owner || open)
+          ? await this.viewer.compile(target, client, open ? {} : { owner: owner! })
+          : { ok: false, reason: 'unknown_form', message: 'Pick one of the forms listed.' };
       const status = result.ok ? 200 : result.reason === 'rate_limited' ? 429 : 422;
       // From the front page's box, a failure is explained there.
       if (!result.ok && form.get('from') === 'home') return sendHtml(res, status, await this.landing({ viewer: { url: target, error: result.message } }), { siteScript: true }), true;
-      if (!result.ok) return sendHtml(res, status, viewerPage({ url: target, error: result })), true;
+      if (!result.ok) return sendHtml(res, status, viewerPage({ forms, open, url: target, error: result, ...(owner && { owner }) })), true;
       const source = `${result.cached ? 'from cache' : `compiled by ${result.model}`} in ${(result.ms / 1000).toFixed(1)}s${result.cost_usd ? `, $${result.cost_usd.toFixed(4)}` : ''}`;
       return sendHtml(res, 200, mapPage(result.map, { source, ...(result.flags && { flags: result.flags }) })), true;
     }

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startRegistry, type RunningRegistry } from '../src/index.ts';
 import { testStorage } from './storage-helper.ts';
+import { pickerForms } from '../src/web/picker.ts';
 
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 let dir: string;
@@ -18,7 +19,7 @@ let registry: RunningRegistry;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-landing-'));
-  registry = await startRegistry({ storage: await testStorage(dir), siteScript, web: { adminKey: 'admin-test-key', viewer: true } });
+  registry = await startRegistry({ storage: await testStorage(dir), siteScript, web: { adminKey: 'admin-test-key', viewer: 'open', forms: pickerForms() } });
 });
 after(async () => {
   await registry.close();

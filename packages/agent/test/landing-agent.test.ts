@@ -1,6 +1,5 @@
 // Usher's own front page is agent-ready: the reference agent, asked to register interest, knocks,
-// reads the page with a (scripted) model, chooses the interest form over the viewer box (the viewer is
-// on here; deployments leave it off), asks its
+// reads the page with a (scripted) model, goes past the map viewer's picker to the interest form, asks its
 // user before sending, and the server-side check lets it through. The admin list says an agent sent it.
 
 import { test, before, after } from 'node:test';
@@ -14,6 +13,7 @@ import type { ChatFn, ChatRequest } from '@usher/core';
 import { startRegistry, type RunningRegistry } from '@usher/registry';
 import { httpTransport, runAgent, scriptedUser, type Profile } from '../src/index.ts';
 import { testStorage } from '../../registry/test/storage-helper.ts';
+import { pickerForms } from '../../registry/src/web/picker.ts';
 
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 const profile: Profile = { 'custom.website': 'https://shop.example', 'contact.email': 'owner@shop.example', 'message.body': 'Sent by my agent' };
@@ -45,7 +45,7 @@ let registry: RunningRegistry;
 let browser: Browser;
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-landing-agent-'));
-  registry = await startRegistry({ storage: await testStorage(join(dir, 'registry')), siteScript, web: { adminKey: 'admin-test-key', viewer: true } });
+  registry = await startRegistry({ storage: await testStorage(join(dir, 'registry')), siteScript, web: { adminKey: 'admin-test-key', viewer: 'open', forms: pickerForms() } });
   browser = await chromium.launch();
 });
 after(async () => {
@@ -58,7 +58,8 @@ test("an agent registers interest on Usher's own front page: knocks, asks its us
   const user = scriptedUser(profile);
   const run = await runAgent({ browser, url: `${registry.url}/`, profile, intent: 'contact.interest', registry: await httpTransport(registry.url, join(dir, 'agent.json')), user, fallback: { chat: scripted, model: 'muse-spark-1.3', logDir: null } });
   assert.equal(run.outcome, 'completed', run.reason);
-  assert.deepEqual(asked, ['form_choice', 'usher_labels'], 'chose the interest form over the viewer box, then labelled it');
+  // The picker has buttons and no fields, so it is never a candidate: the interest form is the only one.
+  assert.deepEqual(asked, ['usher_labels'], 'went straight to the interest form, past the picker, and labelled it');
   assert.deepEqual(user.confirmations, ['form.submit'], 'asked its user before sending');
   const stored = (await registry.registry.storage.readLog('interest')) as { email: string; via: string }[];
   assert.deepEqual(stored.map((s) => [s.email, s.via]), [['owner@shop.example', 'agent']]);

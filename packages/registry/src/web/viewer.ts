@@ -1,15 +1,20 @@
-// The public map viewer (LU-38): paste a URL, see the map Usher builds for its form. Compiles are
-// rate limited and cached by fingerprint digest; failures say why in plain words.
+// The map viewer (LU-38). Anyone can pick one of a fixed list of public forms (picker.ts) and see
+// the map Usher builds for it; nobody sends a URL. A site owner signed in to the dashboard can map
+// any page on their own claimed origin. Local demos can open any address ('open'). Every request
+// the browser makes, redirects and subresources included, must reach a public address. Compiles
+// are rate limited, within the daily model budget, and cached by fingerprint digest.
 
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import { isPrivateAddress } from '@usher/core/public-fetch';
 import type { Browser } from 'playwright';
 import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
 import type { MapRecord, Storage } from '../storage.ts';
 import { html, page, riskBadge, when, type Raw } from './html.ts';
+import type { PickerForm } from './picker.ts';
 
-export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited' | 'budget';
+export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited' | 'budget' | 'unknown_form' | 'not_your_site';
 
 export type ViewerResult =
   | { ok: true; map: UsherMap; cached: boolean; model: string; cost_usd: number | null; ms: number; flags?: RiskFlag[] }
@@ -23,6 +28,8 @@ export interface ViewerOptions {
   classifier?: { chat: ChatFn; model: string };
   /** Allow localhost and private networks (for local demos). */
   allowPrivate?: boolean;
+  /** The forms anyone can pick (picker.ts). */
+  forms?: PickerForm[];
   timeoutMs?: number;
 }
 
@@ -32,13 +39,20 @@ interface CachedLabels {
   created_at: string;
 }
 
-function isPrivate(address: string): boolean {
-  if (isIP(address) === 6) {
-    const a = address.toLowerCase();
-    return a === '::1' || a === '::' || a.startsWith('fc') || a.startsWith('fd') || a.startsWith('fe80') || a.startsWith('::ffff:127.') || a.startsWith('::ffff:10.') || a.startsWith('::ffff:192.168.');
-  }
-  const [a, b] = address.split('.').map(Number) as [number, number];
-  return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127);
+/** Whether a host name or address reaches only public internet addresses. */
+async function publicHost(host: string): Promise<boolean> {
+  const bare = host.replace(/^\[|\]$/g, '');
+  if (isIP(bare)) return !isPrivateAddress(bare);
+  if (/^localhost$|\.localhost$/i.test(bare)) return false;
+  const addresses = await lookup(bare, { all: true }).catch(() => []);
+  return addresses.length > 0 && addresses.every((a) => !isPrivateAddress(a.address));
+}
+
+interface PickedMap {
+  map: UsherMap;
+  model: string;
+  compiled_at: string;
+  flags?: RiskFlag[];
 }
 
 export class Viewer {
@@ -58,7 +72,45 @@ export class Viewer {
     if (this.browser) await (await this.browser).close();
   }
 
-  async compile(input: string, client: string): Promise<ViewerResult> {
+  get forms(): PickerForm[] {
+    return this.options.forms ?? [];
+  }
+
+  /** One of the picker's forms: from the cache when it has been mapped, else mapped now. */
+  async pick(id: string, client: string): Promise<ViewerResult> {
+    const form = this.forms.find((f) => f.id === id);
+    if (!form) return { ok: false, reason: 'unknown_form', message: 'Pick one of the forms listed.' };
+    const picked = await this.options.storage.getCached<PickedMap>('viewer-pick', id);
+    if (picked) return { ok: true, map: picked.map, cached: true, model: picked.model, cost_usd: 0, ms: 0, ...(picked.flags && { flags: picked.flags }) };
+    return this.mapPicked(form, client, true);
+  }
+
+  /**
+   * Maps every picker form again (the keeper calls this after its runs). A form whose structure
+   * hasn't changed reuses its labels, so it costs no model call; spend stays within the daily budget.
+   */
+  async refreshPicker(): Promise<{ id: string; ok: boolean; detail: string }[]> {
+    const results: { id: string; ok: boolean; detail: string }[] = [];
+    if (!this.options.chat || !this.options.model) return results;
+    for (const form of this.forms) {
+      const result = await this.mapPicked(form, 'keeper', false).catch((err: Error) => ({ ok: false, reason: 'unreachable', message: err.message }) as ViewerResult);
+      results.push({ id: form.id, ok: result.ok, detail: result.ok ? (result.cached ? 'unchanged' : `rebuilt by ${result.model}`) : result.message });
+      if (!result.ok && result.reason === 'budget') break;
+    }
+    return results;
+  }
+
+  private async mapPicked(form: PickerForm, client: string, limited: boolean): Promise<ViewerResult> {
+    const result = await this.run(new URL(form.url), client, limited);
+    if (result.ok) await this.options.storage.putCached('viewer-pick', form.id, { map: result.map, model: result.model, compiled_at: new Date().toISOString(), ...(result.flags && { flags: result.flags }) } satisfies PickedMap);
+    return result;
+  }
+
+  /**
+   * Any address: a signed-in owner's page on their own origin (`owner`), or, for local demos
+   * ('open' mode, never in production), anything.
+   */
+  async compile(input: string, client: string, options: { owner?: string } = {}): Promise<ViewerResult> {
     const fail = (reason: ViewerFailure, message: string): ViewerResult => ({ ok: false, reason, message });
     let url: URL;
     try {
@@ -67,15 +119,30 @@ export class Viewer {
     } catch {
       return fail('invalid_url', 'That is not a web address. Try something like https://example.com/contact.');
     }
+    if (options.owner && url.origin !== options.owner) return fail('not_your_site', `Only pages on your own site (${options.owner}) can be mapped here.`);
     if (!this.options.allowPrivate) {
       const addresses = await lookup(url.hostname, { all: true }).catch(() => []);
       if (!addresses.length) return fail('unreachable', `${url.hostname} could not be found.`);
-      if (addresses.some((a) => isPrivate(a.address))) return fail('private_address', 'The viewer only opens public websites.');
+      if (addresses.some((a) => isPrivateAddress(a.address))) return fail('private_address', 'The viewer only opens public websites.');
     }
-    if (!this.perClient.wouldAllow(client) || !this.overall.wouldAllow('all')) return fail('rate_limited', 'Too many maps compiled recently. Try again in a while.');
+    return this.run(url, client, true);
+  }
+
+  private async run(url: URL, client: string, limited: boolean): Promise<ViewerResult> {
+    const fail = (reason: ViewerFailure, message: string): ViewerResult => ({ ok: false, reason, message });
+    if (limited && (!this.perClient.wouldAllow(client) || !this.overall.wouldAllow('all'))) return fail('rate_limited', 'Too many maps compiled recently. Try again in a while.');
 
     const started = performance.now();
     const context = await (await this.getBrowser()).newContext({ viewport: VIEWPORT });
+    // Every request the page makes (redirects, scripts, frames) must reach a public address.
+    if (!this.options.allowPrivate) {
+      const verdicts = new Map<string, Promise<boolean>>();
+      await context.route('**/*', async (route) => {
+        const host = new URL(route.request().url()).hostname;
+        if (!verdicts.has(host)) verdicts.set(host, publicHost(host));
+        return (await verdicts.get(host)) ? route.continue() : route.abort('blockedbyclient');
+      });
+    }
     try {
       const tab = await context.newPage();
       let response;
@@ -92,8 +159,10 @@ export class Viewer {
       }
       const scan: Scan = await tab.evaluate(scanScript());
       if (!scan.forms.some((f) => f.elements.some((e) => e.kind === 'field' && e.visible))) return fail('no_form', 'No form with visible fields was found on that page.');
-      this.perClient.allow(client);
-      this.overall.allow('all');
+      if (limited) {
+        this.perClient.allow(client);
+        this.overall.allow('all');
+      }
 
       // Same structure as before (any form a map could be for): reuse the labels, locate again on this page.
       for (const form of candidateForms(scan.forms)) {
@@ -121,18 +190,40 @@ export class Viewer {
   }
 }
 
-export function viewerPage(options: { url?: string; error?: { reason: string; message: string } } = {}): string {
+/** The picker's forms, one button each: a visitor chooses by id and never sends an address. */
+export function pickerButtons(forms: PickerForm[], from?: string): Raw {
+  return html`<form class="picker" method="post" action="/viewer">${from ? html`<input type="hidden" name="from" value="${from}">` : ''}
+${forms.map((f) => html`<button type="submit" name="form" value="${f.id}"><b>${f.name}</b><span>${f.about}</span></button>`)}
+</form>`;
+}
+
+export function viewerPage(options: { forms: PickerForm[]; owner?: string; open?: boolean; url?: string; error?: { reason: string; message: string } }): string {
   return page(
     'Map viewer',
-    html`<h1>Map viewer</h1>
-<p class="lede">Paste the address of a page with a form. Usher reads its structure, never anything typed, and Muse Spark labels what each field means and how risky it is to act on. Nothing is submitted.</p>
+    html`<style>${PICKER_STYLE}</style><h1>Map viewer</h1>
+<p class="lede">Pick a form. Usher reads its structure, never anything typed, and Muse Spark labels what each field means and how risky it is to act on. Nothing is submitted.</p>
+${options.error ? html`<div class="card error"><b>No map.</b> ${options.error.message}</div>` : ''}
+${pickerButtons(options.forms)}
+${
+  options.owner || options.open
+    ? html`<h2>${options.owner ? 'A page on your site' : 'Any page (local demo)'}</h2>
 <form class="inline card" method="post" action="/viewer">
-  <input type="url" name="url" required placeholder="https://example.com/contact" value="${options.url ?? ''}" aria-label="Page address">
+  <input type="url" name="url" required placeholder="${options.owner ? `${options.owner}/contact` : 'https://example.com/contact'}" value="${options.url ?? ''}" aria-label="Page address">
   <button type="submit">Build the map</button>
-</form>
-${options.error ? html`<div class="card error"><b>No map.</b> ${options.error.message} <span class="muted small">(${options.error.reason})</span></div>` : ''}`,
+</form>`
+    : html`<p class="small muted">Run a site? <a href="/dashboard">Sign in</a> to map any page on it.</p>`
+}`,
   );
 }
+
+export const PICKER_STYLE = `
+form.picker { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin:0 0 14px; }
+form.picker button { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; background:var(--card); color:var(--ink); border:1px solid var(--line); padding:14px 16px; font-weight:400; align-self:stretch; }
+form.picker button b { font-family:var(--serif); font-size:18px; font-weight:700; }
+form.picker button span { font-size:13.5px; color:var(--muted); line-height:1.35; }
+form.picker button:hover { border-color:var(--accent); background:var(--card); color:var(--ink); }
+form.picker button:hover b { color:var(--accent); }
+`;
 
 function condition(c: UsherMap['fields'][number]['shown_if']): Raw | string {
   if (!c) return '';

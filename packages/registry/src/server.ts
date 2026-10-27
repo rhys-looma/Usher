@@ -22,8 +22,8 @@
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
-//   USHER_VIEWER=1                  turn on the public map viewer (local only: refused in production
-//                                   until its browser can't be steered to private addresses)
+//   USHER_VIEWER=open               let the map viewer open any address (local demos only; refused in
+//                                   production, where visitors pick from a fixed list of public forms)
 //   NODE_ENV=production             refuses to start without the settings a public deployment needs
 //                                   (see production.ts), and never registers or dev-claims a seeded site
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
@@ -37,6 +37,7 @@ import { startRegistry } from './http.ts';
 import { PostgresStorage } from './postgres.ts';
 import { isProduction, productionProblems, proxyHops } from './production.ts';
 import { seed } from './seed.ts';
+import { pickerForms } from './web/picker.ts';
 import { FileStorage, type Storage } from './storage.ts';
 
 loadDotEnv();
@@ -107,8 +108,10 @@ const running = await startRegistry({
     allowPrivate: values['allow-private'],
     ...(env.USHER_ADMIN_KEY && { adminKey: env.USHER_ADMIN_KEY }),
     ...(env.USHER_CONTACT_EMAIL && { contact: env.USHER_CONTACT_EMAIL }),
-    // The public map viewer: off unless USHER_VIEWER=1 (never in production, for now).
-    viewer: env.USHER_VIEWER === '1',
+    // The map viewer: a fixed list of public forms (and owners' own pages); any address only for
+    // local demos (USHER_VIEWER=open, refused in production).
+    viewer: env.USHER_VIEWER === 'open' || env.USHER_VIEWER === '1' ? 'open' : 'picker',
+    forms: pickerForms(env.USHER_SEED_ORIGIN),
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(open && { classifier: open }),
   },

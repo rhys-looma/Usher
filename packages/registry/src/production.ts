@@ -21,7 +21,7 @@ export function productionProblems(env: Env): string[] {
   need('USHER_ADMIN_KEY', 'it signs in to /admin');
   if (env.USHER_ADMIN_KEY?.trim() && env.USHER_ADMIN_KEY.length < 32) problems.push('USHER_ADMIN_KEY must be at least 32 characters.');
   need('USHER_CONTACT_EMAIL', 'the privacy notice and security.txt name it');
-  if (env.USHER_VIEWER === '1') problems.push('USHER_VIEWER=1: the map viewer stays off in production for now; its browser can follow redirects and page requests to private addresses.');
+  if (env.USHER_VIEWER === 'open' || env.USHER_VIEWER === '1') problems.push(`USHER_VIEWER=${env.USHER_VIEWER}: an open map viewer is for local demos only; in production visitors pick from a fixed list and owners map their own sites.`);
   if (env.USHER_ALLOW_PRIVATE === '1') problems.push('USHER_ALLOW_PRIVATE=1 is for local demos only: in production the viewer and claim checks must refuse private addresses.');
   for (const name of ['USHER_DEV_SITE_ORIGIN', 'USHER_DEV_SITE_KEY', 'USHER_DEV_SECRET_KEY', 'USHER_DEMO']) {
     if (env[name]) problems.push(`${name} is for local development only; unset it in production.`);

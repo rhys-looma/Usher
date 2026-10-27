@@ -9,7 +9,7 @@ viewer ─▶ CloudFront ─▶ ALB ─┬─ Host $REGISTRY_HOST ─▶ ECS ser
 
 | Host | Service | What |
 | --- | --- | --- |
-| `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`. The map viewer is off; see Configuration. |
+| `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`. The map viewer offers a fixed list of public forms; see Configuration. |
 | `$SITE_HOST` (the `brightwater` subdomain) | mock site | Brightwater Motor, the fictional quote form for demos |
 
 You create the AWS resources by hand, except the two ECR repositories: Terraform in `deploy/terraform/ecr` creates those and builds and pushes the images. This repository also provides the ECS task definitions and the scripts that migrate, deploy and back up. Throughout this file, `$REGISTRY_HOST` and `$SITE_HOST` stand for your two host names.
@@ -185,7 +185,7 @@ One distribution, both hosts.
 
 **Origin:** the ALB's DNS name.
 - Protocol: **HTTPS only**. With the Host header forwarded, CloudFront checks the ALB's certificate against `$REGISTRY_HOST` or `$SITE_HOST`, which the eu-west-2 certificate covers.
-- **Origin response timeout: 60 s.** A map viewer compile can take 20–40 s, if the viewer is ever turned on.
+- **Origin response timeout: 60 s.** A map viewer compile can take 20–40 s when a picked form isn't cached yet.
 - Keep-alive timeout: 5 s.
 
 **Behaviours**
@@ -229,7 +229,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 - [ ] `https://$REGISTRY_HOST/.well-known/usher-keys.json` lists one key whose `kid` matches your signing key. `https://$SITE_HOST/.well-known/usher-site.json` holds the demo site's key, not Usher's.
 - [ ] `/privacy`, `/robots.txt` and `/.well-known/security.txt` load and name your contact.
 - [ ] **Knock from an MCP client:** add the README's MCP entry with `USHER_REGISTRY_URL=https://$REGISTRY_HOST`, then call `knock` with `{"url":"https://$SITE_HOST/quote/driver"}`. You get a token and a map.
-- [ ] **Viewer off:** the front page has no "Try it" box, and `https://$REGISTRY_HOST/viewer` says the map viewer is switched off.
+- [ ] **Try it:** the front page offers ten forms to pick, and no address box. Picking one shows its map (from the cache after the first refresh). A POST with `url=` and no dashboard sign-in is refused. Signed in, an address on your own origin maps, and another site's is refused.
 - [ ] **Dashboard sign-in:** sign in at `/dashboard` with `https://$SITE_HOST` and its secret key. The sign-in cookie is `Secure`.
 - [ ] **Agent run against the demo site:** this uses recorded model responses (add `--live` for the models) and switches the demo to layout B and back.
 
@@ -269,7 +269,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 | `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
 | `USHER_ACCEPT_MAPS` | off | `1` stores maps agents submit and shares them with other agents. Off: agents use the maps the registry built or seeded, or their own. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
-| `USHER_VIEWER` | refused | `1` turns on the public map viewer (`/viewer` and the front page's "Try it"). It is local only for now: its browser follows redirects, and the page's own requests can reach private addresses behind the address check. |
+| `USHER_VIEWER` | refused as `open` | Unset: visitors pick from a fixed list of public forms, and signed-in owners map pages on their own origin. `open` lets anyone map any address: local demos only. |
 | `USHER_ALLOW_PRIVATE` | refused | `1` lets the viewer and claim checks reach private addresses: local demos only. |
 | `PORT`, `HOST` | 4200, 0.0.0.0 | Where it listens. |
 
@@ -289,7 +289,7 @@ Everything an outsider could steer, closed for launch, to reopen one at a time:
 
 | What | State | Why it is closed | To reopen |
 | --- | --- | --- | --- |
-| Map viewer (`/viewer`, "Try it") | Off; production refuses `USHER_VIEWER=1` | It opens any URL in a browser, and a redirect or the page's own requests reached a private address in a test | Check every browser request on the address it connects to (an egress proxy), run it as its own task without secrets, then allow `USHER_VIEWER` |
+| Map viewer (`/viewer`, "Try it") | A fixed list of ten public forms; owners map their own origin; `open` refused | An open address box let anyone probe other sites from our servers, and a redirect or the page's own requests reached a private address in a test | Done: see docs/security.md, "The map viewer". Every browser request is now checked against the address it resolves to |
 | Keeper | Only `USHER_KEEPER_ORIGINS` (the demo site) | Same browser, and it visits any registered site, claimed or not | The same egress proxy; then claimed sites only |
 | Agents' shared maps (`POST /maps`) | Refused (403 `maps_closed`) | An agent's keys and locators are its word, so a hostile agent could mislabel a form for every other agent | Serve a submitted map only once a second agent or the keeper agrees with it, then set `USHER_ACCEPT_MAPS=1` |
 
@@ -310,7 +310,7 @@ A CloudFront or WAF rate-based rule (for example, 2,000 requests per 5 minutes p
   - Memory for these limits is bounded, and addresses are never stored.
 - **A hard daily cap** on model spend.
 - **Body limits:** JSON bodies up to 256 KB; form bodies up to 20 KB.
-- **No private addresses:** claim checks refuse private and loopback addresses. The map viewer is off in production (see `USHER_VIEWER`).
+- **No private addresses:** claim checks refuse private and loopback addresses, and every request the map viewer's browser makes is checked against the address it resolves to.
 - **CORS** only on the endpoints the site script calls.
 - **Headers:**
   - HTML pages send a strict Content Security Policy and `X-Frame-Options: DENY`.
