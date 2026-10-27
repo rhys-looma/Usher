@@ -13,6 +13,11 @@ export AWS_REGION="${AWS_REGION:-eu-west-2}"
 PREFIX="${SECRET_PREFIX:-usher}"
 FORCE="${1:-}"
 
+# The signing key comes from npm run keygen: check for Node before asking for anything.
+for tool in aws npm openssl; do
+  command -v "$tool" >/dev/null || { echo "$tool is not on PATH. For npm, put Node 20's bin directory on PATH first (export PATH=\"<node 20>/bin:\$PATH\")." >&2; exit 2; }
+done
+
 has_value() { aws secretsmanager get-secret-value --secret-id "$PREFIX/$1" --query VersionId --output text >/dev/null 2>&1; }
 put() { aws secretsmanager put-secret-value --secret-id "$PREFIX/$1" --secret-string file:///dev/stdin >/dev/null && echo "$1 stored"; }
 skip() { [ "$FORCE" != "--force" ] && has_value "$1" && echo "$1 already set (--force to replace)"; }
@@ -26,7 +31,11 @@ for name in MODEL_API_KEY BASETEN_API_KEY; do
 done
 
 # The token signing key, generated here and sent straight to Secrets Manager.
-skip USHER_SIGNING_KEY || npm run --silent keygen | tr -d '\n' | put USHER_SIGNING_KEY
+if ! skip USHER_SIGNING_KEY; then
+  key="$(npm run --silent keygen)" || { echo "npm run keygen failed." >&2; exit 1; }
+  printf '%s' "$key" | put USHER_SIGNING_KEY
+  unset key
+fi
 
 # The admin key: /admin and the demo site's layout switch. Shown once.
 if ! skip USHER_ADMIN_KEY; then
