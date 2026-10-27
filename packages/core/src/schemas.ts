@@ -1,13 +1,11 @@
 // JSON Schema validation of maps and knock documents against the specs (Node only).
 
-import { readFile } from 'node:fs/promises';
 import { Ajv2020 } from 'ajv/dist/2020.js';
-
-const spec = new URL('../../../spec/', import.meta.url);
-const mapSchema = JSON.parse(await readFile(new URL('map.schema.json', spec), 'utf8'));
-const knockSchema = JSON.parse(await readFile(new URL('knock.schema.json', spec), 'utf8'));
-const policySchema = JSON.parse(await readFile(new URL('policy.schema.json', spec), 'utf8'));
-const planSchema = JSON.parse(await readFile(new URL('plan.schema.json', spec), 'utf8'));
+// Imported, not read from disk, so bundles (@usher-run/mcp) carry them.
+import mapSchema from '../../../spec/map.schema.json' with { type: 'json' };
+import knockSchema from '../../../spec/knock.schema.json' with { type: 'json' };
+import policySchema from '../../../spec/policy.schema.json' with { type: 'json' };
+import planSchema from '../../../spec/plan.schema.json' with { type: 'json' };
 
 // Ajv's strict lints that the spec schemas deliberately trip: if/then blocks requiring
 // properties declared on the parent, and union types (min/max are numbers or date strings).

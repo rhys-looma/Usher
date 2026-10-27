@@ -4,7 +4,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -27,6 +27,21 @@ before(async () => {
 after(async () => {
   await registry.close();
   await rm(dir, { recursive: true });
+});
+
+test('installed on its own, outside this repository, it starts: the bundle reads no files beside it', async () => {
+  // As npm lays it out: node_modules/@usher-run/mcp/dist/cli.js, with only its declared dependency.
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+  const home = join(dir, 'installed');
+  const at = join(home, 'node_modules', '@usher-run', 'mcp', 'dist');
+  await mkdir(at, { recursive: true });
+  await copyFile(cli, join(at, 'cli.js'));
+  await copyFile(fileURLToPath(new URL('../package.json', import.meta.url)), join(at, '..', 'package.json'));
+  for (const dep of ['playwright', 'playwright-core']) await symlink(fileURLToPath(import.meta.resolve(`${dep}/package.json`)).replace(/\/package\.json$/, ''), join(home, 'node_modules', dep));
+  const { stdout } = await run(process.execPath, [join(at, 'cli.js'), '--version'], { cwd: home });
+  assert.equal(stdout.trim(), pkg.version);
+  const checked = await run(process.execPath, [join(at, 'cli.js'), '--check'], { cwd: home, env: { ...process.env, USHER_REGISTRY_URL: registry.url, USHER_CHECK_URL: FORM, USHER_AGENT_KEY_FILE: join(home, 'key.json') } }).catch((e: { stdout?: string; stderr?: string }) => e);
+  assert.match(String(checked.stdout ?? ''), /OK/, String(checked.stderr ?? ''));
 });
 
 test('--version prints the package version, and nothing on stderr', async () => {
