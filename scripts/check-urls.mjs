@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 const PATTERN = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])(?![\w.-])|usher\.run/i;
 
 // Tests (and what only tests read: fixtures, recordings), the Compose file, and the untracked report.
-const ALLOWED = [/^REPORT\.md$/, /(^|\/)test\//, /\.test\.[cm]?[jt]s$/, /(^|\/)fixtures\//, /^docker-compose\.ya?ml$/, /^scripts\/check-urls\.mjs$/, /^package-lock\.json$/];
+// @usher-run/mcp is the published client for the public registry: its manifest and README name it.
+const ALLOWED = [/^packages\/mcp\/(package\.json|README\.md)$/, /^REPORT\.md$/, /(^|\/)test\//, /\.test\.[cm]?[jt]s$/, /(^|\/)fixtures\//, /^docker-compose\.ya?ml$/, /^scripts\/check-urls\.mjs$/, /^package-lock\.json$/];
 
 const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\n').filter(Boolean);
 const found = [];

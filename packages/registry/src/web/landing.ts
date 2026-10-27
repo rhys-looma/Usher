@@ -127,7 +127,7 @@ export interface LandingOptions {
 
 export function landingPage(o: LandingOptions): string {
   const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_your_site_key" defer></script>`;
-  const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['tsx', '/path/to/Usher/packages/registry/src/mcp.ts'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
+  const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['-y', '@usher-run/mcp'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
   const description = `${SENTENCE} ${SUBLINE}`;
   const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">

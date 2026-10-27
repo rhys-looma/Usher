@@ -3,7 +3,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { generateAgentIdentity, importAgentIdentity, type AgentIdentity, type PrivateJwk } from '@usher/core';
+import { generateAgentIdentity, importAgentIdentity, type AgentIdentity } from '@usher/core/identity';
+import type { PrivateJwk } from '@usher/core/token';
 
 export const DEFAULT_KEY_FILE = join(homedir(), '.usher', 'agent-key.json');
 

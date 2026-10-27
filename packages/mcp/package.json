@@ -1,0 +1,30 @@
+{
+  "name": "@usher-run/mcp",
+  "version": "0.1.0",
+  "description": "Usher for AI agents: an MCP server that knocks on web forms and gets their map, the site's rules and a short-lived pass.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": { "usher-mcp": "dist/cli.js" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "keywords": ["mcp", "model-context-protocol", "ai-agents", "web-forms", "usher", "web-bot-auth"],
+  "homepage": "https://usher.run",
+  "repository": { "type": "git", "url": "git+https://github.com/rhys-looma/Usher.git", "directory": "packages/mcp" },
+  "bugs": { "url": "https://github.com/rhys-looma/Usher/issues" },
+  "publishConfig": { "access": "public" },
+  "usher": {
+    "defaultRegistry": "https://usher.run",
+    "demoForm": "https://brightwater.usher.run/quote/driver"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build.mjs",
+    "prepublishOnly": "node ../../scripts/build.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@usher/core": "*",
+    "@usher/registry": "*"
+  }
+}

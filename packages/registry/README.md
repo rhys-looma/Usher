@@ -13,7 +13,7 @@ The registry. It holds maps per origin, answers knocks with a map, the site's ru
   - the site dashboard (sessions, rules in plain English, blocked attempts, drift), which shows a site only what's missing until it has claimed its origin;
   - `/spec/`, the specifications, with this registry's address in their examples, and `/admin` (with `USHER_ADMIN_KEY`), the interest list.
 - **Usher's own site:** the registry registers its own origin, serves its claim file at `/.well-known/usher-site.json`, and runs the server-side check on its interest form (`contact.interest`).
-- **MCP server** (`mcp.ts`), run where the agent runs, since it holds the agent's key. It offers the tools `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`.
+- **MCP server** (`mcp.ts`, published as [`@usher-run/mcp`](../mcp/)), run where the agent runs, since it holds the agent's key. It offers the tools `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`.
 - **The keeper** (`keeper.ts`): re-checks known forms, and rebuilds a map when a form really changed. Muse Spark Open triages the change; Muse Spark recompiles.
 - **Storage:** JSON files by default, or Postgres when `DATABASE_URL` is set, with migrations in `migrations/`.
 

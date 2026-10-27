@@ -1,5 +1,6 @@
 // MCP server for agents (LU-21): knock, get_map, submit_map and report_run as tools, signing
-// with the agent's own key and calling the registry over HTTP.
+// with the agent's own key and calling the registry over HTTP. Published as @usher-run/mcp
+// (packages/mcp); from a checkout:
 //
 //   USHER_REGISTRY_URL=https://registry.example tsx packages/registry/src/mcp.ts
 //
@@ -27,9 +28,9 @@ async function guarded(work: () => Promise<unknown>) {
   }
 }
 
-export async function createMcpServer(registryUrl: string, keyFile?: string): Promise<McpServer> {
+export async function createMcpServer(registryUrl: string, keyFile?: string, version = '0.1.0'): Promise<McpServer> {
   const client = new RegistryClient(registryUrl.replace(/\/$/, ''), await loadOrCreateIdentity(keyFile));
-  const server = new McpServer({ name: 'usher', version: '0.1.0' });
+  const server = new McpServer({ name: 'usher', version });
 
   server.registerTool(
     'knock',
@@ -107,7 +108,8 @@ export async function createMcpServer(registryUrl: string, keyFile?: string): Pr
   return server;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run directly from a checkout (not when bundled into @usher-run/mcp, which has its own entry).
+if (/[\\/]registry[\\/]src[\\/]mcp\.ts$/.test(process.argv[1] ?? '')) {
   const url = process.env.USHER_REGISTRY_URL;
   if (!url) {
     console.error('Set USHER_REGISTRY_URL to the registry URL.');
