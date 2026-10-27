@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T09:06:01.072Z",
+  "recorded_at": "2026-10-27T09:43:37.078Z",
   "layout": "b",
   "step": "vehicle",
   "attempts": [
     {
       "request_sha256": "9a722c838d9fbb8951ef73519926fc9cb22d0ca1d74d7c27b572a0c77682a0f9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering car registration is reversible data entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a lookup/search action with no commitment or external effect.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible vehicle data entry within the quote flow.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible vehicle data entry with no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible factual data entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible data entry, no legal or financial commitment.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is a reversible choice with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is reversible preference with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering about modifications is reversible factual input, not a formal declaration.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation within the form, reversible and no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Next only advances to the next step of the quote, does not request quote or commit.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Text entry of vehicle registration is reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Button triggers a lookup/search for car details, session-local and reversible.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible data entry within the quote flow.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible data entry with no outside commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible data entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible data entry for quoting.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting usage category is a reversible choice with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is a reversible choice within the form.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering Yes/No about modifications is reversible data entry.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Navigation link to go back, no data commitment or external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Proceeds to next step of multi-step quote, does not yet request quote or commit.\"}]}",
       "usage": {
         "prompt_tokens": 736,
-        "completion_tokens": 1949,
-        "total_tokens": 2685,
-        "cached_tokens": 640
+        "completion_tokens": 1447,
+        "total_tokens": 2183,
+        "cached_tokens": 256
       },
-      "latency_ms": 6117
+      "latency_ms": 4361
     }
   ]
 }

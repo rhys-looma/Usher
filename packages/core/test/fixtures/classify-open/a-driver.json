@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T09:05:32.863Z",
+  "recorded_at": "2026-10-27T09:43:17.594Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "4b1a8f7883a35c31e1f0cf25ef600ae6677785b830f34dd277b6cc6585b3db14",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail entry with no external or legal effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name is basic personal data for quote calculation, reversible with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name is basic personal data for quote calculation, reversible with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth is personal detail for risk assessment, entered reversibly, not a declaration or ID submission.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address is contact detail for the quote, reversible input with no marketing consent or financial commitment implied.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact detail with no external effect on its own.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode is address detail for rating, reversible with no legal or financial commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"First line of address is location data for quote, reversible with no independent commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection is a reversible risk-factor choice for quoting, no legal declaration.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status is a reversible categorical choice for underwriting, no commitment.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history yes/no is factual disclosure for quote, reversible input, not a formal declaration, consent or payment.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is supplementary factual detail for the quote, reversible with no independent legal effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim is reversible categorical detail about past claim, no commitment or declaration.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step in quote flow, reversible, does not finalize quote, purchase, or legal agreement.\"}]}",
+      "request_sha256": "a427541f9ba6afda8253de7fe1b1324d65ad4c2dc77d5e96ad42e8540c148605",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Selecting title is reversible personal detail entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Typing first name is reversible data entry within the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Typing last name is reversible data entry with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering date of birth is reversible personal data for quote calculation, no legal/financial effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering email address is reversible contact detail entry, no message or subscription yet.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible and has no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Entering postcode is reversible address detail for quoting.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Entering address line is reversible personal data entry.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation from list is reversible choice to inform quote.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Choosing employment status is reversible option selection.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history Yes/No is reversible factual input.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering date of claim is reversible detail entry.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting type of claim is reversible option choice.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step of multi-step quote flow, reversible with no quote request or commitment yet.\"}]}",
       "usage": {
         "prompt_tokens": 861,
-        "completion_tokens": 2702,
-        "total_tokens": 3563,
-        "cached_tokens": 768
+        "completion_tokens": 2303,
+        "total_tokens": 3164,
+        "cached_tokens": 256
       },
-      "latency_ms": 11488
+      "latency_ms": 7377
     }
   ]
 }

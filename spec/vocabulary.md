@@ -111,6 +111,7 @@ Each key has a default risk and sensitivity. A map may make a field **stricter**
 | `lookup.address` | Look up an address from a postcode | safe |
 | `lookup.vehicle` | Look up a vehicle from its registration | safe |
 | `form.save` | Save progress | safe |
+| `search.submit` | Run a search or filter results; commits nothing | safe |
 | `form.submit` | Submit the form (request a quote, send a message, make a booking) | consequential |
 | `form.purchase` | Buy, pay or commit to a contract | needs_user |
 | `account.create` | Create an account | needs_user |

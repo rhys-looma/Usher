@@ -57,3 +57,19 @@ test('pre-flight: required, options by value or label, format, pattern and range
   assert.match(result.problems.find((p) => p.key === 'policy.cover_level')!.expected!, /Comprehensive/);
   assert.ok(!result.problems.some((p) => p.key === 'person.occupation'), 'a truncated list cannot rule a value out here');
 });
+
+test('a site search: the query is free text and search.submit is a safe way forward', () => {
+  const search: UsherMap = {
+    ...maps.get('/quote/driver')!,
+    path: '/search',
+    fields: [{ ...maps.get('/quote/driver')!.fields[0]!, key: 'search.query', label: 'Search', control: 'text', required: true, risk: 'safe', constraints: { pattern: '[a-z]+', max_length: 20 } }],
+    actions: [{ ...maps.get('/quote/driver')!.actions[0]!, key: 'search.submit', label: 'Search', risk: 'safe' }],
+  };
+  delete search.fields[0]!.options;
+  assert.equal(preflight(search.fields, { 'search.query': 'Car Insurance 2026!' }).ok, true, 'no pattern check on a search box');
+  assert.deepEqual(preflight(search.fields, { 'search.query': 'x'.repeat(21) }).problems.map((p) => p.problem), ['too_long']);
+  assert.deepEqual(preflight(search.fields, {}).problems.map((p) => p.problem), ['missing']);
+  const plan = composePlan('/search', new Map([['/search', search]]))!;
+  assert.equal(plan.steps[0]!.advance?.key, 'search.submit');
+  assert.deepEqual(plan.consequential, [], 'nothing for the user to confirm');
+});

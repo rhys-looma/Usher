@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T08:56:55.982Z",
+  "recorded_at": "2026-10-27T09:41:38.224Z",
   "layout": "b",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "9422a96ea3e9d8831a5cba4a5b0e6b5cb3374ad4d99d9f1628861656c9993cc8",
+      "request_sha256": "84c791bbff30e983849fe2e4981cf92ab8b4019a09d5c40f922352538c3b963e",
       "content": "{\"form\":{\"purpose\":\"Motor insurance quote: cover options\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"policy.start_date\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"policy.cover_level\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"policy.voluntary_excess\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"policy.no_claims_years\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"policy.payment_frequency\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"consent.marketing\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e9\"}",
       "usage": {
-        "prompt_tokens": 4146,
-        "completion_tokens": 678,
-        "total_tokens": 4824,
+        "prompt_tokens": 4164,
+        "completion_tokens": 711,
+        "total_tokens": 4875,
         "cached_tokens": 2176
       },
-      "latency_ms": 7218
+      "latency_ms": 6273
     }
   ]
 }
