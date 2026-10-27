@@ -1,5 +1,6 @@
 // Recomputes accuracy from the marks in reports/accuracy-review.csv: fill key_correct and
-// risk_correct with y or n (blank = not reviewed), then `npm run accuracy:score`.
+// risk_correct with y or n (blank = not reviewed), then `npm run accuracy:score`. Public-form marks
+// are human-checked; mock-site marks are automatic, against the mock site's answer key.
 // Writes reports/accuracy-scored.md.
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -37,31 +38,33 @@ const tally = (subset: Record<string, string>[]): Tally => ({
 });
 const pct = ([a, b]: [number, number]) => (b ? `${Math.round((a / b) * 1000) / 10}% (${a}/${b})` : 'not reviewed');
 
-const forms = [...new Set(rows.map((r) => r.form))];
-const groups = [
-  ['All', rows],
-  ['Mock site', rows.filter((r) => r.category === 'mock site')],
-  ['Public forms', rows.filter((r) => r.category !== 'mock site')],
-] as const;
+// Two kinds of mark, never added together: the mock site's are automatic (whether a key matches the
+// mock site's answer key), the public forms' are human-checked.
+const SETS = [
+  { title: 'Public forms, human-checked', rows: rows.filter((r) => r.category !== 'mock site') },
+  { title: "Mock site, matches the mock site's answer key", rows: rows.filter((r) => r.category === 'mock site') },
+];
+const line = (name: string, subset: Record<string, string>[]) => {
+  const t = tally(subset);
+  return `| ${name} | ${pct(t.key)} | ${pct(t.risk)} | ${pct(t.locators)} |`;
+};
 const out = [
   '# Accuracy, from review marks',
   '',
-  `Scored ${new Date().toISOString().slice(0, 10)} from \`reports/accuracy-review.csv\`. Only elements marked y or n count.`,
+  `Scored ${new Date().toISOString().slice(0, 10)} from \`reports/accuracy-review.csv\`. Only elements marked y or n count. Public forms are human-checked: a person marked each key and risk right or wrong. The mock site is marked automatically by whether each key matches the mock site's answer key (\`packages/core/test/fixtures/expected-keys.json\`), with risk following from that key; that shows the compiler agrees with our own answer key on a form we built, not accuracy in general.`,
   '',
   '| Set | Keys correct | Risk correct | Locators resolve |',
   '| --- | --- | --- | --- |',
-  ...groups.map(([name, subset]) => {
-    const t = tally([...subset]);
-    return `| ${name} | ${pct(t.key)} | ${pct(t.risk)} | ${pct(t.locators)} |`;
-  }),
+  ...SETS.map((s) => line(s.title, s.rows)),
   '',
-  '| Form | Keys correct | Risk correct | Locators resolve |',
-  '| --- | --- | --- | --- |',
-  ...forms.map((f) => {
-    const t = tally(rows.filter((r) => r.form === f));
-    return `| ${f} | ${pct(t.key)} | ${pct(t.risk)} | ${pct(t.locators)} |`;
-  }),
-  '',
+  ...SETS.flatMap((s) => [
+    `## ${s.title}`,
+    '',
+    '| Form | Keys correct | Risk correct | Locators resolve |',
+    '| --- | --- | --- | --- |',
+    ...[...new Set(s.rows.map((r) => r.form))].map((f) => line(f!, s.rows.filter((r) => r.form === f))),
+    '',
+  ]),
 ];
 await writeFile(new URL('reports/accuracy-scored.md', root), out.join('\n'));
 console.log(out.join('\n'));
