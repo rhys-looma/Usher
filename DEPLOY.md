@@ -16,6 +16,50 @@ You create the AWS resources by hand, except the two ECR repositories: Terraform
 
 The MCP server is not hosted. It holds the agent's private key, so it runs where the agent runs (`npx`/`node` on the agent's machine, see the README), pointed at `https://$REGISTRY_HOST`.
 
+## The quick way: Terraform
+
+`deploy/terraform/ecr` and `deploy/terraform/usher` create everything new in eu-west-2 and change nothing that already exists. That covers:
+- Usher's own VPC: two public subnets for the tasks and the ALB, and two private subnets for the database. There's no NAT gateway.
+- The ALB, which accepts traffic only from CloudFront's origin-facing prefix list.
+- The ECS cluster and both services, built from the templates in `deploy/ecs`.
+- A small private Postgres: `db.t4g.micro`, single-AZ, 20 GB gp3, encrypted, 7 days of backups, reachable only from the registry's tasks.
+- The five secrets, both certificates (eu-west-2 and us-east-1), and the CloudFront distribution with the cache policy described in step 7 below.
+
+The database password never enters Terraform state: it is an ephemeral value passed only to write-only arguments. Terraform writes `DATABASE_URL`, and you fill the other four secrets.
+
+```sh
+# 1. Images (once per commit)
+cd deploy/terraform/ecr && terraform init && terraform apply -var git_sha=$(git rev-parse --short=12 HEAD)
+
+# 2. Phase 1: network, database, cluster, roles, secrets, certificate requests
+cd ../usher && cp terraform.tfvars.example terraform.tfvars   # hosts, contact email, image_tag
+terraform init && terraform apply
+terraform output certificate_validation_records               # add these CNAMEs to DNS (DNS only)
+../../../scripts/put-secrets.sh                               # model keys (asked), signing and admin keys (generated)
+
+# 3. Phase 2, once both certificates show as issued: ALB listener, services, CloudFront
+terraform apply -var certificates_issued=true                 # or set it in terraform.tfvars
+terraform output dns_records                                  # point both hosts at CloudFront (DNS only)
+terraform output -raw config_env > ../../ecs/config.env       # for scripts/ecs-deploy.sh and friends
+```
+
+Then:
+- **Register the demo site** as in step 9. Set `MOCK_SITE_KEY` in `deploy/ecs/config.env` (and `mock_site_key` in `terraform.tfvars`), then run `scripts/ecs-deploy.sh "" mock-site`.
+- **Later deploys:** push with the ECR stack, then run `scripts/ecs-deploy.sh <sha>`.
+- **Smoke test:** step 10 applies as written.
+- **State is local and gitignored.** It holds no secret values.
+
+| Item | ≈ $/month |
+| --- | --- |
+| Registry on Fargate (1 vCPU, 2 GB) + demo site (0.25 vCPU, 0.5 GB) | 52 |
+| RDS `db.t4g.micro`, 20 GB gp3 | 16 |
+| ALB (base charge plus light use) | 20 |
+| Public IPv4: 2 tasks plus the ALB's 2 | 15 |
+| Secrets, logs, ECR, CloudFront at low traffic | 5 |
+| **Total** | **≈ 108** |
+
+These are rough on-demand London figures, before model spend. Without Terraform, the steps below build the same thing by hand.
+
 ## 0. Before you start
 
 - **Tools:** AWS CLI v2, Terraform 1.6 or later (`brew install terraform`), Docker with buildx (images are built for `linux/amd64`; Apple silicon emulates), Node 20 and `npm install` at the repository root, and `jq`. For backups, also the Session Manager plugin (`brew install --cask session-manager-plugin`).
