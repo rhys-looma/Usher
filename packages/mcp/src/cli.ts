@@ -52,6 +52,7 @@ if (arg === '--version' || arg === '-v') {
   pass       ${reply.token ? `a token, valid until ${reply.expires_at}` : 'none'}
   map        ${map ? `${map.fields?.length ?? 0} fields, ${map.actions?.length ?? 0} actions (${map.fingerprint?.digest?.slice(0, 19)}…)` : 'none yet'}
   rules      ${reply.rules ? 'yes' : 'none'}
+  session    ${reply.session}${form === USHER_DEMO_FORM ? `\n  see it     ${registry}/demo/dashboard (the demo site's live dashboard)` : ''}
 OK`);
   } catch (err) {
     console.error(`Knock on ${form} via ${registry} failed: ${err instanceof Error ? err.message : String(err)}`);

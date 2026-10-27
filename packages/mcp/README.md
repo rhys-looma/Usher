@@ -13,6 +13,8 @@ No signup. Your agent's key is its identity: it is made on first run and kept on
 npx @usher-run/mcp --check     # knocks on the Brightwater demo form and prints what came back
 ```
 
+`--check` prints your knock's session id and a link to the demo site's live dashboard, [usher.run/demo/dashboard](https://usher.run/demo/dashboard): the site's view of your agent, read-only and open to anyone. Run `usher_fill` on the demo quote and your agent's session appears there within seconds, every step by meaning and never the values.
+
 ## Add it to your agent
 
 ### Claude Desktop
