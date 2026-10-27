@@ -42,7 +42,7 @@ Drift reports need the site's key and are limited to 60 a minute per site. The r
 
 - **Rate limits** on every registry endpoint, per address and per key, plus the site's own limits per agent (for example, five quotes an hour).
 - **A daily cap on model spend.**
-- **The map viewer** refuses private and local addresses.
+- **The map viewer** is off unless `USHER_VIEWER=1`, and production refuses that setting. It checks only the address it is given, but its browser follows redirects, and the page's own requests can reach private addresses behind that check. It stays off until its browser's every request is checked.
 - **Security headers:** a strict Content-Security-Policy on every page, and CORS open only on the few endpoints the site script calls.
 - **The registry's signing key** can be rotated, with old public keys kept published until their tokens expire.
 
