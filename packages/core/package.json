@@ -19,6 +19,7 @@
     "./policy": "./src/policy.ts",
     "./vocabulary": "./src/vocabulary.ts",
     "./page-errors": "./src/page-errors.ts",
+    "./publish": "./src/publish.ts",
     "./public-fetch": "./src/public-fetch.ts"
   },
   "scripts": {

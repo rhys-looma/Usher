@@ -25,3 +25,4 @@ export * from './plan.ts';
 export * from './preflight.ts';
 export * from './page-errors.ts';
 export * from './public-fetch.ts';
+export * from './publish.ts';
