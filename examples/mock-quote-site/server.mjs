@@ -136,6 +136,28 @@ ${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY
 </html>`;
 }
 
+function renderHelp() {
+  return page(
+    'Help and contact',
+    `<h1>Help and contact</h1>
+<search><form action="/search" method="get" class="site-search"><label for="q">Search help</label><input id="q" name="q" type="search"><button>Search</button></form></search>
+<section><h2>Request a callback</h2>
+<form action="/help/callback" method="post" id="callback">
+<div class="field"><label for="cb-name">Your name</label><input id="cb-name" name="name" required autocomplete="name"></div>
+<div class="field"><label for="cb-phone">Phone number</label><input id="cb-phone" name="phone" type="tel" required autocomplete="tel"></div>
+<div class="field"><label for="cb-time">Best time to call</label><select id="cb-time" name="time"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></div>
+<button type="submit">Request a callback</button></form></section>
+<section><h2>Send us a message</h2>
+<form action="/help/message" method="post" id="message">
+<div class="field"><label for="m-name">Your name</label><input id="m-name" name="name" required autocomplete="name"></div>
+<div class="field"><label for="m-email">Email address</label><input id="m-email" name="email" type="email" required autocomplete="email"></div>
+<div class="field"><label for="m-policy">Policy number (if you have one)</label><input id="m-policy" name="policy"></div>
+<div class="field"><label for="m-body">Your message</label><textarea id="m-body" name="message" required></textarea></div>
+<button type="submit">Send message</button></form></section>
+<aside><h2>Newsletter</h2><form action="/help/newsletter" method="post" id="newsletter"><label for="n-email">Email address</label><input id="n-email" name="email" type="email"><button>Subscribe</button></form></aside>`,
+  );
+}
+
 function renderStep(key, values = {}, errors = []) {
   const step = steps[key];
   const order = Object.keys(steps);
@@ -394,6 +416,11 @@ const server = createServer(async (req, res) => {
     if (REGISTRY && req.method === 'GET' && url.pathname === '/.well-known/usher.json') {
       return json(res, { usher: '0.1', registry: REGISTRY, knock_url: `${REGISTRY}/knock`, keys_url: `${REGISTRY}/.well-known/usher-keys.json` });
     }
+
+    // A help page with several forms, for choosing the form by intent: a site search, a newsletter
+    // box, a callback request and a message. Nothing on it is processed.
+    if (req.method === 'GET' && url.pathname === '/help') return html(res, renderHelp());
+    if (req.method === 'POST' && section === 'help') return html(res, page('Thank you', '<h1>Thank you</h1><p>This is a demo; nothing was sent.</p>'));
 
     if (section === '__admin') {
       if (req.method === 'GET' && !key) return html(res, renderAdmin());

@@ -12,6 +12,7 @@
     "./http-signatures": "./src/http-signatures.ts",
     "./encoding": "./src/encoding.ts",
     "./extract": "./src/extract.ts",
+    "./forms": "./src/forms.ts",
     "./locators": "./src/locators.ts",
     "./fingerprint": "./src/fingerprint.ts",
     "./schemas": "./src/schemas.ts",

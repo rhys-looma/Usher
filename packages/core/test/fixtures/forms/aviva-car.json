@@ -1,0 +1,218 @@
+{
+  "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
+  "intent": "quote.car_insurance",
+  "recorded_at": "2026-10-27T10:13:16.640Z",
+  "forms": [
+    {
+      "index": 0,
+      "pseudo": false,
+      "banner": false,
+      "search": false,
+      "newsletter": false,
+      "domId": "car-reg-form",
+      "actionPath": "/quote/direct/motor",
+      "elements": [
+        {
+          "kind": "field",
+          "control": "text",
+          "label": "Car registration",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "link",
+          "label": "Don't know the registration?",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "submit",
+          "label": "Get a new quote",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "link",
+          "label": "Continue your saved quote",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "pseudo": false,
+      "banner": false,
+      "search": true,
+      "newsletter": false,
+      "domId": "search",
+      "actionPath": "/search/",
+      "elements": [
+        {
+          "kind": "field",
+          "control": "text",
+          "label": "Type your question here...",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "submit",
+          "label": "Search",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "pseudo": true,
+      "banner": true,
+      "search": false,
+      "newsletter": false,
+      "elements": [
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Back to start of main content",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Open chatbot window",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Manage cookie settings, Opens the preference center dialog",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Essential cookies only",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Accept all cookies",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Close Cookie preference centre",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Accept all Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Strictly Necessary Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Functional Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Performance Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Marketing Cookies",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Save settings",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Back",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Close Cookie preference centre",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "text",
+          "label": "Vendor Search",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Filter Icon",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Clear Filters",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Information storage and access",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Apply",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Select All Vendors",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Select All Vendors",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "All Consent Allowed",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Save settings",
+          "visible": false
+        }
+      ]
+    }
+  ],
+  "candidates": [
+    0
+  ],
+  "chosen": 0,
+  "note": "one candidate",
+  "attempts": []
+}

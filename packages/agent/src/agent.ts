@@ -18,7 +18,8 @@ import {
   compilePage,
   contentDigest,
   signHttpMessage,
-  pickForm,
+  candidateForms,
+  mainForm,
   costUsd,
   type ActionRule,
   fingerprint,
@@ -226,9 +227,6 @@ async function fillField(page: Page, field: MapField, value: string | boolean): 
   }
 }
 
-function mainForm(scan: Scan) {
-  return pickForm(scan);
-}
 
 export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const started = performance.now();
@@ -311,10 +309,10 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       if (knockUrl) await page.evaluate(() => window.usher?.ready);
 
       const scan: Scan = await page.evaluate(scanScript());
-      const form = scan.forms.length ? mainForm(scan) : undefined;
-      // No form with fields: the journey is over.
-      if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) break;
-      const fp = await fingerprint(form.elements);
+      // The likeliest form for this intent; no form with fields means the journey is over.
+      const form = mainForm(scan.forms, options.intent);
+      if (!form) break;
+      let fp = await fingerprint(form.elements);
       const path = new URL(page.url()).pathname;
       emit({ type: 'page', path });
 
@@ -328,6 +326,19 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       } else if (!options.noUsher) {
         const lookup = await options.registry.lookup(page.url(), fp).catch(() => null);
         if (lookup?.match.kind === 'exact') found = lookup.map;
+      }
+      // The map may be for another form on the page (one a model chose by intent): look the other
+      // candidates up by fingerprint before reading the page with a model.
+      if (!found && !options.noUsher) {
+        for (const other of candidateForms(scan.forms, options.intent).filter((f) => f !== form)) {
+          const otherFp = await fingerprint(other.elements);
+          const lookup = await options.registry.lookup(page.url(), otherFp).catch(() => null);
+          if (lookup?.match.kind === 'exact') {
+            found = lookup.map;
+            fp = otherFp;
+            break;
+          }
+        }
       }
       const knockMs = ms(t);
       if (!options.noUsher) emit({ type: 'knock', path, match: knock ? knock.match.kind : found ? 'lookup' : 'none' });
@@ -344,7 +355,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         }
         t = performance.now();
         emit({ type: 'model', path, done: false, usage, cost_usd: cost });
-        const compiled = await compilePage(page, { chat: options.fallback.chat, model: options.fallback.model, logDir: options.fallback.logDir ?? null });
+        const compiled = await compilePage(page, { chat: options.fallback.chat, model: options.fallback.model, logDir: options.fallback.logDir ?? null, intent: options.intent ?? null });
+        fp = compiled.map.fingerprint;
         modelMs = ms(t);
         map = { ...compiled.map, provenance: { ...compiled.map.provenance, source: 'agent' } };
         // The token names the intent this agent knocked with; the model's own name for the form

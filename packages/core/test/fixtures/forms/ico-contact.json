@@ -1,0 +1,97 @@
+{
+  "url": "https://ico.org.uk/global/contact-us/",
+  "intent": "contact.message",
+  "recorded_at": "2026-10-27T10:12:59.319Z",
+  "forms": [
+    {
+      "index": 0,
+      "pseudo": false,
+      "banner": false,
+      "search": true,
+      "newsletter": false,
+      "domId": "search-form",
+      "actionPath": "/s/search.html",
+      "elements": [
+        {
+          "kind": "field",
+          "control": "text",
+          "label": "Search",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "submit",
+          "label": "Search",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "pseudo": true,
+      "banner": true,
+      "search": false,
+      "newsletter": false,
+      "elements": [
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Accept non-essential cookies",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Reject non-essential cookies",
+          "visible": true
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "analytics On Off",
+          "visible": true
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "videoPlayer On Off",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Save and close",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cookie options",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Search",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Menu",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Print this page",
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "candidates": [],
+  "chosen": null,
+  "note": "No form to map on https://ico.org.uk/global/contact-us/ for contact.message: the page has only a site search, a cookie or consent widget.",
+  "attempts": []
+}

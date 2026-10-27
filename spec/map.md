@@ -12,6 +12,16 @@ A **plan** (separate spec, to follow) is a journey through several maps, joined 
 4. **Risk is explicit.** Every field and action says whether an agent may act on it freely, whether it is consequential, or whether a human must do it.
 5. **Fail safe.** If a map doesn't match the page, the agent reads the page as it would have anyway.
 
+## Which form a map is for
+
+A page may hold several forms. A map is for the one a person with the agent's intent came to fill in:
+
+- **Never a cookie or consent widget, a site search or a newsletter box**, unless the intent asks for one (`search.query`, say). Code marks these when it extracts the page: a consent container or cookie-labelled fields; `role="search"`, a `<search>` element, or a small form that says search; a form of up to three fields with an email address that says newsletter or subscribe. With no intent at all, a search or newsletter box is still mapped when it is all the page has; a consent widget never is.
+- **Between the forms that remain**, the compiler sends a model one line per form, written by code (a guess at its purpose from its fields' likely keys, its fields and buttons), with the intent, and the model names one. The model never sees the markup.
+- **Everyone else finds it by fingerprint.** The page's script, agents and the keeper fingerprint each remaining form and use the one whose fingerprint has a map, so they need no model to agree with the compiler.
+
+When nothing remains, there is no map: the page has no form for that intent.
+
 ## Document shape
 
 ```json

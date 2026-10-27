@@ -45,6 +45,8 @@ const form: ScannedForm = {
   index: 0,
   pseudo: false,
   banner: false,
+  search: false,
+  newsletter: false,
   groups: [
     { id: 'g1', label: 'Account' },
     { id: 'g2', label: 'Unused' },

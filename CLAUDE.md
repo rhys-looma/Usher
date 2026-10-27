@@ -41,6 +41,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 - `src/locators.ts`: `locatorKit()`, also in-page and self-contained. Builds locators (id, name, label, role, placeholder, css) and keeps only those resolving to exactly one element.
 - `src/fingerprint.ts`: `usher-fp-1` signature and digest via WebCrypto, plus Jaccard `similarity`.
 - `src/inpage.ts`: builds the scripts passed to `page.evaluate`.
+- `src/forms.ts`: which forms a map could be for (never cookie widgets, site searches or newsletter boxes unless the intent asks), shared with the site script. `src/compile/choose.ts`: the model picks between the rest by intent.
 - `src/vocabulary.ts`: vocabulary as data. `spec/vocabulary.md` is the source; `npm run vocabulary` regenerates `spec/vocabulary.json` and a test keeps them in sync.
 - `src/labels.ts`: the `Labels` a labeller returns (meaning only) and `validateLabels()`, which returns structured errors to feed back to a model, clamps risk to key defaults and drops hidden unconditioned fields (honeypots).
 - `src/map.ts`: `mergeMap()` joins extraction, locators, fingerprint and validated labels into a schema-valid map.
