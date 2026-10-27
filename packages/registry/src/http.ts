@@ -31,6 +31,12 @@ export interface HttpOptions {
   hsts?: boolean;
   /** Per-client-address limits per minute, by route group. */
   limits?: Partial<Record<'knock' | 'drift' | 'events' | 'read' | 'write', number>>;
+  /**
+   * Per-client-address limits per hour on what a person does a few times at most: registering a
+   * site and checking its claim (each check fetches from the internet), the interest form, and
+   * signing in.
+   */
+  hourly?: Partial<Record<'signup' | 'interest' | 'login', number>>;
   /** The demo stage at /demo: served only when USHER_DEMO=1, and only to this machine. */
   demo?: DemoHandler;
 }
@@ -88,6 +94,10 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
   // Site script events come in bursts while an agent fills a form, so they have their own allowance.
   const limits = { knock: 120, drift: 60, events: 1200, read: 600, write: 300, ...options.limits };
   const limiters = Object.fromEntries(Object.entries(limits).map(([k, max]) => [k, new RateLimiter(max, 60_000)])) as Record<keyof typeof limits, RateLimiter>;
+  const hourly = { signup: 20, interest: 5, login: 30, ...options.hourly };
+  const hourlyLimiters = Object.fromEntries(Object.entries(hourly).map(([k, max]) => [k, new RateLimiter(max, 3_600_000)])) as Record<keyof typeof hourly, RateLimiter>;
+  const hourlyGroup = (route: string): keyof typeof hourly | null =>
+    /^POST \/(sites|sites\/new|sites\/new\/claim|sites\/lost|sites\/[^/]+\/verify|dashboard\/verify)$/.test(route) ? 'signup' : route === 'POST /interest' ? 'interest' : /^POST \/(dashboard|admin)\/login$/.test(route) ? 'login' : null;
   const started = Date.now();
   let script: Promise<SiteScript | null> | undefined;
   // Reloaded when the build changes (a deploy), so the versioned path always matches the file.
@@ -123,6 +133,8 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       const client = clientAddress(req, options.proxyHops);
       const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : /^POST \/sessions\/[^/]+\/events$/.test(route) ? 'events' : req.method === 'GET' ? 'read' : 'write';
       if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });
+      const slow = hourlyGroup(route);
+      if (slow && !hourlyLimiters[slow].allow(`${slow}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many tries from this address. Try again in an hour.' } }, { 'Retry-After': '3600' });
 
       if (route === 'GET /healthz') {
         const health = await registry.health();
@@ -219,6 +231,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
   url?: string;
   threshold?: number;
+  /** Store and share maps agents submit (default true; production turns it off). */
+  acceptMaps?: boolean;
   /** Fetching agents' key directories: allow http:// and private hosts (local development). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
   /** Checking domain claims: allow private origins (local development), and test doubles. */
@@ -252,6 +266,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.retiredKeys && { retiredKeys: options.retiredKeys }),
     ...(options.directories && { directories: options.directories }),
     ...(options.claims && { claims: options.claims }),
+    ...(options.acceptMaps !== undefined && { acceptMaps: options.acceptMaps }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
@@ -261,6 +276,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
       ...(options.proxyHops && { proxyHops: options.proxyHops }),
       ...(options.hsts && { hsts: true }),
       ...(options.limits && { limits: options.limits }),
+      ...(options.hourly && { hourly: options.hourly }),
       ...(options.demo && { demo: options.demo }),
     }),
   );
@@ -276,6 +292,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   // Keep each site's sessions only as long as its policy says, and re-check domain claims daily.
   const prune = async () => {
     for (const site of await options.storage.listSites()) await registry.pruneSessions(site.origin).catch(() => undefined);
+    await registry.pruneUnregisteredSessions().catch(() => undefined);
     await registry.recheckClaims().catch(() => undefined);
   };
   void prune();

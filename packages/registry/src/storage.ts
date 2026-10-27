@@ -122,6 +122,8 @@ export interface Storage {
   putSession(session: Session): Promise<void>;
   listSessions(origin: string): Promise<Session[]>;
   deleteSession(id: string): Promise<void>;
+  /** Deletes sessions created before `before` (ISO time) for origins not in `keep`; returns how many. */
+  deleteSessionsBefore(before: string, keep: string[]): Promise<number>;
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined>;
 
   /** Small cached values by kind and key (compiled labels by fingerprint, explanations). */
@@ -295,6 +297,19 @@ export class FileStorage implements Storage {
       this.cache.delete(path);
       await rm(path, { force: true });
     });
+  }
+
+  async deleteSessionsBefore(before: string, keep: string[]): Promise<number> {
+    const files = await readdir(this.file('sessions')).catch(() => [] as string[]);
+    let removed = 0;
+    for (const f of files.filter((name) => name.endsWith('.json'))) {
+      const s = await this.read<Session>(this.file('sessions', f));
+      if (s && s.created_at < before && !keep.includes(s.origin)) {
+        await this.deleteSession(s.id);
+        removed++;
+      }
+    }
+    return removed;
   }
 
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined> {

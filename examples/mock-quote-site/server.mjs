@@ -46,7 +46,8 @@ const usher = REGISTRY
       requireSignature: process.env.USHER_REQUIRE_SIGNATURE === '1',
     })
   : null;
-const sessions = new Map(); // session id -> { driver, vehicle, cover, result }
+const sessions = new Map(); // session id -> { driver, vehicle, cover, result }; the oldest go past MAX_SESSIONS
+const MAX_SESSIONS = 5000;
 
 // ---------------------------------------------------------------------------
 // Form definitions. One definition drives both layouts: variant "b" renames
@@ -462,6 +463,7 @@ function getSession(req, res) {
   if (sid && sessions.has(sid)) return sessions.get(sid);
   const id = randomUUID();
   const session = {};
+  if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
   sessions.set(id, session);
   res.setHeader('Set-Cookie', `bw_sid=${id}; Path=/; HttpOnly; SameSite=Lax${SITE_ORIGIN?.startsWith('https://') ? '; Secure' : ''}`);
   return session;
