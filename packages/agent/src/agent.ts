@@ -98,7 +98,9 @@ export type AgentEvent =
   | { type: 'page'; path: string }
   | { type: 'knock'; path: string; match: KnockResponse['match']['kind'] | 'lookup' | 'none' }
   | { type: 'model'; path: string; done: boolean; usage: Usage; cost_usd: number }
-  | { type: 'filled'; path: string; filled: number };
+  | { type: 'filled'; path: string; filled: number }
+  /** Each action on the page, by semantic key: never the value. */
+  | { type: 'action'; path: string; action: 'fill' | 'handoff' | 'press'; key: string };
 
 export interface PageRun {
   path: string;
@@ -404,6 +406,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         if (ruleFor(field) === 'forbid') {
           if (knock) await page.evaluate((key) => window.usher.handoff(key), field.key);
           await options.user.handoff(field, page);
+          emit({ type: 'action', path, action: 'handoff', key: field.key });
           handedOff++;
           continue;
         }
@@ -413,7 +416,10 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           if (field.required) throw new Error(`The profile has no ${field.key} ("${field.label}"), which is required.`);
           continue;
         }
-        if (await fillField(page, field, value)) filled++;
+        if (await fillField(page, field, value)) {
+          filled++;
+          emit({ type: 'action', path, action: 'fill', key: field.key });
+        }
       }
 
       emit({ type: 'filled', path, filled });
@@ -471,6 +477,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         return (await page.evaluate(validationErrorsScript(elements))) as PageError[];
       };
       let rejected = await submit(button);
+      emit({ type: 'action', path, action: 'press', key: advance.key });
       // Bind again on the page that came back, so the site script logs which keys were rejected.
       if (rejected.length && knock) {
         // Wait for that log to reach the registry before the page can be closed.
