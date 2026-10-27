@@ -81,7 +81,7 @@ test('every form carries the knock notice and starts locked; nothing a person se
   assert.equal(await form.getAttribute('data-usher-knock'), `${registry.url}/knock`);
   assert.equal(await form.getAttribute('data-usher-state'), 'locked');
   const note = page.getByRole('note');
-  assert.match((await note.textContent()) ?? '', /knock at http:\/\/localhost:\d+\/knock/);
+  assert.ok(((await note.textContent()) ?? '').includes(`knock at ${registry.url}/knock`));
   const box = await note.boundingBox();
   assert.ok(box && box.width <= 1 && box.height <= 1, 'visually hidden');
   const state = await page.evaluate(() => window.usher.state());

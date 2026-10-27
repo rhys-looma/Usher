@@ -1,10 +1,11 @@
 // The registry server. Configured by environment (for deployment) with flags as local shortcuts.
 //
-//   npm run registry -- [--port 4200] [--data data/registry] [--seed mock-site --seed-origin http://localhost:4100] [--allow-private]
+//   npm run registry -- [--port 4200] [--data data/registry] [--seed mock-site --seed-origin <the demo site's URL>] [--allow-private]
 //
 // Environment (see DEPLOY.md):
 //   PORT, HOST                      where to listen (default 4200, 127.0.0.1; 0.0.0.0 in containers)
-//   REGISTRY_PUBLIC_URL             the URL agents and sites use; the token issuer
+//   REGISTRY_PUBLIC_URL             the URL agents and sites use; the token issuer (without it, the
+//                                   address it listens on, for local use)
 //   DATABASE_URL                    Postgres; without it, JSON files under USHER_DATA_DIR
 //   USHER_SIGNING_KEY               the token signing key, a private Ed25519 JWK (npm run keygen)
 //   USHER_RETIRED_KEYS              JSON array of earlier public JWKs, still published
@@ -15,6 +16,7 @@
 //   USHER_TRUST_PROXY=1             take the client address from X-Forwarded-For (behind a proxy)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
+//   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
 //                                   register one site with fixed keys (local development only)
 
@@ -37,7 +39,7 @@ const { values } = parseArgs({
     data: { type: 'string', default: env.USHER_DATA_DIR ?? fileURLToPath(new URL('../../../data/registry', import.meta.url)) },
     url: { type: 'string', ...(env.REGISTRY_PUBLIC_URL && { default: env.REGISTRY_PUBLIC_URL }) },
     seed: { type: 'string', ...(env.USHER_SEED && { default: env.USHER_SEED }) },
-    'seed-origin': { type: 'string', default: env.USHER_SEED_ORIGIN ?? 'http://localhost:4100' },
+    'seed-origin': { type: 'string', ...(env.USHER_SEED_ORIGIN && { default: env.USHER_SEED_ORIGIN }) },
     threshold: { type: 'string' },
     'allow-private': { type: 'boolean', default: env.USHER_ALLOW_PRIVATE === '1' },
     'explain-open': { type: 'boolean', default: env.USHER_EXPLAIN_OPEN === '1' },
@@ -83,6 +85,7 @@ const running = await startRegistry({
   web: {
     // Public addresses only, unless explicitly allowed for a local demo.
     allowPrivate: values['allow-private'],
+    ...(env.USHER_ADMIN_KEY && { adminKey: env.USHER_ADMIN_KEY }),
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(open && { classifier: open }),
   },
@@ -98,6 +101,7 @@ const running = await startRegistry({
 
 if (values.seed) {
   const origin = values['seed-origin'];
+  if (!origin) throw new Error('--seed needs the demo site\'s URL: --seed-origin <url> or USHER_SEED_ORIGIN.');
   const maps = await seed(running.registry, values.seed, origin);
   console.log(`seeded ${maps.length} maps for ${origin}`);
   if (!env.USHER_DEV_SITE_ORIGIN) {
@@ -115,6 +119,10 @@ if (env.USHER_DEV_SITE_ORIGIN && env.USHER_DEV_SITE_KEY && env.USHER_DEV_SECRET_
   await running.registry.ensureSite(env.USHER_DEV_SITE_ORIGIN, env.USHER_DEV_SITE_KEY, env.USHER_DEV_SECRET_KEY);
   console.log(`registered ${env.USHER_DEV_SITE_ORIGIN} with the configured development keys`);
 }
+// Usher's own site (the front page's interest form) proves its origin with the file this server
+// serves; re-checked daily like any site's.
+const own = await running.registry.ownSite();
+if (!own.claim) void running.registry.verifySiteFor(own.origin).catch(() => undefined);
 console.log(
   `Usher registry on ${running.url} (listening ${values.host}:${values.port}; storage ${env.DATABASE_URL ? 'postgres' : values.data}; model budget $${budget}/day${spark ? '' : '; no MODEL_API_KEY'}${signingKey ? '; signing key from USHER_SIGNING_KEY' : ''})`,
 );

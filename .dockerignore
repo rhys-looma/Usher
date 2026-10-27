@@ -5,5 +5,10 @@ data
 .env.*
 .git
 test-results
-reports
+# Only the reports the front page reads.
+reports/*
+!reports/benchmark.md
+!reports/accuracy.json
+!reports/accuracy-review.csv
+!reports/classifier-agreement.md
 REPORT.md

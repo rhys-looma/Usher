@@ -1,10 +1,10 @@
 // Brightwater Motor: a fictional car insurance quote site for developing and demonstrating Usher.
 // Not a real insurer. No dependencies; needs Node 20+.
 //
-//   node server.mjs            start on http://localhost:4100
+//   node server.mjs            start on port 4100
 //   PORT=5000 node server.mjs  another port
 //   VARIANT=b node server.mjs  start with the alternative form layout
-//   USHER_REGISTRY_URL=http://localhost:4200 node server.mjs
+//   USHER_REGISTRY_URL=<registry URL> node server.mjs
 //                              use Usher: discovery file and the server-side token check
 //                              (run `npm run build` at the repository root first;
 //                              USHER_SITE_KEY adds the site key the registry issued)
@@ -440,7 +440,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, process.env.HOST ?? '::', () => {
-  console.log(`Brightwater Motor (demo) on http://localhost:${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
+  console.log(`Brightwater Motor (demo) on port ${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
 });
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ npm run e2e:remote            # 12 checks against the stack, recorded model resp
 docker compose down -v        # stop and delete the local database
 ```
 
-Registry on http://localhost:4200 (dashboard: origin `http://localhost:4100`, secret `uss_localdevelopmentonly00000000`), quote site on http://localhost:4100. The keys in `docker-compose.yml` are for local use only.
+The registry is at the stack's `REGISTRY_PUBLIC_URL` and the quote site at `USHER_DEV_SITE_ORIGIN`, both set in `docker-compose.yml`. Sign in to the dashboard with that origin and the secret `uss_localdevelopmentonly00000000`. The keys in `docker-compose.yml` are for local use only; `npm run e2e:remote` reads the addresses from it.
 
 ## Configuration (registry)
 
@@ -35,6 +35,7 @@ All configuration is by environment variable. Nothing secret is in the image or 
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
 | `BASETEN_API_KEY` | for the classifier, Spark Open | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
 | `USHER_DAILY_MODEL_BUDGET_USD` | no | Hard daily cap on model spend across all models (default 5). Once reached, compiles and rules return "Today's model budget is used up" until midnight UTC; cached maps keep working. |
+| `USHER_ADMIN_KEY` | for the interest list | Signs in to `/admin`, the list of "I run a site with forms" from the front page. Without it there are no admin pages. Treat it like a password. |
 | `USHER_TRUST_PROXY` | behind a proxy | `1` to take the client address from `X-Forwarded-For` for rate limits. Only set it when a proxy you control sets that header. |
 | `USHER_ALLOW_PRIVATE` | no | `1` lets the map viewer open private addresses. Leave it off in public deployments. |
 | `PORT`, `HOST` | no | Defaults 4200 and 0.0.0.0 in the image. |

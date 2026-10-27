@@ -166,7 +166,7 @@ test('the spec examples verify: knock request signature and token', async () => 
   assert.ok((await verifySignedRequest(knock, { now: new Date(knock.ts) })).ok);
   const response = await read('knock-response.json');
   const keys = await read('keys.json');
-  const verified = await verifyToken(response.token, { keys, now: (await read('token-claims.json')).iat, origin: 'http://localhost:4100', intent: 'quote.car_insurance' });
+  const verified = await verifyToken(response.token, { keys, now: (await read('token-claims.json')).iat, origin: 'https://quote.example', intent: 'quote.car_insurance' });
   assert.ok(verified.ok);
   assert.deepEqual(verified.claims, await read('token-claims.json'));
   assert.equal(verified.claims.sub, knock.agent.id);

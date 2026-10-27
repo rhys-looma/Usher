@@ -1,4 +1,4 @@
-// Starts the mock quote site in layouts A and B on free ports, runs a command with their URLs
+// Test harness. Starts the mock quote site in layouts A and B on free ports, runs a command with their URLs
 // in USHER_MOCK_A and USHER_MOCK_B, then stops both. Exits with the command's exit code.
 
 import { spawn } from 'node:child_process';
@@ -6,7 +6,7 @@ import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-export const root = dirname(dirname(fileURLToPath(import.meta.url)));
+export const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const serverScript = join(root, 'examples/mock-quote-site/server.mjs');
 const servers = [];
 
@@ -32,7 +32,7 @@ async function startMockSite(variant) {
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`mock site (${variant}) did not start`)), 10_000);
     child.stdout.on('data', (chunk) => {
-      if (String(chunk).includes(`localhost:${port}`)) {
+      if (String(chunk).includes(`on port ${port}`)) {
         clearTimeout(timer);
         resolve();
       }

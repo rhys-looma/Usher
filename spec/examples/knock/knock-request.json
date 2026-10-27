@@ -1,6 +1,6 @@
 {
   "usher": "0.1",
-  "url": "http://localhost:4100/quote/driver",
+  "url": "https://quote.example/quote/driver",
   "intent": "quote.car_insurance",
   "fingerprint": {
     "algo": "usher-fp-1",
@@ -23,13 +23,13 @@
     ]
   },
   "agent": {
-    "id": "AZSBIPd5zuna0DKG6v3bIya6h_bwxvOBnETgzBU14S4",
+    "id": "gosgo_HoNojakrYM4QmO-5n7Y-GzyHp_8rztnb0PY5o",
     "jwk": {
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "QAHBC1oj-YSts4NJV0rStldi6EhSLSuVZrEr5Vi4LJY"
+      "x": "EYXIutt72io-obtiJSohmuqXQaChaQw153Wt8xG8qo8"
     }
   },
   "ts": "2026-10-27T10:00:00Z",
-  "signature": "29z-H6M8LRB6ZV-Nxout6FWIePXb-lsLr9Ljs86ekoQom5qSfc2ICII-FRX62aSB6keCBVVwnNCTkNwoo2rxCA"
+  "signature": "Tw8PkGhZMIwMeMQTOWyDz-tAoAV2_DWpxDN1ny1KFxjPHsJopZtWZHeLwXGsVc1hFlEfsi9rQmZUKDWEFR8qBA"
 }

@@ -1,6 +1,6 @@
 {
   "usher": "0.1",
-  "registry": "http://localhost:4200",
-  "knock_url": "http://localhost:4200/knock",
-  "keys_url": "http://localhost:4200/.well-known/usher-keys.json"
+  "registry": "https://registry.example",
+  "knock_url": "https://registry.example/knock",
+  "keys_url": "https://registry.example/.well-known/usher-keys.json"
 }

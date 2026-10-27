@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { hostname } from 'node:os';
 import { RateLimiter } from './rate-limit.ts';
 import type { AddressInfo } from 'node:net';
 import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
@@ -212,7 +213,7 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   explainer?: { chat: ChatFn; model: string };
   port?: number;
   host?: string;
-  /** Public URL; defaults to http://localhost:<port>. */
+  /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
   url?: string;
   threshold?: number;
   /** Fetching agents' key directories: allow http:// and private hosts (local development). */
@@ -227,6 +228,13 @@ export interface RunningRegistry {
   keeper?: Keeper;
   server: Server;
   close(): Promise<void>;
+}
+
+/** The address a server listens on, as a URL: for local use, when no public URL is configured. */
+export function listeningUrl(server: Server): string {
+  const a = server.address() as AddressInfo;
+  const host = a.address === '0.0.0.0' || a.address === '::' ? hostname() : a.family === 'IPv6' ? `[${a.address}]` : a.address;
+  return `http://${host}:${a.port}`;
 }
 
 export async function startRegistry(options: StartOptions): Promise<RunningRegistry> {
@@ -254,7 +262,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     }),
   );
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
-  url ||= `http://localhost:${(server.address() as AddressInfo).port}`;
+  url ||= listeningUrl(server);
   await registry.signingKey();
   const keeper = options.keeper ? new Keeper(registry, options.keeper) : undefined;
   if (keeper) {

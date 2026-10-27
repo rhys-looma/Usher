@@ -27,7 +27,7 @@ test('hand-written labels for step 1 (layout A) merge into the example map, apar
     form,
     fingerprint: await fingerprint(form.elements),
     validation,
-    origin: 'http://localhost:4100',
+    origin: 'https://quote.example',
     path: '/quote/driver',
     step: 1,
     leadsTo: '/quote/vehicle',

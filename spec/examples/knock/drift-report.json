@@ -1,5 +1,5 @@
 {
-  "origin": "http://localhost:4100",
+  "origin": "https://quote.example",
   "path": "/quote/driver",
   "map": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6",
   "fingerprint": {

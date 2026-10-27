@@ -9,7 +9,7 @@ npm start --prefix examples/mock-quote-site
 That serves the form on :4100 with no Usher, a plain site.
 
 ```bash
-USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site
+USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site
 ```
 
 That runs it with Usher: the script tag, `/.well-known/usher.json`, its claim file at `/.well-known/usher-site.json`, and the server-side check on "Get my quote" and on `POST /api/quote`.

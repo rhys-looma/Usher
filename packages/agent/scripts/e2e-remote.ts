@@ -1,6 +1,7 @@
 // End to end against a running stack: docker compose locally, or a deployment.
 //
-//   node --import tsx packages/agent/scripts/e2e-remote.ts --registry http://localhost:4200 --site http://localhost:4100 --secret uss_…
+//   node --import tsx packages/agent/scripts/e2e-remote.ts [--registry <url>] [--site <url>] --secret uss_…
+//   (defaults: REGISTRY_PUBLIC_URL and USHER_SITE_URL, else the local stack's, read from docker-compose.yml)
 //
 // Uses recorded model responses (no spend) unless --live. Checks: health; an unknocked API call
 // is refused; Agent A (Muse Spark) completes the quote, building maps if there are none; Agent B
@@ -17,14 +18,21 @@ import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { readFixture, replayAny } from '../../core/test/replay.ts';
 import { httpTransport, mcpTransport, runAgent, scriptedUser, summaryLine, type Profile } from '../src/index.ts';
 
+// The local stack's addresses, from the one file that names them.
+const compose = await readFile(new URL('../../../docker-compose.yml', import.meta.url), 'utf8').catch(() => '');
+const fromCompose = (name: string) => new RegExp(`${name}:\\s*(\\S+)`).exec(compose)?.[1];
 const { values } = parseArgs({
   options: {
-    registry: { type: 'string', default: 'http://localhost:4200' },
-    site: { type: 'string', default: 'http://localhost:4100' },
+    registry: { type: 'string', default: process.env.REGISTRY_PUBLIC_URL ?? fromCompose('REGISTRY_PUBLIC_URL') ?? '' },
+    site: { type: 'string', default: process.env.USHER_SITE_URL ?? fromCompose('USHER_DEV_SITE_ORIGIN') ?? '' },
     secret: { type: 'string', default: 'uss_localdevelopmentonly00000000' },
     live: { type: 'boolean', default: false },
   },
 });
+if (!values.registry || !values.site) {
+  console.error('Give --registry and --site, or set REGISTRY_PUBLIC_URL and USHER_SITE_URL.');
+  process.exit(2);
+}
 const registry = values.registry.replace(/\/$/, '');
 const site = values.site.replace(/\/$/, '');
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;

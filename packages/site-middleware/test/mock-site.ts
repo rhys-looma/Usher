@@ -50,7 +50,7 @@ export async function startMockSite(options: MockSiteOptions = {}): Promise<Mock
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('mock site did not start')), 10_000);
     child.stdout!.on('data', (chunk) => {
-      if (String(chunk).includes(`localhost:${port}`)) {
+      if (String(chunk).includes(`on port ${port}`)) {
         clearTimeout(timer);
         resolve();
       }
