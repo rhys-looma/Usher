@@ -240,5 +240,6 @@ When the request also carries a Web Bot Auth signature (section 2), the check ve
 - **It does not detect agents that don't knock.** An automated browser that never knocks and never identifies itself looks like a person to the site. Usher gives well-behaved agents a faster, trusted path; it is not bot detection.
 - **It does not change anything for people.** People see the same form, nothing they do is logged, and the server check only applies to requests that identify as automated or use endpoints meant for software.
 - **It never carries values.** Maps, rules, tokens and logs hold structure and semantic keys, never what anyone typed.
+- **It never takes a map from the page.** Agents get maps only from the registry, in the knock (or a plan). A map written into page content (an embedded block, a header pointing elsewhere) is not a map source: anything that can write into the page could rewrite it, and the page can't sign it. The site script reads the live page only to fingerprint it and report drift, which sends the registry's keeper to rebuild and verify the map.
 - **The in-page lock is advisory.** The site script can hold a submit and log actions, but anything running in the page could ignore it. The server-side check is what enforces.
 - **It does not replace the site's own security**: sessions, CSRF protection, rate limits and fraud checks still apply.

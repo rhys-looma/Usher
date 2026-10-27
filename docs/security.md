@@ -82,6 +82,20 @@ The viewer loads a page in a browser on Usher's server, maps its form with the m
 
 A CAPTCHA would also mean a third party's script and cookies on the front page, contradicting the privacy notice and the "no cookie banner" promise. We would revisit it only if the rate limits proved not enough.
 
+## Considered and rejected: maps published in the page
+
+For a day (PR #65), the site script wrote each form's map into the page as `<script type="application/usher+json">`, and the site's middleware pointed at it with a `Link: rel="usher-map"` header. Agents, the executor and `usher_fill` preferred that map to the registry's, and the knock returned only rules and a token. It made the knock smaller and let a changed form be relabelled on the spot.
+
+We removed it (PR #67) because it is a trust problem:
+- **Anything that can write into the page can rewrite the map.** That includes an injected script, a compromised third-party tag, a browser extension or user-generated content that reaches the DOM. A rewritten map can point a key at the wrong field, lower a risk so an agent submits without asking, or hide a field from the user.
+- **The page can't sign it.** The registry signs tokens, and its maps are verified by a second identity or the keeper before any agent but their author sees them. A map in the page carries no signature an agent could check, and the site script can't hold a key the page itself can't read.
+- **Clamping isn't enough.** We floored each key's risk at its vocabulary default, but a swapped key or a hidden field passes any floor.
+
+Now:
+- Agents get maps only from the registry, in the knock response (the map or a plan, with the rules and the token).
+- The site script still extracts the live structure, compares it with the registry's map and reports drift, which triggers the keeper to rebuild and verify the map.
+- A test serves every quote page with a tampered in-page map and a `Link` to another, and checks that the reference agent and `usher_fill` ignore both (`packages/mcp/test/page-content.test.ts`).
+
 ## What Usher does not do
 
 **It does not detect agents that never identify themselves.** An automated browser that never knocks, never signs and sends no agent header looks like a person to the site, and Usher lets it through as one. Usher is a front door for agents that want to behave, not bot detection. For agents that won't knock, a site still needs its usual defences: rate limits, CAPTCHAs, fraud checks.
