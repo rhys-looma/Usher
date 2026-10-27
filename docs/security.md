@@ -24,7 +24,13 @@ The site's server is the lock, not the page. On a consequential endpoint (gettin
 - **Who verified it is visible.** The map page and the site's dashboard show whether a map is verified, by whom and when. An unverified map doesn't appear on public map pages at all.
 - **Disagreement is recorded, never served.** Another agent whose map differs is counted against the shared one; neither is served to anyone else. On a site the keeper visits, the keeper's own map replaces one it disagrees with, so a bad first submission can't hold a form's fast path.
 - **Submissions are limited** to 20 an hour per agent identity.
-- **The limit of this:** an attacker with two keys could agree with themselves and run the form twice. That buys them a public map only on a form both runs completed, still with risk floored and the server-side check enforcing the real action (below). Keeper verification, where the keeper visits, doesn't depend on any agent.
+- **Two keys can't simply agree with themselves.** The confirming agent must have an established identity:
+  - it publishes its keys (Web Bot Auth with a `Signature-Agent` directory); or
+  - it has completed a run on another site before.
+
+  A key made a moment ago for the purpose has neither.
+- **The keeper always wins where it visits.** On those sites, agents' agreement never verifies a map. Only the keeper's own rebuild does, and it replaces maps it disagrees with.
+- **What's left:** an attacker who builds up an identity elsewhere first, then agrees with themselves on a site the keeper doesn't visit. That buys a public map only on a form both runs completed, still with risk floored and the server-side check enforcing the real action (below).
 - A map can't weaken the lock. The server-side check enforces the action the endpoint itself performs (say `form.submit`), using the token's rules and the vocabulary's floor for that action, never the map's label for a button.
 - Risk is floored by key. The registry raises every element of a shared map to at least its key's default risk, so a map can't call `form.submit` safe.
 - When the form changes, the keeper rebuilds from the live page with its own model, not from what anyone sent.

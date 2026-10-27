@@ -119,6 +119,9 @@ test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote an
 test('Agent C (Muse Spark, its own key) can\'t see A\'s unverified maps, builds its own, agrees and completes: the maps are verified', async () => {
   const user = scriptedUser(profile);
   const transport = await httpTransport(registry.url, join(dir, 'agent-c-key.json'));
+  // Agent C is established: it has completed a run on another site before (simulated here).
+  const elsewhere = await transport.knock({ url: 'http://elsewhere.example/contact', intent: 'contact.message' });
+  await transport.reportRun({ session: elsewhere.session, url: 'http://elsewhere.example/contact', outcome: 'completed' });
   const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: spark });
   await transport.close();
   assert.equal(run.outcome, 'completed', run.reason);
