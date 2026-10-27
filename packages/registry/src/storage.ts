@@ -9,8 +9,16 @@ export interface MapRecord {
   digest: string;
   map: UsherMap;
   added_at: string;
-  /** Agent id that submitted it, for maps from agents. */
+  /** Agent id that submitted it, for maps from agents. Until verified, served only to that agent. */
   submitted_by?: string;
+  /**
+   * How an agent's map became verified (and public): a second, independent agent agreed with it
+   * and then completed a run on the form, or the keeper rebuilt the form and got the same map.
+   */
+  verification?: { by: 'agent' | 'keeper'; verifier?: string; at: string };
+  /** Other agents whose own maps for this structure had the same keys, and how many differed. */
+  agreements?: string[];
+  disagreements?: number;
   drift?: { at: string; live_digest: string; score: number };
   /** Replaced by a newer version after the form changed. */
   replaced?: { at: string; by: string };

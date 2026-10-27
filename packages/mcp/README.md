@@ -73,7 +73,7 @@ For example:
 | `knock` | Before filling a form. Returns the map, the site's rules and a short-lived token to bind in the page (`window.usher.bind(token)`). Pass `confirmed` with the keys your user just approved (for example `form.submit`) when knocking right before acting on them. |
 | `get_map` | The map for a page, by fingerprint or by digest. |
 | `get_plan` | Every step of a multi-page journey, and every input it will ask for by meaning, so you can check your user's data before starting. |
-| `submit_map` | Share a map you built for a page that had none. |
+| `submit_map` | Share a map you built for a page that had none. It serves only you until a second agent or the registry's keeper confirms it, then every agent. |
 | `report_run` | Tell the site how the run went: structure and timings, never values. |
 
 Every request is signed with your agent's key (Web Bot Auth, RFC 9421). Maps hold structure, never values: nothing anyone types is read, sent or stored.

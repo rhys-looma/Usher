@@ -16,7 +16,8 @@
 //   TRUSTED_PROXY_HOPS              proxies in front whose forwarded headers are trusted (default 2 in
 //                                   production: CloudFront, then the ALB; 0 elsewhere)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
-//   USHER_ACCEPT_MAPS=1             in production, store and share maps agents submit (off by default)
+//   USHER_ACCEPT_MAPS=0             stop accepting maps from agents (accepted by default: private to
+//                                   their agent until a second agent or the keeper verifies them)
 //   USHER_KEEPER_ORIGINS            in production, the only origins the keeper opens (comma-separated;
 //                                   none by default)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
@@ -101,7 +102,8 @@ const running = await startRegistry({
   siteScript,
   proxyHops: proxyHops(env),
   // Agents' maps are shared with every other agent: closed in production unless USHER_ACCEPT_MAPS=1.
-  acceptMaps: !production || env.USHER_ACCEPT_MAPS === '1',
+  // Agents' maps are accepted and kept private to their agent until verified (USHER_ACCEPT_MAPS=0 closes them).
+  acceptMaps: env.USHER_ACCEPT_MAPS !== '0',
   hsts: (values.url ?? '').startsWith('https://'),
   ...(signingKey && { signingKey }),
   ...(retiredKeys && { retiredKeys }),

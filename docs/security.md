@@ -18,7 +18,13 @@ The site's server is the lock, not the page. On a consequential endpoint (gettin
 **A poisoned map.** An agent shares a map that mislabels a form, for example marking "Buy now" as harmless.
 - Maps are kept per origin: a map for one site can never be served for another.
 - A map only matches a page whose structure gives the same fingerprint.
-- Shared maps are schema-checked, marked unverified, and the dashboard shows which agent shared each one.
+- **A shared map is private until verified.** An agent's map is schema-checked, stored unverified, and served only to the agent that shared it. It becomes verified, and public, in one of two ways:
+  - a second identity's own map of the same structure has the same key on every element, and that agent then completes a run through the page;
+  - or the keeper, on a site it visits, rebuilds the form from the live page and gets the same map.
+- **Who verified it is visible.** The map page and the site's dashboard show whether a map is verified, by whom and when. An unverified map doesn't appear on public map pages at all.
+- **Disagreement is recorded, never served.** Another agent whose map differs is counted against the shared one; neither is served to anyone else. On a site the keeper visits, the keeper's own map replaces one it disagrees with, so a bad first submission can't hold a form's fast path.
+- **Submissions are limited** to 20 an hour per agent identity.
+- **The limit of this:** an attacker with two keys could agree with themselves and run the form twice. That buys them a public map only on a form both runs completed, still with risk floored and the server-side check enforcing the real action (below). Keeper verification, where the keeper visits, doesn't depend on any agent.
 - A map can't weaken the lock. The server-side check enforces the action the endpoint itself performs (say `form.submit`), using the token's rules and the vocabulary's floor for that action, never the map's label for a button.
 - Risk is floored by key. The registry raises every element of a shared map to at least its key's default risk, so a map can't call `form.submit` safe.
 - When the form changes, the keeper rebuilds from the live page with its own model, not from what anyone sent.
@@ -46,7 +52,7 @@ Drift reports need the site's key and are limited to 60 a minute per site. The r
 - **Locked down for launch** (see DEPLOY.md, "Locked down for now"):
   - The map viewer no longer takes an address from the public (see "The map viewer" below).
   - The keeper opens only the origins in `USHER_KEEPER_ORIGINS` (our own demo site), for the same reason.
-  - Maps submitted by agents are not accepted (`USHER_ACCEPT_MAPS`). A hostile agent could otherwise mislabel a form for every other agent.
+  - Maps submitted by agents are accepted again, behind the verification ladder above: private to their agent until a second agent or the keeper confirms them. `USHER_ACCEPT_MAPS=0` closes submissions entirely.
 - **Security headers:** a strict Content-Security-Policy on every page, and CORS open only on the few endpoints the site script calls.
 - **The registry's signing key** can be rotated, with old public keys kept published until their tokens expire.
 

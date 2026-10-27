@@ -47,6 +47,20 @@ import { RulesError, compileRules } from './rules.ts';
 import { explainFacts, factsHash, formFacts, type Explanation } from './explain.ts';
 import type { MapRecord, Session, SessionEvent, SessionIdentity, Site, Storage } from './storage.ts';
 
+/**
+ * Who may see a map. Operator and keeper maps, and verified agent maps, are public; an agent's
+ * unverified map is served only to the agent that submitted it, so a wrong or hostile map never
+ * reaches another agent.
+ */
+export function visibleTo(record: MapRecord, agent?: string): boolean {
+  return !record.submitted_by || record.map.provenance.verified === true || Boolean(record.verification) || record.submitted_by === agent;
+}
+
+/** What two maps of the same structure must agree on: each element's key. */
+export function mapKeys(map: UsherMap): string {
+  return [...map.fields.map((f) => `${f.id}=${f.key}`), ...map.actions.map((a) => `${a.id}=${a.key}`)].sort().join('|');
+}
+
 /** The knock response's rules: risk-level defaults, and the effective rule for each key on the form. */
 export interface Rules {
   agents: 'allowed' | 'denied';
@@ -83,6 +97,8 @@ export interface RegistryOptions {
    * agent could mislabel a form for everyone: production keeps this off for now (USHER_ACCEPT_MAPS).
    */
   acceptMaps?: boolean;
+  /** Maps one agent may submit per hour (default 20). */
+  submitLimit?: number;
   /** Checking domain claims: allow localhost and private origins (local development), and test doubles. */
   claims?: { allowPrivate?: boolean; fetch?: typeof fetch; resolveTxt?: (name: string) => Promise<string[][]> };
 }
@@ -152,6 +168,10 @@ export class Registry {
   private readonly driftLimit = new RateLimiter(60, 60_000);
   private readonly readLimit = new RateLimiter(120, 60_000);
   private readonly blockedLimit = new RateLimiter(120, 60_000);
+  private submitLimiter?: RateLimiter;
+  private get submitLimit(): RateLimiter {
+    return (this.submitLimiter ??= new RateLimiter(this.options.submitLimit ?? 20, 3_600_000));
+  }
   // Sites' own rate limits, one sliding window per (max, window).
   private readonly policyLimits = new Map<string, RateLimiter>();
   // Web Bot Auth: nonces seen until their signatures expire, and agents' key directories.
@@ -214,8 +234,13 @@ export class Registry {
   }
 
   /** Finds the map for a page and logs the lookup with every candidate's score. */
-  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift'): Promise<MatchResult> {
-    const result = findMatch(fingerprint, path, await this.storage.mapsForOrigin(origin), this.threshold);
+  /** The maps of an origin this caller may see: verified and operator maps, and its own unverified ones. */
+  async mapsFor(origin: string, agent?: string): Promise<MapRecord[]> {
+    return (await this.storage.mapsForOrigin(origin)).filter((r) => visibleTo(r, agent));
+  }
+
+  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift', agent?: string): Promise<MatchResult> {
+    const result = findMatch(fingerprint, path, await this.mapsFor(origin, agent), this.threshold);
     await this.storage.appendLog('matches', {
       ts: this.now().toISOString(),
       via,
@@ -350,7 +375,7 @@ export class Registry {
     if (!check.ok) return error(check.status, check.error, check.message);
 
     const page = new URL(knock.url);
-    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock');
+    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
@@ -421,18 +446,23 @@ export class Registry {
   }
 
   /** Public lookup for the site script: which map this page is, and the rules for it. */
-  async lookupPage(body: unknown): Promise<Reply> {
+  async lookupPage(body: unknown, authorization?: string): Promise<Reply> {
     const b = body as { origin?: unknown; path?: unknown; fingerprint?: unknown } | null;
     if (typeof b?.origin !== 'string' || typeof b.path !== 'string' || knockSchemaErrors('fingerprint', b.fingerprint)) {
       return error(400, 'invalid_request', 'Expected origin, path and an usher-fp-1 fingerprint.');
     }
-    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup');
+    // The site script sends the agent's bound token: that agent also sees its own unverified maps.
+    const token = /^Usher\s+(\S+)$/.exec(authorization ?? '')?.[1];
+    const claims = token ? await verifyToken(token, { keys: await this.keySet(), issuers: [this.url], now: Math.floor(this.now().getTime() / 1000) }) : null;
+    const agent = claims?.ok && claims.claims.origin === b.origin ? claims.claims.sub : undefined;
+    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup', agent);
     const map = match.record?.map ?? null;
     return ok({ match: this.summary(match), map, rules: knockRules(effectiveRules(await this.policy(b.origin), map, b.path)) });
   }
 
-  async getMap(origin: string, digest: string): Promise<Reply> {
-    const record = await this.storage.getMap(origin, digest);
+  async getMap(origin: string, digest: string, agent?: string): Promise<Reply> {
+    const found = await this.storage.getMap(origin, digest);
+    const record = found && visibleTo(found, agent) ? found : undefined;
     return record ? ok({ map: record.map, added_at: record.added_at, drift: record.drift ?? null }) : error(404, 'not_found', `No map ${digest}.`);
   }
 
@@ -444,7 +474,16 @@ export class Registry {
     const map = (request as { map?: UsherMap }).map;
     const invalid = mapSchemaErrors(map);
     if (invalid || !map) return error(400, 'invalid_map', invalid ?? 'No map.');
+    if (!this.submitLimit.allow(check.agentId)) return error(429, 'rate_limited', 'Too many maps from this agent; try again in an hour.');
     const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
+    // Another agent's own map for the same structure: agreeing keys count towards verifying it.
+    if (existing && existing.submitted_by && existing.submitted_by !== check.agentId && !visibleTo(existing)) {
+      const agreed = mapKeys(existing.map) === mapKeys(map);
+      if (agreed && !existing.agreements?.includes(check.agentId)) existing.agreements = [...(existing.agreements ?? []), check.agentId];
+      if (!agreed) existing.disagreements = (existing.disagreements ?? 0) + 1;
+      await this.storage.putMap(existing);
+      return ok({ digest: existing.digest, stored: false, agreed });
+    }
     if (existing) {
       // The agent that built a map may come back with edges it learned by acting on it.
       const edges = new Map(map.actions.filter((a) => a.leads_to).map((a) => [a.id, a.leads_to!]));
@@ -458,7 +497,31 @@ export class Registry {
     // An agent's map is kept unverified, with no risk below its key's default.
     const record: MapRecord = { digest: map.fingerprint.digest, map: { ...floorRisks(map), provenance: { ...map.provenance, verified: false } }, added_at: this.now().toISOString(), submitted_by: check.agentId };
     await this.storage.putMap(record);
-    return { status: 201, body: { digest: record.digest, stored: true } };
+    // The keeper may rebuild the form itself and verify it (for the sites it visits).
+    this.onUnverifiedMap?.(record);
+    return { status: 201, body: { digest: record.digest, stored: true, verified: false } };
+  }
+
+  /** Set by the server when a keeper runs: a new agent map is rebuilt and compared. */
+  onUnverifiedMap?: (record: MapRecord) => void;
+
+  /**
+   * The keeper's own map for a form an agent got wrong: it replaces the agent's (which was never
+   * served to anyone else), verified, so a bad first submission can't hold the form's fast path.
+   */
+  async replaceWithKeeperMap(map: UsherMap): Promise<void> {
+    const at = this.now().toISOString();
+    await this.storage.putMap({ digest: map.fingerprint.digest, map: { ...map, provenance: { ...map.provenance, verified: true } }, added_at: at, verification: { by: 'keeper', at } });
+  }
+
+  /** Makes an agent's map verified, and so public. */
+  async verifyMap(origin: string, digest: string, by: 'agent' | 'keeper', verifier?: string): Promise<boolean> {
+    const record = await this.storage.getMap(origin, digest);
+    if (!record || record.verification) return false;
+    record.verification = { by, ...(verifier && { verifier }), at: this.now().toISOString() };
+    record.map = { ...record.map, provenance: { ...record.map.provenance, verified: true } };
+    await this.storage.putMap(record);
+    return true;
   }
 
   /** Set by the server when a keeper runs: drift reports trigger a check of that form. */
@@ -472,7 +535,8 @@ export class Registry {
     const at = this.now().toISOString();
     const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
     // A form that changed back gets its earlier version again, clean: no drift, not replaced.
-    await this.storage.putMap({ digest: map.fingerprint.digest, map: existing?.map ?? map, added_at: at, ...(existing?.submitted_by && { submitted_by: existing.submitted_by }) });
+    // Built by the keeper itself, so public whoever first submitted the form's earlier version.
+    await this.storage.putMap({ digest: map.fingerprint.digest, map: existing?.map ?? map, added_at: at, ...(existing?.submitted_by && { submitted_by: existing.submitted_by }), verification: existing?.verification ?? { by: 'keeper', at } });
     await this.storage.putMap({ ...old, replaced: { at, by: map.fingerprint.digest } });
     await this.storage.appendLog('drift', { ts: at, origin: map.origin, path: map.path, map: old.digest, rebuilt: map.fingerprint.digest, changed_at: old.drift?.at ?? null });
   }
@@ -494,6 +558,14 @@ export class Registry {
     const { signature: _s, agent: _a, ...report } = request as Record<string, unknown>;
     await this.storage.appendLog('runs', { ...report, agent: check.agentId, received_at: this.now().toISOString() });
     const path = typeof run.url === 'string' ? new URL(run.url).pathname : undefined;
+    // A completed run by an agent whose own maps agreed with another agent's maps of the pages it
+    // went through verifies those maps: two independent agents, the same keys, and it worked.
+    if (run.outcome === 'completed') {
+      const pages = new Set([...session.events.filter((e) => e.action === 'knock' && e.path).map((e) => e.path!), ...(path ? [path] : [])]);
+      for (const record of await this.storage.mapsForOrigin(session.origin)) {
+        if (pages.has(record.map.path) && !visibleTo(record) && record.submitted_by !== check.agentId && record.agreements?.includes(check.agentId)) await this.verifyMap(session.origin, record.digest, 'agent', check.agentId);
+      }
+    }
     await this.storage.appendEvents(session.id, [
       { ts: this.now().toISOString(), source: 'agent', action: 'run', ...(path && { path }), detail: { outcome: run.outcome ?? 'unknown', ...run.summary } },
     ]);
@@ -702,7 +774,7 @@ export class Registry {
   async proposeRulesFor(origin: string, text: unknown): Promise<Reply> {
     if (typeof text !== 'string' || !text.trim() || text.length > 4000) return error(400, 'invalid_request', 'Expected { "text": "…" } under 4000 characters.');
     if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'Rules in plain English need a model, and none is set up here yet.');
-    const maps = (await this.storage.mapsForOrigin(origin)).map((r) => r.map);
+    const maps = (await this.mapsFor(origin)).map((r) => r.map);
     try {
       const result = await compileRules(this.options.chat, this.options.model, text.trim(), origin, maps);
       const draft = { id: `r_${randomId(9)}`, origin, text: text.trim(), policy: result.policy, summary: result.summary, model: this.options.model, created_at: this.now().toISOString(), status: 'pending' as const };
@@ -767,7 +839,7 @@ export class Registry {
   /** The newest map for each path on an origin. */
   private async currentMaps(origin: string): Promise<Map<string, UsherMap>> {
     const latest = new Map<string, MapRecord>();
-    for (const r of await this.storage.mapsForOrigin(origin)) {
+    for (const r of await this.mapsFor(origin)) {
       const seen = latest.get(r.map.path);
       if (!seen || r.added_at > seen.added_at) latest.set(r.map.path, r);
     }
@@ -833,7 +905,7 @@ export class Registry {
   /** The newest map for a page, so the site script can compare fingerprints locally. */
   async currentMap(origin: string | null, path: string | null): Promise<Reply> {
     if (!origin || !path) return error(400, 'invalid_request', 'Expected ?origin=&path=.');
-    const latest = (await this.storage.mapsForOrigin(origin)).filter((r) => r.map.path === path).sort((a, b) => b.added_at.localeCompare(a.added_at))[0];
+    const latest = (await this.mapsFor(origin)).filter((r) => r.map.path === path).sort((a, b) => b.added_at.localeCompare(a.added_at))[0];
     return ok(latest ? { digest: latest.digest, signature: latest.map.fingerprint.signature } : { digest: null, signature: null });
   }
 

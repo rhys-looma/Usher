@@ -158,13 +158,16 @@ async function load(): Promise<void> {
 }
 
 // The map and rules for this page, fetched only once an agent has bound a token.
-async function lookupMap(): Promise<void> {
+async function lookupMap(agentToken: string | null = token): Promise<void> {
   if (!live) return;
-  const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: live });
+  // The agent's token lets the registry show it its own map, before others have verified it (the
+  // registry checks the token).
+  const auth: Record<string, string> = agentToken ? { Authorization: `Usher ${agentToken}` } : {};
+  const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: live }, auth);
   if (res.ok) lookup = (await res.json()) as Lookup;
   // An agent may have just shared a map for another form on the page.
   for (const other of lookup?.match.kind === 'exact' ? [] : others) {
-    const again = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: other });
+    const again = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: other }, auth);
     const found = again.ok ? ((await again.json()) as Lookup) : null;
     if (found?.match.kind === 'exact') {
       lookup = found;
@@ -284,7 +287,7 @@ async function bind(candidate: string): Promise<BindResult> {
   await ready;
   if (typeof candidate !== 'string') return { ok: false, error: 'malformed' };
   // Look the map up now (an agent that found none may have just compiled and shared one).
-  if (lookup?.match.kind !== 'exact') await lookupMap().catch(() => undefined);
+  if (lookup?.match.kind !== 'exact') await lookupMap(candidate).catch(() => undefined);
   const result = await verifyToken(candidate, {
     keys: keyFor,
     origin: location.origin,

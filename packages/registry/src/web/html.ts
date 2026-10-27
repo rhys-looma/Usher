@@ -102,6 +102,17 @@ footer nav { display:flex; flex-direction:column; gap:8px; }
 /** The tab icon: a serif U with Looma's purple point, inline so nothing is fetched. */
 export const FAVICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#191942"/><text x="29" y="46" font-family="Georgia,serif" font-size="42" font-weight="700" fill="#fbf9f4" text-anchor="middle">U</text><circle cx="50" cy="44" r="4.5" fill="#a978ff"/></svg>')}`;
 
+/** How a map came to be trusted: verified by whom and when, or unverified and private to its agent. */
+export function verificationNote(record: { submitted_by?: string; verification?: { by: 'agent' | 'keeper'; verifier?: string; at: string }; agreements?: string[]; disagreements?: number }): Raw | string {
+  if (record.verification) {
+    const who = record.verification.by === 'keeper' ? 'the keeper, which rebuilt the form and got the same map' : html`a second agent (<span class="mono">${record.verification.verifier?.slice(0, 10) ?? ''}…</span>) that agreed with it and completed a run`;
+    return html`Verified ${when(record.verification.at)} by ${who}.`;
+  }
+  if (!record.submitted_by) return '';
+  const tally = [record.agreements?.length ? `${record.agreements.length} agent${record.agreements.length === 1 ? '' : 's'} agreed` : '', record.disagreements ? `${record.disagreements} differed` : ''].filter(Boolean).join(', ');
+  return html`Unverified: shared by an agent and served only to it until a second agent or the keeper confirms it${tally ? html` (${tally})` : ''}.`;
+}
+
 /** Looma's wordmark and link, at the foot of every page. */
 export const LOOMA_FOOTER = `<div class="looma"><small>Built by</small><a class="wordmark" href="https://looma.insure" aria-label="Looma, who built Usher">Looma<sup>®</sup></a><span>Code Apache-2.0 · Specifications CC BY 4.0</span></div>`;
 

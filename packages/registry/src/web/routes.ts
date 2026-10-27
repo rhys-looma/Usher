@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { toBase64Url } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
-import type { Registry } from '../registry.ts';
+import { visibleTo, type Registry } from '../registry.ts';
 import { Dashboard, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
@@ -353,7 +353,9 @@ export class Web {
     if (route === 'GET /maps/view') {
       const origin = url.searchParams.get('origin') ?? '';
       const digest = url.searchParams.get('digest') ?? '';
-      const record = await this.registry.storage.getMap(origin, digest);
+      const found = await this.registry.storage.getMap(origin, digest);
+      // An agent's unverified map is private to that agent (and its site's owner, on the dashboard).
+      const record = found && visibleTo(found) ? found : undefined;
       if (!record) return sendHtml(res, 404, page('Not found', html`<h1>No such map</h1>`)), true;
       return sendHtml(res, 200, mapPage(record.map, { source: `held by this registry since ${record.added_at.slice(0, 10)}`, record })), true;
     }

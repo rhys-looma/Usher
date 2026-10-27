@@ -291,7 +291,7 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
 | `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
-| `USHER_ACCEPT_MAPS` | off | `1` stores maps agents submit and shares them with other agents. Off: agents use the maps the registry built or seeded, or their own. |
+| `USHER_ACCEPT_MAPS` | on | Maps agents submit are stored private to their agent, and served to every agent once a second agent or the keeper verifies them (docs/security.md). `0` refuses submissions. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
 | `USHER_VIEWER` | refused as `open` | Unset: visitors pick from a fixed list of public forms, and signed-in owners map pages on their own origin. `open` lets anyone map any address: local demos only. |
 | `USHER_ALLOW_PRIVATE` | refused | `1` lets the viewer and claim checks reach private addresses: local demos only. |
@@ -315,7 +315,7 @@ Everything an outsider could steer, closed for launch, to reopen one at a time:
 | --- | --- | --- | --- |
 | Map viewer (`/viewer`, "Try it") | A fixed list of ten public forms; owners map their own origin; `open` refused | An open address box let anyone probe other sites from our servers, and a redirect or the page's own requests reached a private address in a test | Done: see docs/security.md, "The map viewer". Every browser request is now checked against the address it resolves to |
 | Keeper | Only `USHER_KEEPER_ORIGINS` (the demo site) | Same browser, and it visits any registered site, claimed or not | The same egress proxy; then claimed sites only |
-| Agents' shared maps (`POST /maps`) | Refused (403 `maps_closed`) | An agent's keys and locators are its word, so a hostile agent could mislabel a form for every other agent | Serve a submitted map only once a second agent or the keeper agrees with it, then set `USHER_ACCEPT_MAPS=1` |
+| Agents' shared maps (`POST /maps`) | Accepted, private to their agent until verified by a second agent or the keeper; 20 an hour per identity | An agent's keys and locators are its word, so a hostile agent could mislabel a form | Done: the verification ladder (docs/security.md) |
 
 Still open and accepted:
 - **Knocks** create a session row for any site, at up to 120 a minute per address. Sessions are deleted after 90 days.

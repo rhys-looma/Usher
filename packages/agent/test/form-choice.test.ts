@@ -73,6 +73,8 @@ test('the model chooses the callback form by intent; the next agent finds its ma
   assert.equal(c.outcome, 'completed', c.reason);
   assert.deepEqual(requests, ['form_choice', 'usher_labels'], 'asked which form, then labelled it');
   assert.equal(c.pages[0]!.map_source, 'compiled');
+  // Agent C's map is private to C until verified; verify it as the keeper would, so D can use it.
+  for (const r of await registry.registry.storage.mapsForOrigin(site.url)) await registry.registry.verifyMap(site.url, r.digest, 'keeper');
 
   const d = await runAgent({ browser, url: `${site.url}/help`, profile, intent: 'contact.callback', registry: await transport('d.json'), user: scriptedUser(profile) });
   assert.equal(d.outcome, 'completed', d.reason);

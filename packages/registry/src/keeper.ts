@@ -27,7 +27,7 @@ import {
   type ScannedForm,
   type UsherMap,
 } from '@usher/core';
-import type { Registry } from './registry.ts';
+import { mapKeys, type Registry } from './registry.ts';
 import type { MapRecord } from './storage.ts';
 
 export const KEEPER_AGENT = 'UsherKeeper/0.1';
@@ -207,7 +207,8 @@ export class Keeper {
 
   private async currentMaps(origin: string): Promise<MapRecord[]> {
     const latest = new Map<string, MapRecord>();
-    for (const r of await this.registry.storage.mapsForOrigin(origin)) {
+    // Public maps only: an agent's unverified map is verified separately (verifyAgentMap).
+    for (const r of await this.registry.mapsFor(origin)) {
       const seen = latest.get(r.map.path);
       if (!seen || r.added_at > seen.added_at) latest.set(r.map.path, r);
     }
@@ -216,6 +217,45 @@ export class Keeper {
 
   private listed(origin: string): boolean {
     return !this.options.origins || this.options.origins.includes(origin);
+  }
+
+  /**
+   * An agent's new map, rebuilt by the keeper from the live page: the same structure (fingerprint)
+   * and the same key on every element verifies it, and makes it public. Only for listed sites, and
+   * only with a compiler; never submits anything.
+   */
+  async verifyAgentMap(record: MapRecord): Promise<'verified' | 'differs' | 'skipped'> {
+    const { origin, path } = record.map;
+    if (!this.listed(origin) || !this.options.compiler) return 'skipped';
+    const context = await (await this.getBrowser()).newContext({ viewport: VIEWPORT, userAgent: `Mozilla/5.0 (compatible; ${KEEPER_AGENT}; +${this.registry.url})`, extraHTTPHeaders: { 'Usher-Agent': 'usher-keeper' } });
+    let outcome: 'verified' | 'differs' | 'skipped' = 'skipped';
+    let detail = '';
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + path, { waitUntil: 'load', timeout: 30_000 }).catch(() => null);
+      if (!res || res.status() >= 400 || new URL(page.url()).pathname !== path) return (detail = 'page not reachable without submitting'), outcome;
+      const scan: Scan = await page.evaluate(scanScript());
+      const candidates = await Promise.all(candidateForms(scan.forms).map(async (f) => ({ form: f, fp: await fingerprint(f.elements) })));
+      const match = candidates.find((c) => c.fp.digest === record.digest);
+      if (!match) return (outcome = 'differs'), (detail = 'no form on the live page has this structure'), outcome;
+      const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: match.form.index, logDir: null });
+      if (compiled.map.fingerprint.digest === record.digest && mapKeys(compiled.map) === mapKeys(record.map)) {
+        await this.registry.verifyMap(origin, record.digest, 'keeper');
+        outcome = 'verified';
+      } else {
+        // The agent's map was never served to anyone else; the keeper's own takes its place.
+        outcome = 'differs';
+        detail = 'the keeper labelled the form differently; its own map replaced the agent\'s';
+        if (compiled.map.fingerprint.digest === record.digest) await this.registry.replaceWithKeeperMap(compiled.map);
+      }
+      return outcome;
+    } catch (err) {
+      detail = err instanceof Error ? err.message : String(err);
+      return outcome;
+    } finally {
+      await context.close();
+      await this.registry.storage.putCached('keeper-verify', `${origin}|${record.digest}`, { at: this.now().toISOString(), outcome, detail });
+    }
   }
 
   /** Checks one form; concurrent requests for the same form share one check. */
