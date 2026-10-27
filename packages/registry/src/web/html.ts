@@ -90,7 +90,7 @@ export function page(title: string, body: Raw, options: { nav?: Raw } = {}): str
 <body>
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/viewer">Map viewer</a><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>
 <main>${body}</main>
-<footer>Usher · maps hold structure, never values</footer>
+<footer>Usher · maps hold structure, never values · <a href="/privacy">Privacy</a></footer>
 </body>
 </html>`;
 }
