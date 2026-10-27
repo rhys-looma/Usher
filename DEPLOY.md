@@ -119,7 +119,7 @@ Then run the script again.
 
 | Task definition | Size | Environment | Secrets |
 | --- | --- | --- | --- |
-| `usher-registry` | 1 vCPU, 2 GB (Chromium) | `NODE_ENV=production`, `PORT=4200`, `REGISTRY_PUBLIC_URL`, `TRUSTED_PROXY_HOPS=2`, `USHER_DAILY_MODEL_BUDGET_USD`, `USHER_CONTACT_EMAIL`, `USHER_SEED=mock-site`, `USHER_SEED_ORIGIN` | all five |
+| `usher-registry` | 1 vCPU, 2 GB (Chromium) | `NODE_ENV=production`, `PORT=4200`, `REGISTRY_PUBLIC_URL`, `TRUSTED_PROXY_HOPS=2`, `USHER_DAILY_MODEL_BUDGET_USD`, `USHER_CONTACT_EMAIL`, `USHER_SEED=mock-site`, `USHER_SEED_ORIGIN`, `USHER_KEEPER_ORIGINS` | all five |
 | `usher-mock-site` | 0.25 vCPU, 0.5 GB | `NODE_ENV=production`, `PORT=4100`, `USHER_REGISTRY_URL`, `USHER_SITE_ORIGIN`, `USHER_SITE_KEY` | `USHER_ADMIN_KEY` |
 | `usher-migrate` | 0.25 vCPU, 0.5 GB | none | `DATABASE_URL` |
 
@@ -218,6 +218,8 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 | `TRUSTED_PROXY_HOPS` | 2 by default | Proxies in front whose forwarded headers are trusted: CloudFront and the ALB. The client is the `X-Forwarded-For` entry this many from the right. The scheme is `CloudFront-Forwarded-Proto`, else `X-Forwarded-Proto`. Use 1 for an ALB alone; 0 trusts nothing forwarded (the default outside production). |
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
+| `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
+| `USHER_ACCEPT_MAPS` | off | `1` stores maps agents submit and shares them with other agents. Off: agents use the maps the registry built or seeded, or their own. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
 | `USHER_VIEWER` | refused | `1` turns on the public map viewer (`/viewer` and the front page's "Try it"). It is local only for now: its browser follows redirects, and the page's own requests can reach private addresses behind the address check. |
 | `USHER_ALLOW_PRIVATE` | refused | `1` lets the viewer and claim checks reach private addresses: local demos only. |
@@ -233,10 +235,31 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 | `USHER_ADMIN_KEY` | Required to switch the form layout at `/__admin` (the drift demo). |
 | `PORT` | 4100. |
 
+## Locked down for now
+
+Everything an outsider could steer, closed for launch, to reopen one at a time:
+
+| What | State | Why it is closed | To reopen |
+| --- | --- | --- | --- |
+| Map viewer (`/viewer`, "Try it") | Off; production refuses `USHER_VIEWER=1` | It opens any URL in a browser, and a redirect or the page's own requests reached a private address in a test | Check every browser request on the address it connects to (an egress proxy), run it as its own task without secrets, then allow `USHER_VIEWER` |
+| Keeper | Only `USHER_KEEPER_ORIGINS` (the demo site) | Same browser, and it visits any registered site, claimed or not | The same egress proxy; then claimed sites only |
+| Agents' shared maps (`POST /maps`) | Refused (403 `maps_closed`) | An agent's keys and locators are its word, so a hostile agent could mislabel a form for every other agent | Serve a submitted map only once a second agent or the keeper agrees with it, then set `USHER_ACCEPT_MAPS=1` |
+
+Still open and accepted:
+- **Knocks** create a session row for any site, at up to 120 a minute per address. Sessions are deleted after 90 days.
+- **Drift reports** need the site key, which is public, so anyone can flag a form as drifted. That adds a flag and a log line; agents still get maps by their live form.
+
+A CloudFront or WAF rate-based rule (for example, 2,000 requests per 5 minutes per IP) caps both cheaply.
+
 ## Hardening in place
 
 - **Production refuses to start** without its settings (above).
-- **Rate limits per client address:** knocks 120/min, drift reports 60/min, session events 1,200/min, other writes 300/min, reads 600/min. Also per site key on drift and blocked reports, and per visitor and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
+- **Outbound requests to addresses outsiders choose** (a site's claim file, an agent's key directory, robots.txt) go only to public internet addresses, checked on the address actually connected to. They never follow redirects, and responses are capped at 1 MB.
+- **Rate limits per client address:**
+  - Per minute: knocks 120, drift reports 60, session events 1,200, other writes 300, reads 600.
+  - Per hour: registering sites and claim checks 20, the interest form 5, sign-ins 30.
+  - Per site key on drift and blocked reports.
+  - Memory for these limits is bounded, and addresses are never stored.
 - **A hard daily cap** on model spend.
 - **Body limits:** JSON bodies up to 256 KB; form bodies up to 20 KB.
 - **No private addresses:** claim checks refuse private and loopback addresses. The map viewer is off in production (see `USHER_VIEWER`).

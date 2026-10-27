@@ -105,7 +105,7 @@ try {
     '-e', `ROUTES=${registryHost}=registry:4200,${siteHost}=site:4100`, '-e', 'CERT=/certs/tls.pem', '-e', 'KEY=/certs/tls.key', 'node:20-alpine', 'node', '/proxy.mjs');
   await until('postgres', async () => spawnSync('docker', ['exec', 'usher-dryrun-postgres', 'pg_isready', '-U', 'usher'], { stdio: 'ignore' }).status === 0);
   const signingKey = execFileSync('npm', ['run', '--silent', 'keygen'], { cwd: root, encoding: 'utf8' }).trim();
-  const production = { NODE_ENV: 'production', REGISTRY_PUBLIC_URL: registryUrl, DATABASE_URL: DB, USHER_SIGNING_KEY: signingKey, USHER_DAILY_MODEL_BUDGET_USD: '1', USHER_ADMIN_KEY: ADMIN_KEY, USHER_CONTACT_EMAIL: 'security@dryrun.invalid', USHER_SEED: 'mock-site', USHER_SEED_ORIGIN: siteUrl };
+  const production = { NODE_ENV: 'production', REGISTRY_PUBLIC_URL: registryUrl, DATABASE_URL: DB, USHER_SIGNING_KEY: signingKey, USHER_DAILY_MODEL_BUDGET_USD: '1', USHER_ADMIN_KEY: ADMIN_KEY, USHER_CONTACT_EMAIL: 'security@dryrun.invalid', USHER_SEED: 'mock-site', USHER_SEED_ORIGIN: siteUrl, USHER_KEEPER_ORIGINS: siteUrl };
 
   // 1. Production mode.
   const { USHER_DAILY_MODEL_BUDGET_USD: _, ...noBudget } = production;
@@ -135,6 +135,8 @@ try {
   check('Usher\'s own site key is served', typeof own.site_key === 'string');
   const viewer = await fetch(`${registryUrl}/viewer`, { method: 'POST', body: new URLSearchParams({ url: `${siteUrl}/quote/driver` }) });
   check('map viewer is switched off in production', viewer.status === 404 && /switched off/.test(await viewer.text()) && !frontText.includes('Try it'));
+  const shared = await fetch(`${registryUrl}/maps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"map":{}}' });
+  check('agents\' maps are not accepted in production', shared.status === 403 && (await shared.json()).error === 'maps_closed');
   const discovery = await (await fetch(`${siteUrl}/.well-known/usher.json`)).json();
   check('demo site points agents at the public registry', discovery.knock_url === `${registryUrl}/knock`);
   const flip = await fetch(`${siteUrl}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'b' }), redirect: 'manual' });
