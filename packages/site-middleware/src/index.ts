@@ -13,6 +13,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ReplayCache, decodeToken, jwkThumbprint, verifyToken, type KeySet, type PublicJwk, type TokenClaims, type TokenErrorCode } from '@usher/core/token';
 import { vocabulary } from '@usher/core/vocabulary';
 import { fetchKeyDirectory, hasSignature, verifyHttpMessage, type HttpSignatureCheck } from '@usher/core/http-signatures';
+import { publicFetch } from '@usher/core/public-fetch';
 
 // The least an action's default risk allows, so a token from a knock on an unmapped page can't
 // skip confirmation.
@@ -43,7 +44,7 @@ export interface UsherCheckOptions {
    * issued to. Off by default: signatures are checked when present, and a token alone still works.
    */
   requireSignature?: boolean;
-  /** Fetch Signature-Agent key directories over http:// (local development only). */
+  /** Fetch Signature-Agent key directories over http:// and from private addresses (local development only). */
   allowHttpDirectories?: boolean;
 }
 
@@ -143,7 +144,9 @@ export function createUsherCheck(options: UsherCheckOptions) {
         key: async (keyid, signatureAgent) => {
           if (claims.cnf?.jwk) return claims.cnf.jwk;
           if (!signatureAgent) return undefined;
-          const keys = await fetchKeyDirectory(signatureAgent, { allowHttp: options.allowHttpDirectories === true, ...(options.fetch && { fetch: options.fetch }) }).catch(() => []);
+          // The agent names its own directory: only the public internet, unless http directories are allowed (local demos).
+          const allowHttp = options.allowHttpDirectories === true;
+          const keys = await fetchKeyDirectory(signatureAgent, { allowHttp, fetch: allowHttp ? (options.fetch ?? fetch) : publicFetch }).catch(() => []);
           for (const k of keys) if ((await jwkThumbprint(k)) === keyid) return k;
           return undefined;
         },
