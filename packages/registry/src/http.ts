@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
+import { clientAddress, requestUrl } from './forwarded.ts';
 import { RateLimiter } from './rate-limit.ts';
 import type { AddressInfo } from 'node:net';
 import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
@@ -20,7 +21,10 @@ export interface HttpOptions {
   siteScript?: string;
   /** The map viewer and dashboard pages. */
   web?: Web;
-  /** Use the first X-Forwarded-For address as the client (behind a trusted proxy only). */
+  /**
+   * Behind a trusted load balancer (one hop, such as an AWS ALB): the client is the last
+   * X-Forwarded-For address, the one the load balancer added, and the scheme is X-Forwarded-Proto.
+   */
   trustProxy?: boolean;
   /** Send Strict-Transport-Security (when served over HTTPS). */
   hsts?: boolean;
@@ -29,6 +33,8 @@ export interface HttpOptions {
   /** The demo stage at /demo: served only when USHER_DEMO=1, and only to this machine. */
   demo?: DemoHandler;
 }
+
+export { clientAddress, requestUrl };
 
 export type DemoHandler = (req: IncomingMessage, res: ServerResponse, url: URL) => Promise<void>;
 
@@ -40,12 +46,6 @@ export function isLoopback(req: IncomingMessage): boolean {
 
 // Endpoints the site script calls from a site's pages.
 const CORS_ROUTES = [/^GET \/maps\/current$/, /^POST \/maps\/lookup$/, /^POST \/drift$/, /^POST \/sessions\/s_[A-Za-z0-9_-]+\/events$/, /^GET \/\.well-known\/usher-keys\.json$/, /^POST \/sites\/[^/]+\/blocked$/];
-
-/** The client address, used in memory for rate limits and never stored. */
-export function clientAddress(req: IncomingMessage, trustProxy = false): string {
-  const forwarded = trustProxy ? String(req.headers['x-forwarded-for'] ?? '').split(',')[0]!.trim() : '';
-  return forwarded || req.socket.remoteAddress || 'unknown';
-}
 
 interface SiteScript {
   version: string;
@@ -146,8 +146,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       // Agent writes: the body, and the Web Bot Auth signature over it if the agent sent one.
       const signed = async () => {
         const raw = await readRaw(req);
-        const host = (options.trustProxy && header(req, 'x-forwarded-host')) || req.headers.host || 'registry';
-        const via = await registry.verifyHttpAgent({ method: req.method ?? 'POST', url: `http://${host}${req.url ?? '/'}`, headers: req.headers }, raw);
+        const via = await registry.verifyHttpAgent({ method: req.method ?? 'POST', url: requestUrl(req, options.trustProxy), headers: req.headers }, raw);
         return { body: JSON.parse(Buffer.from(raw).toString('utf8') || 'null') as unknown, via };
       };
       if (route === 'POST /knock') {
@@ -250,7 +249,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.directories && { directories: options.directories }),
     ...(options.claims && { claims: options.claims }),
   });
-  const web = options.web ? new Web(registry, { ...options.web, ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const web = options.web ? new Web(registry, { ...options.web, ...(options.trustProxy && { trustProxy: true }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
     registryHandler(registry, {
       ...(options.siteScript && { siteScript: options.siteScript }),

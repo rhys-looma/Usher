@@ -87,9 +87,11 @@ export class Dashboard {
   }
 
   private setCookie(res: ServerResponse, origin: string | null): void {
-    if (!origin) return void res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+    // Secure whenever the registry is served over https, as it is in production.
+    const secure = this.registry.url.startsWith('https://') ? '; Secure' : '';
+    if (!origin) return void res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
     const payload = Buffer.from(JSON.stringify({ origin, exp: Date.now() + SESSION_HOURS * 3_600_000 })).toString('base64url');
-    res.setHeader('Set-Cookie', `${COOKIE}=${payload}.${this.sign(payload)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_HOURS * 3600}`);
+    res.setHeader('Set-Cookie', `${COOKIE}=${payload}.${this.sign(payload)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_HOURS * 3600}${secure}`);
   }
 
   async login(res: ServerResponse, form: URLSearchParams): Promise<string | null> {
