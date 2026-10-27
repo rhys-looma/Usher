@@ -97,6 +97,9 @@ footer nav { display:flex; flex-direction:column; gap:8px; }
 .looma a.wordmark { font-size:30px; font-weight:500; letter-spacing:-0.02em; color:#fff; line-height:1; }
 .looma a.wordmark sup { font-size:10px; margin-left:1px; }
 .looma span { font-size:12.5px; color:rgba(251,249,244,.45); }
+ul.claims { list-style:none; margin:18px 0; padding:0; display:grid; gap:12px; }
+ul.claims li { display:flex; flex-direction:column; gap:2px; padding-left:14px; border-left:3px solid var(--accent); }
+ul.claims span { color:var(--muted); font-size:15px; }
 `;
 
 /** The tab icon: a serif U with Looma's purple point, inline so nothing is fetched. */
@@ -114,6 +117,17 @@ export function verificationNote(record: { submitted_by?: string; verification?:
 }
 
 /** Looma's wordmark and link, at the foot of every page. */
+/** What a site gets, in three claims: on the front page, the dashboard sign-in and signup. */
+export const SITE_CLAIMS: [string, string][] = [
+  ['No changes to your systems.', 'One script tag on the pages you already have. Agents come through the same forms your customers use.'],
+  ['You set the terms.', 'Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit.'],
+  ['Every agent action on the record.', 'Who the agent was and what it did, step by step, by meaning. Your customers\' data is never captured.'],
+];
+
+export function siteClaims(): Raw {
+  return html`<ul class="claims">${SITE_CLAIMS.map(([bold, text]) => html`<li><b>${bold}</b><span>${text}</span></li>`)}</ul>`;
+}
+
 export const LOOMA_FOOTER = `<div class="looma"><small>Built by</small><a class="wordmark" href="https://looma.insure" aria-label="Looma, who built Usher">Looma<sup>®</sup></a><span>Code Apache-2.0 · Specifications CC BY 4.0</span></div>`;
 
 const STYLE = `
