@@ -34,21 +34,20 @@ Then lock consequential endpoints on your server with [`@usher/site-middleware`]
 
 ## Quickstart: an agent
 
-Add one MCP server entry, pointed at a registry. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
+Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
 ```json
 {
   "mcpServers": {
     "usher": {
       "command": "npx",
-      "args": ["tsx", "/path/to/Usher/packages/registry/src/mcp.ts"],
-      "env": { "USHER_REGISTRY_URL": "https://registry.example" }
+      "args": ["-y", "@usher-run/mcp"]
     }
   }
 }
 ```
 
-Put your registry's address (its `REGISTRY_PUBLIC_URL`) in place of `https://registry.example`; the registry's front page shows this entry already filled in. The MCP server runs where the agent runs, because it holds the agent's private key. Only the registry URL is shared.
+It knocks on the public registry by default. For your own registry, add `"env": { "USHER_REGISTRY_URL": "https://registry.example" }` with its `REGISTRY_PUBLIC_URL`; the registry's front page shows the entry already filled in. `npx @usher-run/mcp --check` knocks on the demo site and prints what came back. The MCP server runs where the agent runs, because it holds the agent's private key; only the registry URL is shared. Setup for Claude Desktop, Cursor and other clients is in [packages/mcp](packages/mcp/README.md).
 
 ## Try it
 

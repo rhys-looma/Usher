@@ -1,6 +1,10 @@
 // HTTP client for the registry, signing as an agent. Used by the MCP server and the agent.
 
-import { contentDigest, signHttpMessage, signRequest, utf8, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPlan } from '@usher/core';
+// Narrow imports: this client is bundled into @usher-run/mcp, which must not pull in the compiler.
+import type { AgentIdentity, Fingerprint, UsherMap, UsherPlan } from '@usher/core';
+import { utf8 } from '@usher/core/encoding';
+import { contentDigest, signHttpMessage } from '@usher/core/http-signatures';
+import { signRequest } from '@usher/core/identity';
 
 export interface KnockInput {
   url: string;
