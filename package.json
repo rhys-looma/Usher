@@ -22,6 +22,7 @@
     "seed:build": "node scripts/with-mock-sites.mjs node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/build-seed.ts",
     "agent": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/src/cli.ts",
     "fixtures:record:open": "node scripts/record-fixtures.mjs --open",
+    "fixtures:record:forms": "node scripts/with-mock-sites.mjs node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/record-form-choices.ts",
     "keygen": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/keygen.ts",
     "db": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/db.ts",
     "e2e:remote": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/e2e-remote.ts",

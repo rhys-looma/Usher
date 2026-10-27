@@ -1,0 +1,194 @@
+{
+  "url": "https://www.churchill.com/car-insurance",
+  "intent": "quote.car_insurance",
+  "recorded_at": "2026-10-27T10:13:05.788Z",
+  "forms": [
+    {
+      "index": 0,
+      "pseudo": true,
+      "banner": true,
+      "search": false,
+      "newsletter": false,
+      "elements": [
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Global navigation",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Dismiss alert",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Let me choose",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Reject all",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Accept all",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Allow all",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Strictly Necessary Cookies Always Active",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cookie Details button opens Cookie List menu",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Performance Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Performance Cookies",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cookie Details button opens Cookie List menu",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Functional Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Functional Cookies",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cookie Details button opens Cookie List menu",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Advertising Cookies",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "Advertising Cookies",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cookie Details button opens Cookie List menu",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Back",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "text",
+          "label": "Cookie list search",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Filter",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Clear",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "checkbox label",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Apply",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Cancel",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "checkbox label",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "checkbox label",
+          "visible": false
+        },
+        {
+          "kind": "field",
+          "control": "checkbox",
+          "label": "checkbox label",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Confirm my Choices",
+          "visible": false
+        }
+      ]
+    }
+  ],
+  "candidates": [],
+  "chosen": null,
+  "note": "No form to map on https://www.churchill.com/car-insurance for quote.car_insurance: the page has only a cookie or consent widget.",
+  "attempts": []
+}

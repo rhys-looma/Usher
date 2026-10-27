@@ -15,5 +15,6 @@ USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --pref
 That runs it with Usher: the script tag, `/.well-known/usher.json`, its claim file at `/.well-known/usher-site.json`, and the server-side check on "Get my quote" and on `POST /api/quote`.
 
 - `/__admin` switches between layouts A and B while it runs, to show drift and the keeper's rebuild.
+- `/help` has four forms (a site search, a callback request, a message form and a newsletter box), for choosing the form by intent. Nothing on it is processed.
 - `VARIANT=b` starts it on layout B.
 - `USHER_REQUIRE_SIGNATURE=1` refuses agent tokens without a Web Bot Auth signature.

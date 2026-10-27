@@ -1,0 +1,44 @@
+{
+  "url": "https://www.admiral.com/car-insurance",
+  "intent": "quote.car_insurance",
+  "recorded_at": "2026-10-27T10:13:02.835Z",
+  "forms": [
+    {
+      "index": 0,
+      "pseudo": true,
+      "banner": true,
+      "search": false,
+      "newsletter": false,
+      "elements": [
+        {
+          "kind": "field",
+          "control": "select",
+          "label": "Select language",
+          "visible": false
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Personalise",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Accept all",
+          "visible": true
+        },
+        {
+          "kind": "action",
+          "control": "button",
+          "label": "Required only",
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "candidates": [],
+  "chosen": null,
+  "note": "No form to map on https://www.admiral.com/car-insurance for quote.car_insurance: the page has only a cookie or consent widget.",
+  "attempts": []
+}
