@@ -1,8 +1,9 @@
-# The Usher registry: HTTP API, map viewer and dashboard, and the MCP server for agents to run.
-# Based on Playwright's image, at the same version as the repository, for the viewer's browser.
-FROM mcr.microsoft.com/playwright:v1.64.1-noble
-WORKDIR /app
+# The Usher registry: HTTP API, front page, dashboard, map viewer, and the MCP server for agents to run.
+# Two stages: the build makes the site script and middleware bundles; the runtime has production
+# dependencies only, and Chromium's headless shell (not the full browser set) for the viewer.
 
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/registry/package.json packages/registry/
@@ -10,20 +11,38 @@ COPY packages/site-middleware/package.json packages/site-middleware/
 COPY packages/site-script/package.json packages/site-script/
 COPY packages/agent/package.json packages/agent/
 RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY spec spec
+COPY packages packages
+COPY scripts scripts
+RUN npm run build
 
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY package.json package-lock.json ./
+COPY packages/core/package.json packages/core/
+COPY packages/registry/package.json packages/registry/
+COPY packages/site-middleware/package.json packages/site-middleware/
+COPY packages/site-script/package.json packages/site-script/
+COPY packages/agent/package.json packages/agent/
+# Chromium's system libraries need root; the server itself runs as the node user.
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+ && npx playwright install --with-deps --only-shell chromium \
+ && npm cache clean --force \
+ && rm -rf /var/lib/apt/lists/* /root/.cache
 COPY spec spec
 COPY reports reports
 COPY packages packages
-COPY scripts scripts
-COPY examples examples
-RUN npm run build
+COPY --from=build /app/packages/site-script/dist packages/site-script/dist
+COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/dist
+# The compiler log and file store write under /app/data.
+RUN mkdir -p /app/data && chown node:node /app/data
 
 ENV HOST=0.0.0.0 PORT=4200 NODE_OPTIONS=--disable-warning=ExperimentalWarning
 EXPOSE 4200
-# The compiler log and file store write under /app/data; the server runs as pwuser.
-RUN mkdir -p /app/data && chown pwuser:pwuser /app/data
-USER pwuser
+USER node
 HEALTHCHECK --interval=10s --timeout=3s --retries=12 CMD node -e "fetch('http://'+require('os').hostname()+':'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Migrations: node --import tsx packages/registry/scripts/db.ts migrate
 # The MCP server runs where the agent is (it holds the agent's key):
-#   docker run -i --rm -e USHER_REGISTRY_URL=https://registry.example -v ~/.usher:/home/pwuser/.usher <image> node --import tsx packages/registry/src/mcp.ts
+#   docker run -i --rm -e USHER_REGISTRY_URL=https://registry.example -v ~/.usher:/home/node/.usher <image> node --import tsx packages/registry/src/mcp.ts
 CMD ["node", "--import", "tsx", "packages/registry/src/server.ts"]

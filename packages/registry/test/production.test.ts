@@ -7,8 +7,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { clientAddress, listeningUrl, requestUrl, startRegistry, type RunningRegistry } from '../src/index.ts';
-import { productionProblems, trustProxy } from '../src/production.ts';
+import { clientAddress, listeningUrl, requestScheme, requestUrl, startRegistry, type RunningRegistry } from '../src/index.ts';
+import { productionProblems, proxyHops } from '../src/production.ts';
 import { testStorage } from './storage-helper.ts';
 
 const READY = {
@@ -38,21 +38,27 @@ test('production: each missing or unsafe setting is named', () => {
   assert.match(problems({ USHER_DEV_SITE_KEY: 'usp_x' }), /local development only/);
 });
 
-test('production: the load balancer is trusted by default, and only there', () => {
-  assert.equal(trustProxy(READY), true);
-  assert.equal(trustProxy({ ...READY, USHER_TRUST_PROXY: '0' }), false);
-  assert.equal(trustProxy({}), false);
-  assert.equal(trustProxy({ USHER_TRUST_PROXY: '1' }), true);
+test('production: CloudFront and the ALB are trusted by default, and only there', () => {
+  assert.equal(proxyHops(READY), 2);
+  assert.equal(proxyHops({ ...READY, TRUSTED_PROXY_HOPS: '1' }), 1);
+  assert.equal(proxyHops({ ...READY, TRUSTED_PROXY_HOPS: '0' }), 0);
+  assert.equal(proxyHops({}), 0);
+  assert.throws(() => proxyHops({ TRUSTED_PROXY_HOPS: 'two' }), /whole number/);
 });
 
-test('forwarded headers: the address the load balancer added, and the scheme it was reached on', () => {
+test('forwarded headers: the viewer CloudFront saw, and the scheme the viewer used', () => {
   const req = (headers: Record<string, string>) => ({ headers, url: '/knock', socket: { remoteAddress: '10.0.0.5' } }) as unknown as IncomingMessage;
-  // A client can send its own X-Forwarded-For; the load balancer appends the real address last.
-  const spoofed = req({ 'x-forwarded-for': '1.2.3.4, 203.0.113.9', 'x-forwarded-proto': 'https', host: 'registry.example' });
-  assert.equal(clientAddress(spoofed, true), '203.0.113.9');
-  assert.equal(clientAddress(spoofed, false), '10.0.0.5');
-  assert.equal(requestUrl(spoofed, true), 'https://registry.example/knock');
-  assert.equal(requestUrl(spoofed, false), 'http://registry.example/knock');
+  // The client sent its own X-Forwarded-For; CloudFront appended the viewer, the ALB appended CloudFront.
+  const viaCloudFront = req({ 'x-forwarded-for': '1.2.3.4, 203.0.113.9, 130.176.0.1', 'cloudfront-forwarded-proto': 'https', 'x-forwarded-proto': 'http', 'x-forwarded-host': 'evil.example', host: 'registry.example' });
+  assert.equal(clientAddress(viaCloudFront, 2), '203.0.113.9');
+  assert.equal(clientAddress(viaCloudFront, 1), '130.176.0.1', 'ALB only');
+  assert.equal(clientAddress(viaCloudFront, 0), '10.0.0.5');
+  assert.equal(clientAddress(req({ 'x-forwarded-for': '203.0.113.9' }), 2), '203.0.113.9', 'fewer hops than expected: the left-most');
+  // CloudFront may reach the ALB over http: its own header wins.
+  assert.equal(requestScheme(viaCloudFront, 2), 'https');
+  assert.equal(requestScheme(req({ 'x-forwarded-proto': 'https' }), 1), 'https');
+  assert.equal(requestScheme(viaCloudFront, 0), 'http');
+  assert.equal(requestUrl(viaCloudFront, 2), 'https://registry.example/knock', 'Host as sent, never X-Forwarded-Host');
 });
 
 let dir: string;
@@ -91,4 +97,15 @@ test('dashboard cookie is Secure when the registry is served over https', async 
   const { secret_key } = reply.body as { secret_key: string };
   const res = await fetch(`${local}/dashboard/login`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ origin: 'https://cookie.example', secret: secret_key }) });
   assert.match(res.headers.get('set-cookie') ?? '', /; HttpOnly; SameSite=Lax; Max-Age=\d+; Secure$/);
+});
+
+test('cache headers: static things long, versioned for ever, everything dynamic no-store', async () => {
+  const cache = async (path: string, init?: RequestInit) => (await fetch(`${local}${path}`, init)).headers.get('cache-control');
+  const version = (await (await fetch(`${local}/usher/version.json`)).json().catch(() => ({}))) as { path?: string };
+  if (version.path) assert.equal(await cache(version.path), 'public, max-age=31536000, immutable');
+  for (const path of ['/robots.txt', '/.well-known/security.txt', '/og.png']) assert.match((await cache(path)) ?? '', /^public, max-age=86400$/, path);
+  for (const path of ['/.well-known/usher-site.json', '/spec/map.md']) assert.match((await cache(path)) ?? '', /^public, max-age=3600$/, path);
+  for (const path of ['/', '/privacy', '/dashboard', '/sites/new', '/viewer', '/healthz', '/no-such-page']) assert.equal(await cache(path), 'no-store', path);
+  assert.equal(await cache('/knock', { method: 'POST', body: '{}' }), 'no-store');
+  assert.equal(await cache('/sessions/s_x', {}), 'no-store');
 });

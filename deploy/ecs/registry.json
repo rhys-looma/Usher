@@ -1,0 +1,47 @@
+{
+  "family": "usher-registry",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "1024",
+  "memory": "2048",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "${EXECUTION_ROLE_ARN}",
+  "taskRoleArn": "${TASK_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "registry",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REGISTRY_REPO}:${IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [{ "containerPort": 4200, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "4200" },
+        { "name": "REGISTRY_PUBLIC_URL", "value": "https://${REGISTRY_HOST}" },
+        { "name": "TRUSTED_PROXY_HOPS", "value": "2" },
+        { "name": "USHER_DAILY_MODEL_BUDGET_USD", "value": "${DAILY_MODEL_BUDGET_USD}" },
+        { "name": "USHER_CONTACT_EMAIL", "value": "${CONTACT_EMAIL}" },
+        { "name": "USHER_SEED", "value": "mock-site" },
+        { "name": "USHER_SEED_ORIGIN", "value": "https://${SITE_HOST}" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "${SECRET_ARN_DATABASE_URL}" },
+        { "name": "MODEL_API_KEY", "valueFrom": "${SECRET_ARN_MODEL_API_KEY}" },
+        { "name": "BASETEN_API_KEY", "valueFrom": "${SECRET_ARN_BASETEN_API_KEY}" },
+        { "name": "USHER_SIGNING_KEY", "valueFrom": "${SECRET_ARN_USHER_SIGNING_KEY}" },
+        { "name": "USHER_ADMIN_KEY", "valueFrom": "${SECRET_ARN_USHER_ADMIN_KEY}" }
+      ],
+      "healthCheck": {
+        "command": ["CMD", "node", "-e", "fetch('http://'+require('os').hostname()+':4200/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "linuxParameters": { "initProcessEnabled": true },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/ecs/usher-registry", "awslogs-region": "${AWS_REGION}", "awslogs-stream-prefix": "registry" }
+      }
+    }
+  ]
+}

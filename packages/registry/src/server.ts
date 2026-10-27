@@ -13,8 +13,8 @@
 //   USHER_DAILY_MODEL_BUDGET_USD    hard daily cap on model spend (default 5)
 //   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses, domain claims check local
 //                                   origins, and agents' key directories be served over http (local demos only)
-//   USHER_TRUST_PROXY=1             trust the load balancer's X-Forwarded-For and X-Forwarded-Proto (on by
-//                                   default in production; =0 turns it off)
+//   TRUSTED_PROXY_HOPS              proxies in front whose forwarded headers are trusted (default 2 in
+//                                   production: CloudFront, then the ALB; 0 elsewhere)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
@@ -30,7 +30,7 @@ import { budgeted, compilerModel, modelApi, openModel, type ChatFn, type Private
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
 import { PostgresStorage } from './postgres.ts';
-import { isProduction, productionProblems, trustProxy } from './production.ts';
+import { isProduction, productionProblems, proxyHops } from './production.ts';
 import { seed } from './seed.ts';
 import { FileStorage, type Storage } from './storage.ts';
 
@@ -90,7 +90,7 @@ const running = await startRegistry({
   port: Number(values.port),
   host: values.host,
   siteScript,
-  trustProxy: trustProxy(env),
+  proxyHops: proxyHops(env),
   hsts: (values.url ?? '').startsWith('https://'),
   ...(signingKey && { signingKey }),
   ...(retiredKeys && { retiredKeys }),

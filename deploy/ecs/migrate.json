@@ -1,0 +1,24 @@
+{
+  "family": "usher-migrate",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "${EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "migrate",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REGISTRY_REPO}:${IMAGE_TAG}",
+      "essential": true,
+      "command": ["node", "--import", "tsx", "packages/registry/scripts/db.ts", "migrate"],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "${SECRET_ARN_DATABASE_URL}" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/ecs/usher-registry", "awslogs-region": "${AWS_REGION}", "awslogs-stream-prefix": "migrate" }
+      }
+    }
+  ]
+}

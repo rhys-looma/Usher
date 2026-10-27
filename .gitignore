@@ -8,3 +8,4 @@ data/compiler-log/
 data/registry/
 data/finetune/
 backups/
+deploy/ecs/config.env

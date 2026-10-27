@@ -23,8 +23,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   adminKey?: string;
   /** USHER_CONTACT_EMAIL: named on /privacy and in security.txt. */
   contact?: string;
-  /** Behind a trusted load balancer: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
-  trustProxy?: boolean;
+  /** Trusted proxy hops: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
+  proxyHops?: number;
 }
 
 const SPEC_DIR = new URL('../../../../spec/', import.meta.url);
@@ -51,7 +51,7 @@ async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
 }
 
 function sendText(res: ServerResponse, body: string): void {
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
   res.end(body);
 }
 
@@ -155,7 +155,7 @@ export class Web {
     }
     if (route === 'GET /.well-known/usher-site.json') {
       const own = await this.registry.ownSite();
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
       return res.end(JSON.stringify({ usher_site: '0.1', site_key: own.site_key })), true;
     }
     if (route === 'POST /interest') {
@@ -187,7 +187,7 @@ export class Web {
       if (!(await this.specFiles()).includes(name)) return false;
       // Examples use the reserved example domain for a registry; this server is the registry here.
       const text = (await readFile(new URL(name, SPEC_DIR), 'utf8')).replaceAll('https://registry.example', this.registry.url);
-      res.writeHead(200, { 'Content-Type': name.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/markdown; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      res.writeHead(200, { 'Content-Type': name.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/markdown; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
       return res.end(text), true;
     }
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
@@ -298,7 +298,7 @@ export class Web {
       const form = await readForm(req);
       const target = form.get('url') ?? '';
       // The client address limits how often one visitor can compile; it is never stored.
-      const result = await this.viewer.compile(target, clientAddress(req, this.options.trustProxy));
+      const result = await this.viewer.compile(target, clientAddress(req, this.options.proxyHops));
       const status = result.ok ? 200 : result.reason === 'rate_limited' ? 429 : 422;
       // From the front page's box, a failure is explained there.
       if (!result.ok && form.get('from') === 'home') return sendHtml(res, status, await this.landing({ viewer: { url: target, error: result.message } }), { siteScript: true }), true;
