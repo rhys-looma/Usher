@@ -6,6 +6,7 @@
 import type { ExtractedForm } from '../extract.ts';
 import { CONDITION_OPS, type LabelError } from '../labels.ts';
 import { RISKS, vocabulary as defaultVocabulary, type Vocabulary } from '../vocabulary.ts';
+import { shortlist } from './shortlist.ts';
 
 export function systemPrompt(vocab: Vocabulary = defaultVocabulary): string {
   const rows = vocab.entries.map((e) => `| ${e.key} | ${e.kind} | ${e.default_risk}${e.sensitive ? ', sensitive' : ''} | ${e.meaning} |`);
@@ -15,7 +16,7 @@ export function systemPrompt(vocab: Vocabulary = defaultVocabulary): string {
 A map describes one state of one web form: what each field and action means, and which actions matter. Agents use the map instead of reading the raw page. Deterministic code has already extracted every element and will locate them; your job is to label meaning only. Never output selectors, CSS, XPath, ids from the page, or any value a person might type.
 
 ## Input
-- The extraction: every field and action in document order, with an element id (e1, e2…), control type, label, whether it is required, options for selects and radio groups (first 20 plus the total), validation constraints, and whether it is visible.
+- The extraction: every field and action in document order, with an element id (e1, e2…), control type, label, whether it is required, options for selects and radio groups (first 20 plus the total), validation constraints, whether it is visible, and candidates: the vocabulary keys whose meaning is closest to it, best first, found by code.
 - A screenshot of the form.
 
 ## Output
@@ -25,7 +26,11 @@ A map describes one state of one web form: what each field and action means, and
 - advance_action_id: the action that moves the journey forward or submits the form (Continue, Next, Submit, Get my quote), or null if there is none.
 
 ## Keys
-Prefer a key from the vocabulary below. Use custom.<slug> (lowercase letters, digits and underscores, e.g. custom.how_did_you_hear) only when nothing in the vocabulary fits. Field keys go on fields and action keys on actions. Each field gets its own key.
+- Choose each element's key from its candidates: the most specific candidate whose meaning fits (person.first_name rather than person.full_name for a first-name box; contact.mobile for a mobile number). The first candidate is not always right; read the meanings.
+- Never invent a custom key when a vocabulary key fits.
+- nav.next and form.submit are the form's own way forward. A link that leads away from the form, to another page or service, is neither.
+- Only when none of the candidates fits, use custom.<slug> (lowercase letters, digits and underscores, e.g. custom.how_did_you_hear). An element with no candidates usually needs one.
+- Field keys go on fields and action keys on actions. Each field gets its own key.
 
 ## Risk
 - safe: reversible, no effect outside the session (typing in a field, moving to the next step). Agents act freely.
@@ -65,6 +70,7 @@ export function compactExtraction(form: ExtractedForm, page: { path: string; tit
       ...(e.options && { options: e.options }),
       ...(e.constraints && { constraints: e.constraints }),
       visible: e.visible,
+      candidates: shortlist({ kind: e.kind, control: e.control, label: e.label, ...(e.options && { options: e.options.items.map((o) => o.label) }), ...(e.placeholder && { placeholder: e.placeholder }), ...(e.autocomplete && { autocomplete: e.autocomplete }) }),
     })),
   };
 }

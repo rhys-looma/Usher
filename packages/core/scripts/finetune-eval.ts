@@ -6,6 +6,7 @@
 //   npm run finetune:eval -- --model muse-spark-1.3         live, Meta Model API (about $0.002 an element)
 //   npm run finetune:eval -- --model meta-models/muse-spark-open --provider baseten
 //   npm run finetune:eval -- --baseline                     the commonest key and risk per control in train
+//   add --no-shortlist to a live run for the prompt without candidates (before the short list)
 //
 // Options: --data data/finetune, --save preds.jsonl (write the predictions), --report file.md.
 
@@ -14,7 +15,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { costUsd, modelApi, parseJsonContent, type ChatRequest } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
-import { systemPrompt, type Example } from './finetune-shared.ts';
+import { systemPrompt, withCandidates, type Example } from './finetune-shared.ts';
 import { compareKeys, singleNameField, type KeyComparison } from './key-equivalence.ts';
 
 const { values } = parseArgs({
@@ -24,6 +25,8 @@ const { values } = parseArgs({
     model: { type: 'string' },
     provider: { type: 'string', default: 'meta' },
     baseline: { type: 'boolean', default: false },
+    // The prompt before the short list, for before-and-after comparisons.
+    'no-shortlist': { type: 'boolean', default: false },
     save: { type: 'string' },
     report: { type: 'string' },
   },
@@ -66,7 +69,8 @@ if (values.predictions) {
   source = 'baseline: commonest key and risk per control in train';
 } else if (values.model) {
   const chat = modelApi({ provider: values.provider as 'meta' | 'baseten' });
-  const system = await systemPrompt();
+  const useShortlist = !values['no-shortlist'];
+  const system = await systemPrompt({ shortlist: useShortlist });
   const schema = {
     type: 'object',
     additionalProperties: false,
@@ -84,7 +88,7 @@ if (values.predictions) {
           temperature: 0,
           messages: [
             { role: 'system', content: system },
-            { role: 'user', content: JSON.stringify(ex.input) },
+            { role: 'user', content: JSON.stringify(useShortlist ? withCandidates(ex.input) : ex.input) },
           ],
           response_format: { type: 'json_schema', json_schema: { name: 'element_label', strict: true, schema } },
         };
@@ -100,7 +104,7 @@ if (values.predictions) {
       }
     }),
   );
-  source = `${values.model} (${values.provider}), live`;
+  source = `${values.model} (${values.provider}), live, ${useShortlist ? 'with the short list' : 'no short list'}`;
 } else {
   console.error('Give --predictions <file>, --model <id> [--provider baseten], or --baseline.');
   process.exit(1);

@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { systemPrompt, type ElementInput, type Example } from './finetune-shared.ts';
+import { systemPrompt, withCandidates, type ElementInput, type Example } from './finetune-shared.ts';
 
 const { values } = parseArgs({
   options: {
@@ -86,7 +86,7 @@ for (const file of files) {
       const i = elements.findIndex((e) => e.id === label.id);
       if (i < 0 || excluded.has(label.id)) continue;
       const e = elements[i]!;
-      const input: ElementInput = {
+      const input: ElementInput = withCandidates({
         label: e.label,
         kind: e.kind,
         control: e.control ?? null,
@@ -96,9 +96,9 @@ for (const file of files) {
         form_purpose: response.form?.purpose ?? '',
         page_title: extraction.page.title ?? '',
         neighbours: { before: elements.slice(Math.max(0, i - 2), i).map(describe), after: elements.slice(i + 1, i + 3).map(describe) },
-      };
+      });
       // The id ignores the purpose and title the model wrote, which vary in wording from run to run.
-      const { form_purpose: _p, page_title: _t, ...structure } = input;
+      const { form_purpose: _p, page_title: _t, candidates: _c, ...structure } = input;
       examples.push({ id: sha(JSON.stringify(structure)).slice(0, 16), input, output: { key: label.key, risk: clamps.get(label.id) ?? label.risk }, meta: { source: sourceOf(url), path: extraction.page.path, form, model: r.model } });
     }
   }
@@ -133,7 +133,7 @@ const train = unique.filter((ex) => !evalForms.has(ex.meta.form));
 const evals = unique.filter((ex) => evalForms.has(ex.meta.form));
 
 // Chat format for SFT services (Fireworks, or a LoRA run on Modal): system, user, assistant.
-const SYSTEM = await systemPrompt();
+const SYSTEM = await systemPrompt({ shortlist: true });
 const chat = (ex: Example) => JSON.stringify({ messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: JSON.stringify(ex.input) }, { role: 'assistant', content: JSON.stringify(ex.output) }] });
 
 await mkdir(values.out, { recursive: true });
