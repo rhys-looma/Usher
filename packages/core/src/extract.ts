@@ -98,6 +98,10 @@ export interface ExtractedForm {
   pseudo: boolean;
   /** Inside a cookie or consent banner: not the form a person came to fill in. */
   banner: boolean;
+  /** A site search box. */
+  search: boolean;
+  /** A newsletter or mailing-list sign-up box. */
+  newsletter: boolean;
   domId?: string;
   method?: string;
   /** Path of the form's action URL, without query or fragment. */
@@ -503,17 +507,35 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       nodes.push(target);
     }
 
-    // A cookie or consent banner: the form, or a container, says so in its id, class or label.
-    const BANNER = /cookie|consent|gdpr|onetrust|didomi|cookiebot|privacy-?banner/i;
+    // A cookie or consent banner: the form, or a container, says so in its id, class or label, or
+    // at least half its fields are about cookies.
+    const BANNER = /cookie|consent|gdpr|onetrust|ot-sdk|didomi|cookiebot|privacy-?banner/i;
+    const attrs = (n: Element) => `${n.id} ${typeof n.className === 'string' ? n.className : ''} ${n.getAttribute('aria-label') ?? ''}`;
     const first = nodes[0];
     let banner = false;
     for (let n: Element | null = form ?? first?.parentElement ?? null; n && n !== doc.body; n = n.parentElement) {
-      if (BANNER.test(`${n.id} ${typeof n.className === 'string' ? n.className : ''} ${n.getAttribute('aria-label') ?? ''}`)) {
+      if (BANNER.test(attrs(n))) {
         banner = true;
         break;
       }
     }
-    const out: ExtractedForm = { index, pseudo: form === null, banner, groups, elements };
+    const fieldLabels = elements.filter((e) => e.kind === 'field').map((e) => e.label);
+    if (!banner && fieldLabels.length && fieldLabels.filter((l) => /cookie|consent/i.test(l)).length * 2 >= fieldLabels.length) banner = true;
+
+    // A site search: role=search on or around the form, a <search> element, or a form of at most
+    // two fields with a search box or that says search in its id, class, label or action.
+    let search = false;
+    let newsletter = false;
+    if (form) {
+      const said = `${attrs(form)} ${form.getAttribute('action') ?? ''}`;
+      const small = fieldLabels.length <= 2;
+      search = Boolean(form.closest('[role="search"], search')) || (small && (nodes.some((n) => n instanceof HTMLInputElement && n.type === 'search') || /search/i.test(said)));
+      // A newsletter box: at most three fields, one of them an email address, and the form or its
+      // labels and buttons say newsletter, subscribe or mailing list.
+      const words = `${said} ${elements.map((e) => e.label).join(' ')}`;
+      newsletter = fieldLabels.length <= 3 && elements.some((e) => e.control === 'email' || /e-?mail/i.test(e.label)) && /newsletter|subscribe|mailing list/i.test(words);
+    }
+    const out: ExtractedForm = { index, pseudo: form === null, banner, search, newsletter, groups, elements };
     if (form) {
       const domId = form.getAttribute('id');
       if (domId) out.domId = domId;
