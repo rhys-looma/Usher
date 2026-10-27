@@ -71,10 +71,26 @@ test('finetune export: per element, risk floors applied, excluded skipped, de-du
     const preds = evalSet.map((e, i) => ({ id: e.id, key: e.output.key, risk: i === 0 && e.output.risk !== 'safe' ? 'safe' : e.output.risk }));
     await writeFile(join(dir, 'preds.jsonl'), preds.map((p) => JSON.stringify(p)).join('\n'));
     const { stdout } = await node('finetune-eval', ['--data', out, '--predictions', join(dir, 'preds.jsonl')]);
-    assert.match(stdout, new RegExp(`Key correct \\| ${evalSet.length}/${evalSet.length}`));
+    assert.match(stdout, new RegExp(`Key correct, exact \\| ${evalSet.length}/${evalSet.length}`));
     const underCalled = evalSet[0].output.risk !== 'safe' ? 1 : 0;
     assert.match(stdout, new RegExp(`Risk under-called \\(unsafe\\) \\| ${underCalled}`));
   } finally {
     await rm(dir, { recursive: true });
   }
+});
+
+test('key equivalence: synonyms, a single name field, custom slugs', async () => {
+  const { compareKeys, equivalentKeys, singleNameField } = await import('../scripts/key-equivalence.ts');
+  assert.equal(compareKeys('contact.phone', 'contact.mobile'), 'synonym');
+  assert.equal(compareKeys('person.full_name', 'person.first_name'), 'different', 'two name fields: not the same box');
+  assert.equal(compareKeys('person.full_name', 'person.first_name', { singleNameField: true }), 'synonym');
+  assert.ok(singleNameField(['person.full_name', 'contact.email']));
+  assert.ok(!singleNameField(['person.first_name', 'person.last_name']));
+  assert.equal(compareKeys('custom.room_count', 'custom.rooms'), 'custom_same');
+  assert.equal(compareKeys('custom.how_did_you_hear', 'custom.hear_about'), 'custom_same');
+  assert.equal(compareKeys('custom.room_count', 'custom.promo_code'), 'custom_wording');
+  assert.equal(compareKeys('custom.room_count', 'booking.party_size'), 'custom_vs_vocabulary');
+  assert.equal(compareKeys('address.town', 'address.county'), 'different');
+  assert.ok(equivalentKeys('custom.search_term', 'custom.search_terms'));
+  assert.ok(!equivalentKeys('form.submit', 'search.submit'));
 });

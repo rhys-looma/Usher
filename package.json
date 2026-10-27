@@ -31,6 +31,7 @@
     "demo:drift": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/drift-demo.ts",
     "finetune:export": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/finetune-export.ts",
     "finetune:eval": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/finetune-eval.ts",
+    "keys:disagreements": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/key-disagreements.ts",
     "benchmark": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/benchmark.ts"
   },
   "devDependencies": {
