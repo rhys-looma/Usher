@@ -8,7 +8,8 @@
 // does the script unlock the form, apply the site's rules and log the agent's actions by
 // semantic key. Page loads without a bound token are never logged, and no event carries a value.
 
-import { extractForms, type ExtractedForm } from '@usher/core/extract';
+import { extractForms } from '@usher/core/extract';
+import { candidateForms, mainForm } from '@usher/core/forms';
 import { fingerprint, similarity, type Fingerprint } from '@usher/core/fingerprint';
 import { locatorKit } from '@usher/core/locators';
 import { readValidationErrors, type PageError } from '@usher/core/page-errors';
@@ -64,6 +65,8 @@ const kit = locatorKit();
 
 let lookup: Lookup | null = null;
 let live: Fingerprint | null = null;
+// The other forms a map could be for, by fingerprint.
+let others: Fingerprint[] = [];
 let drifted = false;
 let token: string | null = null;
 let claims: TokenClaims | null = null;
@@ -90,13 +93,6 @@ function addNotices(): void {
     note.style.cssText = 'position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important';
     f.append(note);
   }
-}
-
-// The form with the most fields, leaving cookie banners aside, as the compiler picks it.
-function mainForm(forms: ExtractedForm[]): ExtractedForm | undefined {
-  const fields = (f: ExtractedForm) => f.elements.filter((e) => e.kind === 'field').length;
-  const tiers = [forms.filter((f) => !f.pseudo && !f.banner && fields(f) > 0), forms.filter((f) => !f.banner && fields(f) > 0), forms];
-  return [...(tiers.find((t) => t.length) ?? [])].sort((a, b) => fields(b) - fields(a))[0];
 }
 
 async function post(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {
@@ -141,10 +137,17 @@ async function currentMap(): Promise<CurrentMap | null> {
 // Fingerprints the live form and compares it with the registry's map locally. Only a mismatch
 // is reported, once per map and live form.
 async function load(): Promise<void> {
-  const extracted = mainForm(extractForms().forms);
-  if (!extracted) return;
-  live = await fingerprint(extracted.elements);
+  // Every form a map could be for; the likeliest first. The map may be for another of them (a
+  // model chose it by an agent's intent), so the one with the map's fingerprint wins.
+  const forms = extractForms().forms;
+  const likeliest = mainForm(forms);
+  if (!likeliest) return;
+  others = await Promise.all(candidateForms(forms).filter((f) => f !== likeliest).map((f) => fingerprint(f.elements)));
+  live = await fingerprint(likeliest.elements);
   const current = await currentMap();
+  // The map's form, or the one most like it, to compare with the map.
+  const sig = current?.signature;
+  if (sig) live = [live, ...others].sort((a, b) => Number(b.digest === current!.digest) - Number(a.digest === current!.digest) || similarity(b.signature, sig) - similarity(a.signature, sig))[0]!;
   if (!current?.digest || current.digest === live.digest) return;
   drifted = true;
   const seen = `usher-drift:${location.pathname}:${current.digest}:${live.digest}`;
@@ -159,6 +162,16 @@ async function lookupMap(): Promise<void> {
   if (!live) return;
   const res = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: live });
   if (res.ok) lookup = (await res.json()) as Lookup;
+  // An agent may have just shared a map for another form on the page.
+  for (const other of lookup?.match.kind === 'exact' ? [] : others) {
+    const again = await post('/maps/lookup', { origin: location.origin, path: location.pathname, fingerprint: other });
+    const found = again.ok ? ((await again.json()) as Lookup) : null;
+    if (found?.match.kind === 'exact') {
+      lookup = found;
+      live = other;
+      return;
+    }
+  }
 }
 
 let keys: KeySet | null = null;

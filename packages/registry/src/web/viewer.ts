@@ -4,7 +4,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { Browser } from 'playwright';
-import { BudgetExceeded, CompileError, VIEWPORT, compilePage, fingerprint, mapFromLabels, pickForm, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
+import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
 import type { MapRecord, Storage } from '../storage.ts';
 import { html, page, riskBadge, when, type Raw } from './html.ts';
@@ -95,20 +95,22 @@ export class Viewer {
       this.perClient.allow(client);
       this.overall.allow('all');
 
-      // Same structure as before: reuse the labels, locate again on this page.
-      const digest = (await fingerprint(pickForm(scan).elements)).digest;
-      const cached = await this.options.storage.getCached<CachedLabels>('viewer-labels', digest);
-      if (cached) {
-        const map = await mapFromLabels(tab, cached.labels, { compiler: cached.model, created_at: cached.created_at });
+      // Same structure as before (any form a map could be for): reuse the labels, locate again on this page.
+      for (const form of candidateForms(scan.forms)) {
+        const digest = (await fingerprint(form.elements)).digest;
+        const cached = await this.options.storage.getCached<CachedLabels>('viewer-labels', digest);
+        if (!cached) continue;
+        const map = await mapFromLabels(tab, cached.labels, { compiler: cached.model, created_at: cached.created_at }, digest);
         if (map) return { ok: true, map, cached: true, model: cached.model, cost_usd: 0, ms: Math.round(performance.now() - started) };
       }
       if (!this.options.chat || !this.options.model) return fail('no_model', 'This registry has no model configured to compile maps.');
       try {
         const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model, ...(this.options.classifier && { classifier: this.options.classifier }) });
         const flags = result.classifier && !('error' in result.classifier) ? result.classifier.flags : undefined;
-        await this.options.storage.putCached('viewer-labels', digest, { labels: result.labels, model: result.model, created_at: result.map.provenance.created_at } satisfies CachedLabels);
+        await this.options.storage.putCached('viewer-labels', result.map.fingerprint.digest, { labels: result.labels, model: result.model, created_at: result.map.provenance.created_at } satisfies CachedLabels);
         return { ok: true, map: result.map, cached: false, model: result.model, cost_usd: result.cost_usd, ms: Math.round(performance.now() - started), ...(flags && { flags }) };
       } catch (err) {
+        if (err instanceof NoFormError) return fail('no_form', err.message);
         if (err instanceof CompileError) return fail('labels_invalid', 'The model could not label this form reliably, so no map was made.');
         if (err instanceof BudgetExceeded) return fail('budget', `${err.message} Maps already built are still shown from the cache.`);
         throw err;

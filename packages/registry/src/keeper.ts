@@ -14,9 +14,10 @@ import {
   generateAgentIdentity,
   importAgentIdentity,
   mergeMap,
+  candidateForms,
   parseJsonContent,
-  pickForm,
   scanScript,
+  similarity,
   signRequest,
   validateLabels,
   type ChatFn,
@@ -221,8 +222,11 @@ export class Keeper {
       if (!res || res.status() >= 400) return await done('error', res ? `HTTP ${res.status()}` : 'could not load');
       if (new URL(page.url()).pathname !== path) return await done('unreachable', 'This form is only reachable after earlier steps are submitted; the keeper never submits. Agents re-read and share it.');
       const scan: Scan = await page.evaluate(scanScript());
-      const form = pickForm(scan);
-      const fp = await fingerprint(form.elements);
+      // The form this map is for: the candidate with the map's fingerprint, or else the one most
+      // like it (the page may hold other forms, which the map was never for).
+      const candidates = await Promise.all(candidateForms(scan.forms, current.map.form.intent).map(async (f) => ({ form: f, fp: await fingerprint(f.elements) })));
+      if (!candidates.length) return await done('error', 'No form to map on the page any more.');
+      const { form, fp } = candidates.find((c) => c.fp.digest === current.digest) ?? candidates.sort((a, b) => similarity(b.fp.signature, current.map.fingerprint.signature) - similarity(a.fp.signature, current.map.fingerprint.signature))[0]!;
       await this.knock(page.url(), fp);
       if (fp.digest === current.digest) return await done('unchanged', 'Matches the current map.');
       // Changed back to a version we already have: restore it, no model needed.
@@ -263,7 +267,7 @@ export class Keeper {
       }
       if (!map) {
         if (!this.options.compiler) return await done('no_model', `Changed (${verdict.summary}) but no model is configured to rebuild it.`, { from: current.digest });
-        const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model });
+        const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: form.index });
         cost += compiled.cost_usd ?? 0;
         map = compiled.map;
         how = `recompiled with ${compiled.model}`;
