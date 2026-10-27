@@ -12,6 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { RegistryClient } from '../../registry/src/client.ts';
 import { DEFAULT_KEY_FILE, loadOrCreateIdentity } from '../../registry/src/identity-file.ts';
 import { createMcpServer } from '../../registry/src/mcp.ts';
+import { capFallback, registerFillTools } from './fill.ts';
 
 // Filled in at build time from package.json (version, usher.defaultRegistry, usher.demoForm).
 declare const USHER_MCP_VERSION: string;
@@ -61,5 +62,9 @@ OK`);
   process.exit(2);
 } else {
   const server = await createMcpServer(registry, keyFile, USHER_MCP_VERSION);
+  // usher_fill: Usher does the filling, in its own headless browser; the model only for pages
+  // with no map (MODEL_API_KEY, within USHER_DAILY_MODEL_BUDGET_USD a day).
+  const fallback = capFallback();
+  registerFillTools(server, { registryUrl: registry, keyFile, ...(fallback && { fallback }) });
   await server.connect(new StdioServerTransport());
 }

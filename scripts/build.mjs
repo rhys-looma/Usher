@@ -42,6 +42,8 @@ await build({
   entryPoints: ['packages/mcp/src/cli.ts'],
   outfile: 'packages/mcp/dist/cli.js',
   minify: true,
+  // The browser for usher_fill: installed with the package (a dependency), never bundled.
+  external: ['playwright', 'playwright-core', 'chromium-bidi'],
   bundle: true,
   platform: 'node',
   format: 'esm',
