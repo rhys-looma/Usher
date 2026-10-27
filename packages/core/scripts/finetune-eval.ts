@@ -15,6 +15,7 @@ import { parseArgs } from 'node:util';
 import { costUsd, modelApi, parseJsonContent, type ChatRequest } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
 import { systemPrompt, type Example } from './finetune-shared.ts';
+import { compareKeys, singleNameField, type KeyComparison } from './key-equivalence.ts';
 
 const { values } = parseArgs({
   options: {
@@ -38,6 +39,7 @@ if (!evalSet.length) {
   console.error(`The eval set at ${join(values.data, 'eval.jsonl')} is empty. Compile more forms, then run npm run finetune:export again.`);
   process.exit(1);
 }
+const train = await readJsonl<Example>(join(values.data, 'train.jsonl')).catch(() => [] as Example[]);
 const vocabulary = JSON.parse(await readFile(new URL('../../../spec/vocabulary.json', import.meta.url), 'utf8')) as { entries: { key: string }[] };
 const keys = new Set(vocabulary.entries.map((e) => e.key));
 
@@ -55,7 +57,6 @@ if (values.predictions) {
   source = values.predictions;
 } else if (values.baseline) {
   // The floor any model should beat: the commonest answer for the element's control in training.
-  const train = await readJsonl<Example>(join(values.data, 'train.jsonl'));
   const commonest = (control: string, field: 'key' | 'risk') => {
     const counts = new Map<string, number>();
     for (const ex of train.filter((t) => (t.input.control ?? t.input.kind) === control)) counts.set(ex.output[field], (counts.get(ex.output[field]) ?? 0) + 1);
@@ -106,13 +107,21 @@ if (values.predictions) {
 }
 if (values.save) await writeFile(values.save, predictions.map((p) => `${JSON.stringify(p)}\n`).join(''));
 
+// Whether each form has a single name field, from every example of it (train and eval), so a
+// full name against a first name counts as equivalent there.
+const formKeys = new Map<string, string[]>();
+for (const ex of [...train, ...evalSet]) formKeys.set(ex.meta.form, [...(formKeys.get(ex.meta.form) ?? []), ex.output.key]);
+
 // Scoring. Under-calling risk is the error that matters: an agent would act where the site wanted
 // the user asked, or the user alone to act.
 const RANK: Record<string, number> = { safe: 0, consequential: 1, needs_user: 2 };
 const byId = new Map(predictions.map((p) => [p.id, p]));
 let key = 0;
+let keyEquivalent = 0;
 let risk = 0;
 let both = 0;
+let bothEquivalent = 0;
+const misses = new Map<KeyComparison, number>();
 let under = 0;
 let over = 0;
 let missing = 0;
@@ -125,15 +134,28 @@ for (const ex of evalSet) {
     continue;
   }
   if (!keys.has(p.key)) unknownKeys++;
-  const k = p.key === ex.output.key;
+  const comparison = compareKeys(p.key, ex.output.key, { singleNameField: singleNameField(formKeys.get(ex.meta.form) ?? []) });
+  const k = comparison === 'exact';
+  const ke = k || comparison === 'synonym' || comparison === 'custom_same';
   const r = p.risk === ex.output.risk;
   key += Number(k);
+  keyEquivalent += Number(ke);
   risk += Number(r);
   both += Number(k && r);
+  bothEquivalent += Number(ke && r);
+  if (!k) misses.set(comparison, (misses.get(comparison) ?? 0) + 1);
   if ((RANK[p.risk] ?? -1) < RANK[ex.output.risk]!) under++;
   if ((RANK[p.risk] ?? -1) > RANK[ex.output.risk]!) over++;
   confusion.set(`${ex.output.risk} → ${p.risk}`, (confusion.get(`${ex.output.risk} → ${p.risk}`) ?? 0) + 1);
 }
+const MISS_NAMES: Record<KeyComparison, string> = {
+  exact: 'exact',
+  synonym: 'synonym (counted as equivalent)',
+  custom_same: 'custom keys, same slug once normalised (counted as equivalent)',
+  custom_wording: 'custom keys, worded differently',
+  custom_vs_vocabulary: 'custom key against a vocabulary key',
+  different: 'different vocabulary keys',
+};
 const n = evalSet.length;
 const pct = (x: number) => `${((100 * x) / n).toFixed(1)}%`;
 const lines = [
@@ -143,14 +165,20 @@ const lines = [
   '',
   '| Measure | Result |',
   '| --- | --- |',
-  `| Key correct | ${key}/${n} (${pct(key)}) |`,
+  `| Key correct, exact | ${key}/${n} (${pct(key)}) |`,
+  `| Key correct, equivalent | ${keyEquivalent}/${n} (${pct(keyEquivalent)}) |`,
   `| Risk correct | ${risk}/${n} (${pct(risk)}) |`,
-  `| Both correct | ${both}/${n} (${pct(both)}) |`,
+  `| Both correct, exact | ${both}/${n} (${pct(both)}) |`,
+  `| Both correct, equivalent | ${bothEquivalent}/${n} (${pct(bothEquivalent)}) |`,
   `| Risk under-called (unsafe) | ${under} |`,
   `| Risk over-called | ${over} |`,
   `| custom.* keys (not in the vocabulary) | ${unknownKeys} |`,
   `| No usable answer | ${missing} |`,
   ...(spend ? [`| Model spend | $${spend.toFixed(4)} |`] : []),
+  '',
+  'Key misses (not exact), by kind:',
+  '',
+  ...(['synonym', 'custom_same', 'custom_wording', 'custom_vs_vocabulary', 'different'] as const).filter((c) => misses.has(c)).map((c) => `- ${MISS_NAMES[c]}: ${misses.get(c)}`),
   '',
   'Risk, expected → predicted:',
   '',
