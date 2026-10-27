@@ -12,6 +12,7 @@ COPY packages/agent/package.json packages/agent/
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 COPY spec spec
+COPY reports reports
 COPY packages packages
 COPY scripts scripts
 COPY examples examples
