@@ -7,7 +7,7 @@ Generated 2026-10-27 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 - Each page is loaded in headless Chromium at 1280px and its main form compiled exactly as the registry does: extraction, locators, fingerprint, Muse Spark labels, validation, merge. Nothing is submitted.
 - Model responses come from recorded fixtures (mock site) or the compiler log (public forms compiled before); a page that changed since then has no recorded response and is skipped unless the run is `--live`.
 - **Locators resolve**: every locator of the element finds exactly one element, and they all agree, on the live page.
-- **Keys** and **risk** on the mock site are marked automatically against the hand-checked list; on public forms they are marked by hand in `reports/accuracy-review.csv` and scored with `npm run accuracy:score`.
+- **Keys** and **risk** on the mock site are marked automatically: whether each matches the mock site's answer key (`packages/core/test/fixtures/expected-keys.json`). On public forms they are human-checked in `reports/accuracy-review.csv`. `npm run accuracy:score` scores both, separately.
 - The open-weights classifier (Muse Spark Open) adds a second opinion on risk where recorded or run live; disagreements keep the stricter risk and are flagged.
 - Pages that could not be loaded at all (they refuse automated browsers, or no longer exist) are left out.
 
@@ -15,7 +15,7 @@ Generated 2026-10-27 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 
 - Forms compiled: 19 of 28 (9 skipped: no form to map, or labels that failed validation).
 - Elements: 137; locators resolving: 99.3%; vocabulary keys (not custom): 82.5%.
-- Mock site, marked automatically: keys 100% correct, risk 100% correct (after the classifier's stricter-wins).
+- Mock site, matches the mock site's answer key: keys 100% correct, risk 100% correct (after the classifier's stricter-wins).
 
 ## Per form
 
