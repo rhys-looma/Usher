@@ -24,6 +24,7 @@
 //   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
 //   USHER_VIEWER=open               let the map viewer open any address (local demos only; refused in
 //                                   production, where visitors pick from a fixed list of public forms)
+//   USHER_VERSION                   what /status calls this build (the image's git SHA, set at build)
 //   NODE_ENV=production             refuses to start without the settings a public deployment needs
 //                                   (see production.ts), and never registers or dev-claims a seeded site
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
@@ -84,6 +85,8 @@ const ledger: SpendLedger = {
   add: async (day, usd) => storage.putCached('spend', day, { usd: ((await storage.getCached<{ usd: number }>('spend', day))?.usd ?? 0) + usd }),
 };
 const capped = (chat: ChatFn) => budgeted(chat, budget, ledger);
+const today = () => new Date().toISOString().slice(0, 10);
+const spentToday = () => ledger.spent(today());
 const spark = env.MODEL_API_KEY ? { chat: capped(modelApi()), model: compilerModel() } : undefined;
 const open = env.BASETEN_API_KEY ? { chat: capped(modelApi({ provider: 'baseten' })), model: openModel() } : undefined;
 
@@ -112,6 +115,10 @@ const running = await startRegistry({
     // local demos (USHER_VIEWER=open, refused in production).
     viewer: env.USHER_VIEWER === 'open' || env.USHER_VIEWER === '1' ? 'open' : 'picker',
     forms: pickerForms(env.USHER_SEED_ORIGIN),
+    // /status: the image's git SHA (baked in at build) and the spend against the cap.
+    status: { version: env.USHER_VERSION || 'dev', spend: { today: spentToday, cap: budget } },
+    // The picker refresh loads nothing once today's budget is spent.
+    overBudget: async () => (await spentToday()) >= budget,
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(open && { classifier: open }),
   },
@@ -159,6 +166,19 @@ if (!own.claim) void running.registry.verifySiteFor(own.origin).catch(() => unde
 console.log(
   `Usher registry on ${running.url} (listening ${values.host}:${values.port}${production ? '; production' : ''}; storage ${env.DATABASE_URL ? 'postgres' : values.data}; model budget $${budget}/day${spark ? '' : '; no MODEL_API_KEY'}${signingKey ? '; signing key from USHER_SIGNING_KEY' : ''})`,
 );
+
+// A daily line in the logs: the model spend against the cap, at start (today so far) and for each
+// UTC day once it ends.
+const logSpend = async (day: string, final: boolean) =>
+  console.log(JSON.stringify({ event: 'daily_model_spend', day, spent_usd: Math.round((await ledger.spent(day)) * 1e4) / 1e4, cap_usd: budget, final }));
+let spendDay = today();
+void logSpend(spendDay, false).catch(() => undefined);
+setInterval(() => {
+  if (today() === spendDay) return;
+  const ended = spendDay;
+  spendDay = today();
+  void logSpend(ended, true).catch(() => undefined);
+}, 600_000).unref();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {

@@ -34,6 +34,16 @@ export const KEEPER_AGENT = 'UsherKeeper/0.1';
 
 export type CheckOutcome = 'unchanged' | 'restored' | 'cosmetic' | 'rebuilt' | 'unreachable' | 'robots' | 'error' | 'no_model' | 'paused';
 
+/** The keeper's last scheduled pass, shown on /status. */
+export interface KeeperRun {
+  at: string;
+  forms: number;
+  outcomes: Record<string, number>;
+  cost_usd: number;
+  /** What ran after the pass (the map viewer's picker refresh). */
+  after_run?: unknown;
+}
+
 /** The keeper's last word on a form, shown on the dashboard. */
 export interface KeeperCheck {
   origin: string;
@@ -187,7 +197,11 @@ export class Keeper {
       if (!this.listed(site.origin)) continue;
       for (const record of await this.currentMaps(site.origin)) results.push(await this.check(site.origin, record.map.path));
     }
-    await this.options.afterRun?.().catch(() => undefined);
+    const after = await this.options.afterRun?.().catch((err: Error) => ({ error: err.message }));
+    // The last run, for /status: when, and how many forms came out each way.
+    const outcomes: Record<string, number> = {};
+    for (const r of results) outcomes[r.outcome] = (outcomes[r.outcome] ?? 0) + 1;
+    await this.registry.storage.putCached('keeper-run', 'last', { at: this.now().toISOString(), forms: results.length, outcomes, cost_usd: Math.round(results.reduce((s, r) => s + r.cost_usd, 0) * 1e6) / 1e6, ...(after !== undefined && { after_run: after }) } satisfies KeeperRun);
     return results;
   }
 

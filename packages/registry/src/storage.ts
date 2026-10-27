@@ -124,6 +124,8 @@ export interface Storage {
   deleteSession(id: string): Promise<void>;
   /** Deletes sessions created before `before` (ISO time) for origins not in `keep`; returns how many. */
   deleteSessionsBefore(before: string, keep: string[]): Promise<number>;
+  /** How many sessions were created at or after `since` (ISO time), across every site. */
+  countSessionsSince(since: string): Promise<number>;
   appendEvents(id: string, events: SessionEvent[]): Promise<Session | undefined>;
 
   /** Small cached values by kind and key (compiled labels by fingerprint, explanations). */
@@ -297,6 +299,12 @@ export class FileStorage implements Storage {
       this.cache.delete(path);
       await rm(path, { force: true });
     });
+  }
+
+  async countSessionsSince(since: string): Promise<number> {
+    const files = await readdir(this.file('sessions')).catch(() => [] as string[]);
+    const sessions = await Promise.all(files.filter((f) => f.endsWith('.json')).map((f) => this.read<Session>(this.file('sessions', f))));
+    return sessions.filter((s) => s && s.created_at >= since).length;
   }
 
   async deleteSessionsBefore(before: string, keep: string[]): Promise<number> {

@@ -30,6 +30,8 @@ export interface ViewerOptions {
   allowPrivate?: boolean;
   /** The forms anyone can pick (picker.ts). */
   forms?: PickerForm[];
+  /** True once today's model budget is spent: the picker refresh then loads nothing. */
+  overBudget?: () => Promise<boolean>;
   timeoutMs?: number;
 }
 
@@ -92,6 +94,7 @@ export class Viewer {
   async refreshPicker(): Promise<{ id: string; ok: boolean; detail: string }[]> {
     const results: { id: string; ok: boolean; detail: string }[] = [];
     if (!this.options.chat || !this.options.model) return results;
+    if (await this.options.overBudget?.()) return [{ id: '*', ok: false, detail: "today's model budget is used up" }];
     for (const form of this.forms) {
       const result = await this.mapPicked(form, 'keeper', false).catch((err: Error) => ({ ok: false, reason: 'unreachable', message: err.message }) as ViewerResult);
       results.push({ id: form.id, ok: result.ok, detail: result.ok ? (result.cached ? 'unchanged' : `rebuilt by ${result.model}`) : result.message });

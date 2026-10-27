@@ -15,6 +15,7 @@ import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
 import { SITE_JS } from './site-js.ts';
+import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
 
@@ -32,6 +33,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   viewer?: 'picker' | 'open';
   /** Trusted proxy hops: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
   proxyHops?: number;
+  /** What /status reports beyond storage: the version and the model spend. */
+  status?: Omit<StatusSources, 'started'>;
 }
 
 const SPEC_DIR = new URL('../../../../spec/', import.meta.url);
@@ -200,6 +203,20 @@ export class Web {
       const text = (await readFile(new URL(name, SPEC_DIR), 'utf8')).replaceAll('https://registry.example', this.registry.url);
       res.writeHead(200, { 'Content-Type': name.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/markdown; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
       return res.end(text), true;
+    }
+    if (route === 'GET /status') {
+      if (!this.options.adminKey) return false;
+      // The admin cookie, or the admin key as a bearer token for monitors and curl.
+      const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1] ?? '';
+      const allowed = (bearer && timingSafeEqual(sha256(bearer), sha256(this.options.adminKey))) || (await this.isAdmin(req));
+      const json = /application\/json/.test(String(req.headers.accept ?? '')) || url.searchParams.get('format') === 'json';
+      if (!allowed) {
+        if (json || bearer) return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'admin_key_required', message: 'Send the admin key as Authorization: Bearer, or sign in at /admin.' })), true;
+        return sendHtml(res, 401, this.adminLogin()), true;
+      }
+      const status = await statusReport(this.registry, { version: 'dev', ...this.options.status, started: this.started });
+      if (json) return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(status)), true;
+      return sendHtml(res, 200, statusPage(status)), true;
     }
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       if (!this.options.adminKey) return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
