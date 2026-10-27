@@ -88,15 +88,17 @@ It reports:
 
 `--save` keeps the predictions and `--report` writes the table.
 
-Results on the 41 held-out elements, with the prompt in `packages/core/scripts/finetune-shared.ts` (live on 26 October):
+Results on the 41 held-out elements, with the prompt in `packages/core/scripts/finetune-shared.ts` (live on 26 and 27 October):
 
 | Predictions | Key | Risk | Both | Risk under-called | Spend |
 | --- | --- | --- | --- | --- | --- |
 | Baseline: commonest per control | 7.3% | 85.4% | 7.3% | 6 | $0 |
-| Muse Spark Open, untuned, per element | 56.1% | 92.7% | 56.1% | 2 (1 more unanswered) | $0.183 |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`), untuned, per element, two runs | 56.1% / 63.4% | 87.8% / 92.7% | 56.1% / 63.4% | 2 / 2 | $0.175 / $0.184 |
 | Muse Spark, per element | 61.0% | 92.7% | 61.0% | 2 | $0.219 |
 
 Both models see one element at a time here, and the reference labels came from Muse Spark seeing the whole form with a screenshot.
+
+Spark Open's answers change between runs at temperature 0, so it is shown twice: the same 41 elements and prompt, run minutes apart. Its risk misses beyond the two under-calls are over-calls (safe fields marked `needs_user`), which only make an agent ask more. An earlier run on 26 October used the `meta-models/muse-spark-open` alias, before `-1026` was available on our key, and scored 56.1% and 92.7%.
 
 - **Key misses.** Every miss by Muse Spark involves a `custom.*` key on one side or the other, and all but one by Spark Open. These are elements outside the vocabulary named differently (`custom.room_count` against `booking.party_size`), not wrong meanings. Exact-match key accuracy is a harsh measure for custom keys; scoring custom keys by vocabulary-or-not would be fairer.
 - **The risk under-calls are all search boxes.** The "Search" buttons on ICO's and GOV.UK's site search were labelled `form.submit` and consequential by the teacher, and a safe custom key by both models. Arguably the teacher over-calls here: a site search commits to nothing. The vocabulary could say so, with a `search.submit` key that defaults to safe.
