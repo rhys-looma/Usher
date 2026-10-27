@@ -22,13 +22,8 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 
 ## Quickstart: a site
 
-1. Register your origin with a registry. You get a public site key and a secret key, shown once:
-
-   ```bash
-   curl -X POST "$REGISTRY_PUBLIC_URL/sites" -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'
-   ```
-
-2. Prove you control the origin. Publish `{"usher_site":"0.1","site_key":"usp_…"}` at `/.well-known/usher-site.json`, or a DNS TXT record `usher-site=usp_…` at `_usher.quote.example`. Then press "Check now" in the dashboard.
+1. Get your keys at `/sites/new` on the registry: enter your site's address and you get a public site key and a secret key, shown once, with a download. No password. (Or by API: `curl -X POST "$REGISTRY_PUBLIC_URL/sites" -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'`.)
+2. Prove you control the origin. Publish `{"usher_site":"0.1","site_key":"usp_…"}` at `/.well-known/usher-site.json`, or a DNS TXT record `usher-site=usp_…` at `_usher.quote.example`, then press "Check now". The dashboard opens, signed in. Lost the secret key later? `/sites/lost` issues a new one after the same check.
 3. Add one tag to your pages:
 
    ```html
