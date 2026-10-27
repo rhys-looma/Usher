@@ -463,7 +463,7 @@ function getSession(req, res) {
   const id = randomUUID();
   const session = {};
   sessions.set(id, session);
-  res.setHeader('Set-Cookie', `bw_sid=${id}; Path=/; HttpOnly; SameSite=Lax`);
+  res.setHeader('Set-Cookie', `bw_sid=${id}; Path=/; HttpOnly; SameSite=Lax${SITE_ORIGIN?.startsWith('https://') ? '; Secure' : ''}`);
   return session;
 }
 
