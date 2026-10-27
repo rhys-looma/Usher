@@ -12,6 +12,7 @@ import type { Registry } from '../registry.ts';
 import { Dashboard, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
+import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions } from './viewer.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
@@ -199,6 +200,68 @@ export class Web {
     return false;
   }
 
+  /** Self-serve signup and the lost-key path (signup.ts). */
+  private async signup(req: IncomingMessage, res: ServerResponse, url: URL, route: string): Promise<boolean> {
+    const board = await this.board();
+    const originOf = (raw: string | null): string | null => {
+      try {
+        const u = new URL((raw ?? '').trim());
+        return /^https?:$/.test(u.protocol) ? u.origin : null;
+      } catch {
+        return null;
+      }
+    };
+    if (route === 'GET /sites/new') return sendHtml(res, 200, startPage()), true;
+    if (route === 'POST /sites/new') {
+      const raw = (await readForm(req)).get('origin');
+      const origin = originOf(raw);
+      if (!origin) return sendHtml(res, 422, startPage({ origin: raw ?? '', error: explainRegistration('invalid_request', '', raw ?? '') })), true;
+      const reply = await this.registry.registerSite({ origin });
+      if (reply.status !== 201) {
+        const body = reply.body as { error: string; message: string };
+        return sendHtml(res, reply.status, startPage({ origin, error: explainRegistration(body.error, body.message, origin) })), true;
+      }
+      const keys = reply.body as { site_key: string; secret_key: string };
+      board.signIn(res, origin);
+      return sendHtml(res, 201, keysPage({ origin, siteKey: keys.site_key, secretKey: keys.secret_key })), true;
+    }
+    if (route === 'POST /sites/new/keys') {
+      // The keys page posts them back to be saved as a file; nothing is stored or logged.
+      const form = await readForm(req);
+      const origin = originOf(form.get('origin'));
+      const siteKey = form.get('site_key') ?? '';
+      const secretKey = form.get('secret_key') ?? '';
+      if (!origin || !/^usp_[\w-]{1,64}$/.test(siteKey) || !/^uss_[\w-]{1,64}$/.test(secretKey)) return sendHtml(res, 400, startPage()), true;
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="usher-keys.txt"', 'Cache-Control': 'no-store' });
+      return res.end(keysFile({ origin, siteKey, secretKey })), true;
+    }
+    if (route === 'GET /sites/lost') return sendHtml(res, 200, lostPage()), true;
+    if (route === 'POST /sites/lost') {
+      const raw = (await readForm(req)).get('origin');
+      const origin = originOf(raw);
+      if (!origin) return sendHtml(res, 422, lostPage({ origin: raw ?? '', error: 'Enter the address of your site, like https://www.example.com.' })), true;
+      const site = await this.registry.storage.getSite(origin);
+      const reply = await this.registry.reissueSecret(origin);
+      if (reply.status === 404 || !site) return sendHtml(res, 404, lostPage({ origin, error: html`We don't have keys for ${origin}. <a href="/sites/new">Get keys</a>.` })), true;
+      if (reply.status !== 200) return sendHtml(res, 422, lostPage({ origin, site, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
+      const keys = reply.body as { site_key: string; secret_key: string };
+      board.signIn(res, origin);
+      return sendHtml(res, 200, keysPage({ origin, siteKey: keys.site_key, secretKey: keys.secret_key, reissued: true })), true;
+    }
+    // Steps 2 and 3 belong to the site this browser just got keys for.
+    const origin = board.originOf(req);
+    const site = origin ? await this.registry.storage.getSite(origin) : undefined;
+    if (!site && (route === 'GET /sites/new/tag' || url.pathname === '/sites/new/claim')) return redirect(res, '/sites/new'), true;
+    if (route === 'GET /sites/new/tag') return sendHtml(res, 200, tagPage({ url: this.registry.url, siteKey: site!.site_key })), true;
+    if (route === 'GET /sites/new/claim') return site!.claim ? redirect(res, '/dashboard') : sendHtml(res, 200, claimPage({ url: this.registry.url, site: site! })), true;
+    if (route === 'POST /sites/new/claim') {
+      const reply = await this.registry.verifySiteFor(site!.origin);
+      if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
+      return sendHtml(res, 422, claimPage({ url: this.registry.url, site: site!, failure: explainClaim(site!.origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
+    }
+    return false;
+  }
+
   private adminLogin(error?: string): string {
     return page('Admin', html`<h1>Admin</h1>${error ? html`<div class="card error">${error}</div>` : ''}<form class="card" method="post" action="/admin/login"><p><label>Admin key<br><input type="password" name="key" required autocomplete="off"></label></p><button type="submit">Sign in</button></form>`);
   }
@@ -233,6 +296,7 @@ export class Web {
       return sendHtml(res, 200, mapPage(record.map, { source: `held by this registry since ${record.added_at.slice(0, 10)}`, record })), true;
     }
 
+    if (url.pathname.startsWith('/sites/')) return this.signup(req, res, url, route);
     if (!url.pathname.startsWith('/dashboard')) return false;
     const board = await this.board();
     if (route === 'POST /dashboard/login') {
@@ -248,11 +312,12 @@ export class Web {
     if (!site) return board.logout(res), redirect(res, '/dashboard'), true;
     if (route === 'POST /dashboard/verify') {
       const reply = await this.registry.verifySiteFor(origin);
-      if (reply.status === 200) return redirect(res, '/dashboard'), true;
-      return sendHtml(res, 422, board.claimPage(site, html`<div class="card error">${(reply.body as { message: string }).message}</div>`)), true;
+      if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
+      return sendHtml(res, 422, claimPage({ url: this.registry.url, site, fromDashboard: true, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
     }
-    if (!site.claim) return sendHtml(res, 403, board.claimPage(site)), true;
-    if (route === 'GET /dashboard') return sendHtml(res, 200, await board.overview(origin)), true;
+    // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else.
+    if (!site.claim) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
+    if (route === 'GET /dashboard') return sendHtml(res, 200, await board.overview(origin, url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : undefined)), true;
     if (route === 'POST /dashboard/rules') {
       const text = (await readForm(req)).get('text') ?? '';
       const reply = await this.registry.proposeRulesFor(origin, text);
@@ -278,7 +343,7 @@ export class Web {
     if (map && req.method === 'GET') {
       const record = await this.registry.storage.getMap(origin, decodeURIComponent(map[1]!));
       if (!record) return sendHtml(res, 404, page('Not found', html`<h1>No such map for ${origin}</h1>`)), true;
-      return sendHtml(res, 200, mapPage(record.map, { source: record.submitted_by ? 'shared by an agent' : `compiled by ${record.map.provenance.compiler ?? 'the registry'}`, record })), true;
+      return sendHtml(res, 200, mapPage(record.map, { source: record.submitted_by ? 'shared by an agent' : `built by ${record.map.provenance.compiler ?? 'Usher'}`, record, owner: true })), true;
     }
     return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
   }
