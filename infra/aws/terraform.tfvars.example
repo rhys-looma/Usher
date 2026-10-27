@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Hosts are examples.
+cluster_name     = "my-cluster"
+vpc_id           = "vpc-0123456789abcdef0"
+subnet_ids       = ["subnet-aaaa", "subnet-bbbb"]
+assign_public_ip = false
+alb_arn          = "arn:aws:elasticloadbalancing:eu-west-2:111111111111:loadbalancer/app/my-alb/0123456789abcdef"
+rule_priorities  = { registry = 100, site = 101 }
+
+registry_host = "registry.example"
+site_host     = "quote.registry.example"
+contact_email = "hello@registry.example"
+
+daily_model_budget_usd = "5"
+attach_certificate     = false
+# mock_site_key        = "usp_…"   # after registering the demo site at /sites/new
