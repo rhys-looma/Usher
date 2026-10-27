@@ -1,18 +1,18 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-26T20:37:36.665Z",
+  "recorded_at": "2026-10-27T09:42:05.809Z",
   "text": "Bots may do the quote journey; getting a price always needs the customer to say yes first, capped at 5/hr.",
   "attempts": [
     {
-      "request_sha256": "b33758b33867434c71bd38684210ed1f6d82526feecb6511ce5b7be4fce138c4",
-      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Bots may complete the quote journey but getting a price always requires customer confirmation first, capped at 5 per hour.\"}",
+      "request_sha256": "750367fa9019e247b300a86a75ff0da6d210ed66a7fed2d4eeb444fcd2bd3d32",
+      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Agents may use the quote journey, but getting a price requires customer confirmation and is limited to 5 per hour per agent.\"}",
       "usage": {
-        "prompt_tokens": 1523,
-        "completion_tokens": 1793,
-        "total_tokens": 3316,
+        "prompt_tokens": 1539,
+        "completion_tokens": 1605,
+        "total_tokens": 3144,
         "cached_tokens": 0
       },
-      "latency_ms": 9335
+      "latency_ms": 6400
     }
   ]
 }

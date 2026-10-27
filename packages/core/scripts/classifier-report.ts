@@ -2,6 +2,7 @@
 // on the mock site (Spark's recorded labels, live classifier, recorded for tests) and on five
 // public forms (both live). Pages are loaded and read; nothing is ever submitted.
 // Run with: node scripts/with-mock-sites.mjs node --import tsx packages/core/scripts/classifier-report.ts
+// Add --mock-only to re-record the mock-site fixtures without the public forms or the report.
 
 import { writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
@@ -41,7 +42,8 @@ for (const layout of LAYOUTS) {
     row(`mock site ${layout.toUpperCase()} ${step}`, `/quote/${step}`, r);
   }
 }
-for (const [form, url] of PUBLIC) {
+const mockOnly = process.argv.includes('--mock-only');
+for (const [form, url] of mockOnly ? [] : PUBLIC) {
   try {
     const r = await compileUrl(url, { browser, chat: modelApi(), model: compilerModel(), classifier: { chat: open, model: classifierModel } });
     row(form, url, r);
@@ -50,6 +52,10 @@ for (const [form, url] of PUBLIC) {
   }
 }
 await browser.close();
+if (mockOnly) {
+  console.log(rows.map((r) => `${r.form}: ${r.error ?? `${Math.round(r.agreement * 1000) / 10}% of ${r.elements}; ${r.flags.join('; ') || 'no flags'}`}`).join('\n'));
+  process.exit(0);
+}
 
 const ok = rows.filter((r) => !r.error);
 const mock = ok.filter((r) => r.form.startsWith('mock'));

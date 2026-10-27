@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-26T19:25:39.209Z",
+  "recorded_at": "2026-10-27T09:40:57.259Z",
   "layout": "b",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "495127e7ae74d9d61853b81ac06c9ee68e1d8e898507631012e4e806c5dea0ff",
+      "request_sha256": "e304953c6f242cdac3db5340985e236357ccd45adc7f66d853b69d1e86a79aa7",
       "content": "{\"advance_action_id\": \"e9\", \"elements\": [{\"id\": \"e1\", \"key\": \"policy.start_date\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"policy.cover_level\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"policy.voluntary_excess\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"policy.no_claims_years\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"policy.payment_frequency\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"consent.declaration\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"consent.marketing\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: cover options\"}}",
       "usage": {
-        "prompt_tokens": 3995,
-        "completion_tokens": 816,
-        "total_tokens": 4811,
+        "prompt_tokens": 4013,
+        "completion_tokens": 1288,
+        "total_tokens": 5301,
         "cached_tokens": 0
       },
-      "latency_ms": 2462
+      "latency_ms": 4543
     }
   ]
 }

@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-26T19:25:20.974Z",
+  "recorded_at": "2026-10-27T09:40:35.810Z",
   "layout": "a",
   "step": "vehicle",
   "attempts": [
     {
-      "request_sha256": "5da08bc5fc71d84003187346bf7e47fe68ae2cc0f35519dcb725bb1cd845f682",
+      "request_sha256": "123b929bf398df4522b26daf30336aee630ec82d0543e267e99ac21308f101c1",
       "content": "{\"advance_action_id\": \"e11\", \"elements\": [{\"id\": \"e1\", \"key\": \"vehicle.registration\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"lookup.vehicle\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"vehicle.make\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"vehicle.model\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"vehicle.year\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"vehicle.annual_mileage\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"vehicle.use\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"vehicle.overnight_location\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"vehicle.modifications.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: vehicle details\"}}",
       "usage": {
-        "prompt_tokens": 4399,
-        "completion_tokens": 950,
-        "total_tokens": 5349,
+        "prompt_tokens": 4417,
+        "completion_tokens": 864,
+        "total_tokens": 5281,
         "cached_tokens": 0
       },
-      "latency_ms": 3979
+      "latency_ms": 3765
     }
   ]
 }

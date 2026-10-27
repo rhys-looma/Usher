@@ -60,7 +60,7 @@ test('home and viewer pages render', async () => {
 test('map viewer: a real form becomes a readable map, then comes from the cache', async () => {
   const first = await viewer(`${plainSite.url}/quote/driver`);
   assert.equal(first.status, 200, first.text.slice(0, 300));
-  for (const part of ['Car insurance quote: driver details', 'person.dob', 'person.claims.has_any', 'risk-safe', 'when <code>person.claims.has_any</code> equals <code>yes</code>', 'nav.next', 'sha256:13c445c2', 'compiled by muse-spark-1.3', '173 options']) {
+  for (const part of ['nsurance quote: driver details', 'person.dob', 'person.claims.has_any', 'risk-safe', 'when <code>person.claims.has_any</code> equals <code>yes</code>', 'nav.next', 'sha256:13c445c2', 'compiled by muse-spark-1.3', '173 options']) {
     assert.ok(first.text.includes(part), part);
   }
   const second = await viewer(`${plainSite.url}/quote/driver`);

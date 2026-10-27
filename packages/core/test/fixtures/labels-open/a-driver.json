@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T08:56:20.729Z",
+  "recorded_at": "2026-10-27T09:41:05.791Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "c6d6130998c6c7fb86e0a81ef906fb0d08964dfbdeb2612048b33dd8edfa794a",
-      "content": "{\"form\":{\"purpose\":\"Car insurance quote: driver details\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"address.line1\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"person.occupation\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"person.employment_status\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"person.claims.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.claims.date\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e13\",\"key\":\"person.claims.type\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e14\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e14\"}",
+      "request_sha256": "2c81f12b293108916e2608ae39ea9951ba67358bdc4efa4beeb92c8b81cff5f6",
+      "content": "{\"form\":{\"purpose\":\"Motor insurance quote: driver details (step 1 of 3)\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"address.line1\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"person.occupation\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"person.employment_status\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"person.claims.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.claims.date\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e13\",\"key\":\"person.claims.type\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e14\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e14\"}",
       "usage": {
-        "prompt_tokens": 5461,
-        "completion_tokens": 1143,
-        "total_tokens": 6604,
-        "cached_tokens": 0
+        "prompt_tokens": 5479,
+        "completion_tokens": 982,
+        "total_tokens": 6461,
+        "cached_tokens": 1664
       },
-      "latency_ms": 10624
+      "latency_ms": 7638
     }
   ]
 }

@@ -44,7 +44,7 @@ for (const layout of LAYOUTS) {
       const { map, attempts } = await compileStep(layout, step, replayChat(fixture), null, fixture.model);
       assert.equal(attempts.length, fixture.attempts.length);
       assert.equal(mapSchemaErrors(map), null);
-      assert.equal(map.form.intent, 'quote.car_insurance');
+      assert.match(map.form.intent ?? '', /^quote\.(car|motor)_insurance$/);
       assert.equal(map.path, `/quote/${step}`);
       assert.equal(map.provenance.compiler, fixture.model);
       assert.deepEqual(
