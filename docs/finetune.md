@@ -11,7 +11,7 @@ Muse Spark labels whole forms well, but most of what it does per element is rout
 
 Before Muse Spark Open labels or classifies an element, the nearest labelled examples go into its prompt, as `control: "label" → key (risk)` (`packages/core/src/compile/retrieval.ts`):
 
-- **Where they come from:** the exported training set (`data/finetune/train.jsonl`), so never from a form held out for eval. 97 distinct labelled elements once repeats of the same label and key are merged.
+- **Where they come from:** the exported training set (`data/finetune/train.jsonl`), so never from a form held out for eval. 78 distinct labelled elements in the rebuilt set (97 in the 26 October set) once repeats of the same label and key are merged.
 - **Nearest:** the same kind (field or action), ranked by the words shared between labels and options (Jaccard, the same word handling as the short list), with a little extra for the same control. Only examples that share a word are used: unrelated ones mislead (a declaration tick box was being shown pizza toppings).
 - **Per element:** up to five, for the per-element eval. **Per form:** the nearest few for each element without repeats, at most 40, for the whole-form labeller and the risk classifier.
 
@@ -19,20 +19,23 @@ It is optional everywhere: `npm run compile -- <url> --open --examples data/fine
 
 ### Results
 
-Per element on the 41 held-out elements, with the short list in every row, live on 27 October. Spark Open three times each way, because its answers change between runs at temperature 0:
+Per element on the 28 held-out elements of the set rebuilt on 27 October from today's labels (see [How many examples there are](#how-many-examples-there-are)), with the short list in every row. Three runs of each, because answers change between runs at temperature 0:
 
 | Model | Key, exact | Key, equivalent | Risk | Risk under-called | Spend a run |
 | --- | --- | --- | --- | --- | --- |
-| Muse Spark | 73.2% | 80.5% | 95.1% | 2 | $0.246 |
-| Muse Spark Open (`-1026`), short list only | 65.9% / 61.0% / 68.3% (mean 65.0%) | 70.7% / 75.6% / 75.6% (mean 74.0%) | 95.1% / 95.1% / 92.7% | 2 / 2 / 2 | $0.13 |
-| Muse Spark Open (`-1026`), short list and retrieval | 63.4% / 61.0% / 65.9% (mean 63.4%) | 70.7% / 70.7% / 75.6% (mean 72.4%) | 92.7% / 92.7% / 92.7% | 2 / 2 / 2 | $0.13 |
+| Baseline: commonest per control | 7.1% | 7.1% | 85.7% | 4 | $0 |
+| Muse Spark | 64.3 / 60.7 / 64.3% (mean 63.1%) | 75.0 / 71.4 / 75.0% (mean 73.8%) | 96.4 / 100 / 100% | 0 | $0.17 |
+| Muse Spark, with retrieval | 64.3 / 64.3 / 60.7% (mean 63.1%) | 71.4 / 75.0 / 71.4% (mean 72.6%) | 100% ×3 | 0 | $0.19 |
+| Muse Spark Open (`-1026`) | 60.7% ×3 | 64.3 / 67.9 / 67.9% (mean 66.7%) | 100% ×3 | 0 | $0.12 |
+| Muse Spark Open (`-1026`), with retrieval | 60.7 / 60.7 / 67.9% (mean 63.1%) | 64.3 / 71.4 / 71.4% (mean 69.0%) | 100% ×3 | 0 | $0.12 |
 
-**Retrieval doesn't help yet.** Between the two Spark Open rows, only 3 of the 41 elements changed how often they were right, and all three are custom-key wording ("Next page" as `nav.next` once with retrieval, against never without). The differences are within run-to-run noise. Why:
+- **Risk is right everywhere it matters.** No model under-calls a single element now that the reference labels know about `search.submit`.
+- **Retrieval is a wash.** Muse Spark gains nothing, and Spark Open gains about one element on average (+2.4 points exact, +2.3 equivalent), within the spread of its own runs.
+- **The key misses are mostly one page, and defensible.** Eventbrite's home page has two search boxes labelled only "autocomplete" (what and where), filter tabs ("For you", "Today", "This weekend") that the whole-form labels call `search.submit` and the per-element runs call `custom.filter_…`, and carousel arrows. The rest are GOV.UK links whose custom slugs are worded differently (`custom.help_pages` against `custom.help_pages_link`). Per element, the model can't see the screenshot that tells the whole-form run what an unlabelled box is for.
 
-- **Few examples, from different kinds of form.** 26 of the 41 eval elements get any example at all, and only 14 get one with the right key. Those 14 were already right with the short list, which carries the vocabulary meanings the examples would teach.
-- **Some examples are out of date.** The training labels come from compiles on 26 October, before `search.submit`: three "Search" buttons are `form.submit`, `custom.search` and `nav.next`. Retrieval passes old mistakes on, so the examples should be re-exported from labels compiled with today's prompt before it is used for real.
+On the set from 26 October (41 elements, labels from older prompts), the same comparison gave Spark Open 65.0% exact with the short list and 63.4% with retrieval added. Only 3 elements changed then, all custom-key wording. Some of those examples were out of date (three "Search" buttons labelled `form.submit`, `custom.search` and `nav.next`), which is why the set was rebuilt from today's labels only.
 
-Retrieval should earn its place when the log covers many more forms, and above all for custom keys that recur across sites (`custom.how_did_you_hear`), where examples are the only guide. The short list is what moved the numbers: Spark Open went from 56.1% and 53.7% to 65.9% and 61.0% exact (see [The short list](#the-short-list) below).
+Retrieval should earn its place when the log covers many more forms, and above all for custom keys that recur across sites (`custom.how_did_you_hear`), where examples are the only guide. The short list is what moved the numbers (see [The short list](#the-short-list) below).
 
 ## The dataset
 
@@ -62,17 +65,19 @@ How it is built:
 
 ### How many examples there are
 
-From this machine's compiler log on 26 October, after the live accuracy run over `evals/forms.json` (23 of 34 pages compiled; the rest refuse automated browsers, render their form with script only, or failed validation):
+Rebuilt on 27 October from labels compiled with the current prompt only (`npm run finetune:export -- --since 2026-10-27T10:00:00Z`): the mock site's recordings and a fresh live accuracy run over `evals/forms.json`. That run compiled 19 of 34 pages. The rest refuse automated browsers, render their form with script only, failed validation, or have no form to map: Admiral and Churchill show only a consent widget, now left out, and Direct Line's page has no visible form field.
 
 | | |
 | --- | --- |
-| Labelling calls by Muse Spark | 133 (11 failed validation) |
-| Element examples before de-duplication | 316 |
-| **Unique examples** | **161** (2 elements labelled two ways, settled by majority) |
-| Train | 120, from 12 forms |
-| Eval | 41, from 6 forms: the mock site's cover step, GOV.UK contact and site search, ICO, Churchill, Eventbrite |
-| By source | mock quote site 62, Direct Line 24, GOV.UK 23, httpbin 11, Travelodge 11, Aviva 8, National Rail 4, Wikipedia 3, Admiral 3, Churchill 3, and 2 or fewer each from Mozilla, ICO, NHS, BBC, Eventbrite |
-| By risk | safe 148, consequential 8, needs_user 5 |
+| Labelling calls by Muse Spark | 33 (2 failed validation) |
+| Element examples before de-duplication | 137 |
+| **Unique examples** | **131** |
+| Train | 103, from 13 forms |
+| Eval | 28, from 3 forms: the mock site's cover step, GOV.UK contact, Eventbrite |
+| By source | mock quote site 62, GOV.UK 23, httpbin 11, Eventbrite 9, Travelodge 6, National Rail 4, Aviva 4, and 2 each from ICO, Mozilla, Wikipedia, ONS, NHS, BBC |
+| By risk | safe 124, consequential 5, needs_user 2 |
+
+The set from 26 October (161 unique, 120 train and 41 eval) mixed labels from older prompts, before `search.submit` and the short list. It also held 24 Direct Line elements from controls outside any form, FAQ accordions beside hidden cookie toggles, with no visible field. The page is no longer mapped.
 
 That is still far too few to tune on. It shows the pipeline, not a training set. Consequential and needs_user elements are rare, and they are the ones that matter. Growing it means more forms: more entries in `evals/forms.json` (`npm run accuracy -- --forms all --live`, about $0.01 a form), plus the keeper's recompiles and the map viewer, which write to the same log. A few hundred forms would give a few thousand elements. Before tuning, oversample the consequential and needs_user examples, or weight them.
 
@@ -94,7 +99,7 @@ It reports:
 
 `--save` keeps the predictions and `--report` writes the table.
 
-Results on the 41 held-out elements (live on 27 October). Both models see one element at a time here; the reference labels came from Muse Spark seeing the whole form with a screenshot, on 26 October.
+The short list was measured on the 26 October set (41 held-out elements), before it was rebuilt; results on the rebuilt set are [above](#results). Both models see one element at a time here; the reference labels came from Muse Spark seeing the whole form with a screenshot.
 
 ### The short list
 
@@ -119,7 +124,7 @@ Spark Open's answers change between runs at temperature 0, so it is shown twice.
 
 On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
 
-A tuned Muse Glimmer would need to match Spark Open with the short list (about 65% of keys exact, 74% equivalent) with no risk under-calls, outside search, to earn its place.
+A tuned Muse Glimmer would need to match Spark Open with the short list (on the rebuilt set, about 61% of keys exact and 67% equivalent, with no risk under-called) to earn its place.
 
 ## Future work: tuning Muse Glimmer with LoRA
 
@@ -129,7 +134,7 @@ The task is narrow (one JSON object of two fields out) and the prompt is fixed, 
 - **Training:** 3 epochs, learning rate 1e-4 with a short warmup, sequence length 1,024. The system prompt with the vocabulary is about 2,600 characters; an element is a few hundred more.
 - **Loss on the assistant turn only**, so the model learns the answer, not the prompt.
 - **Base model:** [`meta-models/Muse-Glimmer-30B`](https://huggingface.co/meta-models/Muse-Glimmer-30B), checked on Hugging Face on 27 October: Apache-2.0, not gated, `transformers`, image-text-to-text, about 29.8 billion parameters, last updated 22 October. Meta also publishes GGUF and ExecuTorch builds and an `-assistant` variant; tune the base.
-- **Data:** 161 unique examples today, 120 train and 41 eval (see [How many examples there are](#how-many-examples-there-are)). That is too few: the plan starts when the log holds a few thousand.
+- **Data:** 131 unique examples today, 103 train and 28 eval (see [How many examples there are](#how-many-examples-there-are)). That is too few: the plan starts when the log holds a few thousand.
 
 ### On Fireworks
 
