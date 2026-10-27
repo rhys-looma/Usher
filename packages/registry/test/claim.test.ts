@@ -146,8 +146,8 @@ test('dashboard: an unclaimed site sees only how to claim it; the mock site clai
     const cookie = login.headers.get('set-cookie')!.split(';')[0]!;
     const gated = await fetch(`${running.url}/dashboard`, { headers: { Cookie: cookie } });
     const text = await gated.text();
-    assert.equal(gated.status, 403);
-    assert.match(text, /Claim http:\/\/localhost:\d+/);
+    assert.equal(gated.status, 200, 'what is missing, not a bare refusal');
+    assert.match(text, /Almost there: prove http:\/\/localhost:\d+ is yours/);
     assert.ok(text.includes(`usher-site=${keys!.site_key}`));
     assert.ok(!/Agent sessions|Forms and maps|Rules/.test(text), 'nothing else shown');
     const check = await fetch(`${running.url}/dashboard/verify`, { method: 'POST', redirect: 'manual', headers: { Cookie: cookie } });
