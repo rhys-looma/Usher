@@ -349,8 +349,6 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const session = getSession(req, res);
     const [, section, key] = url.pathname.split('/');
-    // Agents find each form's map from the response headers too.
-    if (usher && req.method === 'GET' && section === 'quote') usher.linkMap(req, res);
 
     if (req.method === 'GET' && url.pathname === '/') return redirect(res, '/quote/driver');
 

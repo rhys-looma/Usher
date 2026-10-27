@@ -370,7 +370,7 @@ export class Registry {
   async knock(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
-    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[]; have_map?: string };
+    const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[] };
     const check = await this.agentOf(request, via);
     if (!check.ok) return error(check.status, check.error, check.message);
 
@@ -378,7 +378,6 @@ export class Registry {
     const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
-    // The agent has the page's own map (the site publishes it in the page): send rules and token only.
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
     const policy = await this.policy(page.origin);
     const effective = effectiveRules(policy, map, page.pathname);
@@ -412,7 +411,7 @@ export class Registry {
         source: 'registry',
         action: 'knock',
         path: page.pathname,
-        detail: { match: summary.kind, score: summary.score, map: summary.digest, identity: check.identity.method, ...(confirmed.length && { confirmed: confirmed.join(',') }), ...(knock.have_map && { page_map: knock.have_map }) },
+        detail: { match: summary.kind, score: summary.score, map: summary.digest, identity: check.identity.method, ...(confirmed.length && { confirmed: confirmed.join(',') }) },
       },
     ]);
 
@@ -440,7 +439,7 @@ export class Registry {
       keys_url: `${this.url}/.well-known/usher-keys.json`,
       events_url: `${this.url}/sessions/${session.id}/events`,
       match: summary,
-      map: knock.have_map ? null : map,
+      map,
       plan: null,
       rules,
     });
@@ -930,18 +929,6 @@ export class Registry {
     if (!origin || !path) return error(400, 'invalid_request', 'Expected ?origin=&path=.');
     const latest = (await this.mapsFor(origin)).filter((r) => r.map.path === path).sort((a, b) => b.added_at.localeCompare(a.added_at))[0];
     return ok(latest ? { digest: latest.digest, signature: latest.map.fingerprint.signature } : { digest: null, signature: null });
-  }
-
-  /**
-   * The full map a site's script labels its live form from, and an agent fetches by Link header:
-   * the latest one every agent may see for the path, or one version by digest. Public: maps hold
-   * structure, never values.
-   */
-  async publicMap(origin: string | null, path: string | null, digest: string | null): Promise<Reply> {
-    if (!origin || (!path && !digest)) return error(400, 'invalid_request', 'Expected ?origin= and &path= or &digest=.');
-    const maps = await this.mapsFor(origin);
-    const record = digest ? maps.find((r) => r.digest === digest) : maps.filter((r) => r.map.path === path).sort((a, b) => b.added_at.localeCompare(a.added_at))[0];
-    return record ? ok({ digest: record.digest, map: record.map }) : error(404, 'not_found', 'No map for that page.');
   }
 
   /** A session's log, for its site only: Authorization: Bearer <secret key>. */

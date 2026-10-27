@@ -21,7 +21,7 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 
 **For agents: one call fills the form. No signup: your agent's key is its identity.** `usher_fill` in [`@usher-run/mcp`](packages/mcp) takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted. On the demo quote form it reaches "Get my quote" in about 1.6 s.
 
-**Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher the tag writes them: the site script publishes each form's map in the page (`<script type="application/usher+json">`), generated from the live form and labelled from the site's map. When the form changes, the published map follows the live page, keys what it still recognises and reports the rest as drift. Agents read the map straight from the page and knock only for the rules and a short-lived pass.
+**Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher, sites don't write declarations: Usher derives them from the live form and verifies them before any agent acts on them. The tag on the page watches for changes and reports drift, and agents get the map only from the registry, never from page content ([why](docs/security.md#considered-and-rejected-maps-published-in-the-page)).
 
 **An agent that doesn't knock** is treated as it is today, except where the site's server requires a knock, for example on "Get my quote" or its API.
 

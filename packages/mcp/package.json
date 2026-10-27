@@ -1,6 +1,6 @@
 {
   "name": "@usher-run/mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Usher for AI agents: an MCP server that knocks on web forms, gets their map, the site's rules and a short-lived pass, and can fill a whole form journey by meaning (usher_fill).",
   "license": "Apache-2.0",
   "type": "module",

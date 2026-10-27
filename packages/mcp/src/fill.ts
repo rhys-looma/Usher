@@ -148,8 +148,6 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
             final_url: r.final_url,
             actions: job.actions,
             used_model: r.pages.filter((p) => p.map_source === 'compiled').map((p) => p.path),
-            // Pages whose map the site published in the page itself; the knock carried only rules and a token.
-            page_maps: r.pages.filter((p) => p.map_source === 'embedded').map((p) => p.path),
             elapsed_ms: Math.round(performance.now() - job.started),
           },
           image,

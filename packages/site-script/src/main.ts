@@ -3,21 +3,16 @@
 //   <script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" defer></script>
 //
 // On load it adds the knock notice to every form (nothing a person sees), fingerprints the live
-// form, and publishes the form's map in the page as <script type="application/usher+json">: the
-// site's current map if the form is unchanged, otherwise the live structure keyed where it still
-// matches, with the rest unlabelled, and a drift report. An agent that has
+// form and looks up its map, and reports drift if the form no longer matches. An agent that has
 // knocked binds its token with window.usher.bind(token) or a "usher:bind" postMessage; only then
 // does the script unlock the form, apply the site's rules and log the agent's actions by
 // semantic key. Page loads without a bound token are never logged, and no event carries a value.
 
-import { extractForms, type ExtractedForm } from '@usher/core/extract';
+import { extractForms } from '@usher/core/extract';
 import { candidateForms, mainForm } from '@usher/core/forms';
 import { fingerprint, similarity, type Fingerprint } from '@usher/core/fingerprint';
 import { locatorKit } from '@usher/core/locators';
 import { readValidationErrors, type PageError } from '@usher/core/page-errors';
-import { publishMap } from '@usher/core/publish';
-import type { ScannedElement } from '@usher/core';
-import type { UsherMap as FullMap } from '@usher/core';
 import { verifyToken, type KeySet, type PublicJwk, type TokenClaims } from '@usher/core/token';
 
 type Risk = 'safe' | 'consequential' | 'needs_user';
@@ -69,8 +64,6 @@ const TOKEN_FIELD = 'usher_token';
 const kit = locatorKit();
 
 let lookup: Lookup | null = null;
-// The map this page publishes, once built.
-let published: { map: FullMap; exact: boolean; unlabelled: number } | null = null;
 let live: Fingerprint | null = null;
 // The other forms a map could be for, by fingerprint.
 let others: Fingerprint[] = [];
@@ -141,88 +134,27 @@ async function currentMap(): Promise<CurrentMap | null> {
   return current;
 }
 
-// One version of the site's map, by digest: fetched once and kept, since a version never changes.
-async function mapVersion(digest: string): Promise<FullMap | null> {
-  const cacheKey = `usher-mapv:${digest}`;
-  const cached = stored<FullMap>(cacheKey);
-  if (cached) return cached;
-  const res = await fetch(`${registry}/maps/public?origin=${encodeURIComponent(location.origin)}&digest=${encodeURIComponent(digest)}`, { credentials: 'omit' });
-  if (!res.ok) return null;
-  const { map } = (await res.json()) as { map: FullMap };
-  store(cacheKey, map);
-  return map;
-}
-
-// Writes the map into the page for agents: structure only, as the registry would serve it.
-function embed(map: FullMap): void {
-  let el = document.querySelector<HTMLScriptElement>('script[type="application/usher+json"][data-usher-map]');
-  if (!el) {
-    el = document.createElement('script');
-    el.type = 'application/usher+json';
-    el.dataset.usherMap = '';
-    document.head.append(el);
-  }
-  el.dataset.usherDigest = map.fingerprint.digest;
-  el.textContent = JSON.stringify(map);
-}
-
-// Fingerprints the live form and compares it with the registry's map locally, then publishes the
-// form's map in the page. Only a mismatch is reported, once per map and live form.
+// Fingerprints the live form and compares it with the registry's map locally. Only a mismatch
+// is reported, once per map and live form.
 async function load(): Promise<void> {
   // Every form a map could be for; the likeliest first. The map may be for another of them (a
   // model chose it by an agent's intent), so the one with the map's fingerprint wins.
-  const forms = extractForms({ keepNodes: true }).forms;
+  const forms = extractForms().forms;
   const likeliest = mainForm(forms);
   if (!likeliest) return;
-  const candidates = [likeliest, ...candidateForms(forms).filter((f) => f !== likeliest)];
-  const prints = await Promise.all(candidates.map((f) => fingerprint(f.elements)));
-  others = prints.slice(1);
-  live = prints[0]!;
-  let form = likeliest;
+  others = await Promise.all(candidateForms(forms).filter((f) => f !== likeliest).map((f) => fingerprint(f.elements)));
+  live = await fingerprint(likeliest.elements);
   const current = await currentMap();
   // The map's form, or the one most like it, to compare with the map.
   const sig = current?.signature;
-  if (sig) {
-    const best = prints.map((p, i) => [p, i] as const).sort(([a], [b]) => Number(b.digest === current!.digest) - Number(a.digest === current!.digest) || similarity(b.signature, sig) - similarity(a.signature, sig))[0]!;
-    live = best[0];
-    form = candidates[best[1]]!;
-  }
-  if (!current?.digest) return;
-  const full = await mapVersion(current.digest).catch(() => null);
-  if (full) publish(form, live, full);
-  if (current.digest === live.digest) return;
+  if (sig) live = [live, ...others].sort((a, b) => Number(b.digest === current!.digest) - Number(a.digest === current!.digest) || similarity(b.signature, sig) - similarity(a.signature, sig))[0]!;
+  if (!current?.digest || current.digest === live.digest) return;
   drifted = true;
   const seen = `usher-drift:${location.pathname}:${current.digest}:${live.digest}`;
   if (!siteKey || stored<boolean>(seen)) return;
   store(seen, true);
   const score = current.signature ? Math.round(similarity(live.signature, current.signature) * 1000) / 1000 : 0;
   await post('/drift', { origin: location.origin, path: location.pathname, map: current.digest, fingerprint: live, score }, { 'Usher-Site-Key': siteKey });
-}
-
-// The live form, labelled from the site's map, written into the page.
-function publish(form: ExtractedForm, fp: Fingerprint, current: FullMap): void {
-  const nodes = form.nodes ?? [];
-  const elements = form.elements.map((el, i) => ({ ...el, locators: nodes[i] ? kit.locatorsFor(nodes[i], el) : [] })) as ScannedElement[];
-  const result = publishMap({
-    origin: location.origin,
-    path: current.path,
-    elements,
-    groups: form.groups,
-    fingerprint: fp,
-    current,
-    // The current map's own locators, tried on the live page: still finding one element is certain.
-    same: (old) => {
-      for (const loc of old.locators) {
-        const found = kit.resolve(loc as Parameters<typeof kit.resolve>[0]);
-        if (found.length === 1) return form.elements[nodes.indexOf(found[0]!)]?.id;
-      }
-      return undefined;
-    },
-    now: new Date().toISOString(),
-  });
-  if (!result) return;
-  published = { map: result.map, exact: result.exact, unlabelled: result.unlabelled.length };
-  embed(result.map);
 }
 
 // The map and rules for this page, fetched only once an agent has bound a token.
@@ -367,9 +299,7 @@ async function bind(candidate: string): Promise<BindResult> {
   token = candidate;
   claims = result.claims;
   confirmed = false;
-  // The page's own map knows the live form; the registry's may be for an older one.
-  const map = published?.map ?? lookup?.map;
-  elements = map ? indexElements(map as UsherMap) : new Map();
+  elements = lookup?.map ? indexElements(lookup.map) : new Map();
   setState('unlocked');
   listen();
   // The site sent the page back with errors: log which keys, never the messages (they can echo values).
@@ -426,9 +356,7 @@ const api = {
   confirm,
   handoff,
   errors,
-  state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, drifted, match: lookup?.match ?? null, published: published && { digest: published.map.fingerprint.digest, exact: published.exact, unlabelled: published.unlabelled } }),
-  /** The map this page publishes, or null. */
-  map: () => published?.map ?? null,
+  state: () => ({ state, bound: token !== null, session: claims?.sid ?? null, drifted, match: lookup?.match ?? null }),
 };
 
 declare global {

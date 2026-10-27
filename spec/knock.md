@@ -56,21 +56,6 @@ The site then asks the registry to check, with `POST <registry>/sites/<origin>/v
 - **Stale registrations.** A registration that is never claimed can be replaced by someone else after a day, so nobody can squat on an origin. A claimed one cannot be replaced.
 - **Local origins.** Private and local origins can't be checked from outside. A registry operator can mark them claimed with development keys from configuration, which are never re-checked.
 
-## 1a. Maps published in the page
-
-The site script also writes the form's map into the page, for any agent to read without a round trip:
-
-```html
-<script type="application/usher+json" data-usher-map data-usher-digest="sha256:13c4…">{ "usher": "0.1", … }</script>
-```
-
-- **What it holds.** A map ([map.md](map.md)), structure only, the same as the registry would serve. It is never rendered, and like every map it never holds what anyone typed.
-- **How it is made.** The script extracts the live form, fingerprints it, and takes labels from the site's current map, which it fetches once per version (`GET <registry>/maps/public?origin=…&digest=…`) and keeps. If the live form is the one the map was built for, the page publishes that map unchanged. If not, it publishes the live structure: each element keeps its key, label and risk where it is still the same element (the old map's locators still find it, or its label, options or constraints say so), and the rest get `custom.unlabelled_<n>` with risk `needs_user` (fields) or `consequential` (actions). `provenance.source` is then `site`. The script also posts the usual drift report, so the registry's keeper rebuilds the map.
-- **From the server.** The site's middleware can point at the same map before any script runs: `Link: <<registry>/maps/public?origin=…&path=…>; rel="usher-map"`.
-- **How agents use it.** An agent prefers the page's map when its digest is the fingerprint of one of the page's forms as the agent computes it, and every required field has a key. It never lets a page map lower a risk below the default for its key in the vocabulary. It knocks with `have_map`, and gets back only the rules and the token. Otherwise it knocks for the registry's map as before.
-
-This is where Usher differs from declaring tools in the page (WebMCP and similar proposals): **sites don't write declarations; the tag generates them** from the live form, and keeps them true when the form changes.
-
 ## 2. Agent identity
 
 An agent has an Ed25519 key pair. Its **agent id** is the [RFC 7638](https://www.rfc-editor.org/rfc/rfc7638) JWK thumbprint of its public key: base64url of the SHA-256 of `{"crv":"Ed25519","kty":"OKP","x":"…"}`. The id therefore certifies the key, and a registry can accept a new agent without prior registration.
@@ -141,7 +126,6 @@ Cloudflare verifies the same signatures for its [signed agents](https://develope
 | `fingerprint` | no | The page's `usher-fp-1` fingerprint ([map.md](map.md)), computed by the agent from the live page. Used to find the map |
 | `session` | no | A session id from an earlier knock, to continue a multi-step journey in one log |
 | `confirmed` | no | Keys the agent states its user has just confirmed (e.g. `["form.submit"]`), when knocking right before acting on them. This is where the site's [policy](policy.md) refuses forbidden actions and counts rate limits |
-| `have_map` | no | The digest of the map the page publishes itself ([section 1a](#1a-maps-published-in-the-page)), when the agent is using it. The response then has `"map": null`: the knock is only for the rules and the token |
 | `agent`, `ts`, `signature` | yes | As above |
 
 The registry then:
@@ -171,7 +155,7 @@ The registry then:
 }
 ```
 
-- `match.kind` is `exact`, `near`, `path` or `none`; `score` is the signature similarity (1 for exact; 0 without a fingerprint). A `path` match is the map for this path whose structure no longer matches well: treat it as a hint, not a plan. `map` is `null` when nothing matched, and when the knock said `have_map`; without a map of its own, the agent then reads the page as it would without Usher.
+- `match.kind` is `exact`, `near`, `path` or `none`; `score` is the signature similarity (1 for exact; 0 without a fingerprint). A `path` match is the map for this path whose structure no longer matches well: treat it as a hint, not a plan. `map` is `null` when nothing matched; the agent then reads the page as it would without Usher.
 - `drifted` is true when the site script has reported that the live page no longer matches this map.
 - `plan` is reserved for multi-step plans (a later spec).
 - `rules`: from the site's [policy](policy.md) for this form. `actions` gives the effective rule (`allow`, `confirm` or `forbid`) for every key on the form, the policy raised to the floor each element's risk sets; `confirm` and `human_only` restate the risk-level defaults.
@@ -256,5 +240,6 @@ When the request also carries a Web Bot Auth signature (section 2), the check ve
 - **It does not detect agents that don't knock.** An automated browser that never knocks and never identifies itself looks like a person to the site. Usher gives well-behaved agents a faster, trusted path; it is not bot detection.
 - **It does not change anything for people.** People see the same form, nothing they do is logged, and the server check only applies to requests that identify as automated or use endpoints meant for software.
 - **It never carries values.** Maps, rules, tokens and logs hold structure and semantic keys, never what anyone typed.
+- **It never takes a map from the page.** Agents get maps only from the registry, in the knock (or a plan). A map written into page content (an embedded block, a header pointing elsewhere) is not a map source: anything that can write into the page could rewrite it, and the page can't sign it. The site script reads the live page only to fingerprint it and report drift, which sends the registry's keeper to rebuild and verify the map.
 - **The in-page lock is advisory.** The site script can hold a submit and log actions, but anything running in the page could ignore it. The server-side check is what enforces.
 - **It does not replace the site's own security**: sessions, CSRF protection, rate limits and fraud checks still apply.
