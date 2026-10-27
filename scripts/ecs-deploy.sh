@@ -6,6 +6,7 @@
 #   scripts/ecs-deploy.sh [tag] [registry|mock-site|both]     defaults: the current git SHA, both
 source "$(dirname "$0")/deploy-config.sh"
 need node git
+require AWS_ACCOUNT_ID ECS_CLUSTER REGISTRY_SERVICE SITE_SERVICE REGISTRY_HOST SITE_HOST
 TAG="${1:-$(git -C "$ROOT" rev-parse --short=12 HEAD)}"
 WHICH="${2:-both}"
 
