@@ -32,7 +32,8 @@ test('front page: the sentence, map / knock / log, the viewer box, both quicksta
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
-  const order = ['Usher is the front door for AI agents on web forms. Agents knock, get in fast, and follow the house rules.', 'More of the web, open to agents.', '<h3>Map</h3>', '<h3>Knock</h3>', '<h3>Log</h3>', '<h2>Try it</h2>', '<h2>For sites</h2>', '<h2>For agents</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by Looma'];
+  // The sentence, its second half set in italic.
+  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">More of the web, open to agents.</p>', '<h3>Map</h3>', '<h3>Knock</h3>', '<h3>Log</h3>', '<h2>Try it</h2>', '<h2>For sites</h2>', '<h2>For agents</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
