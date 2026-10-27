@@ -5,6 +5,7 @@
 #   scripts/ecs-migrate.sh [tag]      default: the current git SHA
 source "$(dirname "$0")/deploy-config.sh"
 need node git
+require AWS_ACCOUNT_ID ECS_CLUSTER TASK_SUBNETS TASK_SECURITY_GROUP
 TAG="${1:-$(git -C "$ROOT" rev-parse --short=12 HEAD)}"
 
 arn="$(aws ecs register-task-definition --cli-input-json "$(node "$ROOT/deploy/ecs/render.mjs" migrate "$TAG")" --query 'taskDefinition.taskDefinitionArn' --output text)"

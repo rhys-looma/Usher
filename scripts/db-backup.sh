@@ -9,6 +9,7 @@
 # Needs the Session Manager plugin, ECS Exec on the registry service, and deploy/ecs/config.env.
 source "$(dirname "$0")/deploy-config.sh"
 need docker session-manager-plugin nc
+require ECS_CLUSTER REGISTRY_SERVICE SECRET_PREFIX
 cd "$ROOT"
 
 MODE="${1:-}"; FILE="${2:-}"

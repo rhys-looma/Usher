@@ -34,7 +34,8 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test |
 | `data/` | Gitignored: compiler log (fine-tuning set), file-store registry data |
 | `Dockerfile.*`, `docker-compose.yml`, `DEPLOY.md` | Images, local stack (Postgres + registry + mock site), deployment |
-| `deploy/ecs/`, `scripts/ecr-push.sh`, `scripts/ecs-*.sh`, `scripts/db-backup.sh` | ECS task definition templates and their renderer; push to ECR, deploy, migrate, back up (no IaC: the AWS resources are made by hand) |
+| `deploy/terraform/ecr/` | Terraform for the two ECR repositories, and the build and push (the only IaC: everything else in AWS is made by hand) |
+| `deploy/ecs/`, `scripts/ecr-push.sh`, `scripts/ecs-*.sh`, `scripts/db-backup.sh` | ECS task definition templates and their renderer; push to ECR, deploy, migrate, back up |
 | `scripts/dryrun/` | `npm run dryrun`: production images on the production host names behind a local CloudFront + ALB stand-in |
 
 ## Core package
