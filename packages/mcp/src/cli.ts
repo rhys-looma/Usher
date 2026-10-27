@@ -65,6 +65,9 @@ OK`);
   // usher_fill: Usher does the filling, in its own headless browser; the model only for pages
   // with no map (MODEL_API_KEY, within USHER_DAILY_MODEL_BUDGET_USD a day).
   const fallback = capFallback();
-  registerFillTools(server, { registryUrl: registry, keyFile, ...(fallback && { fallback }) });
+  const fill = registerFillTools(server, { registryUrl: registry, keyFile, ...(fallback && { fallback }) });
+  // The client closing stdin ends the server, browser and all; an open browser would keep it alive.
+  const stop = () => void fill.close().finally(() => process.exit(0));
+  process.stdin.once('end', stop).once('close', stop);
   await server.connect(new StdioServerTransport());
 }

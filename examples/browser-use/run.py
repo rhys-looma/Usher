@@ -2,10 +2,11 @@
 
     python run.py --mode without        Browser Use alone
     python run.py --mode with           Browser Use with Usher: npx @usher-run/mcp as tools
+    python run.py --mode fill           Browser Use with only usher_fill: the server fills, the agent decides
     python run.py --mode both --runs 2
 
 Run it from outside this repository: inside it, npx resolves @usher-run/mcp to the local workspace
-instead of the published package. CHROME_PATH picks the browser. Reads MODEL_API_KEY from the environment or the repository's .env. Writes one JSON line per run to
+instead of the published package (USHER_MCP="node path/to/cli.js" runs a local build). CHROME_PATH picks the browser. Reads MODEL_API_KEY from the environment or the repository's .env. Writes one JSON line per run to
 results.jsonl. The driver is fictional (packages/agent/profiles/test-driver.json).
 """
 
@@ -45,6 +46,15 @@ This site uses Usher, and you have its tools. On each of the three steps, before
    whole page. Before pressing "Get my quote", knock again with confirmed: ["form.submit"] and bind
    that token too."""
 
+FILL = f"""Get a car insurance quote at {START} for this driver. The data is fictional test data:
+{json.dumps(PROFILE, indent=2)}
+Use the usher_fill tool: url {START}, intent "quote.car_insurance", and the data above as values
+(same keys), leaving out consent.declaration and consent.marketing. You don't need the browser.
+usher_fill pauses for each decision and returns an id. Answer with usher_confirm (id, answer): the
+person has agreed to the declaration (true), does not want marketing (false), and has confirmed you
+may press "Get my quote" (true). You are done when it returns status "completed": report the
+outcome and the session id."""
+
 
 def llm() -> ChatOpenAI:
     key = os.environ.get('MODEL_API_KEY')
@@ -60,13 +70,14 @@ def llm() -> ChatOpenAI:
 async def run(mode: str) -> dict:
     tools = Tools()
     mcp = None
-    if mode == 'with':
+    if mode in ('with', 'fill'):
         key_file = os.path.join(tempfile.mkdtemp(prefix='usher-bu-'), 'agent-key.json')
-        mcp = MCPClient(server_name='usher', command='npx', args=['-y', '@usher-run/mcp'], env={**os.environ, 'USHER_REGISTRY_URL': REGISTRY, 'USHER_AGENT_KEY_FILE': key_file})
+        command, *rest = os.environ.get('USHER_MCP', 'npx -y @usher-run/mcp').split()
+        mcp = MCPClient(server_name='usher', command=command, args=rest, env={**os.environ, 'USHER_REGISTRY_URL': REGISTRY, 'USHER_AGENT_KEY_FILE': key_file})
         await mcp.connect()
-        await mcp.register_to_tools(tools)
+        await mcp.register_to_tools(tools, tool_filter=['usher_fill', 'usher_confirm', 'usher_cancel'] if mode == 'fill' else None)
     agent = Agent(
-        task=DRIVER + (USHER if mode == 'with' else ''),
+        task=FILL if mode == 'fill' else DRIVER + (USHER if mode == 'with' else ''),
         llm=llm(),
         tools=tools,
         # A fresh profile each run; CHROME_PATH picks the browser (Browser Use finds one otherwise).
@@ -92,6 +103,8 @@ async def run(mode: str) -> dict:
         'steps': history.number_of_steps(),
         'actions': actions,
         'knocks': sum(1 for a in actions if 'knock' in a),
+        # The tool calls and how long each took: the fill's own time, without the model's turns.
+        'tool_ms': [[list(s.model_output.action[0].model_dump(exclude_unset=True).keys())[0], round((s.metadata.step_end_time - s.metadata.step_start_time) * 1000)] for s in history.history if s.model_output and s.model_output.action and s.metadata] if mode == 'fill' else None,
         'prompt_tokens': getattr(usage, 'total_prompt_tokens', None),
         'completion_tokens': getattr(usage, 'total_completion_tokens', None),
         'errors': [e for e in history.errors() if e][:5],
@@ -101,7 +114,7 @@ async def run(mode: str) -> dict:
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['with', 'without', 'both'], default='both')
+    parser.add_argument('--mode', choices=['with', 'without', 'fill', 'both'], default='both')
     parser.add_argument('--runs', type=int, default=1)
     args = parser.parse_args()
     modes = ['without', 'with'] if args.mode == 'both' else [args.mode]

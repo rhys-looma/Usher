@@ -1,17 +1,27 @@
 # Browser Use with Usher
 
-[Browser Use](https://github.com/browser-use/browser-use) 0.13.14, a general-purpose browser agent, unmodified, running on Muse Spark (`muse-spark-1.3`) through the Meta Model API. Usher's MCP server, `npx @usher-run/mcp`, is registered as tools. The task: complete the Brightwater car insurance quote against the live registry. One run each way, on 27 October; `usher_fill` is measured below as it lands. Runner: [`examples/browser-use/run.py`](../examples/browser-use/run.py). Raw results: [`results.jsonl`](../examples/browser-use/results.jsonl).
+[Browser Use](https://github.com/browser-use/browser-use) 0.13.14, a general-purpose browser agent, unmodified, running on Muse Spark (`muse-spark-1.3`) through the Meta Model API. Usher's MCP server, `npx @usher-run/mcp`, is registered as tools. The task: complete the Brightwater car insurance quote against the live registry. On 27 October: one run each without Usher and with Usher as plain tools, and two with only `usher_fill` (the `@usher-run/mcp` 0.2.0 build). Runner: [`examples/browser-use/run.py`](../examples/browser-use/run.py). Raw results: [`results.jsonl`](../examples/browser-use/results.jsonl).
 
 ## Results
 
-| | Without Usher | With Usher as plain MCP tools |
-| --- | --- | --- |
-| Completed the quote | yes (`/quote/result`) | yes (£308.70 a year, ref. BW-CFD9FAD4) |
-| Time | **124 s** | **424 s** |
-| Steps (cap 60) | 27 | 60 |
-| Knocks | 0 | 18 (4 would do) |
+| | Without Usher | With Usher as plain MCP tools | With `usher_fill` only |
+| --- | --- | --- | --- |
+| Completed the quote | yes (`/quote/result`) | yes (£308.70 a year, ref. BW-CFD9FAD4) | yes, both runs (`/quote/result`) |
+| Time | **124 s** | **424 s** | **40 s** (40.3, 39.2) |
+| Steps (cap 60) | 27 | 60 | 5 |
+| Knocks | 0 | 18 (4 would do) | 3, made by the tool |
 
-**As plain MCP tools, Usher made Browser Use slower, because the agent still read every page.** Browser Use's model reads and acts on each page itself whatever it's given. The knock, binding the pass and re-knocking (when the map fell out of its running memory) were all steps on top of that reading, never instead of it. Usher's own agent fills the same quote in about 2.7 s on the map against about 14 s reading the pages (`reports/benchmark.md`), because it fills by the map in code. The next step, `usher_fill`, gives any agent that.
+**With `usher_fill`, the agent never reads the form.** It makes one call with the user's values by key and gets back the first decision; three `usher_confirm` calls answer the declaration (yes), marketing (no) and "Get my quote" (yes); the fifth step reports the result. The 40 s is almost all model turns: the tools' own time, measured with a plain stdio MCP client and no model ([`examples/mcp-fill/measure.mjs`](../examples/mcp-fill/measure.mjs), three runs against the live registry):
+
+| `usher_fill`, tools only | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| Call to the first decision (all three pages filled) | 1.56 s | 1.55 s | 1.43 s |
+| Call to the "Get my quote" confirmation prompt | 1.60 s | 1.58 s | 1.46 s |
+| Call to completion (quote shown) | 3.81 s | 3.80 s | 3.64 s |
+
+Every page came from the registry's map (`used_model` empty), 29 actions by key each time.
+
+**As plain MCP tools, Usher made Browser Use slower, because the agent still read every page.** `usher_fill` fixes that by taking the form off the agent entirely. Browser Use's model reads and acts on each page itself whatever it's given. The knock, binding the pass and re-knocking (when the map fell out of its running memory) were all steps on top of that reading, never instead of it. Usher's own agent fills the same quote in about 2.7 s on the map against about 14 s reading the pages (`reports/benchmark.md`), because it fills by the map in code. `usher_fill` gives any MCP agent that.
 
 ## What the site saw
 
@@ -23,6 +33,8 @@ The dashboard shows Browser Use's agent as a **verified identity** (Web Bot Auth
 - the knocks.
 
 **The cover step wasn't logged.** The agent knocked again there but didn't bind the new pass before filling. Its other knocks opened twelve more sessions, with one event each.
+
+**With `usher_fill`** (sessions `s_XC8T8bqbd3u2itrn` and `s_st7fIP9z11kX7URk`), each run is one session with one knock per page: every field by key, the two consents as hand-offs to the user (the declaration then checked, marketing left alone), the confirmed knock, and `form.submit`. [`examples/mcp-fill/screencast.ts`](../examples/mcp-fill/screencast.ts) records the same view on a local stack.
 
 **Without Usher**, Browser Use doesn't identify itself as an agent. The demo site treats it as a person, so it gets through, and the site sees nothing.
 
@@ -42,13 +54,17 @@ These are changes to Usher, not to Browser Use:
 - **A `fill_plan` tool:** from the map and the user's data by key, return the actions to take, so the agent doesn't re-derive them every step.
 - **Session continuity by default:** the MCP server remembers the session per origin and passes it on the next knock.
 
-Each of these removes model steps. The win Usher already shows comes from an agent that doesn't spend model steps on the form at all.
+Each of these removes model steps. `usher_fill` removes them all: the agent spends model steps only on its user's decisions.
+
+Running it surfaced one client issue, now fixed in the server: Browser Use's MCP client can't read a union of types in a tool schema, and passes an object with no named properties as `{}`. `usher_fill` names every vocabulary key in its schema and keeps unions out.
 
 ## Reproduce
 
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install -r examples/browser-use/requirements.txt
 cd /tmp && /path/to/Usher/.venv/bin/python /path/to/Usher/examples/browser-use/run.py --mode both
+cd /tmp && /path/to/Usher/.venv/bin/python /path/to/Usher/examples/browser-use/run.py --mode fill
+node examples/mcp-fill/measure.mjs --runs 3
 ```
 
 Run it from outside the repository: inside it, `npx` resolves `@usher-run/mcp` to the local workspace copy rather than the published package. `MODEL_API_KEY` comes from the environment or the repository's `.env`. `CHROME_PATH` picks the browser if Browser Use doesn't find one. The driver is fictional (`packages/agent/profiles/test-driver.json`).
