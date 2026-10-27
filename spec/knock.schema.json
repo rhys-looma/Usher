@@ -80,6 +80,11 @@
           "maxItems": 20,
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
           "description": "Keys the agent states its user has confirmed, before acting on them."
+        },
+        "have_map": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Digest of the map the page itself publishes, which the agent is using. The response then leaves the map out."
         }
       }
     },
