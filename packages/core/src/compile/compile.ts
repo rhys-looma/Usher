@@ -12,6 +12,8 @@ import { appendLog, redactRequest } from './log.ts';
 import { compilerModel, costUsd, parseJsonContent, type ChatFn, type ChatMessage, type ChatRequest, type Usage } from './model.ts';
 import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt } from './prompt.ts';
 import { classifierRequest, classifyRisks, reconcile, type RiskFlag } from './classify.ts';
+import { chooseForm, chooseRequest, type FormChoice } from './choose.ts';
+import { candidateForms, mainForm } from '../forms.ts';
 
 /** Default compiler log folder: data/compiler-log at the repository root (gitignored). */
 export const DEFAULT_LOG_DIR = fileURLToPath(new URL('../../../../data/compiler-log/', import.meta.url));
@@ -26,8 +28,10 @@ export interface CompileOptions {
   model?: string;
   /** Where to append the request log; null to turn logging off. */
   logDir?: string | null;
-  /** Which extracted form to compile; defaults to the one with the most fields. */
+  /** Which extracted form to compile; by default chosen by intent (see choose.ts). */
   formIndex?: number;
+  /** What the agent is here to do; picks the form when the page has more than one. */
+  intent?: string | null;
   /** Path pattern for the map; defaults to the page's path. */
   path?: string;
   step?: number;
@@ -63,6 +67,8 @@ export interface CompileResult {
   /** Whole compile, including extraction and the screenshot. */
   total_ms: number;
   classifier?: ClassifierOutcome;
+  /** The model's choice of form, when the page had more than one candidate. */
+  choice?: FormChoice;
 }
 
 export class CompileError extends Error {
@@ -82,11 +88,8 @@ export function pickForm(scan: Scan, index?: number): ScannedForm {
     if (!form) throw new Error(`No form ${index} on ${scan.url}; found ${scan.forms.length}.`);
     return form;
   }
-  // The form with the most fields: a real <form> that isn't a cookie or consent banner if there is
-  // one, then loose controls outside any form, then anything.
-  const fields = (f: ScannedForm) => f.elements.filter((e) => e.kind === 'field').length;
-  const tiers = [scan.forms.filter((f) => !f.pseudo && !f.banner && fields(f) > 0), scan.forms.filter((f) => !f.banner && fields(f) > 0), scan.forms];
-  const best = [...(tiers.find((t) => t.length) ?? [])].sort((a, b) => fields(b) - fields(a))[0];
+  // Without a model: the likeliest candidate (forms.ts).
+  const best = mainForm(scan.forms);
   if (!best) throw new Error(`No forms found on ${scan.url}.`);
   return best;
 }
@@ -124,11 +127,23 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
   const logDir = options.logDir === undefined ? DEFAULT_LOG_DIR : options.logDir;
 
   const scan: Scan = await page.evaluate(scanScript());
-  const form = pickForm(scan, options.formIndex);
+  const title = await page.title();
+  let form: ScannedForm;
+  let choice: FormChoice | undefined;
+  if (options.formIndex !== undefined) form = pickForm(scan, options.formIndex);
+  else {
+    const chosen = await chooseForm(scan, { intent: options.intent, chat: options.chat, model, title });
+    form = chosen.form;
+    choice = chosen.choice;
+    if (logDir && (chosen.choice || chosen.error)) {
+      const candidates = candidateForms(scan.forms, options.intent);
+      await appendLog(logDir, { ts: now().toISOString(), model, url: scan.url, task: 'choose', request: chooseRequest(scan, candidates, options.intent, model, title), chosen: form.index, ...(chosen.choice ? { reason: chosen.choice.reason, usage: chosen.choice.usage, latency_ms: chosen.choice.latency_ms, cost_usd: chosen.choice.cost_usd } : { error: chosen.error }) }, now());
+    }
+  }
   const fp = await fingerprint(form.elements);
   const pageUrl = new URL(scan.url);
   const image = await screenshotForm(page, form);
-  const extraction = compactExtraction(form, { path: pageUrl.pathname, title: await page.title() });
+  const extraction = compactExtraction(form, { path: pageUrl.pathname, title });
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt() },
@@ -190,8 +205,8 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: retryPrompt(validation.errors) });
   }
 
-  const usage = attempts.reduce((sum, a) => addUsage(sum, a.usage), { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 });
-  const costs = attempts.map((a) => a.cost_usd);
+  const usage = [...attempts, ...(choice ? [choice] : [])].reduce((sum, a) => addUsage(sum, a.usage), { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 });
+  const costs = [...attempts, ...(choice ? [choice] : [])].map((a) => a.cost_usd);
   const cost_usd = costs.every((c) => c !== null) ? costs.reduce((s, c) => s + c!, 0) : null;
 
   if (!validation?.ok) {
@@ -244,16 +259,22 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     excluded: validation.excluded,
     usage,
     cost_usd,
-    model_ms: attempts.reduce((s, a) => s + a.latency_ms, 0),
+    model_ms: [...attempts, ...(choice ? [choice] : [])].reduce((s, a) => s + a.latency_ms, 0),
     total_ms: Math.round(performance.now() - started),
     ...(classifier && { classifier }),
+    ...(choice && { choice }),
   };
 }
 
-/** Merges labels that already passed validation for this structure (a cache hit) into a map for this page. */
-export async function mapFromLabels(page: Page, labels: unknown, provenance: { compiler: string; created_at: string }): Promise<UsherMap | null> {
+/**
+ * Merges labels that already passed validation for this structure (a cache hit) into a map for this
+ * page: for the form with this fingerprint digest, or the likeliest form without one.
+ */
+export async function mapFromLabels(page: Page, labels: unknown, provenance: { compiler: string; created_at: string }, digest?: string): Promise<UsherMap | null> {
   const scan: Scan = await page.evaluate(scanScript());
-  const form = pickForm(scan);
+  let form: ScannedForm | undefined = digest ? undefined : pickForm(scan);
+  for (const f of digest ? candidateForms(scan.forms) : []) if ((await fingerprint(f.elements)).digest === digest) form = f;
+  if (!form) return null;
   const validation = validateLabels(labels, form.elements);
   if (!validation.ok) return null;
   const url = new URL(scan.url);
