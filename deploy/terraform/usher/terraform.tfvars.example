@@ -3,5 +3,6 @@ registry_host = "registry.example"
 site_host     = "quote.registry.example"
 contact_email = "hello@registry.example"
 image_tag     = "0123456789ab" # from deploy/terraform/ecr: terraform output images
+# route53_zone_id      = "Z…"   # the domain's hosted zone: DNS records made for you
 # certificates_issued  = true   # phase 2
 # mock_site_key        = "usp_…"  # after registering the demo site

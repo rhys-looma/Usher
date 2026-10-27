@@ -1,10 +1,10 @@
 output "certificate_validation_records" {
-  description = "Phase 1: add these CNAMEs where the domain's DNS is (DNS only). They validate both certificates."
+  description = "Phase 1: the CNAMEs that validate both certificates (made automatically when route53_zone_id is set)."
   value       = { for o in aws_acm_certificate.alb.domain_validation_options : o.domain_name => { name = o.resource_record_name, type = o.resource_record_type, value = o.resource_record_value } }
 }
 
 output "dns_records" {
-  description = "Phase 2: point both hosts at CloudFront (CNAME, or ALIAS/flattened at the apex; DNS only)."
+  description = "Phase 2: both hosts point at CloudFront (made automatically when route53_zone_id is set)."
   value       = var.certificates_issued ? { for h in [var.registry_host, var.site_host] : h => aws_cloudfront_distribution.usher[0].domain_name } : null
 }
 
