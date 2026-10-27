@@ -7,6 +7,7 @@ import type { ExtractedForm } from '../extract.ts';
 import { CONDITION_OPS, type LabelError } from '../labels.ts';
 import { RISKS, vocabulary as defaultVocabulary, type Vocabulary } from '../vocabulary.ts';
 import { shortlist } from './shortlist.ts';
+import { exampleLine, type LabelledExample } from './retrieval.ts';
 
 export function systemPrompt(vocab: Vocabulary = defaultVocabulary): string {
   const rows = vocab.entries.map((e) => `| ${e.key} | ${e.kind} | ${e.default_risk}${e.sensitive ? ', sensitive' : ''} | ${e.meaning} |`);
@@ -75,8 +76,10 @@ export function compactExtraction(form: ExtractedForm, page: { path: string; tit
   };
 }
 
-export function userPrompt(extraction: object): string {
-  return `Label this form. The screenshot shows how it looks.\n\nExtraction:\n${JSON.stringify(extraction)}`;
+export function userPrompt(extraction: object, examples: LabelledExample[] = []): string {
+  // Retrieval few-shot (the open-weights labeller): how elements like these were labelled on other sites.
+  const shots = examples.length ? `Labelled examples from other sites (label → key and risk), for elements like these. Follow them where an element means the same thing:\n${examples.map(exampleLine).join('\n')}\n\n` : '';
+  return `${shots}Label this form. The screenshot shows how it looks.\n\nExtraction:\n${JSON.stringify(extraction)}`;
 }
 
 export function retryPrompt(errors: LabelError[]): string {

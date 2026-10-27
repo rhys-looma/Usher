@@ -7,6 +7,7 @@ import type { ExtractedElement } from '../extract.ts';
 import { stricter } from '../labels.ts';
 import { RISKS, type Risk } from '../vocabulary.ts';
 import { costUsd, parseJsonContent, type ChatFn, type ChatRequest, type Usage } from './model.ts';
+import { exampleLine, examplesForForm, type ExampleIndex } from './retrieval.ts';
 
 export interface RiskOpinion {
   id: string;
@@ -50,14 +51,16 @@ function describe(e: ExtractedElement): Record<string, unknown> {
   };
 }
 
-export function classifierRequest(model: string, purpose: string, elements: ExtractedElement[]): ChatRequest {
+export function classifierRequest(model: string, purpose: string, elements: ExtractedElement[], examples?: ExampleIndex): ChatRequest {
   const ids = elements.map((e) => e.id);
+  // Retrieval few-shot: how elements like these were judged on other sites.
+  const shots = examples ? examplesForForm(examples, elements.map((e) => ({ label: e.label, kind: e.kind, control: e.control, ...(e.options && { options: e.options.items.map((o) => o.label) }) }))) : [];
   return {
     model,
     temperature: 0,
     messages: [
       { role: 'system', content: SYSTEM },
-      { role: 'user', content: `Form purpose: ${purpose}\n\nElements:\n${JSON.stringify(elements.map(describe))}` },
+      { role: 'user', content: `${shots.length ? `Labelled examples from other sites (label → key and risk), for elements like these:\n${shots.map(exampleLine).join('\n')}\n\n` : ''}Form purpose: ${purpose}\n\nElements:\n${JSON.stringify(elements.map(describe))}` },
     ],
     response_format: {
       type: 'json_schema',
@@ -86,8 +89,8 @@ export function classifierRequest(model: string, purpose: string, elements: Extr
 }
 
 /** One request for the whole form; every element must get exactly one valid opinion. */
-export async function classifyRisks(chat: ChatFn, model: string, purpose: string, elements: ExtractedElement[]): Promise<Classification> {
-  const result = await chat(classifierRequest(model, purpose, elements));
+export async function classifyRisks(chat: ChatFn, model: string, purpose: string, elements: ExtractedElement[], examples?: ExampleIndex): Promise<Classification> {
+  const result = await chat(classifierRequest(model, purpose, elements, examples));
   const parsed = parseJsonContent(result.content) as { elements?: unknown };
   const list = Array.isArray(parsed.elements) ? (parsed.elements as Partial<RiskOpinion>[]) : [];
   const opinions = new Map<string, RiskOpinion>();
