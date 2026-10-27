@@ -18,7 +18,7 @@ interface BenchmarkRow {
 
 export interface Numbers {
   benchmark: { rows: BenchmarkRow[]; generated?: string };
-  /** Hand-marked accuracy once anyone has marked the public forms; until then, what code can check. */
+  /** Human-checked accuracy once anyone has marked the public forms; until then, what code can check. */
   accuracy:
     | { kind: 'reviewed'; keys: string; risk: string; reviewed: number }
     | { kind: 'automatic'; resolved: number; elements: number; forms: number; agreement: { set: string; pct: string; of: number }[] }
@@ -99,12 +99,12 @@ ${
 }
 ${
   a?.kind === 'reviewed'
-    ? html`<div class="grid"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons given the right meaning, checked by hand (${a.reviewed} on public forms)</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk</span></div></div>`
+    ? html`<div class="grid"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons given the right meaning, human-checked (${a.reviewed} on public forms)</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk</span></div></div>`
     : a?.kind === 'automatic'
       ? html`<div class="grid"><div class="card stat"><b>${pct(a.resolved, a.elements)}</b><span>of ${a.elements} fields and buttons on ${a.forms} forms found again on the live page by their map</span></div>${a.agreement.map(
           (g) => html`<div class="card stat"><b>${g.pct}</b><span>agreement on risk between two models (Muse Spark and Muse Spark Open), ${g.of} elements on ${g.set}</span></div>`,
         )}</div>
-<p class="small muted">Whether each meaning is right hasn't been checked by hand yet; these are the parts code can check. <a href="${REPOSITORY}/blob/main/reports/accuracy.md">The accuracy report</a>.</p>`
+<p class="small muted">Whether each meaning is right hasn't been human-checked yet; these are the parts code can check. <a href="${REPOSITORY}/blob/main/reports/accuracy.md">The accuracy report</a>.</p>`
       : ''
 }
 </section>`;

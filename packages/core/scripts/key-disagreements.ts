@@ -2,7 +2,7 @@
 //   - between runs: the same form (same fingerprint) labelled more than once in the compiler log;
 //   - per element against whole form: the fine-tuning eval's per-element predictions against the
 //     whole-form labels they are scored on (the "61%" number);
-//   - against review: rows of reports/accuracy-review.csv marked key_correct = n.
+//   - against review: public-form rows of reports/accuracy-review.csv marked key_correct = n (human-checked).
 // Writes reports/key-disagreements.md. Run: npm run keys:disagreements [-- --log dir --data dir]
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -105,7 +105,7 @@ for (const ex of evalSet) {
   if (predicted !== ex.output.key) rows.push({ source: 'per element vs whole form', page: ex.meta.form, label: ex.input.label, keys: [ex.output.key, predicted], kind: kindOf([ex.output.key, predicted], formKeys.get(ex.meta.form) ?? []) });
 }
 
-// 3. The review CSV: keys a person marked wrong.
+// 3. The review CSV: public-form keys a person marked wrong (mock-site marks are automatic).
 const csv = await readFile(new URL('reports/accuracy-review.csv', root), 'utf8').catch(() => '');
 const parse = (line: string) => [...line.matchAll(/"((?:[^"]|"")*)"|([^,]+)|(?<=,)(?=,|$)/g)].map((m) => (m[1] ?? m[2] ?? '').replace(/""/g, '"'));
 const [header, ...lines] = csv.trim().split('\n');
@@ -113,6 +113,7 @@ const cols = header ? parse(header) : [];
 let reviewed = 0;
 for (const line of lines) {
   const r = Object.fromEntries(parse(line).map((v, i) => [cols[i], v])) as Record<string, string>;
+  if (r.category === 'mock site') continue;
   if (r.key_correct === 'y' || r.key_correct === 'n') reviewed++;
   if (r.key_correct !== 'n') continue;
   const better = /`?([a-z]+\.[a-z0-9_.]+)`?/.exec(r.notes ?? '')?.[1];
@@ -139,11 +140,11 @@ const out = [
   '| Kind | Between runs | Per element vs whole form | Review |',
   '| --- | --- | --- | --- |',
   ...KINDS.map((k) => `| ${k.title} | ${count('between runs', k.kind)} | ${count('per element vs whole form', k.kind)} | ${count('review', k.kind)} |`),
-  `| **Total** | **${count('between runs')}** of ${elementsRunTwice} elements on ${formsRunTwice} forms labelled more than once | **${count('per element vs whole form')}** of ${scored} eval elements | **${count('review')}** of ${reviewed} reviewed |`,
+  `| **Total** | **${count('between runs')}** of ${elementsRunTwice} elements on ${formsRunTwice} forms labelled more than once | **${count('per element vs whole form')}** of ${scored} eval elements | **${count('review')}** of ${reviewed} human-checked |`,
   '',
   '- **Between runs**: the same form, by fingerprint, labelled more than once by the compiler. Runs span prompt changes (custom keys encouraged on 26 October, `search.submit` added on 27 October), so some differences are the prompt, not chance.',
   '- **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the exact-match key accuracy in docs/finetune.md.',
-  '- **Review**: keys marked wrong by hand. Only the mock site has been reviewed so far.',
+  '- **Review**: public-form keys marked wrong when human-checked in `reports/accuracy-review.csv`.',
   '',
   `Per element vs whole form, by page: ${[...perPage].sort((x, y) => y[1] - x[1]).map(([page, n]) => `${page} ${n}`).join(', ') || 'none'}.`,
   '',

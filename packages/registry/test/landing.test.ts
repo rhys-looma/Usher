@@ -41,7 +41,7 @@ test('front page: the sentence, map / knock / log, the viewer box, both quicksta
   assert.ok(text.includes(`data-usher-registry=&quot;${registry.url}&quot;`), 'the tag names this registry');
   assert.ok(text.includes('href="/sites/new"'), 'Get your keys');
   assert.match(text, /× faster/, 'the benchmark');
-  assert.match(text, /found again on the live page/, 'not hand-checked yet: what code can check, said so');
+  assert.match(text, /given the right meaning, human-checked \(\d+ on public forms\)/, 'human-checked public forms only, never the mock site\'s answer key');
   assert.match(text, /<meta property="og:image" content="[^"]+\/og\.png">/);
   assert.match(text, /<title>Usher: the front door for AI agents on web forms<\/title>/);
   assert.match(res.headers.get('content-security-policy') ?? '', /script-src 'self'; connect-src 'self'/, 'its own site script, nothing else');

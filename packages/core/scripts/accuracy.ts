@@ -1,6 +1,7 @@
 // Accuracy evaluation (LU-50): compiles maps for the mock site and a list of public forms and writes
 // reports/accuracy.md (per form: elements, keys, risk, locator resolution), reports/accuracy.json,
-// and reports/accuracy-review.csv for marking each element correct or not by hand.
+// and reports/accuracy-review.csv, where a person marks each public-form element correct or not
+// (human-checked). Marks already in the CSV are kept for elements that come out the same.
 // `npm run accuracy:score` recomputes the numbers from the marks.
 //
 //   node scripts/with-mock-sites.mjs node --import tsx packages/core/scripts/accuracy.ts [--forms recorded|all|id,id] [--live] [--budget 0.5] [--classify]
@@ -158,7 +159,7 @@ const results: FormResult[] = [];
 const rows: Row[] = [];
 const browser: Browser = await chromium.launch();
 
-// The mock site: recorded labels and classifier opinions, marked automatically against the hand-checked keys.
+// The mock site: recorded labels and classifier opinions, marked automatically by whether they match the mock site's answer key.
 if (values.mock && process.env.USHER_MOCK_A) {
   const expected = JSON.parse(await readFile(new URL('packages/core/test/fixtures/expected-keys.json', root), 'utf8')) as Record<string, Record<string, [string, string][]>>;
   const expectedRisk = (key: string) => (['consent.declaration', 'consent.marketing'].includes(key) ? 'needs_user' : key === 'form.submit' ? 'consequential' : 'safe');
@@ -224,7 +225,7 @@ const md = [
   '- Each page is loaded in headless Chromium at 1280px and its main form compiled exactly as the registry does: extraction, locators, fingerprint, Muse Spark labels, validation, merge. Nothing is submitted.',
   '- Model responses come from recorded fixtures (mock site) or the compiler log (public forms compiled before); a page that changed since then has no recorded response and is skipped unless the run is `--live`.',
   '- **Locators resolve**: every locator of the element finds exactly one element, and they all agree, on the live page.',
-  '- **Keys** and **risk** on the mock site are marked automatically against the hand-checked list; on public forms they are marked by hand in `reports/accuracy-review.csv` and scored with `npm run accuracy:score`.',
+  '- **Keys** and **risk** on the mock site are marked automatically: whether each matches the mock site\'s answer key (`packages/core/test/fixtures/expected-keys.json`). On public forms they are human-checked in `reports/accuracy-review.csv`. `npm run accuracy:score` scores both, separately.',
   '- The open-weights classifier (Muse Spark Open) adds a second opinion on risk where recorded or run live; disagreements keep the stricter risk and are flagged.',
   '- Pages that could not be loaded at all (they refuse automated browsers, or no longer exist) are left out.',
   '',
@@ -232,7 +233,7 @@ const md = [
   '',
   `- Forms compiled: ${ok.length} of ${reported.length} (${reported.length - ok.length} skipped: no form to map, or labels that failed validation).`,
   `- Elements: ${total('elements')}; locators resolving: ${pct(total('locators_resolved'), total('elements'))}; vocabulary keys (not custom): ${pct(total('vocabulary_keys'), total('elements'))}.`,
-  `- Mock site, marked automatically: keys ${pct(mockRows.filter((r) => r.key_correct === 'y').length, mockRows.length)} correct, risk ${pct(mockRows.filter((r) => r.risk_correct === 'y').length, mockRows.length)} correct (after the classifier's stricter-wins).`,
+  `- Mock site, matches the mock site's answer key: keys ${pct(mockRows.filter((r) => r.key_correct === 'y').length, mockRows.length)} correct, risk ${pct(mockRows.filter((r) => r.risk_correct === 'y').length, mockRows.length)} correct (after the classifier's stricter-wins).`,
   '',
   '## Per form',
   '',
@@ -248,6 +249,14 @@ const md = [
 await writeFile(new URL('reports/accuracy.md', root), md.join('\n'));
 await writeFile(new URL('reports/accuracy.json', root), `${JSON.stringify({ generated: new Date().toISOString(), results }, null, 2)}\n`);
 const csv = (v: unknown) => `"${String(v).replaceAll('"', '""')}"`;
+// Human marks on public forms survive a re-run when the element comes out the same.
+const same = (r: Pick<Row, 'form' | 'label' | 'control' | 'key' | 'risk'>) => [r.form, r.label, r.control, r.key, r.risk].join('\u0000');
+const previous = new Map<string, [string, string]>();
+for (const line of (await readFile(new URL('reports/accuracy-review.csv', root), 'utf8').catch(() => '')).trim().split('\n').slice(1)) {
+  const c = [...line.matchAll(/"((?:[^"]|"")*)"/g)].map((m) => m[1]!.replaceAll('""', '"'));
+  if (c[1] !== 'mock site' && (c[9] || c[10])) previous.set(same({ form: c[0]!, label: c[3]!, control: c[4]!, key: c[5]!, risk: c[6]! }), [c[9]!, c[10]!]);
+}
+for (const r of rows) if (r.category !== 'mock site') [r.key_correct, r.risk_correct] = previous.get(same(r)) ?? [r.key_correct, r.risk_correct];
 await writeFile(
   new URL('reports/accuracy-review.csv', root),
   [
