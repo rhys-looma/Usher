@@ -66,6 +66,10 @@ test('finetune export: per element, risk floors applied, excluded skipped, de-du
     const chat = JSON.parse((await readFile(join(out, 'train.chat.jsonl'), 'utf8')).split('\n')[0]!);
     assert.deepEqual(chat.messages.map((m: { role: string }) => m.role), ['system', 'user', 'assistant']);
 
+    // --since leaves out labels logged before it (an older prompt's).
+    await node('finetune-export', ['--log', dir, '--out', join(dir, 'later'), '--since', '2026-10-27T00:00:00Z']);
+    assert.equal(JSON.parse(await readFile(join(dir, 'later', 'stats.json'), 'utf8')).log_records, 0);
+
     // Scoring: write predictions for the eval set, one of them under-calling risk.
     const evalSet = (await readFile(join(out, 'eval.jsonl'), 'utf8')).split('\n').filter(Boolean).map((l) => JSON.parse(l));
     const preds = evalSet.map((e, i) => ({ id: e.id, key: e.output.key, risk: i === 0 && e.output.risk !== 'safe' ? 'safe' : e.output.risk }));

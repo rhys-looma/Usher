@@ -142,7 +142,7 @@ const out = [
   `| **Total** | **${count('between runs')}** of ${elementsRunTwice} elements on ${formsRunTwice} forms labelled more than once | **${count('per element vs whole form')}** of ${scored} eval elements | **${count('review')}** of ${reviewed} reviewed |`,
   '',
   '- **Between runs**: the same form, by fingerprint, labelled more than once by the compiler. Runs span prompt changes (custom keys encouraged on 26 October, `search.submit` added on 27 October), so some differences are the prompt, not chance.',
-  '- **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the 61% exact-match number.',
+  '- **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the exact-match key accuracy in docs/finetune.md.',
   '- **Review**: keys marked wrong by hand. Only the mock site has been reviewed so far.',
   '',
   `Per element vs whole form, by page: ${[...perPage].sort((x, y) => y[1] - x[1]).map(([page, n]) => `${page} ${n}`).join(', ') || 'none'}.`,

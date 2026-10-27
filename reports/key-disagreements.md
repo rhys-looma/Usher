@@ -4,65 +4,64 @@ Every element where Muse Spark's (`muse-spark-1.3`) key is not settled, grouped 
 
 | Kind | Between runs | Per element vs whole form | Review |
 | --- | --- | --- | --- |
-| Custom keys, same slug once normalised | 2 | 0 | 0 |
+| Custom keys, same slug once normalised | 5 | 3 | 0 |
 | Synonym pairs | 0 | 0 | 0 |
-| Custom slug wording | 1 | 9 | 0 |
-| Custom key against a vocabulary key | 0 | 7 | 0 |
-| Genuine disagreement | 3 | 0 | 0 |
-| **Total** | **6** of 110 elements on 15 forms labelled more than once | **16** of 41 eval elements | **0** of 68 reviewed |
+| Custom slug wording | 1 | 0 | 0 |
+| Custom key against a vocabulary key | 0 | 6 | 0 |
+| Genuine disagreement | 5 | 1 | 0 |
+| **Total** | **11** of 116 elements on 17 forms labelled more than once | **10** of 28 eval elements | **0** of 68 reviewed |
 
 - **Between runs**: the same form, by fingerprint, labelled more than once by the compiler. Runs span prompt changes (custom keys encouraged on 26 October, `search.submit` added on 27 October), so some differences are the prompt, not chance.
-- **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the 61% exact-match number.
+- **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the exact-match key accuracy in docs/finetune.md.
 - **Review**: keys marked wrong by hand. Only the mock site has been reviewed so far.
 
-Per element vs whole form, by page: www.gov.uk/search/all 13, www.gov.uk/contact/govuk 1, ico.org.uk/global/contact-us/ 1, www.churchill.com/car-insurance 1.
+Per element vs whole form, by page: www.eventbrite.co.uk/ 7, www.gov.uk/contact/govuk 3.
 
-## Custom keys, same slug once normalised (2)
+## Custom keys, same slug once normalised (8)
 
 Both sides used a custom key and the words match after removing filler and plurals (custom.room_count and custom.rooms). Equivalence scoring counts these as correct.
 
 | Source | Page | Element | Keys |
 | --- | --- | --- | --- |
-| between runs | www.travelodge.co.uk/ (5 runs) | Room 1 | `custom.room_1_adults` / `custom.adults_room_1` |
-| between runs | www.travelodge.co.uk/ (5 runs) | Room 1 | `custom.room_1_children` / `custom.children_room_1` |
+| between runs | www.travelodge.co.uk/ (6 runs) | Room 1 | `custom.room_1_adults` / `custom.adults_room_1` |
+| between runs | www.travelodge.co.uk/ (6 runs) | Room 1 | `custom.room_1_children` / `custom.children_room_1` |
+| between runs | www.gov.uk/contact/govuk (4 runs) | help pages | `custom.help_pages` / `custom.help_pages_link` |
+| between runs | www.gov.uk/contact/govuk (4 runs) | government department | `custom.government_department` / `custom.government_department_link` |
+| between runs | www.gov.uk/contact/govuk (4 runs) | directly. | `custom.directly` / `custom.directly_text` |
+| per element vs whole form | www.gov.uk/contact/govuk | help pages | `custom.help_pages_link` / `custom.help_pages` |
+| per element vs whole form | www.gov.uk/contact/govuk | government department | `custom.government_department_link` / `custom.government_department` |
+| per element vs whole form | www.gov.uk/contact/govuk | directly. | `custom.directly_text` / `custom.directly` |
 
-## Custom slug wording (10)
+## Custom slug wording (1)
 
 Both sides agree nothing in the vocabulary fits and name the element differently. Usually the same meaning; sometimes one side is vaguer (custom.search_result_link).
 
 | Source | Page | Element | Keys |
 | --- | --- | --- | --- |
-| between runs | www.travelodge.co.uk/ (5 runs) | room | `custom.room_count` / `custom.number_of_rooms` |
-| per element vs whole form | www.gov.uk/contact/govuk | directly. | `custom.directly` / `custom.contact_text_field` |
-| per element vs whole form | www.gov.uk/search/all | Sign in to your Universal Credit account | `custom.universal_credit_sign_in` / `custom.account_sign_in` |
-| per element vs whole form | www.gov.uk/search/all | HMRC online services: sign in or set up an account | `custom.hmrc_sign_in_setup` / `custom.search_result_link` |
-| per element vs whole form | www.gov.uk/search/all | Sign in or set up an account | `custom.hmrc_sign_in` / `custom.search_result_link` |
-| per element vs whole form | www.gov.uk/search/all | Get help with signing in to HMRC online services | `custom.hmrc_sign_in_help` / `custom.search_result_link` |
-| per element vs whole form | www.gov.uk/search/all | Universal Credit | `custom.universal_credit_info` / `custom.search_result_link` |
-| per element vs whole form | www.gov.uk/search/all | Get information about a company | `custom.company_information` / `custom.lookup_company` |
-| per element vs whole form | www.gov.uk/search/all | Companies House | `custom.companies_house` / `custom.search_result_link` |
-| per element vs whole form | www.gov.uk/search/all | eVisas: access and use your online immigration status | `custom.evisa_status` / `custom.search_result_link` |
+| between runs | www.travelodge.co.uk/ (6 runs) | room | `custom.room_count` / `custom.number_of_rooms` |
 
-## Custom key against a vocabulary key (7)
+## Custom key against a vocabulary key (6)
 
 One side found a vocabulary key and the other invented a custom one. These are genuine disagreements about whether the vocabulary fits.
 
 | Source | Page | Element | Keys |
 | --- | --- | --- | --- |
-| per element vs whole form | ico.org.uk/global/contact-us/ | Search | `form.submit` / `custom.search_submit` |
-| per element vs whole form | www.gov.uk/search/all | Search | `form.submit` / `custom.search_submit` |
-| per element vs whole form | www.gov.uk/search/all | Filter and sort | `ui.expand` / `custom.filter_and_sort` |
-| per element vs whole form | www.gov.uk/search/all | Check the MOT history of a vehicle | `custom.check_mot_history` / `lookup.vehicle` |
-| per element vs whole form | www.gov.uk/search/all | Check if a vehicle is taxed | `custom.check_vehicle_taxed` / `lookup.vehicle` |
-| per element vs whole form | www.gov.uk/search/all | Check the MOT status of a vehicle | `custom.check_mot_status` / `lookup.vehicle` |
-| per element vs whole form | www.churchill.com/car-insurance | Reject all | `ui.dismiss` / `custom.reject_all_cookies` |
+| per element vs whole form | www.eventbrite.co.uk/ | autocomplete | `search.query` / `custom.search_autocomplete` |
+| per element vs whole form | www.eventbrite.co.uk/ | All | `search.submit` / `custom.filter_all` |
+| per element vs whole form | www.eventbrite.co.uk/ | For you | `search.submit` / `custom.filter_for_you` |
+| per element vs whole form | www.eventbrite.co.uk/ | Today | `search.submit` / `custom.date_filter` |
+| per element vs whole form | www.eventbrite.co.uk/ | This weekend | `search.submit` / `custom.filter_this_weekend` |
+| per element vs whole form | www.eventbrite.co.uk/ | Scroll carousel left | `ui.expand` / `custom.scroll_carousel_left` |
 
-## Genuine disagreement (3)
+## Genuine disagreement (6)
 
 Two different vocabulary keys, or a key a reviewer marked wrong.
 
 | Source | Page | Element | Keys |
 | --- | --- | --- | --- |
-| between runs | www.travelodge.co.uk/ (5 runs) | Search | `form.submit` / `nav.next` |
+| between runs | www.travelodge.co.uk/ (6 runs) | Search | `form.submit` / `nav.next` / `search.submit` |
 | between runs | en.wikipedia.org/wiki/Special:Search (3 runs) | Search | `custom.search` / `form.submit` / `nav.next` |
-| between runs | www.aviva.co.uk/insurance/motor/car-insurance/ (4 runs) | Don't know the registration? | `ui.expand` / `nav.skip` |
+| between runs | www.aviva.co.uk/insurance/motor/car-insurance/ (5 runs) | Don't know the registration? | `ui.expand` / `nav.skip` |
+| between runs | ico.org.uk/global/contact-us/ (3 runs) | Search | `form.submit` / `search.submit` |
+| between runs | www.nhs.uk/ (2 runs) | Search | `nav.next` / `search.submit` |
+| per element vs whole form | www.eventbrite.co.uk/ | autocomplete | `search.location` / `search.query` |

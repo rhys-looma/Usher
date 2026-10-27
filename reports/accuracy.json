@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-26T23:39:27.166Z",
+  "generated": "2026-10-27T10:30:31.357Z",
   "results": [
     {
       "id": "mock-a-driver",
@@ -16,7 +16,7 @@
       },
       "locators_resolved": 14,
       "flags": 0,
-      "cost_usd": 0.0124345
+      "cost_usd": 0.01283075
     },
     {
       "id": "mock-a-vehicle",
@@ -24,7 +24,7 @@
       "url": "/quote/vehicle (layout A)",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Car insurance quote: vehicle details",
+      "purpose": "Car insurance quote: your car",
       "elements": 11,
       "vocabulary_keys": 11,
       "custom_keys": 0,
@@ -33,7 +33,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.00953625
+      "cost_usd": 0.0117035
     },
     {
       "id": "mock-a-cover",
@@ -52,7 +52,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.00871425
+      "cost_usd": 0.0093565
     },
     {
       "id": "mock-b-driver",
@@ -65,12 +65,11 @@
       "vocabulary_keys": 14,
       "custom_keys": 0,
       "risk": {
-        "safe": 11,
-        "needs_user": 3
+        "safe": 14
       },
       "locators_resolved": 14,
-      "flags": 3,
-      "cost_usd": 0.0130835
+      "flags": 0,
+      "cost_usd": 0.0130725
     },
     {
       "id": "mock-b-vehicle",
@@ -87,7 +86,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.00987625
+      "cost_usd": 0.01105875
     },
     {
       "id": "mock-b-cover",
@@ -95,7 +94,7 @@
       "url": "/quote/cover (layout B)",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Car insurance quote: cover options",
+      "purpose": "Motor insurance quote: cover options",
       "elements": 9,
       "vocabulary_keys": 9,
       "custom_keys": 0,
@@ -106,7 +105,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.00846175
+      "cost_usd": 0.01100375
     },
     {
       "id": "govuk-contact",
@@ -114,8 +113,8 @@
       "url": "https://www.gov.uk/contact/govuk",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Contact GOV.UK team with a question or feedback",
+      "source": "live",
+      "purpose": "Contact GOV.UK team with question or feedback",
       "elements": 7,
       "vocabulary_keys": 4,
       "custom_keys": 3,
@@ -125,25 +124,24 @@
       },
       "locators_resolved": 7,
       "flags": 0,
-      "cost_usd": 0.051773799999999995
+      "cost_usd": 0.06079225
     },
     {
       "id": "ico-contact",
       "category": "contact",
       "url": "https://ico.org.uk/global/contact-us/",
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Site search for ICO website",
+      "source": "live",
+      "purpose": "Site search: find ICO information",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
       "risk": {
-        "safe": 1,
-        "consequential": 1
+        "safe": 2
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.0102125
+      "cost_usd": 0.0072675
     },
     {
       "id": "parliament-contact",
@@ -157,7 +155,7 @@
       "category": "contact",
       "url": "https://www.ofcom.org.uk/about-ofcom/contact-us",
       "status": "skipped",
-      "reason": "labels failed validation twice"
+      "reason": "No form to map on https://www.ofcom.org.uk/about-ofcom/what-we-do/contact-us: the page has only a site search, a cookie or consent widget."
     },
     {
       "id": "travelodge-booking",
@@ -165,18 +163,17 @@
       "url": "https://www.travelodge.co.uk/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Hotel search by destination, dates and guests",
       "elements": 6,
       "vocabulary_keys": 5,
       "custom_keys": 1,
       "risk": {
-        "safe": 5,
-        "consequential": 1
+        "safe": 6
       },
       "locators_resolved": 6,
       "flags": 0,
-      "cost_usd": 0.01250525
+      "cost_usd": 0.0145695
     },
     {
       "id": "httpbin-order",
@@ -185,7 +182,7 @@
       "recorded": true,
       "note": "a test form (pizza order), kept as a control",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Pizza order: contact, size, toppings and delivery",
       "elements": 11,
       "vocabulary_keys": 5,
@@ -196,15 +193,15 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.01062025
+      "cost_usd": 0.0145245
     },
     {
       "id": "nationalrail-journey",
       "category": "booking",
       "url": "https://www.nationalrail.co.uk/",
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Live train departures and arrivals lookup",
+      "source": "live",
+      "purpose": "Plan train journey between stations",
       "elements": 4,
       "vocabulary_keys": 2,
       "custom_keys": 2,
@@ -213,24 +210,24 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.01545
+      "cost_usd": 0.02994825
     },
     {
       "id": "eventbrite-search",
       "category": "booking",
       "url": "https://www.eventbrite.co.uk/",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Find local events and things to do",
-      "elements": 1,
-      "vocabulary_keys": 1,
+      "elements": 9,
+      "vocabulary_keys": 9,
       "custom_keys": 0,
       "risk": {
-        "safe": 1
+        "safe": 9
       },
-      "locators_resolved": 1,
+      "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.00558825
+      "cost_usd": 0.0356325
     },
     {
       "id": "lner-booking",
@@ -245,8 +242,8 @@
       "url": "https://www.mozilla.org/en-US/newsletter/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Firefox news newsletter signup",
+      "source": "live",
+      "purpose": "Firefox newsletter signup",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -256,29 +253,21 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.0101385
+      "cost_usd": 0.016518
     },
     {
       "id": "which-newsletter",
       "category": "newsletter",
       "url": "https://www.which.co.uk/newsletters",
-      "status": "ok",
-      "source": "live",
-      "purpose": "Site search",
-      "elements": 0,
-      "vocabulary_keys": 0,
-      "custom_keys": 0,
-      "risk": {},
-      "locators_resolved": 0,
-      "flags": 0,
-      "cost_usd": 0.010648
+      "status": "skipped",
+      "reason": "No form to map on https://www.which.co.uk/about-which/which-newsletters-akBCD7z3vgqS: the page has only a site search."
     },
     {
       "id": "guardian-newsletters",
       "category": "newsletter",
       "url": "https://www.theguardian.com/email-newsletters",
       "status": "skipped",
-      "reason": "labels failed validation twice"
+      "reason": "No form to map on https://www.theguardian.com/email-newsletters: the page has only a site search, a newsletter sign-up."
     },
     {
       "id": "wikipedia-search",
@@ -286,35 +275,34 @@
       "url": "https://en.wikipedia.org/wiki/Special:Search",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Search Wikipedia articles",
+      "source": "live",
+      "purpose": "Wikipedia site search",
       "elements": 2,
-      "vocabulary_keys": 1,
-      "custom_keys": 1,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
       "risk": {
         "safe": 2
       },
-      "locators_resolved": 2,
+      "locators_resolved": 1,
       "flags": 0,
-      "cost_usd": 0.0096125
+      "cost_usd": 0.01832475
     },
     {
       "id": "govuk-search",
       "category": "search",
       "url": "https://www.gov.uk/search/all",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Search all content on GOV.UK",
       "elements": 16,
       "vocabulary_keys": 4,
       "custom_keys": 12,
       "risk": {
-        "safe": 15,
-        "consequential": 1
+        "safe": 16
       },
       "locators_resolved": 16,
       "flags": 0,
-      "cost_usd": 0.02318275
+      "cost_usd": 0.03670075
     },
     {
       "id": "ons-search",
@@ -322,21 +310,23 @@
       "url": "https://www.ons.gov.uk/",
       "status": "ok",
       "source": "live",
-      "purpose": "Page improvement feedback form",
-      "elements": 0,
-      "vocabulary_keys": 0,
+      "purpose": "ONS site search by keyword or time series ID",
+      "elements": 2,
+      "vocabulary_keys": 2,
       "custom_keys": 0,
-      "risk": {},
-      "locators_resolved": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.029871250000000002
+      "cost_usd": 0.0085825
     },
     {
       "id": "nhs-search",
       "category": "search",
       "url": "https://www.nhs.uk/",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Search the NHS website",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -346,7 +336,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.0108805
+      "cost_usd": 0.009372
     },
     {
       "id": "github-signup",
@@ -362,7 +352,7 @@
       "url": "https://www.reddit.com/register/",
       "note": "stop before submit",
       "status": "skipped",
-      "reason": "No forms found on https://www.reddit.com/register/."
+      "reason": "No form to map on https://www.reddit.com/register/."
     },
     {
       "id": "bbc-signup",
@@ -370,8 +360,8 @@
       "url": "https://account.bbc.com/register",
       "note": "stop before submit",
       "status": "ok",
-      "source": "recorded",
-      "purpose": "BBC sign in: enter email or username",
+      "source": "live",
+      "purpose": "BBC sign-in: enter email or username",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -380,7 +370,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.01179725
+      "cost_usd": 0.00817925
     },
     {
       "id": "aviva-car",
@@ -388,8 +378,8 @@
       "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Car insurance quote by car registration",
+      "source": "live",
+      "purpose": "Car insurance quote: start with registration",
       "elements": 4,
       "vocabulary_keys": 4,
       "custom_keys": 0,
@@ -399,49 +389,28 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.011096
+      "cost_usd": 0.009054
     },
     {
       "id": "directline-car",
       "category": "insurance first step",
       "url": "https://www.directline.com/car-insurance",
-      "status": "ok",
-      "source": "live",
-      "purpose": "Car insurance cover levels, benefits and FAQs",
-      "elements": 19,
-      "vocabulary_keys": 19,
-      "custom_keys": 0,
-      "risk": {
-        "safe": 19
-      },
-      "locators_resolved": 19,
-      "flags": 0,
-      "cost_usd": 0.01796775
+      "status": "skipped",
+      "reason": "No form to map on https://www.directline.com/car-cover."
     },
     {
       "id": "admiral-car",
       "category": "insurance first step",
       "url": "https://www.admiral.com/car-insurance",
-      "status": "ok",
-      "source": "recorded",
-      "purpose": "Cookie consent preferences",
-      "elements": 3,
-      "vocabulary_keys": 2,
-      "custom_keys": 1,
-      "risk": {
-        "safe": 2,
-        "needs_user": 1
-      },
-      "locators_resolved": 3,
-      "flags": 0,
-      "cost_usd": 0.01271275
+      "status": "skipped",
+      "reason": "No form to map on https://www.admiral.com/car-insurance: the page has only a cookie or consent widget."
     },
     {
       "id": "churchill-car",
       "category": "insurance first step",
       "url": "https://www.churchill.com/car-insurance",
       "status": "skipped",
-      "reason": "No forms found on https://www.churchill.com/car-insurance."
+      "reason": "No form to map on https://www.churchill.com/car-insurance."
     },
     {
       "id": "moneysupermarket-car",
@@ -462,22 +431,14 @@
       "category": "finance first step",
       "url": "https://www.barclays.co.uk/loans/",
       "status": "skipped",
-      "reason": "No forms found on https://www.barclays.co.uk/loans/."
+      "reason": "No form to map on https://www.barclays.co.uk/loans/."
     },
     {
       "id": "hl-isa",
       "category": "finance first step",
       "url": "https://www.hl.co.uk/investment-services/isa",
-      "status": "ok",
-      "source": "live",
-      "purpose": "Site search for shares, funds or articles",
-      "elements": 0,
-      "vocabulary_keys": 0,
-      "custom_keys": 0,
-      "risk": {},
-      "locators_resolved": 0,
-      "flags": 0,
-      "cost_usd": 0.01037225
+      "status": "skipped",
+      "reason": "No form to map on https://www.hl.co.uk/investment-services/isa: the page has only a site search."
     },
     {
       "id": "mse-mortgage",
