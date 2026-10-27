@@ -53,7 +53,7 @@ const viewer = async (url: string) => {
 test('home and viewer pages render', async () => {
   const home = await fetch(`${registry.url}/`);
   assert.equal(home.status, 200);
-  assert.match(await home.text(), /<b>map<\/b>.*<b>knock<\/b>.*<b>log<\/b>/s);
+  assert.match(await home.text(), /<h3>Map<\/h3>.*<h3>Knock<\/h3>.*<h3>Log<\/h3>/s);
   assert.match(await (await fetch(`${registry.url}/viewer`)).text(), /Build the map/);
 });
 
@@ -71,7 +71,7 @@ test('map viewer: junk and failures say why', async () => {
   const cases: [string, number, RegExp][] = [
     ['not a url at all !!', 422, /not a web address|could not be opened|could not be found/],
     ['http://localhost:1/', 422, /could not be opened/],
-    [`${registry.url}/`, 422, /No form with visible fields/],
+    [`${registry.url}/spec/`, 422, /No form with visible fields/],
     [`${plainSite.url}/nowhere`, 422, /HTTP 404/],
   ];
   for (const [url, status, reason] of cases) {
