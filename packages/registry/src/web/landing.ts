@@ -125,6 +125,8 @@ export interface LandingOptions {
   /** The viewer box: what was pasted, and a reason if it failed. */
   viewer?: { url: string; error: string };
   interest?: { error?: string };
+  /** Link the demo site's public dashboard (/demo/dashboard). */
+  demo?: boolean;
 }
 
 export function landingPage(o: LandingOptions): string {
@@ -180,7 +182,8 @@ ${siteClaims()}
 <div class="card"><p class="label">For agents</p><h2>One call fills the form.</h2>
 <p class="lede">No signup. Your agent's key is its identity.</p>
 <pre>${mcp}</pre>
-<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p></div>
+<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p>
+${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run <code>usher_fill</code> on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>
 
 ${numbersSection(o.numbers)}
