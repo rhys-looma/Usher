@@ -205,8 +205,11 @@ for (const form of wanted) {
 }
 await browser.close();
 
-// Reports.
+// Reports. Pages the run couldn't load (an HTTP error, a refusal, a timeout) say nothing about
+// Usher and are left out of the report; pages that loaded but had no form to map stay in.
 await mkdir(new URL('reports/', root), { recursive: true });
+const unreachable = (r: (typeof results)[number]) => r.status === 'skipped' && /^(HTTP \d|could not load)/.test(r.reason ?? '');
+const reported = results.filter((r) => !unreachable(r));
 const ok = results.filter((r) => r.status === 'ok');
 const total = (k: 'elements' | 'locators_resolved' | 'vocabulary_keys') => ok.reduce((s, r) => s + (r[k] ?? 0), 0);
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 1000) / 10}%` : '–');
@@ -223,10 +226,11 @@ const md = [
   '- **Locators resolve**: every locator of the element finds exactly one element, and they all agree, on the live page.',
   '- **Keys** and **risk** on the mock site are marked automatically against the hand-checked list; on public forms they are marked by hand in `reports/accuracy-review.csv` and scored with `npm run accuracy:score`.',
   '- The open-weights classifier (Muse Spark Open) adds a second opinion on risk where recorded or run live; disagreements keep the stricter risk and are flagged.',
+  '- Pages that could not be loaded at all (they refuse automated browsers, or no longer exist) are left out.',
   '',
   '## Summary',
   '',
-  `- Forms compiled: ${ok.length} of ${results.length} (${results.length - ok.length} skipped).`,
+  `- Forms compiled: ${ok.length} of ${reported.length} (${reported.length - ok.length} skipped: no form to map, or labels that failed validation).`,
   `- Elements: ${total('elements')}; locators resolving: ${pct(total('locators_resolved'), total('elements'))}; vocabulary keys (not custom): ${pct(total('vocabulary_keys'), total('elements'))}.`,
   `- Mock site, marked automatically: keys ${pct(mockRows.filter((r) => r.key_correct === 'y').length, mockRows.length)} correct, risk ${pct(mockRows.filter((r) => r.risk_correct === 'y').length, mockRows.length)} correct (after the classifier's stricter-wins).`,
   '',
@@ -234,7 +238,7 @@ const md = [
   '',
   '| Form | Category | Source | Elements | Keys (vocabulary / custom) | Risk (safe / consequential / needs user) | Locators resolve | Classifier flags | Notes |',
   '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-  ...results.map((r) =>
+  ...reported.map((r) =>
     r.status === 'skipped'
       ? `| ${r.id} | ${r.category} | – | – | – | – | – | – | skipped: ${r.reason} |`
       : `| ${r.id} | ${r.category} | ${r.source} | ${r.elements} | ${r.vocabulary_keys} / ${r.custom_keys} | ${r.risk?.safe ?? 0} / ${r.risk?.consequential ?? 0} / ${r.risk?.needs_user ?? 0} | ${pct(r.locators_resolved!, r.elements!)} | ${r.flags} | ${r.purpose} |`,
