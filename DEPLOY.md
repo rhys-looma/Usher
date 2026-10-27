@@ -1,90 +1,248 @@
 # Deploying Usher
 
-Host-neutral: two container images, environment variables, a Postgres database. Anything that runs containers and gives you HTTPS in front of them will do.
+Usher deploys to AWS as two services on ECS Fargate behind an existing Application Load Balancer:
 
-## What runs
+| Host | Service | What |
+| --- | --- | --- |
+| `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`, the map viewer |
+| `$SITE_HOST` (a subdomain) | mock site | Brightwater Motor, the fictional quote form for demos |
 
-| Image | Dockerfile | Port | What |
-| --- | --- | --- | --- |
-| Registry | `Dockerfile.registry` | 4200 | HTTP API (knock, maps, sessions, rules), the map viewer and the site dashboard, `/usher.js`. Includes Chromium for the viewer's compiles. |
-| Mock site | `Dockerfile.mock-site` | 4100 | The fictional quote site, for demos. Optional. |
-| Postgres | any Postgres 14+ | 5432 | All registry state. |
+Postgres runs on RDS. Secrets live in Secrets Manager, images in ECR, and the certificate in ACM. DNS stays where it is, as plain records with no proxy. Terraform in [`infra/aws`](infra/aws) creates only the new pieces. Your ECS cluster, VPC, subnets and load balancer are inputs.
 
-The MCP server is not hosted: it holds the agent's private key, so it runs where the agent runs (see the README's quickstart), pointed at the registry's public URL.
+The MCP server is not hosted. It holds the agent's private key, so it runs where the agent runs, pointed at the registry's public URL (see the README's quickstart).
 
-## Local stack
+Throughout this file, `$REGISTRY_HOST` and `$SITE_HOST` stand for your two host names, and `$REGISTRY_PUBLIC_URL` is `https://$REGISTRY_HOST`.
+
+## 1. Prerequisites
+
+- An AWS account with the ECS cluster, a VPC with two or more subnets in different availability zones, and an internet-facing ALB that has an HTTPS listener on 443.
+- The tools: AWS CLI v2 signed in to that account, Terraform 1.6 or later, Docker (building for `linux/arm64`; Apple silicon builds natively), `jq`, Node 20 and `npm install` at the repository root. For backups, also the Session Manager plugin: `brew install --cask session-manager-plugin`.
+- An S3 bucket for Terraform state, with versioning and encryption on. The state holds the database password.
+- Access to the domain's DNS.
+- Before the first deploy, run the dry run, which needs port 443 free on your machine:
+
+  ```sh
+  REGISTRY_PUBLIC_URL=https://$REGISTRY_HOST USHER_SITE_URL=https://$SITE_HOST npm run dryrun
+  ```
+
+  It runs the production images on your host names, behind a local stand-in for the ALB: production mode, the signup flow, and the end-to-end agent run.
+
+## 2. Inputs you supply
+
+Copy `infra/aws/terraform.tfvars.example` to `infra/aws/terraform.tfvars`, and `backend.hcl.example` to `backend.hcl`. Both are gitignored.
+
+| Input | What |
+| --- | --- |
+| `cluster_name` | The existing ECS cluster |
+| `vpc_id`, `subnet_ids` | Where the tasks and the database run. Use private subnets with a NAT gateway. If the subnets are public with no NAT, set `assign_public_ip = true`. The tasks need outbound internet for images, the model APIs and the sites they map. |
+| `alb_arn` | The existing ALB. Its HTTPS listener is found by port (`listener_port`, default 443). |
+| `rule_priorities` | Two free listener-rule priorities (default 100 and 101) |
+| `registry_host`, `site_host` | The two host names |
+| `contact_email` | Shown on `/privacy` and in `/.well-known/security.txt` |
+| `daily_model_budget_usd` | The hard daily cap on model spend (default 5). The registry won't start without one. |
+| `mock_site_key` | Empty at first. Set it in step 9. |
+| `attach_certificate` | `false` at first. Set it to `true` in step 8. |
+
+Sizes have defaults:
+- Registry: 1 vCPU and 2 GB, because the map viewer runs Chromium.
+- Demo site: 0.25 vCPU and 0.5 GB.
+- Database: `db.t4g.micro` with 20 GB, encrypted, not public, with 7 days of automated backups.
+- Logs: kept for 30 days.
+
+## 3. Apply
 
 ```sh
-docker compose up --build -d
-npm run e2e:remote            # 12 checks against the stack, recorded model responses
-docker compose down -v        # stop and delete the local database
+cd infra/aws
+terraform init -backend-config=backend.hcl
+terraform apply
 ```
 
-The registry is at the stack's `REGISTRY_PUBLIC_URL` and the quote site at `USHER_DEV_SITE_ORIGIN`, both set in `docker-compose.yml`. Sign in to the dashboard with that origin and the secret `uss_localdevelopmentonly00000000`. The keys in `docker-compose.yml` are for local use only; `npm run e2e:remote` reads the addresses from it.
+This creates:
+- ECR repositories for both images;
+- the RDS instance and its subnet group;
+- five Secrets Manager secrets (`usher/DATABASE_URL`, `usher/MODEL_API_KEY`, `usher/BASETEN_API_KEY`, `usher/USHER_SIGNING_KEY`, `usher/USHER_ADMIN_KEY`);
+- the roles;
+- security groups: the tasks accept traffic only from the ALB, and the database only from the registry;
+- target groups that health-check `/healthz`, and listener rules by host header;
+- the certificate request;
+- both task definitions;
+- both services, at zero tasks.
+
+The database takes about 10 minutes. Terraform writes `DATABASE_URL` itself.
+
+## 4. Secrets
+
+```sh
+scripts/aws/secrets.sh
+```
+
+The script fills the other four secrets. Values go from your terminal to Secrets Manager on stdin, and none is echoed or written to a file.
+
+- **`MODEL_API_KEY`** and **`BASETEN_API_KEY`:** paste them when asked.
+- **`USHER_SIGNING_KEY`:** generated by `npm run keygen` and sent straight to Secrets Manager. It is the private Ed25519 key that signs tokens. Its public half is what `/.well-known/usher-keys.json` publishes.
+- **`USHER_ADMIN_KEY`:** generated, then shown once. Keep it in your password manager. It signs in to `/admin` and unlocks the demo site's layout switch.
+
+Re-running the script fills only empty secrets. `--force` replaces them all. A new signing key ends every token in flight, so to rotate gracefully, move the old public half into `USHER_RETIRED_KEYS` first (see Configuration).
+
+## 5. Build and push
+
+```sh
+scripts/aws/build-push.sh
+```
+
+The script builds both images for `linux/arm64` (Fargate on Graviton) and pushes them to ECR, tagged with the commit's SHA. It refuses a working tree with uncommitted changes, so a tag always means that commit. The repositories are immutable.
+
+## 6. Deploy
+
+```sh
+scripts/aws/deploy.sh            # the current commit; or give a SHA
+```
+
+For each service, the script registers a new task definition revision with the new image and sets one task. It then waits for both services to be stable and prints each `/healthz`. A deployment that fails its health checks rolls back on its own. Until DNS and the certificate are in place, the health URLs won't answer from outside; the services are healthy behind the ALB all the same.
+
+## 7. DNS records
+
+`terraform output alb_dns_name` gives the ALB's name. Add two records, both **DNS only**:
+
+| Name | Type | Value |
+| --- | --- | --- |
+| `$REGISTRY_HOST` (the apex) | CNAME (flattened at the apex) or ALIAS/ANAME | the ALB's DNS name |
+| `$SITE_HOST` | CNAME | the ALB's DNS name |
+
+Never point an A record at the ALB's addresses, because they change.
+
+## 8. Certificate validation
+
+`terraform output certificate_validation_records` lists one CNAME per host. Add them, DNS only. Once ACM shows the certificate as issued (usually a few minutes), attach it to the listener:
+
+```sh
+terraform apply -var attach_certificate=true     # or set it in terraform.tfvars
+```
+
+This waits for the certificate to be issued, then adds it to the HTTPS listener alongside the listener's existing certificates.
+
+## 9. Register the demo site
+
+The demo site signs up like any site, with no shortcuts in production:
+
+1. Open `https://$REGISTRY_HOST/sites/new` and enter `https://$SITE_HOST`. Save both keys.
+2. Set `mock_site_key` to the site key in `terraform.tfvars`, run `terraform apply`, then `scripts/aws/deploy.sh`. The demo site now carries its tag and serves its claim file.
+3. Back on the signup page, press **Check now**. The dashboard opens.
+
+The registry seeds the demo site's maps on start, so the first agent run needs no model calls.
+
+## 10. Smoke test
+
+Check each of these against your two hosts:
+
+- [ ] `curl https://$REGISTRY_HOST/healthz` returns `ok: true` and `storage: postgres`.
+- [ ] `curl -sI https://$REGISTRY_HOST/` shows `strict-transport-security`, and the certificate is valid in a browser for both hosts.
+- [ ] `https://$REGISTRY_HOST/.well-known/usher-keys.json` lists one key whose `kid` matches your signing key.
+- [ ] `/privacy`, `/robots.txt` and `/.well-known/security.txt` load, and the last two name your contact.
+- [ ] **Signup and the tag:** the tag on `/sites/new`'s second step loads `https://$REGISTRY_HOST/usher.js`.
+- [ ] **Front page form:** send the "I run a site with forms" form, then find it at `/admin` after signing in with the admin key.
+- [ ] **Agent run:** `npm run e2e:remote -- --registry https://$REGISTRY_HOST --site https://$SITE_HOST --secret uss_… --admin-key …` passes. It uses recorded model responses; add `--live` to use the models. It switches the demo to layout B and back.
+- [ ] **Knock from an MCP client:** add the MCP entry from the README with `USHER_REGISTRY_URL=https://$REGISTRY_HOST`, then call `knock` with `{"url":"https://$SITE_HOST/quote/driver"}`. You get a token and a map.
+- [ ] **Viewer:** at `/viewer`, build the map for `https://httpbin.org/forms/post`. A private address such as `http://10.0.0.1/` is refused with a plain reason.
+- [ ] **Refused agent:** an unknocked `POST https://$SITE_HOST/api/quote` returns 403 `knock_required` and appears under blocked attempts on the dashboard.
+- [ ] **Logs:** CloudWatch `/ecs/usher-registry` shows `production` in the start line and no errors.
+
+## Backups
+
+- **Automated:** RDS takes a daily snapshot, kept for `backup_retention_days` (7), with point-in-time restore inside that window. Deleting the instance leaves a final snapshot, `usher-final`, and deletion protection is on.
+- **On demand, one command each:**
+
+  ```sh
+  scripts/aws/db-backup.sh dump                         # backups/usher-<UTC time>.dump (gitignored)
+  scripts/aws/db-backup.sh restore backups/usher-….dump # asks you to type the database name first
+  ```
+
+  The database is never public. The script tunnels through the running registry task with ECS Exec port forwarding, and runs `pg_dump` / `pg_restore` (Postgres 16) in Docker. A restore replaces the database's contents in one transaction.
+
+## Cloudflare
+
+Keep both records **DNS only** (the grey cloud). If the domain is ever proxied through Cloudflare:
+- Bot protection (Bot Fight Mode, Super Bot Fight Mode, "Block AI bots") challenges or blocks exactly the agents Usher exists to let in.
+- The registry's own checks of sites' claim files, and the demo site's calls to the registry, can be challenged too.
+- Client addresses arrive as Cloudflare's, so rate limits would count Cloudflare instead of visitors.
+
+If you must proxy:
+- skip bot protection for both hosts;
+- allow verified agents, which Usher's signed agents can register as through Web Bot Auth;
+- note that the registry trusts only the last `X-Forwarded-For` hop (the ALB's), so it would need to read `CF-Connecting-IP` instead.
 
 ## Configuration (registry)
 
-All configuration is by environment variable. Nothing secret is in the image or the repository.
+All configuration is by environment variable. Nothing secret is in an image or the repository. The task definition sets these; listed here for other hosts.
 
-| Variable | Required | Meaning |
+| Variable | Production | Meaning |
 | --- | --- | --- |
-| `REGISTRY_PUBLIC_URL` | yes | The HTTPS URL agents and sites use, e.g. `https://registry.example`. It is the token issuer, so it must not change once sites trust it. |
-| `DATABASE_URL` | yes | `postgres://user:password@host:5432/db`. Migrations run on start. |
-| `USHER_SIGNING_KEY` | yes | The token signing key: a private Ed25519 JWK. Generate with `npm run keygen` and keep it in your secrets manager. Without it the registry generates one and stores it in the database, which is fine for a demo but not for production. |
-| `USHER_RETIRED_KEYS` | no | JSON array of earlier public JWKs to keep publishing after a rotation (for at least 10 minutes, a token's lifetime). |
+| `NODE_ENV` | `production` | Refuses to start without the settings marked "required", or with `USHER_ALLOW_PRIVATE` or the development keys set. |
+| `REGISTRY_PUBLIC_URL` | required, https | The URL agents and sites use. It is the token issuer, so it must not change once sites trust it. Cookies are `Secure` and HSTS is sent when it is https. |
+| `DATABASE_URL` | required | `postgres://user:password@host:5432/db`. Migrations run on start. On RDS, `?sslmode=no-verify` (TLS without pinning the RDS certificate authority). |
+| `USHER_SIGNING_KEY` | required | The token signing key: a private Ed25519 JWK (`npm run keygen`). |
+| `USHER_RETIRED_KEYS` | no | JSON array of earlier public JWKs to keep publishing after a rotation, for at least 10 minutes (a token's lifetime). |
+| `USHER_DAILY_MODEL_BUDGET_USD` | required | Hard daily cap on model spend across all models (outside production the default is 5). Once it is reached, compiles and rules say "Today's model budget is used up" until midnight UTC; cached maps keep working. |
+| `USHER_ADMIN_KEY` | required, 32+ characters | Signs in to `/admin`, the list from the front page's form. |
+| `USHER_CONTACT_EMAIL` | required | Named on `/privacy` and in `/.well-known/security.txt`. |
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
-| `BASETEN_API_KEY` | for the classifier, Spark Open | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
-| `USHER_DAILY_MODEL_BUDGET_USD` | no | Hard daily cap on model spend across all models (default 5). Once reached, compiles and rules return "Today's model budget is used up" until midnight UTC; cached maps keep working. |
-| `USHER_ADMIN_KEY` | for the interest list | Signs in to `/admin`, the list of "I run a site with forms" from the front page. Without it there are no admin pages. Treat it like a password. |
-| `USHER_TRUST_PROXY` | behind a proxy | `1` to take the client address from `X-Forwarded-For` for rate limits. Only set it when a proxy you control sets that header. |
-| `USHER_ALLOW_PRIVATE` | no | `1` lets the map viewer open private addresses. Leave it off in public deployments. |
-| `PORT`, `HOST` | no | Defaults 4200 and 0.0.0.0 in the image. |
+| `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
+| `USHER_TRUST_PROXY` | on by default | Behind the ALB: the client address is the last `X-Forwarded-For` entry (the one the ALB added; earlier ones can be forged), and the scheme is `X-Forwarded-Proto`. `0` turns it off. Outside production, `1` turns it on. |
+| `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
+| `USHER_ALLOW_PRIVATE` | refused | `1` lets the viewer and claim checks reach private addresses: local demos only. |
+| `PORT`, `HOST` | defaults | 4200 and 0.0.0.0 in the image. |
 
-Generate a signing key:
-
-```sh
-npm run keygen   # prints one line of JSON: put it in USHER_SIGNING_KEY, never in the repository
-```
-
-Rotate by moving the old key's public half (`kty`, `crv`, `x`, `kid`) into `USHER_RETIRED_KEYS` and setting a new `USHER_SIGNING_KEY`.
-
-## Configuration (a site, or the mock site)
+## Configuration (the demo site)
 
 | Variable | Meaning |
 | --- | --- |
 | `USHER_REGISTRY_URL` | The registry's public URL. |
-| `USHER_SITE_KEY` | The site's public key from `POST /sites`; it goes in the script tag. |
-| `USHER_REGISTRY_INTERNAL_URL` | Optional: how the site's server reaches the registry if not by its public URL. |
-
-## Steps
-
-1. **Postgres.** Create a database and a user that owns it. Note the connection string.
-2. **Keys.** `npm run keygen` once; store the output as `USHER_SIGNING_KEY`. Store the model keys.
-3. **Registry.** Build `Dockerfile.registry`, run it with the variables above, and put HTTPS in front (the registry sends HSTS when `REGISTRY_PUBLIC_URL` is https). Check `GET /healthz` returns `{"ok":true,"storage":"postgres",…}`.
-4. **DNS.** Point the registry's hostname (and the mock site's, if deployed) at your host or load balancer.
-5. **Register a site.** `curl -X POST https://registry.example/sites -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'` returns a site key and a secret key, shown once, and how to claim the origin. Publish the site key at `https://quote.example/.well-known/usher-site.json` (`{"usher_site":"0.1","site_key":"usp_…"}`; the mock site serves this itself) or as a DNS `TXT` record at `_usher.quote.example` (`usher-site=usp_…`). Then claim it: `curl -X POST https://registry.example/sites/https%3A%2F%2Fquote.example/verify -H 'Authorization: Bearer uss_…'`, or use "Check now" in the dashboard. Nothing shows in the dashboard until the claim succeeds, and it is re-checked daily. For the mock site, then seed its maps if you want agents to skip the model on first run: `DATABASE_URL=… npm run db -- seed --origin https://quote.example`.
-6. **Mock site.** Build `Dockerfile.mock-site`, run with `USHER_REGISTRY_URL` and `USHER_SITE_KEY`.
-
-The site script can be included at `/usher.js` (cached 5 minutes) or at its versioned path from `GET /usher/version.json` (cached for a year, immutable).
+| `USHER_SITE_ORIGIN` | The site's public origin, `https://$SITE_HOST`. Behind a load balancer the Host header alone doesn't say https. |
+| `USHER_SITE_KEY` | The site key from `/sites/new`. It goes in the tag and the claim file. |
+| `USHER_ADMIN_KEY` | Required to switch the form layout at `/__admin` (the drift demo). Without it, anyone could switch. |
+| `USHER_REGISTRY_INTERNAL_URL` | Optional: how the site's server reaches the registry, if not by its public URL. |
 
 ## Hardening in place
 
-- Rate limits per client address: knocks 120/min, drift reports 60/min, session events 1,200/min, other writes 300/min, reads 600/min; per site key on drift and blocked reports; per client and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
-- A hard daily cap on model spend.
-- JSON bodies up to 256 KB; form bodies up to 20 KB.
-- The viewer refuses private and loopback addresses unless `USHER_ALLOW_PRIVATE=1`.
-- CORS only on the endpoints the site script calls (`/maps/current`, `/maps/lookup`, `/drift`, `/sessions/:id/events`, the key set, blocked reports).
-- HTML pages send a strict Content Security Policy (no scripts at all), `X-Frame-Options: DENY`; every response sends `nosniff` and `Referrer-Policy`; HSTS over HTTPS.
-- Secret keys are stored as SHA-256 hashes; dashboard cookies are signed, HttpOnly, SameSite=Lax.
+- **Production refuses to start** without its settings (see above).
+- **Rate limits per client address:** knocks 120/min, drift reports 60/min, session events 1,200/min, other writes 300/min, reads 600/min. Also per site key on drift and blocked reports, and per visitor and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
+- **A hard daily cap** on model spend.
+- **Body limits:** JSON bodies up to 256 KB; form bodies up to 20 KB.
+- **No private addresses:** the viewer and claim checks refuse private and loopback addresses.
+- **CORS** only on the endpoints the site script calls.
+- **Headers:**
+  - HTML pages send a strict Content Security Policy (the only script is Usher's own site script, on the front page) and `X-Frame-Options: DENY`.
+  - Every response sends `nosniff` and `Referrer-Policy`, and HSTS over https.
+- **Keys and cookies:**
+  - Secret keys are stored as SHA-256 hashes.
+  - Dashboard and admin cookies are signed, HttpOnly, SameSite and, over https, Secure. They are the only cookies, and strictly necessary, so there is no cookie banner.
+- **Containers:** the registry runs as an unprivileged user, and the tasks accept traffic only from the ALB.
 
-## Smoke test on a clean machine
+## Estimated monthly cost
 
-With the stack deployed at `https://registry.example` (registry) and `https://quote.example` (mock site):
+On-demand prices in London (eu-west-2), one task each, running all month. These are rough figures; check them in the AWS pricing calculator.
 
-- [ ] `curl https://registry.example/healthz` is `ok: true`, `storage: postgres`.
-- [ ] `curl https://registry.example/.well-known/usher-keys.json` lists one key whose `kid` matches your signing key.
-- [ ] **Knock from an MCP client.** Add the MCP entry from the README with `USHER_REGISTRY_URL=https://registry.example` and call `knock` with `{"url":"https://quote.example/quote/driver"}`; you get a token and (once seeded) a map.
-- [ ] **Viewer on a real URL.** Open https://registry.example/viewer and build the map for `https://httpbin.org/forms/post`; a junk address gives a plain reason.
-- [ ] **Dashboard.** Sign in at https://registry.example/dashboard with the site's origin and secret key.
-- [ ] **Agent run.** `npm run e2e:remote -- --registry https://registry.example --site https://quote.example --secret uss_…` passes (recorded model responses; add `--live` to use the models).
-- [ ] An unknocked `POST https://quote.example/api/quote` returns 403 `knock_required` and appears under blocked attempts on the dashboard.
+| Item | ≈ $/month |
+| --- | --- |
+| Registry on Fargate (Graviton, 1 vCPU, 2 GB) | 33 |
+| Demo site on Fargate (0.25 vCPU, 0.5 GB) | 8 |
+| RDS `db.t4g.micro`, 20 GB gp3, backups within the free allowance | 16 |
+| Secrets Manager, 5 secrets | 2 |
+| ECR storage (up to 20 images per repository) | 1–2 |
+| CloudWatch Logs | 1 |
+| Load balancer usage on the existing ALB, NAT data | 2–5 |
+| **Total** | **≈ 65–70** |
+
+Not included:
+- **Model spend,** capped at `daily_model_budget_usd` a day (at most about $150 a month at the default 5).
+- **Public IPv4,** about $3.65 per task per month, if `assign_public_ip = true`.
+
+## Locally
+
+```sh
+docker compose up --build -d      # Postgres, the registry and the demo site, development settings
+npm run e2e:remote                # 12 checks against the stack, recorded model responses
+docker compose down -v            # stop and delete the local database
+```
+
+The addresses and development keys are in `docker-compose.yml`, for local use only. Sign in to the dashboard with the dev origin and the secret `uss_localdevelopmentonly00000000`.

@@ -8,10 +8,12 @@ import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toBase64Url } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
+import { clientAddress } from '../forwarded.ts';
 import type { Registry } from '../registry.ts';
 import { Dashboard, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
+import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions } from './viewer.ts';
 
@@ -19,6 +21,10 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
   /** USHER_ADMIN_KEY: signs in to /admin, the list of interest. No admin pages without it. */
   adminKey?: string;
+  /** USHER_CONTACT_EMAIL: named on /privacy and in security.txt. */
+  contact?: string;
+  /** Behind a trusted load balancer: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
+  trustProxy?: boolean;
 }
 
 const SPEC_DIR = new URL('../../../../spec/', import.meta.url);
@@ -42,6 +48,11 @@ async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
     if (body.length > 20_000) throw new Error('too_large');
   }
   return new URLSearchParams(body);
+}
+
+function sendText(res: ServerResponse, body: string): void {
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  res.end(body);
 }
 
 function sendHtml(res: ServerResponse, status: number, body: string, options: { siteScript?: boolean } = {}): void {
@@ -68,6 +79,7 @@ function redirect(res: ServerResponse, location: string): void {
 export class Web {
   readonly viewer: Viewer;
   private dashboard?: Dashboard;
+  private readonly started = new Date();
 
   constructor(
     private readonly registry: Registry,
@@ -135,6 +147,12 @@ export class Web {
       return res.end(png), true;
     }
     // Usher's own claim to its origin, like any site's.
+    if (route === 'GET /privacy') return sendHtml(res, 200, privacyPage({ url: this.registry.url, ...(this.options.contact && { contact: this.options.contact }) })), true;
+    if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
+    if (route === 'GET /.well-known/security.txt') {
+      const text = securityTxt({ url: this.registry.url, started: this.started, ...(this.options.contact && { contact: this.options.contact }) });
+      return text ? (sendText(res, text), true) : false;
+    }
     if (route === 'GET /.well-known/usher-site.json') {
       const own = await this.registry.ownSite();
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
@@ -280,7 +298,7 @@ export class Web {
       const form = await readForm(req);
       const target = form.get('url') ?? '';
       // The client address limits how often one visitor can compile; it is never stored.
-      const result = await this.viewer.compile(target, req.socket.remoteAddress ?? 'unknown');
+      const result = await this.viewer.compile(target, clientAddress(req, this.options.trustProxy));
       const status = result.ok ? 200 : result.reason === 'rate_limited' ? 429 : 422;
       // From the front page's box, a failure is explained there.
       if (!result.ok && form.get('from') === 'home') return sendHtml(res, status, await this.landing({ viewer: { url: target, error: result.message } }), { siteScript: true }), true;

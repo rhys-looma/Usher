@@ -13,10 +13,14 @@
 //   USHER_DAILY_MODEL_BUDGET_USD    hard daily cap on model spend (default 5)
 //   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses, domain claims check local
 //                                   origins, and agents' key directories be served over http (local demos only)
-//   USHER_TRUST_PROXY=1             take the client address from X-Forwarded-For (behind a proxy)
+//   USHER_TRUST_PROXY=1             trust the load balancer's X-Forwarded-For and X-Forwarded-Proto (on by
+//                                   default in production; =0 turns it off)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
+//   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
+//   NODE_ENV=production             refuses to start without the settings a public deployment needs
+//                                   (see production.ts), and never registers or dev-claims a seeded site
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
 //                                   register one site with fixed keys (local development only)
 
@@ -26,11 +30,20 @@ import { budgeted, compilerModel, modelApi, openModel, type ChatFn, type Private
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
 import { PostgresStorage } from './postgres.ts';
+import { isProduction, productionProblems, trustProxy } from './production.ts';
 import { seed } from './seed.ts';
 import { FileStorage, type Storage } from './storage.ts';
 
 loadDotEnv();
 const env = process.env;
+const production = isProduction(env);
+if (production) {
+  const problems = productionProblems(env);
+  if (problems.length) {
+    console.error(`Not starting: NODE_ENV=production needs\n${problems.map((p) => `  - ${p}`).join('\n')}\nSee DEPLOY.md.`);
+    process.exit(1);
+  }
+}
 
 const { values } = parseArgs({
   options: {
@@ -77,7 +90,7 @@ const running = await startRegistry({
   port: Number(values.port),
   host: values.host,
   siteScript,
-  trustProxy: env.USHER_TRUST_PROXY === '1',
+  trustProxy: trustProxy(env),
   hsts: (values.url ?? '').startsWith('https://'),
   ...(signingKey && { signingKey }),
   ...(retiredKeys && { retiredKeys }),
@@ -86,6 +99,7 @@ const running = await startRegistry({
     // Public addresses only, unless explicitly allowed for a local demo.
     allowPrivate: values['allow-private'],
     ...(env.USHER_ADMIN_KEY && { adminKey: env.USHER_ADMIN_KEY }),
+    ...(env.USHER_CONTACT_EMAIL && { contact: env.USHER_CONTACT_EMAIL }),
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(open && { classifier: open }),
   },
@@ -104,7 +118,8 @@ if (values.seed) {
   if (!origin) throw new Error('--seed needs the demo site\'s URL: --seed-origin <url> or USHER_SEED_ORIGIN.');
   const maps = await seed(running.registry, values.seed, origin);
   console.log(`seeded ${maps.length} maps for ${origin}`);
-  if (!env.USHER_DEV_SITE_ORIGIN) {
+  // In production a site registers through /sites/new and proves its domain like any other.
+  if (!env.USHER_DEV_SITE_ORIGIN && !production) {
     const site = await running.registry.registerSite({ origin });
     if (site.status === 201) {
       // Seeding is for the local mock site: its claim is the development one.
@@ -124,7 +139,7 @@ if (env.USHER_DEV_SITE_ORIGIN && env.USHER_DEV_SITE_KEY && env.USHER_DEV_SECRET_
 const own = await running.registry.ownSite();
 if (!own.claim) void running.registry.verifySiteFor(own.origin).catch(() => undefined);
 console.log(
-  `Usher registry on ${running.url} (listening ${values.host}:${values.port}; storage ${env.DATABASE_URL ? 'postgres' : values.data}; model budget $${budget}/day${spark ? '' : '; no MODEL_API_KEY'}${signingKey ? '; signing key from USHER_SIGNING_KEY' : ''})`,
+  `Usher registry on ${running.url} (listening ${values.host}:${values.port}${production ? '; production' : ''}; storage ${env.DATABASE_URL ? 'postgres' : values.data}; model budget $${budget}/day${spark ? '' : '; no MODEL_API_KEY'}${signingKey ? '; signing key from USHER_SIGNING_KEY' : ''})`,
 );
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

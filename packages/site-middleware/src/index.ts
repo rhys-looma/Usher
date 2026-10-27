@@ -133,7 +133,8 @@ export function createUsherCheck(options: UsherCheckOptions) {
   async function signature(req: IncomingMessage, claims: TokenClaims, body?: Uint8Array<ArrayBuffer>): Promise<HttpSignatureCheck | null> {
     if (!hasSignature(req.headers)) return null;
     return verifyHttpMessage(
-      { method: req.method ?? 'GET', url: `http://${req.headers.host ?? 'site'}${req.url ?? '/'}`, headers: req.headers },
+      // The URL as the agent signed it: the site's own origin (https behind a load balancer), not the hop to this server.
+      { method: req.method ?? 'GET', url: `${originOf(req).replace(/\/$/, '')}${req.url ?? '/'}`, headers: req.headers },
       {
         require: ['@authority', '@method', '@path'],
         ...(body && { body }),

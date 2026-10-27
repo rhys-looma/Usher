@@ -169,6 +169,7 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <button type="submit">Tell me more</button>
 <p class="small muted">This form is agent-ready too: it carries the Usher tag, and an agent filling it for you knocks first.</p>
 </form>
+<p class="small muted">We use your details only to reply to you. <a href="/privacy">Privacy</a>.</p>
 </section>`;
   return `<!doctype html>
 <html lang="en">
@@ -195,6 +196,7 @@ ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o
 <a href="${REPOSITORY}">GitHub</a>
 <a href="/spec/">Specifications</a>
 <a href="${REPOSITORY}/blob/main/docs/security.md">Security</a>
+<a href="/privacy">Privacy</a>
 </nav>
 <p>Built by Looma · Code Apache-2.0 · Specifications CC BY 4.0</p></footer>
 </body>

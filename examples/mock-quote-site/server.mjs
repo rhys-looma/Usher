@@ -8,12 +8,16 @@
 //                              use Usher: discovery file and the server-side token check
 //                              (run `npm run build` at the repository root first;
 //                              USHER_SITE_KEY adds the site key the registry issued)
+//   USHER_SITE_ORIGIN=https://quote.example
+//                              the origin browsers use, when it isn't http://<Host header>
+//                              (behind a load balancer that ends TLS)
 //
 // Open /__admin to switch the form layout while the site is running (the live drift demo).
+// With USHER_ADMIN_KEY set, switching needs that key (a public deployment).
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
@@ -22,20 +26,23 @@ const PORT = Number(process.env.PORT ?? 4100);
 const occupations = JSON.parse(await readFile(join(here, 'data/occupations.json'), 'utf8'));
 
 let variant = process.env.VARIANT === 'b' ? 'b' : 'a';
+const sameKey = (given, expected) => timingSafeEqual(createHash('sha256').update(given).digest(), createHash('sha256').update(expected).digest());
 
 // Usher, when a registry is configured. The check only applies to requests that identify as
 // agents, and to the API; people using the form are never checked.
 const REGISTRY = process.env.USHER_REGISTRY_URL?.replace(/\/$/, '');
 const SITE_KEY = process.env.USHER_SITE_KEY;
+const SITE_ORIGIN = process.env.USHER_SITE_ORIGIN?.replace(/\/$/, '');
+const ADMIN_KEY = process.env.USHER_ADMIN_KEY;
 const usher = REGISTRY
   ? (await import('../../packages/site-middleware/dist/index.js')).createUsherCheck({
       registry: REGISTRY,
       ...(process.env.USHER_REGISTRY_INTERNAL_URL && { internalUrl: process.env.USHER_REGISTRY_INTERNAL_URL }),
       intent: 'quote.car_insurance',
-      origin: (req) => `http://${req.headers.host}`,
+      origin: SITE_ORIGIN ?? ((req) => `http://${req.headers.host}`),
       ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
-      // A demo on localhost: agents' key directories may be served over http.
-      allowHttpDirectories: true,
+      // A local demo: agents' key directories may be served over http. Never on a public https site.
+      allowHttpDirectories: !SITE_ORIGIN?.startsWith('https://'),
       requireSignature: process.env.USHER_REQUIRE_SIGNATURE === '1',
     })
   : null;
@@ -259,6 +266,7 @@ function renderAdmin() {
 <p>Current form layout: <strong>${variant.toUpperCase()}</strong></p>
 <p>Layout B renames every field id and name, rewords some labels and moves fields, like a site redesign.</p>
 <form method="post" action="/__admin/variant" class="admin">
+  ${ADMIN_KEY ? '<label>Admin key <input type="password" name="key" required></label>' : ''}
   <button name="variant" value="a" class="${variant === 'a' ? 'primary' : 'secondary'}">Use layout A</button>
   <button name="variant" value="b" class="${variant === 'b' ? 'primary' : 'secondary'}">Use layout B</button>
 </form>`,
@@ -425,7 +433,9 @@ const server = createServer(async (req, res) => {
     if (section === '__admin') {
       if (req.method === 'GET' && !key) return html(res, renderAdmin());
       if (req.method === 'POST' && key === 'variant') {
-        const v = new URLSearchParams(await body(req)).get('variant');
+        const form = new URLSearchParams(await body(req));
+        if (ADMIN_KEY && !sameKey(form.get('key') ?? '', ADMIN_KEY)) return html(res, page('Not allowed', '<h1>That key is not right</h1><p><a href="/__admin">Back</a></p>'), 401);
+        const v = form.get('variant');
         if (v === 'a' || v === 'b') variant = v;
         console.log(`form layout switched to ${variant.toUpperCase()}`);
         return redirect(res, '/__admin');

@@ -1,0 +1,5 @@
+# Copy to backend.hcl (gitignored): terraform init -backend-config=backend.hcl
+bucket  = "my-terraform-state"
+key     = "usher/terraform.tfstate"
+region  = "eu-west-2"
+encrypt = true

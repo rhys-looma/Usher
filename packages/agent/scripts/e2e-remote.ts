@@ -1,6 +1,6 @@
 // End to end against a running stack: docker compose locally, or a deployment.
 //
-//   node --import tsx packages/agent/scripts/e2e-remote.ts [--registry <url>] [--site <url>] --secret uss_…
+//   node --import tsx packages/agent/scripts/e2e-remote.ts [--registry <url>] [--site <url>] --secret uss_… [--admin-key …]
 //   (defaults: REGISTRY_PUBLIC_URL and USHER_SITE_URL, else the local stack's, read from docker-compose.yml)
 //
 // Uses recorded model responses (no spend) unless --live. Checks: health; an unknocked API call
@@ -26,6 +26,8 @@ const { values } = parseArgs({
     registry: { type: 'string', default: process.env.REGISTRY_PUBLIC_URL ?? fromCompose('REGISTRY_PUBLIC_URL') ?? '' },
     site: { type: 'string', default: process.env.USHER_SITE_URL ?? fromCompose('USHER_DEV_SITE_ORIGIN') ?? '' },
     secret: { type: 'string', default: 'uss_localdevelopmentonly00000000' },
+    // The demo site's USHER_ADMIN_KEY, when it has one (a public deployment), to switch layouts.
+    'admin-key': { type: 'string', default: process.env.USHER_ADMIN_KEY ?? '' },
     live: { type: 'boolean', default: false },
   },
 });
@@ -77,13 +79,13 @@ try {
   check('session not readable without it', (await fetch(`${registry}/sessions/${runA.session}`)).status === 404);
 
   // Layout B: a person's page load is enough for the site script to notice.
-  await fetch(`${site}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'b' }), redirect: 'manual' });
+  await fetch(`${site}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'b', key: values['admin-key'] }), redirect: 'manual' });
   const page = await browser.newPage();
   await page.goto(`${site}/quote/driver`);
   await page.evaluate(() => (window as unknown as { usher: { ready: Promise<void> } }).usher.ready);
   await page.waitForTimeout(500);
   await page.close();
-  await fetch(`${site}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'a' }), redirect: 'manual' });
+  await fetch(`${site}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'a', key: values['admin-key'] }), redirect: 'manual' });
 
   const login = await fetch(`${registry}/dashboard/login`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ origin: site, secret: values.secret }) });
   const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
