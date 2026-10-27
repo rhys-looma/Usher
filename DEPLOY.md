@@ -238,6 +238,30 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
   ```
 - [ ] **Refused agent:** an unknocked `POST https://$SITE_HOST/api/quote` returns 403 `knock_required` and appears under blocked attempts on the dashboard.
 - [ ] **Interest form:** send the front page's form, then find it at `/admin` after signing in with the admin key.
+- [ ] **Status:** `/status` with the admin key shows this build's SHA, `postgres`, today's spend against the cap, and the keeper's last run (after its first pass).
+
+## Operations
+
+**`/status`** answers to the admin key: sign in at `/admin`, or send `Authorization: Bearer <admin key>`. It reports:
+- the version (the image's git SHA);
+- uptime and the store;
+- model spend today against the daily cap;
+- the keeper's last run (when, how many forms, each outcome, cost, and the map viewer's picker refresh);
+- agent sessions and blocked attempts in the last 24 hours.
+
+It answers JSON for monitors (`Accept: application/json`) and a page for people:
+
+```bash
+curl -s -H "Authorization: Bearer $USHER_ADMIN_KEY" -H 'Accept: application/json' https://$REGISTRY_HOST/status
+```
+
+**Daily model spend:** the registry writes one JSON line to its logs at start (today so far) and when each UTC day ends (`"final": true`). In CloudWatch Logs Insights:
+
+```
+fields @timestamp, day, spent_usd, cap_usd, final | filter event = "daily_model_spend" | sort @timestamp desc
+```
+
+The cap covers every model call: map viewer compiles, the picker refresh (which also loads nothing once the day's budget is spent), the keeper, rules and explanations.
 
 ## Backups
 

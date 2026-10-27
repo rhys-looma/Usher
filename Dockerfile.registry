@@ -40,7 +40,9 @@ COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/di
 # The compiler log and file store write under /app/data.
 RUN mkdir -p /app/data && chown node:node /app/data
 
-ENV HOST=0.0.0.0 PORT=4200 NODE_OPTIONS=--disable-warning=ExperimentalWarning
+# The git SHA this image was built from, for /status (scripts/ecr-push.sh passes it).
+ARG USHER_VERSION=dev
+ENV HOST=0.0.0.0 PORT=4200 NODE_OPTIONS=--disable-warning=ExperimentalWarning USHER_VERSION=$USHER_VERSION
 EXPOSE 4200
 USER node
 HEALTHCHECK --interval=10s --timeout=3s --retries=12 CMD node -e "fetch('http://'+require('os').hostname()+':'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

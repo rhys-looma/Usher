@@ -24,7 +24,7 @@ fi
 aws ecr get-login-password | docker login --username AWS --password-stdin "$ECR" >/dev/null
 
 push() { # repository dockerfile
-  docker buildx build --platform linux/amd64 -f "$2" -t "$ECR/$1:$SHA" -t "$ECR/$1:latest" --push .
+  docker buildx build --platform linux/amd64 --build-arg USHER_VERSION="$SHA" -f "$2" -t "$ECR/$1:$SHA" -t "$ECR/$1:latest" --push .
   echo "pushed $ECR/$1:$SHA (and :latest)"
 }
 push "$REGISTRY_REPO" Dockerfile.registry
