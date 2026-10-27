@@ -1,6 +1,6 @@
 {
   "error": "knock_required",
-  "knock_url": "http://localhost:4200/knock",
-  "origin": "http://localhost:4100",
+  "knock_url": "https://registry.example/knock",
+  "origin": "https://quote.example",
   "intent": "quote.car_insurance"
 }

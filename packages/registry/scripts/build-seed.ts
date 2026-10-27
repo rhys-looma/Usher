@@ -20,7 +20,8 @@ for (const [index, step] of STEPS.entries()) {
     now: () => new Date(fixture.recorded_at),
   });
   await context.close();
-  const seeded = { ...map, origin: 'http://localhost:4100' };
+  // Rewritten to the demo site's real origin when seeded (seed.ts).
+  const seeded = { ...map, origin: 'https://quote.example' };
   await writeFile(new URL(`../seed/mock-site/${index + 1}-${step}.map.json`, import.meta.url), `${JSON.stringify(seeded, null, 2)}\n`);
   console.log(`seed/mock-site/${index + 1}-${step}.map.json ${map.fingerprint.digest}`);
 }

@@ -14,6 +14,7 @@
     "build": "node scripts/build.mjs",
     "pretest": "npm run build && playwright install chromium",
     "test": "node scripts/test.mjs",
+    "check:urls": "node scripts/check-urls.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "vocabulary": "tsx packages/core/scripts/build-vocabulary.ts",
     "compile": "tsx packages/core/src/compile/cli.ts",

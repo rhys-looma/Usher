@@ -25,7 +25,7 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 1. Register your origin with a registry. You get a public site key and a secret key, shown once:
 
    ```bash
-   curl -X POST http://localhost:4200/sites -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'
+   curl -X POST "$REGISTRY_PUBLIC_URL/sites" -H 'Content-Type: application/json' -d '{"origin":"https://quote.example"}'
    ```
 
 2. Prove you control the origin. Publish `{"usher_site":"0.1","site_key":"usp_…"}` at `/.well-known/usher-site.json`, or a DNS TXT record `usher-site=usp_…` at `_usher.quote.example`. Then press "Check now" in the dashboard.
@@ -47,13 +47,13 @@ Add one MCP server entry, pointed at a registry. It gives the agent `knock`, `ge
     "usher": {
       "command": "npx",
       "args": ["tsx", "/path/to/Usher/packages/registry/src/mcp.ts"],
-      "env": { "USHER_REGISTRY_URL": "http://localhost:4200" }
+      "env": { "USHER_REGISTRY_URL": "https://registry.example" }
     }
   }
 }
 ```
 
-The MCP server runs where the agent runs, because it holds the agent's private key. Only the registry URL is shared.
+Put your registry's address (its `REGISTRY_PUBLIC_URL`) in place of `https://registry.example`; the registry's front page shows this entry already filled in. The MCP server runs where the agent runs, because it holds the agent's private key. Only the registry URL is shared.
 
 ## Try it
 
@@ -66,33 +66,33 @@ npm test
 
 `npm test` builds everything, installs Chromium for Playwright, and runs the suite offline from recorded model responses.
 
-**The demo**, as in the video: six scenes on a local registry and the demo site, at http://localhost:4200/demo. Press 1 to 6, or 0 for all of them.
+**The demo**, as in the video: six scenes on a local registry and the demo site. It prints the address of the stage (`/demo` on the registry); open it and press 1 to 6, or 0 for all of them.
 
 ```bash
 npm run demo
 ```
 
-**Each piece by hand.** Start the registry with demo maps (it prints the demo site's keys), then the demo site, then the agent:
+**Each piece by hand.** Set two addresses first: `REGISTRY_PUBLIC_URL`, where the registry will be reached (it listens on port 4200), and `SITE_URL`, the demo site (port 4100). Then start the registry with demo maps (it prints the demo site's keys), the demo site, and the agent:
 
 ```bash
-npm run registry -- --seed mock-site --allow-private
+npm run registry -- --seed mock-site --seed-origin "$SITE_URL" --allow-private
 ```
 
 ```bash
-USHER_REGISTRY_URL=http://localhost:4200 USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site
+USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --prefix examples/mock-quote-site
 ```
 
 ```bash
-npm run agent -- http://localhost:4100/quote/driver --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
+npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
 ```
 
-- The dashboard at http://localhost:4200/dashboard, signed in with the secret key, shows the session, lets you write rules in English, and lists blocked attempts.
-- http://localhost:4200/viewer builds a map for any public form.
-- http://localhost:4100/__admin switches the demo form's layout, to watch the map go stale and rebuild.
+- The dashboard, at `/dashboard` on the registry, signed in with the secret key, shows the session, lets you write rules in English, and lists blocked attempts.
+- The front page builds a map for any public form.
+- `/__admin` on the demo site switches the form's layout, to watch the map go stale and rebuild.
 
 Live model calls need `MODEL_API_KEY` (Meta Model API) and `BASETEN_API_KEY` (Muse Spark Open) in `.env`. Without them, everything runs from recordings.
 
-**With Docker:** `docker compose up --build`, then `npm run e2e:remote`. [DEPLOY.md](DEPLOY.md) covers hosting.
+**With Docker:** `docker compose up --build`, then `npm run e2e:remote`. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
 
 ## Benchmark
 

@@ -63,7 +63,7 @@ npm run typecheck
 npm run compile -- <url> [--out file] [--classify]   # compile one page with Muse Spark (+ Spark Open second opinion)
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
 npm run fixtures:record:open            # same for Muse Spark Open (needs BASETEN_API_KEY)
-npm run registry -- --seed mock-site    # registry on :4200 with the mock-site maps; docker compose up for the full stack
+npm run registry -- --seed mock-site --seed-origin "$SITE_URL"   # registry on :4200 with the mock-site maps; docker compose up for the full stack
 DATABASE_URL=… npm test                 # the suite against Postgres (file store otherwise)
 npm run agent -- <url> --profile packages/agent/profiles/test-driver.json [--mcp] [--auto-confirm]
 USHER_LIVE=1 npm test                   # also run the live model test
@@ -72,7 +72,7 @@ USHER_LIVE=1 npm test                   # also run the live model test
 Mock site on its own:
 
 ```sh
-cd examples/mock-quote-site && npm start      # http://localhost:4100, /__admin switches layout A/B
+cd examples/mock-quote-site && npm start      # port 4100, /__admin switches layout A/B
 VARIANT=b npm start                           # start in layout B
 ```
 

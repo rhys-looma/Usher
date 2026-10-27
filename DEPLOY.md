@@ -20,7 +20,7 @@ npm run e2e:remote            # 12 checks against the stack, recorded model resp
 docker compose down -v        # stop and delete the local database
 ```
 
-Registry on http://localhost:4200 (dashboard: origin `http://localhost:4100`, secret `uss_localdevelopmentonly00000000`), quote site on http://localhost:4100. The keys in `docker-compose.yml` are for local use only.
+The registry is at the stack's `REGISTRY_PUBLIC_URL` and the quote site at `USHER_DEV_SITE_ORIGIN`, both set in `docker-compose.yml`. Sign in to the dashboard with that origin and the secret `uss_localdevelopmentonly00000000`. The keys in `docker-compose.yml` are for local use only; `npm run e2e:remote` reads the addresses from it.
 
 ## Configuration (registry)
 

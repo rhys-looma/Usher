@@ -1,10 +1,11 @@
 // The registry server. Configured by environment (for deployment) with flags as local shortcuts.
 //
-//   npm run registry -- [--port 4200] [--data data/registry] [--seed mock-site --seed-origin http://localhost:4100] [--allow-private]
+//   npm run registry -- [--port 4200] [--data data/registry] [--seed mock-site --seed-origin <the demo site's URL>] [--allow-private]
 //
 // Environment (see DEPLOY.md):
 //   PORT, HOST                      where to listen (default 4200, 127.0.0.1; 0.0.0.0 in containers)
-//   REGISTRY_PUBLIC_URL             the URL agents and sites use; the token issuer
+//   REGISTRY_PUBLIC_URL             the URL agents and sites use; the token issuer (without it, the
+//                                   address it listens on, for local use)
 //   DATABASE_URL                    Postgres; without it, JSON files under USHER_DATA_DIR
 //   USHER_SIGNING_KEY               the token signing key, a private Ed25519 JWK (npm run keygen)
 //   USHER_RETIRED_KEYS              JSON array of earlier public JWKs, still published
@@ -37,7 +38,7 @@ const { values } = parseArgs({
     data: { type: 'string', default: env.USHER_DATA_DIR ?? fileURLToPath(new URL('../../../data/registry', import.meta.url)) },
     url: { type: 'string', ...(env.REGISTRY_PUBLIC_URL && { default: env.REGISTRY_PUBLIC_URL }) },
     seed: { type: 'string', ...(env.USHER_SEED && { default: env.USHER_SEED }) },
-    'seed-origin': { type: 'string', default: env.USHER_SEED_ORIGIN ?? 'http://localhost:4100' },
+    'seed-origin': { type: 'string', ...(env.USHER_SEED_ORIGIN && { default: env.USHER_SEED_ORIGIN }) },
     threshold: { type: 'string' },
     'allow-private': { type: 'boolean', default: env.USHER_ALLOW_PRIVATE === '1' },
     'explain-open': { type: 'boolean', default: env.USHER_EXPLAIN_OPEN === '1' },
@@ -98,6 +99,7 @@ const running = await startRegistry({
 
 if (values.seed) {
   const origin = values['seed-origin'];
+  if (!origin) throw new Error('--seed needs the demo site\'s URL: --seed-origin <url> or USHER_SEED_ORIGIN.');
   const maps = await seed(running.registry, values.seed, origin);
   console.log(`seeded ${maps.length} maps for ${origin}`);
   if (!env.USHER_DEV_SITE_ORIGIN) {

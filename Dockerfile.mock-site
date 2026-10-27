@@ -20,5 +20,5 @@ COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/di
 ENV PORT=4100 HOST=0.0.0.0 NODE_OPTIONS=--disable-warning=ExperimentalWarning
 EXPOSE 4100
 USER node
-HEALTHCHECK --interval=5s --timeout=3s --retries=12 CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=5s --timeout=3s --retries=12 CMD node -e "fetch('http://'+require('os').hostname()+':'+process.env.PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "examples/mock-quote-site/server.mjs"]

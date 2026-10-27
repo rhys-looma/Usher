@@ -1,6 +1,6 @@
 {
   "usher": "0.1",
-  "origin": "http://localhost:4100",
+  "origin": "https://quote.example",
   "path": "/quote/driver",
   "fingerprint": {
     "algo": "usher-fp-1",

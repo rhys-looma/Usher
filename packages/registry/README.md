@@ -17,7 +17,7 @@ Agents prove who they are with Web Bot Auth (HTTP Message Signatures) or a signe
 Commands, from the repository root:
 
 ```bash
-npm run registry -- --seed mock-site --allow-private
+npm run registry -- --seed mock-site --seed-origin "$SITE_URL" --allow-private
 ```
 
 That serves the registry on :4200 with the demo site's maps; configuration is in `src/server.ts` and [DEPLOY.md](../../DEPLOY.md).

@@ -1,6 +1,6 @@
 {
   "usher_policy": "0.1",
-  "origin": "http://localhost:4100",
+  "origin": "https://quote.example",
   "default": {
     "agent_lane": true,
     "actions": { "form.submit": "confirm" },

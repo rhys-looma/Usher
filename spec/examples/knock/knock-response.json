@@ -1,10 +1,10 @@
 {
   "usher": "0.1",
   "session": "s_Yk3nQ2xV8wLp4tRz",
-  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6Imlyek0zNWItSXpYZFJ5RmhMTS0zWndJakFiVWpyUW5iOHFoTkhvVmNwMUkifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAiLCJzdWIiOiJBWlNCSVBkNXp1bmEwREtHNnYzYkl5YTZoX2J3eHZPQm5FVGd6QlUxNFM0Iiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDo0MTAwIiwiaW50ZW50IjoicXVvdGUuY2FyX2luc3VyYW5jZSIsIm1hcCI6InNoYTI1NjoxM2M0NDVjMmQ5YzMwMTdhMmY2NWExOWU0YTcxODgyZjUzYzA3MGZhZDgyNGJiNWNiYTRhMTM1OWMzMDUxOWU2Iiwic2lkIjoic19ZazNuUTJ4Vjh3THA0dFJ6IiwiaWF0IjoxNzkzMDk1MjAwLCJleHAiOjE3OTMwOTU4MDAsImp0aSI6IlFtOXZaR3hsTFdwMGFTMWxlR0Z0Y0d4bCIsImtpZCI6Imlyek0zNWItSXpYZFJ5RmhMTS0zWndJakFiVWpyUW5iOHFoTkhvVmNwMUkifQ.cCnRp8C58DNPvuH0a9sHY6pFr6sRgVbYLutka6s6ma2CaZnx4Jt654qb3S9vfUX2bz9QVdhgV1WLq3Hiz7gSAw",
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6InVzaGVyK2p3dCIsImtpZCI6IkUzMW5JTjBhYVh3Q0JobGtqVDkwbHp4bG1JOVM4QWpUajA3bnFfRkFXV0kifQ.eyJpc3MiOiJodHRwczovL3JlZ2lzdHJ5LmV4YW1wbGUiLCJzdWIiOiJnb3Nnb19Ib05vamFrcllNNFFtTy01bjdZLUd6eUhwXzhyenRuYjBQWTVvIiwib3JpZ2luIjoiaHR0cHM6Ly9xdW90ZS5leGFtcGxlIiwiaW50ZW50IjoicXVvdGUuY2FyX2luc3VyYW5jZSIsIm1hcCI6InNoYTI1NjoxM2M0NDVjMmQ5YzMwMTdhMmY2NWExOWU0YTcxODgyZjUzYzA3MGZhZDgyNGJiNWNiYTRhMTM1OWMzMDUxOWU2Iiwic2lkIjoic19ZazNuUTJ4Vjh3THA0dFJ6IiwiaWF0IjoxNzkzMDk1MjAwLCJleHAiOjE3OTMwOTU4MDAsImp0aSI6IlFtOXZaR3hsTFdwMGFTMWxlR0Z0Y0d4bCIsImtpZCI6IkUzMW5JTjBhYVh3Q0JobGtqVDkwbHp4bG1JOVM4QWpUajA3bnFfRkFXV0kifQ.V7KJmWpcNRPDxodEla9I1zDn27Av6ICr2sOWQIzLpkKWod1laHA8GGiYZlpkZfJWhGDmbU5ivVL24iBsECHqBw",
   "expires_at": "2026-10-27T10:10:00Z",
-  "keys_url": "http://localhost:4200/.well-known/usher-keys.json",
-  "events_url": "http://localhost:4200/sessions/s_Yk3nQ2xV8wLp4tRz/events",
+  "keys_url": "https://registry.example/.well-known/usher-keys.json",
+  "events_url": "https://registry.example/sessions/s_Yk3nQ2xV8wLp4tRz/events",
   "match": {
     "kind": "exact",
     "score": 1,
@@ -13,7 +13,7 @@
   },
   "map": {
     "usher": "0.1",
-    "origin": "http://localhost:4100",
+    "origin": "https://quote.example",
     "path": "/quote/driver",
     "fingerprint": {
       "algo": "usher-fp-1",

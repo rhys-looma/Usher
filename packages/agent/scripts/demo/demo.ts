@@ -1,6 +1,6 @@
 // The demo runner: the video's sequence, scene by scene, on the mock site.
 //
-//   npm run demo                 serve http://localhost:4200/demo; run scenes from the page (keys 1-6, 0 for all)
+//   npm run demo                 serve /demo on the registry (it prints the address); run scenes from the page (keys 1-6, 0 for all)
 //   npm run demo -- race         run one scene (or several, or all) once the page is open
 //   npm run demo -- race --now   don't wait for the page
 //   npm run demo -- all --once   run, print the numbers and exit
@@ -22,6 +22,7 @@ import { compilerModel, generateSigningKey, modelApi, type ChatFn } from '@usher
 import { loadDotEnv } from '../../../core/src/compile/env.ts';
 import { readFixture, replayAny, type LabelFixture } from '../../../core/test/replay.ts';
 import { startMockSite } from '../../../site-middleware/test/mock-site.ts';
+import { RULES_ORIGIN } from '../../../registry/test/phrasings.ts';
 import { FileStorage, Keeper, seed, startRegistry, type KeeperCheck, type PolicyRecord, type Storage } from '../../../registry/src/index.ts';
 import { httpTransport, mcpTransport, runAgent, scriptedUser, type AgentEvent, type FallbackModel, type Profile, type RunResult, type UserChannel } from '../../src/index.ts';
 import { Stage } from './stage.ts';
@@ -65,7 +66,8 @@ for (const port of [values['registry-port'], values['site-port']]) {
 }
 
 const root = new URL('../../../../', import.meta.url);
-const SITE = `http://localhost:${values['site-port']}`;
+// The demo site's origin is the one the replayed rule was recorded for, on the chosen port.
+const SITE = Object.assign(new URL(RULES_ORIGIN), { port: values['site-port'] }).origin;
 const RULE = 'Agents can fill in quotes, but a human confirms the submit. Max five an hour.';
 const REPLAYED = 'Model calls are replayed from recordings, at the latency they had live.';
 const profile = JSON.parse(await readFile(new URL('packages/agent/profiles/test-driver.json', root), 'utf8')) as Profile;
@@ -121,7 +123,6 @@ const secret = `uss_demo${randomBytes(18).toString('base64url')}`;
 const running = await startRegistry({
   storage,
   port: Number(values['registry-port']),
-  url: `http://localhost:${values['registry-port']}`,
   signingKey: (await generateSigningKey()).privateJwk,
   siteScript: fileURLToPath(new URL('packages/site-script/dist/usher.js', root)),
   chat: (request) => rulesChat(request),

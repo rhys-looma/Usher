@@ -1,12 +1,12 @@
 {
-  "iss": "http://localhost:4200",
-  "sub": "AZSBIPd5zuna0DKG6v3bIya6h_bwxvOBnETgzBU14S4",
-  "origin": "http://localhost:4100",
+  "iss": "https://registry.example",
+  "sub": "gosgo_HoNojakrYM4QmO-5n7Y-GzyHp_8rztnb0PY5o",
+  "origin": "https://quote.example",
   "intent": "quote.car_insurance",
   "map": "sha256:13c445c2d9c3017a2f65a19e4a71882f53c070fad824bb5cba4a1359c30519e6",
   "sid": "s_Yk3nQ2xV8wLp4tRz",
   "iat": 1793095200,
   "exp": 1793095800,
   "jti": "Qm9vZGxlLWp0aS1leGFtcGxl",
-  "kid": "irzM35b-IzXdRyFhLM-3ZwIjAbUjrQnb8qhNHoVcp1I"
+  "kid": "E31nIN0aaXwCBhlkjT90lzxlmI9S8AjTj07nq_FAWWI"
 }

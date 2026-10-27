@@ -17,7 +17,7 @@ The pieces everything else is built on. Structure only: nothing here reads what 
 Commands, from the repository root:
 
 ```bash
-npm run compile -- http://localhost:4100/quote/driver
+npm run compile -- "$SITE_URL/quote/driver"   # SITE_URL: the demo site, started with npm start in examples/mock-quote-site
 ```
 
 That compiles one page into a map with Muse Spark (`MODEL_API_KEY`). Add `--classify` for a second opinion on risk from Muse Spark Open.

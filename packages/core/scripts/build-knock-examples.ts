@@ -8,8 +8,9 @@ const spec = new URL('../../../spec/', import.meta.url);
 const out = new URL('examples/knock/', spec);
 const map = JSON.parse(await readFile(new URL('examples/quote-driver.map.json', spec), 'utf8'));
 const fingerprint: Fingerprint = map.fingerprint;
-const registry = 'http://localhost:4200';
-const site = 'http://localhost:4100';
+// The reserved example domains (RFC 2606); the registry serves these with its own address.
+const registry = 'https://registry.example';
+const site = 'https://quote.example';
 const now = new Date('2026-10-27T10:00:00Z');
 const iat = Math.floor(now.getTime() / 1000);
 const sid = 's_Yk3nQ2xV8wLp4tRz';
