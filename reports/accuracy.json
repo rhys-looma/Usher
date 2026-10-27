@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-27T10:30:31.357Z",
+  "generated": "2026-10-27T19:17:21.765Z",
   "results": [
     {
       "id": "mock-a-driver",
@@ -16,7 +16,7 @@
       },
       "locators_resolved": 14,
       "flags": 0,
-      "cost_usd": 0.01283075
+      "cost_usd": 0.01304325
     },
     {
       "id": "mock-a-vehicle",
@@ -24,7 +24,7 @@
       "url": "/quote/vehicle (layout A)",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Car insurance quote: your car",
+      "purpose": "Car insurance quote: vehicle details",
       "elements": 11,
       "vocabulary_keys": 11,
       "custom_keys": 0,
@@ -33,7 +33,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.0117035
+      "cost_usd": 0.010406
     },
     {
       "id": "mock-a-cover",
@@ -52,7 +52,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.0093565
+      "cost_usd": 0.00985675
     },
     {
       "id": "mock-b-driver",
@@ -69,7 +69,7 @@
       },
       "locators_resolved": 14,
       "flags": 0,
-      "cost_usd": 0.0130725
+      "cost_usd": 0.01207675
     },
     {
       "id": "mock-b-vehicle",
@@ -86,7 +86,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.01105875
+      "cost_usd": 0.010587
     },
     {
       "id": "mock-b-cover",
@@ -105,7 +105,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.01100375
+      "cost_usd": 0.00953325
     },
     {
       "id": "govuk-contact",
@@ -113,7 +113,7 @@
       "url": "https://www.gov.uk/contact/govuk",
       "recorded": true,
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Contact GOV.UK team with question or feedback",
       "elements": 7,
       "vocabulary_keys": 4,
@@ -131,7 +131,7 @@
       "category": "contact",
       "url": "https://ico.org.uk/global/contact-us/",
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Site search: find ICO information",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -163,8 +163,8 @@
       "url": "https://www.travelodge.co.uk/",
       "recorded": true,
       "status": "ok",
-      "source": "live",
-      "purpose": "Hotel search by destination, dates and guests",
+      "source": "recorded",
+      "purpose": "Hotel search: destination, dates, rooms and guests",
       "elements": 6,
       "vocabulary_keys": 5,
       "custom_keys": 1,
@@ -173,7 +173,7 @@
       },
       "locators_resolved": 6,
       "flags": 0,
-      "cost_usd": 0.0145695
+      "cost_usd": 0.02281875
     },
     {
       "id": "httpbin-order",
@@ -182,8 +182,8 @@
       "recorded": true,
       "note": "a test form (pizza order), kept as a control",
       "status": "ok",
-      "source": "live",
-      "purpose": "Pizza order: contact, size, toppings and delivery",
+      "source": "recorded",
+      "purpose": "Pizza order: customer, size, toppings and delivery",
       "elements": 11,
       "vocabulary_keys": 5,
       "custom_keys": 6,
@@ -193,14 +193,14 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.0145245
+      "cost_usd": 0.01164725
     },
     {
       "id": "nationalrail-journey",
       "category": "booking",
       "url": "https://www.nationalrail.co.uk/",
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Plan train journey between stations",
       "elements": 4,
       "vocabulary_keys": 2,
@@ -210,24 +210,24 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.02994825
+      "cost_usd": 0.03039025
     },
     {
       "id": "eventbrite-search",
       "category": "booking",
       "url": "https://www.eventbrite.co.uk/",
       "status": "ok",
-      "source": "live",
-      "purpose": "Find local events and things to do",
-      "elements": 9,
-      "vocabulary_keys": 9,
+      "source": "recorded",
+      "purpose": "Search for local events by keyword and location",
+      "elements": 3,
+      "vocabulary_keys": 3,
       "custom_keys": 0,
       "risk": {
-        "safe": 9
+        "safe": 3
       },
-      "locators_resolved": 9,
+      "locators_resolved": 3,
       "flags": 0,
-      "cost_usd": 0.0356325
+      "cost_usd": 0.014695
     },
     {
       "id": "lner-booking",
@@ -242,8 +242,8 @@
       "url": "https://www.mozilla.org/en-US/newsletter/",
       "recorded": true,
       "status": "ok",
-      "source": "live",
-      "purpose": "Firefox newsletter signup",
+      "source": "recorded",
+      "purpose": "Get Firefox news newsletter signup",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -253,7 +253,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.016518
+      "cost_usd": 0.023556
     },
     {
       "id": "which-newsletter",
@@ -275,8 +275,8 @@
       "url": "https://en.wikipedia.org/wiki/Special:Search",
       "recorded": true,
       "status": "ok",
-      "source": "live",
-      "purpose": "Wikipedia site search",
+      "source": "recorded",
+      "purpose": "Search Wikipedia articles",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -285,7 +285,7 @@
       },
       "locators_resolved": 1,
       "flags": 0,
-      "cost_usd": 0.01832475
+      "cost_usd": 0.018994999999999998
     },
     {
       "id": "govuk-search",
@@ -294,23 +294,23 @@
       "status": "ok",
       "source": "live",
       "purpose": "Search all content on GOV.UK",
-      "elements": 16,
+      "elements": 4,
       "vocabulary_keys": 4,
-      "custom_keys": 12,
+      "custom_keys": 0,
       "risk": {
-        "safe": 16
+        "safe": 4
       },
-      "locators_resolved": 16,
+      "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.03670075
+      "cost_usd": 0.01612675
     },
     {
       "id": "ons-search",
       "category": "search",
       "url": "https://www.ons.gov.uk/",
       "status": "ok",
-      "source": "live",
-      "purpose": "ONS site search by keyword or time series ID",
+      "source": "recorded",
+      "purpose": "Search ONS data by keyword or time series ID",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -319,14 +319,14 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.0085825
+      "cost_usd": 0.007707
     },
     {
       "id": "nhs-search",
       "category": "search",
       "url": "https://www.nhs.uk/",
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Search the NHS website",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -360,7 +360,7 @@
       "url": "https://account.bbc.com/register",
       "note": "stop before submit",
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "BBC sign-in: enter email or username",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -378,7 +378,7 @@
       "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
       "recorded": true,
       "status": "ok",
-      "source": "live",
+      "source": "recorded",
       "purpose": "Car insurance quote: start with registration",
       "elements": 4,
       "vocabulary_keys": 4,

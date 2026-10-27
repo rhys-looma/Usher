@@ -398,10 +398,29 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
     return heading ? textOf(heading) : '';
   }
 
+  /**
+   * Controls that browse or filter what a page shows, rather than fill or submit the form: they are
+   * left out of maps. Links listed as results (inside any list where three or more items hold
+   * links: search results, article lists, and the sub-links within one result; pagination sits in
+   * nav and is kept), tabs, and carousel controls.
+   */
+  function outOfScope(el: Element, control: string): boolean {
+    if (control === 'link' && !el.closest('nav')) {
+      for (let item = el.closest('li, [role="listitem"]'); item; item = item.parentElement?.closest('li, [role="listitem"]') ?? null) {
+        const list = item.parentElement;
+        if (list && Array.from(list.children).filter((c) => c.querySelector('a[href]')).length >= 3) return true;
+      }
+    }
+    if (el.getAttribute('role') === 'tab' || el.closest('[role="tablist"]')) return true;
+    return /\b(carousel|slides?|slideshow)\b/i.test(el.getAttribute('aria-label') ?? '');
+  }
+
   // Bucket controls by owning form, in document order.
   const buckets = new Map<HTMLFormElement | null, Element[]>();
   for (const el of Array.from(doc.querySelectorAll(CONTROLS))) {
-    if (!classify(el)) continue;
+    const kind = classify(el);
+    if (!kind) continue;
+    if (kind.kind === 'action' && outOfScope(el, kind.control)) continue;
     // Skip controls nested inside another control (a role=button inside a link, say).
     if (el.parentElement?.closest('button, a[href], [role="button"], [role="link"]')) continue;
     const owner =
