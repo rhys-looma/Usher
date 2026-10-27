@@ -12,13 +12,13 @@ viewer ─▶ CloudFront ─▶ ALB ─┬─ Host $REGISTRY_HOST ─▶ ECS ser
 | `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`. The map viewer is off; see Configuration. |
 | `$SITE_HOST` (the `brightwater` subdomain) | mock site | Brightwater Motor, the fictional quote form for demos |
 
-You create the AWS resources by hand. This repository provides the images, the ECS task definitions and the scripts that push, migrate, deploy and back up. Throughout this file, `$REGISTRY_HOST` and `$SITE_HOST` stand for your two host names.
+You create the AWS resources by hand, except the two ECR repositories: Terraform in `deploy/terraform/ecr` creates those and builds and pushes the images. This repository also provides the ECS task definitions and the scripts that migrate, deploy and back up. Throughout this file, `$REGISTRY_HOST` and `$SITE_HOST` stand for your two host names.
 
 The MCP server is not hosted. It holds the agent's private key, so it runs where the agent runs (`npx`/`node` on the agent's machine, see the README), pointed at `https://$REGISTRY_HOST`.
 
 ## 0. Before you start
 
-- **Tools:** AWS CLI v2, Docker with buildx (images are built for `linux/amd64`; Apple silicon emulates), Node 20 and `npm install` at the repository root, and `jq`. For backups, also the Session Manager plugin (`brew install --cask session-manager-plugin`).
+- **Tools:** AWS CLI v2, Terraform 1.6 or later (`brew install terraform`), Docker with buildx (images are built for `linux/amd64`; Apple silicon emulates), Node 20 and `npm install` at the repository root, and `jq`. For backups, also the Session Manager plugin (`brew install --cask session-manager-plugin`).
 - **Dry run:** it runs the production images on your host names, behind a local stand-in for CloudFront and the ALB. The stand-in ends TLS, keeps Host, sends `CloudFront-Forwarded-Proto: https` and a two-hop `X-Forwarded-For`, and sends `X-Forwarded-Proto: http`, as an ALB reached over http would. It covers production mode, cache headers, the signup flow and the end-to-end agent run. Port 443 must be free.
 
   ```sh
@@ -32,7 +32,7 @@ Each resource's "Value for `config.env` / the app" is what you carry over.
 
 | Create | Settings the app relies on | Value for `config.env` / the app |
 | --- | --- | --- |
-| **ECR** repositories `usher-registry`, `usher-mock-site` | Tag mutability **mutable** (`:latest` moves); scan on push | `AWS_ACCOUNT_ID`, `REGISTRY_REPO`, `SITE_REPO`. Repo URIs are `<account>.dkr.ecr.eu-west-2.amazonaws.com/<repo>`. |
+| **ECR** repositories `usher-registry`, `usher-mock-site` | **Made by Terraform in step 4**, not by hand: tags mutable (`:latest` moves), scan on push, the 20 newest images kept, untagged layers gone after a day | `AWS_ACCOUNT_ID`, `REGISTRY_REPO`, `SITE_REPO`. Repo URIs are `<account>.dkr.ecr.eu-west-2.amazonaws.com/<repo>` (`terraform output repositories`). |
 | **RDS** PostgreSQL 16 | `db.t4g.micro`, 20 GB gp3, encrypted, **not** publicly accessible, automated backups on (7 days), deletion protection. Database `usher`, user `usher`. Security group: 5432 from the registry tasks' security group only. | The **endpoint**, for `DATABASE_URL` (step 3) |
 | **Secrets Manager**: five plain-text secrets, `usher/DATABASE_URL`, `usher/MODEL_API_KEY`, `usher/BASETEN_API_KEY`, `usher/USHER_SIGNING_KEY`, `usher/USHER_ADMIN_KEY` | Values in step 3 | `SECRET_PREFIX=usher`. The ARNs are looked up by name when task definitions are rendered; to give one directly, set `SECRET_ARN_<NAME>`. |
 | **CloudWatch log groups** `/ecs/usher-registry`, `/ecs/usher-mock-site` | Retention 30 days | none |
@@ -71,13 +71,17 @@ read -rs v && printf %s "$v" | aws secretsmanager create-secret --name usher/DAT
 
 `DATABASE_URL` is `postgres://usher:<password>@<RDS endpoint>:5432/usher?sslmode=no-verify`. RDS requires TLS; `no-verify` encrypts without pinning the RDS certificate authority.
 
-## 4. Build and push
+## 4. Create ECR, build and push
 
 ```sh
-scripts/ecr-push.sh
+cd deploy/terraform/ecr
+terraform init
+terraform apply -var git_sha=$(git rev-parse --short=12 HEAD)
 ```
 
-The script builds both images for `linux/amd64`, tags each with the git SHA and `latest`, logs in to ECR and pushes them. It refuses uncommitted changes, so a SHA tag always means that commit.
+This creates the two repositories, then runs `scripts/ecr-push.sh`. The script builds both images for `linux/amd64`, tags each with the git SHA and `latest`, logs in to ECR and pushes them. It refuses uncommitted changes, so a SHA tag always means that commit. Applying again with a new SHA rebuilds and pushes; the same SHA does nothing.
+
+State is local (`deploy/terraform/ecr/terraform.tfstate`, gitignored). It holds no secrets, only the repositories. To push without Terraform once the repositories exist, run `scripts/ecr-push.sh` (it reads `deploy/ecs/config.env`).
 
 | Image | Size (uncompressed / in ECR) | Contents |
 | --- | --- | --- |
