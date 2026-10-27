@@ -17,3 +17,31 @@ export const SITE_JS = `(() => {
   for (const el of later) seen.observe(el);
 })();
 `;
+
+// The demo dashboard's script, served at /demo.js: while the page is open and visible, it fetches
+// the page again every few seconds and swaps in the parts marked data-live, leaving the rules
+// sandbox (and anything being typed) alone.
+export const DEMO_JS = `(() => {
+  const url = location.pathname.replace(/\\/rules$/, '');
+  let busy = false;
+  const refresh = async () => {
+    if (busy || document.visibilityState !== 'visible') return;
+    busy = true;
+    try {
+      const res = await fetch(url, { cache: 'no-store', credentials: 'omit' });
+      if (!res.ok) return;
+      const next = new DOMParser().parseFromString(await res.text(), 'text/html');
+      for (const el of document.querySelectorAll('[data-live]')) {
+        const fresh = next.querySelector('[data-live="' + el.getAttribute('data-live') + '"]');
+        if (fresh && fresh.innerHTML !== el.innerHTML) el.innerHTML = fresh.innerHTML;
+      }
+    } catch {
+      // Offline for a moment: try again on the next tick.
+    } finally {
+      busy = false;
+    }
+  };
+  setInterval(refresh, 4000);
+  document.addEventListener('visibilitychange', refresh);
+})();
+`;

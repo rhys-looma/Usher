@@ -5,7 +5,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
-import { claimInstructions, type Registry } from '../registry.ts';
+import { claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session } from '../storage.ts';
 import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
 
@@ -54,6 +54,19 @@ interface KeeperCheckView {
   review?: boolean;
   detail: string;
 }
+
+/**
+ * The public demo (/demo/dashboard): the demo site's dashboard, read-only. Nothing that changes
+ * state is shown; rules can be previewed but never applied. Live parts refresh while it is open.
+ */
+export interface DemoView {
+  /** A rules preview to show, with what was typed. */
+  preview?: Raw;
+}
+
+const demoBanner = (origin: string) =>
+  html`<div class="card notice"><b>This is the demo site's live dashboard.</b> Run <code>usher_fill</code> on <a href="${origin}/quote/driver">${new URL(origin).host}</a> and your agent's session appears here. Read-only: nothing here changes the site.</div>`;
+const LIVE_SCRIPT = html`<script src="/demo.js" defer></script>`;
 
 export function shortAgent(id: string | undefined): string {
   return id ? (id.length > 16 ? `${id.slice(0, 10)}…` : id) : 'unknown';
@@ -127,7 +140,8 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     );
   }
 
-  async overview(origin: string, notice?: Raw): Promise<string> {
+  async overview(origin: string, notice?: Raw, demo?: DemoView): Promise<string> {
+    const base = demo ? '/demo/dashboard' : '/dashboard';
     const storage = this.registry.storage;
     const [records, sessions, policy, drafts, blockedAll, explanations] = await Promise.all([
       storage.mapsForOrigin(origin),
@@ -151,11 +165,13 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     );
 
     return page(
-      `Dashboard · ${origin}`,
-      html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>
+      demo ? `Demo dashboard · ${origin}` : `Dashboard · ${origin}`,
+      html`${demo ? LIVE_SCRIPT : html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>`}
 <h1>${origin}</h1>
-<p class="lede">Agents on your forms: who knocked, what they did, what was refused, and the rules they follow.</p>
+<p class="lede">${demo ? 'Agents on the demo quote form: who knocked, what they did, what was refused, and the rules they follow.' : 'Agents on your forms: who knocked, what they did, what was refused, and the rules they follow.'}</p>
+${demo ? demoBanner(origin) : ''}
 ${notice ?? ''}
+<div data-live="top">
 <div class="grid">
   <div class="card stat"><b>${records.length}</b><span>forms mapped${drifted ? html`, <span class="badge rule-confirm">${drifted} drifted</span>` : ''}</span></div>
   <div class="card stat"><b>${sessions.length}</b><span>agent sessions</span></div>
@@ -167,9 +183,9 @@ ${notice ?? ''}
 <div class="card">${
         explanations.length
           ? html`${explanations.map((e) => html`<h3><code>${e.path}</code> <span class="muted small">${e.sessions} session${e.sessions === 1 ? '' : 's'} · ${e.model} · ${when(e.created_at)}</span></h3><p>${e.text}</p>`)}`
-          : html`<p class="muted">No explanations yet.${this.hooks.explain ? ' Generate them once agents have used your forms.' : ''}</p>`
+          : html`<p class="muted">No explanations yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Generate them once agents have used your forms.' : ''}</p>`
       }
-${this.hooks.explain ? html`<form method="post" action="/dashboard/explain"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
+${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
 
 <h2 id="forms">Forms and maps</h2>
 <div class="card"><table>
@@ -178,10 +194,11 @@ ${this.hooks.explain ? html`<form method="post" action="/dashboard/explain"><but
         const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
         const check = checks.get(r.map.path);
         return html`<tr><td><code>${r.map.path}</code></td><td>${r.map.form.purpose}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
-<td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span><br>${r.verification ? html`<span class="badge rule-allow">verified</span> ${when(r.verification.at)} by ${r.verification.by === 'keeper' ? 'the keeper' : 'a second agent'}` : html`<span class="badge rule-confirm">unverified</span> served only to that agent`}` : r.map.provenance.compiler ?? r.map.provenance.source}<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a></td>
+<td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span><br>${r.verification ? html`<span class="badge rule-allow">verified</span> ${when(r.verification.at)} by ${r.verification.by === 'keeper' ? 'the keeper' : 'a second agent'}` : html`<span class="badge rule-confirm">unverified</span> served only to that agent`}` : r.map.provenance.compiler ?? r.map.provenance.source}${!demo ? html`<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a>` : visibleTo(r) ? html`<br><a href="/maps/view?origin=${encodeURIComponent(origin)}&amp;digest=${encodeURIComponent(r.digest)}">view map</a>` : ''}</td>
 <td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
 <td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
       }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when Usher reads your forms or an agent shares one.</td></tr>`}</tbody></table></div>
+</div>
 
 <h2 id="rules">Rules</h2>
 <div class="card">${
@@ -190,19 +207,28 @@ ${this.hooks.explain ? html`<form method="post" action="/dashboard/explain"><but
 <details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details>`
           : html`<p class="muted">No rules yet: agents may use your forms, and each element's risk decides what needs the user (consequential actions need their confirmation; declarations and payments are theirs alone).</p>`
       }</div>
-${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
+${
+        demo
+          ? html`${demo.preview ?? ''}<form class="card" method="post" action="/demo/dashboard/rules" id="sandbox">
+  <p><label for="rules-text"><b>Try the rules sandbox.</b> Write rules in plain English and see the policy Muse Spark makes of them for these forms. <span class="badge rule-confirm">preview only, not applied</span></label></p>
+  <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
+  <p><button type="submit">Preview policy</button></p>
+</form>`
+          : html`${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
 <form class="card" method="post" action="/dashboard/rules">
   <p><label for="rules-text"><b>Write your rules in plain English.</b> Muse Spark turns them into a policy for you to check before anything changes.</label></p>
   <textarea id="rules-text" name="text" required placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Propose policy</button></p>
-</form>
+</form>`
+      }
 
+<div data-live="bottom">
 <h2 id="sessions">Agent sessions</h2>
 <div class="card"><table>
 <thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
 <tbody>${byAgent.size ? [...byAgent].map(
         ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent)}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
-<td>${list.slice(0, 5).map((s) => html`<a href="/dashboard/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
+<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
       ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
 
 <h2 id="blocked">Blocked attempts</h2>
@@ -210,23 +236,36 @@ ${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
 <thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
 <tbody>${blocked.length ? blocked.slice(0, 50).map(
         (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>`,
+      ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>
+</div>`,
     );
   }
 
-  async sessionPage(origin: string, sid: string): Promise<string | null> {
+  /** A rules preview for the demo: what was typed, and the policy, marked as not applied. */
+  previewCard(text: string, reply: { status: number; body: unknown }, maps: import('@usher/core').UsherMap[]): Raw {
+    if (reply.status !== 200) return html`<div class="card error">${(reply.body as { message?: string }).message ?? 'The rules could not be turned into a policy.'}</div>`;
+    const preview = reply.body as { policy: import('@usher/core').UsherPolicy; summary: string; model: string };
+    return html`<div class="card notice"><p><span class="badge rule-confirm">preview only, not applied</span></p>
+<p><b>From:</b> “${text}”</p>
+<p class="small">${preview.summary} <span class="muted">(${preview.model})</span></p>
+${policySummary(preview.policy, maps)}
+<details><summary>Policy JSON</summary><pre>${JSON.stringify(preview.policy, null, 2)}</pre></details></div>`;
+  }
+
+  async sessionPage(origin: string, sid: string, demo?: DemoView): Promise<string | null> {
+    const base = demo ? '/demo/dashboard' : '/dashboard';
     const session = await this.registry.storage.getSession(sid);
     if (!session || session.origin !== origin) return null;
     const explained = await this.registry.storage.getCached<ExplanationView>('session-explanations', sid);
     const events = [...session.events].sort((a, b) => a.ts.localeCompare(b.ts));
     return page(
       'Agent session',
-      html`<p class="muted small"><a href="/dashboard#sessions">Dashboard</a> · session ${session.id}</p>
+      html`${demo ? LIVE_SCRIPT : ''}<p class="muted small"><a href="${base}#sessions">${demo ? 'Demo dashboard' : 'Dashboard'}</a> · session ${session.id}</p>
 <h1>Agent session</h1>
 <p class="lede">Agent <span class="mono">${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
-${this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
+${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
 <form method="post" action="/dashboard/sessions/${session.id}/explain"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
-<div class="card"><ol class="timeline">${events.map(
+<div class="card" data-live="timeline"><ol class="timeline">${events.map(
         (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
       )}</ol></div>`,
     );
