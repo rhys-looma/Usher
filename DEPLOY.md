@@ -9,7 +9,7 @@ viewer ─▶ CloudFront ─▶ ALB ─┬─ Host $REGISTRY_HOST ─▶ ECS ser
 
 | Host | Service | What |
 | --- | --- | --- |
-| `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`, the map viewer |
+| `$REGISTRY_HOST` (the apex domain) | registry | Front page, dashboard, signup and keys, the API agents knock on, `/usher.js`. The map viewer is off; see Configuration. |
 | `$SITE_HOST` (the `brightwater` subdomain) | mock site | Brightwater Motor, the fictional quote form for demos |
 
 You create the AWS resources by hand. This repository provides the images, the ECS task definitions and the scripts that push, migrate, deploy and back up. Throughout this file, `$REGISTRY_HOST` and `$SITE_HOST` stand for your two host names.
@@ -81,7 +81,7 @@ The script builds both images for `linux/amd64`, tags each with the git SHA and 
 
 | Image | Size (uncompressed / in ECR) | Contents |
 | --- | --- | --- |
-| registry | 857 MB / ≈ 360 MB | Node 20 slim, production dependencies, Chromium's headless shell for the map viewer (2.6 GB before; that image carried three full browsers) |
+| registry | 857 MB / ≈ 360 MB | Node 20 slim, production dependencies, Chromium's headless shell for the keeper and the map viewer (2.6 GB before; that image carried three full browsers) |
 | mock site | 136 MB / ≈ 52 MB | Node 20 Alpine, the site and the bundled server-side check |
 
 Both are multi-stage builds that run as the unprivileged `node` user, listen on `PORT`, and declare a `HEALTHCHECK` on `/healthz`.
@@ -137,7 +137,7 @@ One distribution, both hosts.
 
 **Origin:** the ALB's DNS name.
 - Protocol: **HTTPS only**. With the Host header forwarded, CloudFront checks the ALB's certificate against `$REGISTRY_HOST` or `$SITE_HOST`, which the eu-west-2 certificate covers.
-- **Origin response timeout: 60 s.** A map viewer compile can take 20–40 s.
+- **Origin response timeout: 60 s.** A map viewer compile can take 20–40 s, if the viewer is ever turned on.
 - Keep-alive timeout: 5 s.
 
 **Behaviours**
@@ -181,7 +181,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 - [ ] `https://$REGISTRY_HOST/.well-known/usher-keys.json` lists one key whose `kid` matches your signing key. `https://$SITE_HOST/.well-known/usher-site.json` holds the demo site's key, not Usher's.
 - [ ] `/privacy`, `/robots.txt` and `/.well-known/security.txt` load and name your contact.
 - [ ] **Knock from an MCP client:** add the README's MCP entry with `USHER_REGISTRY_URL=https://$REGISTRY_HOST`, then call `knock` with `{"url":"https://$SITE_HOST/quote/driver"}`. You get a token and a map.
-- [ ] **Viewer on a real URL:** at `https://$REGISTRY_HOST/viewer`, build the map for `https://httpbin.org/forms/post` (a few seconds, well inside the 60 s timeout). A private address such as `http://10.0.0.1/` is refused with a plain reason.
+- [ ] **Viewer off:** the front page has no "Try it" box, and `https://$REGISTRY_HOST/viewer` says the map viewer is switched off.
 - [ ] **Dashboard sign-in:** sign in at `/dashboard` with `https://$SITE_HOST` and its secret key. The sign-in cookie is `Secure`.
 - [ ] **Agent run against the demo site:** this uses recorded model responses (add `--live` for the models) and switches the demo to layout B and back.
 
@@ -219,6 +219,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
+| `USHER_VIEWER` | refused | `1` turns on the public map viewer (`/viewer` and the front page's "Try it"). It is local only for now: its browser follows redirects, and the page's own requests can reach private addresses behind the address check. |
 | `USHER_ALLOW_PRIVATE` | refused | `1` lets the viewer and claim checks reach private addresses: local demos only. |
 | `PORT`, `HOST` | 4200, 0.0.0.0 | Where it listens. |
 
@@ -238,7 +239,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 - **Rate limits per client address:** knocks 120/min, drift reports 60/min, session events 1,200/min, other writes 300/min, reads 600/min. Also per site key on drift and blocked reports, and per visitor and overall on viewer compiles (10/hour, 100/hour). Addresses are used in memory only, never stored.
 - **A hard daily cap** on model spend.
 - **Body limits:** JSON bodies up to 256 KB; form bodies up to 20 KB.
-- **No private addresses:** the viewer and claim checks refuse private and loopback addresses.
+- **No private addresses:** claim checks refuse private and loopback addresses. The map viewer is off in production (see `USHER_VIEWER`).
 - **CORS** only on the endpoints the site script calls.
 - **Headers:**
   - HTML pages send a strict Content Security Policy and `X-Frame-Options: DENY`.

@@ -5,7 +5,7 @@
 //   REGISTRY_PUBLIC_URL=https://<registry host> USHER_SITE_URL=https://<demo site host> npm run dryrun
 //
 // 1. Production mode: the registry starts with NODE_ENV=production (and refuses to without its
-//    settings); health, HSTS, privacy, robots.txt, security.txt; the viewer refuses a private address.
+//    settings); health, HSTS, privacy, robots.txt, security.txt; the map viewer is switched off.
 // 2. The flows: the same registry, allowed to reach the demo site's private address (it is on this
 //    machine), runs the signup flow in a browser (keys, the tag, the domain claim, the dashboard) and
 //    then the end-to-end agent run (npm run e2e:remote) against the public URLs.
@@ -134,7 +134,7 @@ try {
   const own = await (await fetch(`${registryUrl}/.well-known/usher-site.json`)).json();
   check('Usher\'s own site key is served', typeof own.site_key === 'string');
   const viewer = await fetch(`${registryUrl}/viewer`, { method: 'POST', body: new URLSearchParams({ url: `${siteUrl}/quote/driver` }) });
-  check('viewer refuses a private address in production', viewer.status === 422 && /private|local/i.test(await viewer.text()));
+  check('map viewer is switched off in production', viewer.status === 404 && /switched off/.test(await viewer.text()) && !frontText.includes('Try it'));
   const discovery = await (await fetch(`${siteUrl}/.well-known/usher.json`)).json();
   check('demo site points agents at the public registry', discovery.knock_url === `${registryUrl}/knock`);
   const flip = await fetch(`${siteUrl}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'b' }), redirect: 'manual' });

@@ -109,3 +109,14 @@ test('cache headers: static things long, versioned for ever, everything dynamic 
   assert.equal(await cache('/knock', { method: 'POST', body: '{}' }), 'no-store');
   assert.equal(await cache('/sessions/s_x', {}), 'no-store');
 });
+
+test('the map viewer is off unless asked for, and production refuses it', async () => {
+  const front = await (await fetch(`${local}/`)).text();
+  assert.doesNotMatch(front, /Try it|action="\/viewer"/);
+  for (const init of [{}, { method: 'POST', body: new URLSearchParams({ url: 'https://example.com/' }) }]) {
+    const res = await fetch(`${local}/viewer`, init);
+    assert.equal(res.status, 404);
+    assert.match(await res.text(), /switched off/);
+  }
+  assert.match(productionProblems({ ...READY, USHER_VIEWER: '1' }).join('\n'), /map viewer stays off in production/);
+});

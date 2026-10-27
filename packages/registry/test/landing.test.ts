@@ -18,7 +18,7 @@ let registry: RunningRegistry;
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-landing-'));
-  registry = await startRegistry({ storage: await testStorage(dir), siteScript, web: { adminKey: 'admin-test-key' } });
+  registry = await startRegistry({ storage: await testStorage(dir), siteScript, web: { adminKey: 'admin-test-key', viewer: true } });
 });
 after(async () => {
   await registry.close();
