@@ -16,6 +16,7 @@
 //   USHER_TRUST_PROXY=1             take the client address from X-Forwarded-For (behind a proxy)
 //   USHER_KEEPER_INTERVAL_MIN       minutes between keeper runs over every known form (default 360; 0 off)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
+//   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
 //                                   register one site with fixed keys (local development only)
 
@@ -84,6 +85,7 @@ const running = await startRegistry({
   web: {
     // Public addresses only, unless explicitly allowed for a local demo.
     allowPrivate: values['allow-private'],
+    ...(env.USHER_ADMIN_KEY && { adminKey: env.USHER_ADMIN_KEY }),
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(open && { classifier: open }),
   },
@@ -117,6 +119,10 @@ if (env.USHER_DEV_SITE_ORIGIN && env.USHER_DEV_SITE_KEY && env.USHER_DEV_SECRET_
   await running.registry.ensureSite(env.USHER_DEV_SITE_ORIGIN, env.USHER_DEV_SITE_KEY, env.USHER_DEV_SECRET_KEY);
   console.log(`registered ${env.USHER_DEV_SITE_ORIGIN} with the configured development keys`);
 }
+// Usher's own site (the front page's interest form) proves its origin with the file this server
+// serves; re-checked daily like any site's.
+const own = await running.registry.ownSite();
+if (!own.claim) void running.registry.verifySiteFor(own.origin).catch(() => undefined);
 console.log(
   `Usher registry on ${running.url} (listening ${values.host}:${values.port}; storage ${env.DATABASE_URL ? 'postgres' : values.data}; model budget $${budget}/day${spark ? '' : '; no MODEL_API_KEY'}${signingKey ? '; signing key from USHER_SIGNING_KEY' : ''})`,
 );

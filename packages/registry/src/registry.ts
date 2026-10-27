@@ -528,6 +528,19 @@ export class Registry {
     await this.claimForDevelopment(origin);
   }
 
+  /**
+   * Usher's own site: the front page's interest form carries the tag like any other site's.
+   * Registered on first use (its secret key is not kept; "lost your secret key" re-issues one after
+   * a claim check), and claimed by the well-known file the registry serves for itself.
+   */
+  async ownSite(): Promise<Site> {
+    const origin = new URL(this.url).origin;
+    const site = await this.storage.getSite(origin);
+    if (site) return site;
+    await this.registerSite({ origin });
+    return (await this.storage.getSite(origin))!;
+  }
+
   /** Marks a registered origin as claimed without a check (development keys, local seeding). */
   async claimForDevelopment(origin: string): Promise<void> {
     const site = await this.storage.getSite(origin);
