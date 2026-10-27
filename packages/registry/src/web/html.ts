@@ -36,46 +36,89 @@ export function when(date: string | undefined): Raw {
   return html`<time datetime="${date}">${date.replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC')}</time>`;
 }
 
+/**
+ * Looks shared by every page: printed matter for a front door. Paper and navy ink, thin rules
+ * rather than shadows, a serif for headings, one accent (Looma's purple) used sparingly. System
+ * fonts only: pages load nothing from anywhere else.
+ */
+export const THEME = `
+:root { --bg:#f5f2ea; --paper:#fbf9f4; --card:#fffdf8; --ink:#191942; --muted:#5b5f7a; --line:#d9d4c7; --rule:#191942; --accent:#7434d3; --accent-ink:#fff;
+  --button:#191942; --button-ink:#fbf9f4; --pill-bg:transparent; --code:#efeadf; --footer:#191942;
+  --serif:"Iowan Old Style","Charter","Palatino Linotype",Palatino,Georgia,serif;
+  --safe:#0f7a3d; --safe-bg:#e3f1e6; --cons:#8a5a00; --cons-bg:#f8edd2; --user:#a1251b; --user-bg:#f7e2de; }
+@media (prefers-color-scheme: dark) { :root { --bg:#12132c; --paper:#171936; --card:#1b1d3d; --ink:#f1ede3; --muted:#b0afc4; --line:#34365a; --rule:#f1ede3; --accent:#c5a3ff; --accent-ink:#12132c;
+  --button:#f1ede3; --button-ink:#12132c; --code:#22244a; --footer:#0b0c20;
+  --safe:#6fd39a; --safe-bg:#173325; --cons:#f0c05a; --cons-bg:#3a2f14; --user:#f19389; --user-bg:#3b1d1a; } }
+* { box-sizing:border-box; }
+html { background:var(--bg); }
+body { margin:0; font:17px/1.6 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); min-height:100vh; display:flex; flex-direction:column; -webkit-font-smoothing:antialiased; }
+main { flex:1; width:100%; }
+a { color:var(--ink); text-decoration-color:var(--accent); text-decoration-thickness:2px; text-underline-offset:4px; }
+a:hover { color:var(--accent); }
+header.top { border-bottom:1px solid var(--rule); background:var(--bg); }
+header.top .inner, main, footer .inner { max-width:1120px; margin:0 auto; padding-left:24px; padding-right:24px; }
+header.top .inner { display:flex; gap:20px; align-items:center; justify-content:space-between; padding-top:16px; padding-bottom:16px; }
+a.brand { font-family:var(--serif); font-weight:700; font-size:26px; letter-spacing:-0.01em; color:var(--ink); text-decoration:none; }
+a.brand::after { content:"."; color:var(--accent); }
+header.top nav { display:flex; gap:24px; align-items:center; } header.top nav a:not(.button) { color:var(--ink); text-decoration:none; font-size:15px; }
+header.top nav a:not(.button):hover { color:var(--accent); }
+@media (max-width:640px) { header.top nav { gap:16px; } header.top nav .wide { display:none; } }
+h1, h2, h3 { font-family:var(--serif); color:var(--ink); }
+h1 { font-weight:700; line-height:1.08; letter-spacing:-0.015em; }
+h2 { font-size:clamp(26px, 3.2vw, 34px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em; line-height:1.15; }
+h3 { font-size:21px; font-weight:700; margin:0 0 6px; }
+.label { font-family:Inter,system-ui,sans-serif; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.lede { color:var(--muted); }
+.card { background:var(--card); border:1px solid var(--line); border-radius:4px; padding:22px 24px; margin:14px 0; min-width:0; }
+.card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+.grid { display:grid; gap:18px; } .grid > .card { margin:0; }
+pre, code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px; }
+pre { background:var(--code); padding:14px 16px; border-radius:3px; overflow:auto; margin:0 0 12px; border-left:3px solid var(--accent); }
+code { background:var(--code); padding:1px 5px; border-radius:3px; }
+table { width:100%; border-collapse:collapse; font-size:15px; } th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { font-weight:700; color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; border-bottom:1px solid var(--rule); }
+input[type=text], input[type=url], input[type=email], input[type=password], textarea, input:not([type]) { font:inherit; padding:11px 2px; border:0; border-bottom:1.5px solid var(--rule); border-radius:0; background:transparent; color:var(--ink); }
+input:focus, textarea:focus { outline:none; border-bottom-color:var(--accent); }
+button, a.button { display:inline-block; font:inherit; font-weight:600; font-size:15px; padding:12px 22px; border:1.5px solid var(--button); border-radius:2px; background:var(--button); color:var(--button-ink); cursor:pointer; text-decoration:none; align-self:flex-start; }
+button:hover, a.button:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+a.button.ghost, button.secondary { background:transparent; color:var(--ink); }
+a.button.ghost:hover, button.secondary:hover { background:var(--ink); border-color:var(--ink); color:var(--bg); }
+a.small-button { padding:8px 16px; }
+.muted { color:var(--muted); } .small { font-size:14px; }
+.notice { border-left:3px solid var(--accent); } .error { border-left:3px solid var(--user); } .warn { border-left:3px solid var(--cons); }
+footer { background:var(--footer); color:rgba(251,249,244,.62); font-size:14px; margin-top:56px; }
+footer .inner { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto; gap:28px; align-items:start; padding-top:40px; padding-bottom:44px; }
+@media (max-width:760px) { footer .inner { grid-template-columns:1fr; } }
+footer a { color:rgba(251,249,244,.85); text-decoration:none; } footer a:hover { color:#fff; }
+footer .brand { color:#fbf9f4; font-size:24px; } footer .brand::after { color:#c5a3ff; } footer .foot-brand p { margin:8px 0 0; max-width:40ch; }
+footer nav { display:flex; flex-direction:column; gap:8px; }
+.looma { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+.looma small { text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:700; color:rgba(251,249,244,.45); }
+.looma a.wordmark { font-size:30px; font-weight:500; letter-spacing:-0.02em; color:#fff; line-height:1; }
+.looma a.wordmark sup { font-size:10px; margin-left:1px; }
+.looma span { font-size:12.5px; color:rgba(251,249,244,.45); }
+`;
+
+/** Looma's wordmark and link, at the foot of every page. */
+export const LOOMA_FOOTER = `<div class="looma"><small>Built by</small><a class="wordmark" href="https://looma.insure" aria-label="Looma, who built Usher">Looma<sup>®</sup></a><span>Code Apache-2.0 · Specifications CC BY 4.0</span></div>`;
+
 const STYLE = `
-:root { --bg:#fbfbfa; --card:#fff; --ink:#1c2230; --muted:#626a7a; --line:#e3e5ea; --accent:#0b6e6e; --accent-ink:#fff;
-  --safe:#0f7a3d; --safe-bg:#e7f5ec; --cons:#8a5a00; --cons-bg:#fdf3dc; --user:#a1251b; --user-bg:#fbe9e7; --code:#f3f4f6; }
-@media (prefers-color-scheme: dark) { :root { --bg:#14171c; --card:#1b1f26; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2c323c;
-  --accent:#43b3b0; --accent-ink:#0b1416; --safe:#6fd39a; --safe-bg:#173325; --cons:#f0c05a; --cons-bg:#3a2f14; --user:#f19389; --user-bg:#3b1d1a; --code:#232831; } }
-* { box-sizing: border-box; }
-body { margin:0; font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
-header.top { border-bottom:1px solid var(--line); background:var(--card); }
-header.top .inner, main { max-width:1040px; margin:0 auto; padding:14px 20px; }
-header.top .inner { display:flex; gap:20px; align-items:baseline; flex-wrap:wrap; }
-header.top a.brand { font-weight:700; font-size:19px; color:var(--ink); text-decoration:none; }
-header.top nav { display:flex; gap:16px; flex-wrap:wrap; } header.top nav a { color:var(--muted); text-decoration:none; }
-header.top nav a:hover, a { color:var(--accent); }
-main { padding-top:28px; padding-bottom:60px; }
-h1 { font-size:28px; margin:0 0 6px; line-height:1.25; } h2 { font-size:20px; margin:34px 0 12px; } h3 { font-size:16px; margin:20px 0 8px; }
-p.lede { color:var(--muted); margin:0 0 22px; max-width:68ch; }
-.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin:14px 0; }
-.grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-.stat b { display:block; font-size:24px; } .stat span { color:var(--muted); font-size:14px; }
-table { width:100%; border-collapse:collapse; font-size:15px; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { font-weight:600; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.03em; }
-code, pre, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px; }
-code { background:var(--code); padding:1px 5px; border-radius:4px; }
-pre { background:var(--code); padding:14px; border-radius:8px; overflow:auto; max-height:520px; }
-.badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+${THEME}
+main { padding-top:36px; padding-bottom:60px; }
+h1 { font-size:clamp(30px, 4.2vw, 44px); margin:0 0 12px; } h2 { font-size:24px; margin:36px 0 12px; } h3 { font-size:18px; margin:20px 0 8px; }
+p.lede { margin:0 0 24px; max-width:68ch; font-size:18px; }
+.grid { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.stat b { display:block; font-family:var(--serif); font-size:32px; font-weight:700; } .stat span { color:var(--muted); font-size:14px; }
+pre { max-height:520px; }
+.badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12.5px; font-weight:650; white-space:nowrap; }
 .risk-safe, .rule-allow { color:var(--safe); background:var(--safe-bg); } .risk-consequential, .rule-confirm { color:var(--cons); background:var(--cons-bg); }
 .risk-needs_user, .rule-forbid { color:var(--user); background:var(--user-bg); } .badge.plain { color:var(--muted); background:var(--code); }
-.muted { color:var(--muted); } .small { font-size:14px; }
-.notice { border-left:4px solid var(--accent); } .error { border-left:4px solid var(--user); } .warn { border-left:4px solid var(--cons); }
 form.inline { display:flex; gap:10px; flex-wrap:wrap; }
-input[type=text], input[type=url], input[type=password], textarea { font:inherit; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
 input[type=url], input[type=text] { flex:1; min-width:260px; } textarea { width:100%; min-height:96px; }
-button { font:inherit; font-weight:600; padding:9px 16px; border:0; border-radius:8px; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
-button.secondary { background:var(--code); color:var(--ink); }
-a.button { display:inline-block; font-weight:600; padding:9px 16px; border-radius:8px; background:var(--accent); color:var(--accent-ink); text-decoration:none; }
 pre.key { white-space:pre-wrap; word-break:break-all; }
-ol.timeline { list-style:none; padding:0; margin:0; } ol.timeline li { display:grid; grid-template-columns:150px 110px 1fr; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:15px; }
+ol.timeline { list-style:none; padding:0; margin:0; } ol.timeline li { display:grid; grid-template-columns:150px 110px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px; }
 ol.timeline .src { color:var(--muted); }
 details summary { cursor:pointer; color:var(--accent); }
-footer { color:var(--muted); font-size:13px; text-align:center; padding:30px 0; }
 `;
 
 export function page(title: string, body: Raw, options: { nav?: Raw } = {}): string {
@@ -90,7 +133,11 @@ export function page(title: string, body: Raw, options: { nav?: Raw } = {}): str
 <body>
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>
 <main>${body}</main>
-<footer>Usher · maps hold structure, never values · <a href="/privacy">Privacy</a></footer>
+<footer><div class="inner">
+<div class="foot-brand"><a class="brand" href="/">Usher</a><p>The front door for AI agents on web forms. Maps hold structure, never values.</p></div>
+<nav><a href="/dashboard">Site dashboard</a><a href="/sites/new">Get your keys</a><a href="/privacy">Privacy</a></nav>
+${LOOMA_FOOTER}
+</div></footer>
 </body>
 </html>`;
 }

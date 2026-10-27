@@ -2,7 +2,7 @@
 // from the committed reports, and an interest form that carries Usher's own script tag.
 
 import { readFile } from 'node:fs/promises';
-import { esc, html, type Raw } from './html.ts';
+import { LOOMA_FOOTER, THEME, esc, html, type Raw } from './html.ts';
 
 const ROOT = new URL('../../../../', import.meta.url);
 
@@ -127,15 +127,36 @@ export function landingPage(o: LandingOptions): string {
   const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_…" defer></script>`;
   const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['tsx', '/path/to/Usher/packages/registry/src/mcp.ts'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
   const description = `${SENTENCE} ${SUBLINE}`;
+  const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">
-<h1>${SENTENCE}</h1>
+<div class="hero-copy">
+<p class="label">An open protocol for web forms</p>
+<h1>${first}. <em>${rest.join('. ')}</em></h1>
 <p class="lede">${SUBLINE}</p>
+<p class="actions"><a class="button" href="/sites/new">Get your keys</a><a class="button ghost" href="#start">Connect an agent</a></p>
+</div>
+<aside class="ticket" aria-label="An example of what an agent receives when it knocks">
+<div class="ticket-main">
+<p class="label">Admit one agent</p>
+<p class="ticket-title">Car insurance quote</p>
+<dl>
+<div><dt>Agent</dt><dd>key 7f3a…c21, signed</dd></div>
+<div><dt>Map</dt><dd>3 pages, every field by meaning</dd></div>
+<div><dt>House rules</dt><dd>Ask the person before submitting. Five quotes an hour.</dd></div>
+<div><dt>Valid</dt><dd>10 minutes, this site only</dd></div>
+</dl>
+</div>
+<div class="ticket-stub"><span class="label">No.</span><b>0042</b><span>Filled in 2.7 s<br>instead of 14 s</span></div>
+</aside>
 </section>
 
-<section class="grid three" id="how">
-<div class="card"><h3>Map</h3><p>Each form is described once, by what its fields mean and which buttons matter, never what anyone typed.</p></div>
-<div class="card"><h3>Knock</h3><p>An agent says who it is before it fills a form, and gets the map, the site's rules and a short-lived pass.</p></div>
-<div class="card"><h3>Log</h3><p>The site sees what each agent did, step by step, by meaning, while people using the form are never tracked.</p></div>
+<section class="programme" id="how">
+<h2>How it works</h2>
+<ol class="acts">
+<li><span class="act">I</span><div><h3>Map</h3><p>Each form is described once, by what its fields mean and which buttons matter, never what anyone typed.</p></div></li>
+<li><span class="act">II</span><div><h3>Knock</h3><p>An agent says who it is before it fills a form, and gets the map, the site's rules and a short-lived pass.</p></div></li>
+<li><span class="act">III</span><div><h3>Log</h3><p>The site sees what each agent did, step by step, by meaning, while people using the form are never tracked.</p></div></li>
+</ol>
 </section>
 
 ${o.viewerOn ? html`<section id="try"><h2>Try it</h2>
@@ -191,57 +212,62 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <style>${LANDING_STYLE}</style>
 ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o.url)}" data-usher-site-key="${esc(o.siteKey)}" defer></script>\n` : ''}</head>
 <body>
-<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav>${o.viewerOn ? '<a href="#try">Try it</a>' : ''}<a href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
+<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav>${o.viewerOn ? '<a class="wide" href="#try">Try it</a>' : ''}<a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a><a class="button small-button" href="/sites/new">Get your keys</a></nav></div></header>
 <main>${body}</main>
-<footer><nav>
+<footer><div class="inner">
+<div class="foot-brand"><a class="brand" href="/">Usher</a><p>The front door for AI agents on web forms. Maps hold structure, never values.</p></div>
+<nav>
 <a href="/dashboard">Site dashboard</a>
 <a href="${REPOSITORY}">GitHub</a>
 <a href="/spec/">Specifications</a>
 <a href="${REPOSITORY}/blob/main/docs/security.md">Security</a>
 <a href="/privacy">Privacy</a>
 </nav>
-<p>Built by Looma · Code Apache-2.0 · Specifications CC BY 4.0</p></footer>
+${LOOMA_FOOTER}
+</div></footer>
 </body>
 </html>`;
 }
 
 const LANDING_STYLE = `
-:root { --bg:#fbfbfa; --card:#fff; --ink:#1c2230; --muted:#626a7a; --line:#e3e5ea; --accent:#0b6e6e; --accent-ink:#fff; --code:#f3f4f6; --user:#a1251b; }
-@media (prefers-color-scheme: dark) { :root { --bg:#14171c; --card:#1b1f26; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2c323c; --accent:#43b3b0; --accent-ink:#0b1416; --code:#232831; --user:#f19389; } }
-* { box-sizing: border-box; }
-body { margin:0; font:17px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
-a { color:var(--accent); }
-header.top { border-bottom:1px solid var(--line); background:var(--card); }
-header.top .inner, main, footer { max-width:1040px; margin:0 auto; padding:14px 16px; }
-header.top .inner { display:flex; gap:20px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
-header.top a.brand { font-weight:700; font-size:20px; color:var(--ink); text-decoration:none; }
-header.top nav { display:flex; gap:16px; } header.top nav a { color:var(--muted); text-decoration:none; }
-section { margin:0 0 44px; }
-.hero { padding:36px 0 8px; }
-h1 { font-size:clamp(26px, 5vw, 40px); line-height:1.2; margin:0 0 12px; max-width:24ch; letter-spacing:-0.01em; }
-h2 { font-size:22px; margin:0 0 12px; } h3 { font-size:18px; margin:0 0 6px; }
-.lede { color:var(--muted); font-size:20px; margin:0; }
-.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin:12px 0; min-width:0; }
-.card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
-.grid { display:grid; gap:14px; } .grid > .card { margin:0; }
+${THEME}
+section { margin:0 0 80px; }
+main { padding-top:0; }
+.hero { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:56px; align-items:center; padding:64px 0 24px; border-bottom:1px solid var(--rule); padding-bottom:64px; }
+@media (max-width:880px) { .hero { grid-template-columns:1fr; gap:40px; padding-top:36px; padding-bottom:48px; } }
+.hero h1 { font-size:clamp(36px, 5.6vw, 64px); margin:14px 0 20px; max-width:17ch; }
+.hero h1 em { font-style:italic; font-weight:600; color:var(--accent); }
+.hero .lede { font-size:20px; margin:0 0 28px; }
+.actions { display:flex; gap:12px; flex-wrap:wrap; margin:0; }
+.ticket { display:grid; grid-template-columns:minmax(0,1fr) 112px; background:var(--card); border:1.5px solid var(--rule); transform:rotate(-1.5deg); max-width:470px; justify-self:center; position:relative; }
+.ticket::before, .ticket::after { content:""; position:absolute; right:104px; width:18px; height:18px; border-radius:50%; background:var(--bg); border:1.5px solid var(--rule); }
+.ticket::before { top:-10px; clip-path:inset(50% 0 0 0); } .ticket::after { bottom:-10px; clip-path:inset(0 0 50% 0); }
+.ticket-main { padding:22px 22px 20px; }
+.ticket-title { font-family:var(--serif); font-size:26px; font-weight:700; line-height:1.15; margin:4px 0 14px; }
+.ticket dl { margin:0; display:grid; gap:8px; }
+.ticket dl div { display:grid; grid-template-columns:96px 1fr; gap:10px; border-top:1px dotted var(--line); padding-top:8px; }
+.ticket dt { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-top:3px; }
+.ticket dd { margin:0; font-size:14.5px; line-height:1.45; }
+.ticket-stub { border-left:1.5px dashed var(--rule); padding:22px 12px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; gap:8px; }
+.ticket-stub b { font-family:var(--serif); font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
+.ticket-stub span:last-child { font-size:12px; color:var(--muted); line-height:1.35; }
+@media (max-width:480px) { .ticket { grid-template-columns:1fr; transform:none; } .ticket::before, .ticket::after { display:none; } .ticket-stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:12px 22px; } .ticket-stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:2px; } }
+.programme { padding-top:8px; }
+ol.acts { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1.5px solid var(--rule); }
+@media (max-width:820px) { ol.acts { grid-template-columns:1fr; } }
+ol.acts li { display:grid; grid-template-columns:44px 1fr; gap:6px; padding:22px 22px 22px 0; border-bottom:1px solid var(--line); }
+@media (min-width:821px) { ol.acts li + li { border-left:1px solid var(--line); padding-left:22px; } }
+.act { font-family:var(--serif); font-style:italic; font-size:24px; color:var(--accent); line-height:1.1; }
+ol.acts p { margin:0; color:var(--muted); }
 .grid.three { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-.grid.two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+.grid.two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); align-items:start; }
 .grid:not(.two):not(.three) { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-.stat b { display:block; font-size:28px; } .stat span { color:var(--muted); font-size:15px; }
-pre, code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px; }
-pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow-x:auto; margin:0 0 12px; }
-code { background:var(--code); padding:1px 5px; border-radius:4px; }
-table { width:100%; border-collapse:collapse; font-size:15px; } th, td { text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { font-weight:600; color:var(--muted); font-size:13px; }
+.stat { border-top:3px solid var(--ink); }
+.stat b { display:block; font-family:var(--serif); font-size:44px; font-weight:700; line-height:1.1; color:var(--ink); }
+.stat span { color:var(--muted); font-size:15px; }
 @media (max-width:640px) { table, tbody, tr, td { display:block; } thead { display:none; } tr { padding:8px 0; border-bottom:1px solid var(--line); } td { border:0; padding:2px 0; } td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); } }
-form.inline { display:flex; gap:10px; flex-wrap:wrap; }
-form.stack { display:flex; flex-direction:column; gap:12px; max-width:520px; }
-form.stack label { display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:15px; }
-input { font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); min-width:0; }
+form.stack { display:flex; flex-direction:column; gap:18px; max-width:560px; }
+form.stack label { display:flex; flex-direction:column; gap:2px; font-weight:600; font-size:14px; }
+form.stack input { min-width:0; }
 form.inline input[type=url] { flex:1 1 240px; }
-button, a.button { display:inline-block; font:inherit; font-weight:600; padding:10px 18px; border:0; border-radius:8px; background:var(--accent); color:var(--accent-ink); cursor:pointer; text-decoration:none; align-self:flex-start; }
-.muted { color:var(--muted); } .small { font-size:14px; }
-.notice { border-left:4px solid var(--accent); } .error { border-left:4px solid var(--user); }
-footer { color:var(--muted); font-size:14px; border-top:1px solid var(--line); padding-top:20px; padding-bottom:40px; }
-footer nav { display:flex; gap:18px; flex-wrap:wrap; margin-bottom:8px; }
 `;
