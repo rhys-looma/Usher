@@ -99,6 +99,9 @@ footer nav { display:flex; flex-direction:column; gap:8px; }
 .looma span { font-size:12.5px; color:rgba(251,249,244,.45); }
 `;
 
+/** The tab icon: a serif U with Looma's purple point, inline so nothing is fetched. */
+export const FAVICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#191942"/><text x="29" y="46" font-family="Georgia,serif" font-size="42" font-weight="700" fill="#fbf9f4" text-anchor="middle">U</text><circle cx="50" cy="44" r="4.5" fill="#a978ff"/></svg>')}`;
+
 /** Looma's wordmark and link, at the foot of every page. */
 export const LOOMA_FOOTER = `<div class="looma"><small>Built by</small><a class="wordmark" href="https://looma.insure" aria-label="Looma, who built Usher">Looma<sup>®</sup></a><span>Code Apache-2.0 · Specifications CC BY 4.0</span></div>`;
 
@@ -128,6 +131,7 @@ export function page(title: string, body: Raw, options: { nav?: Raw } = {}): str
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} · Usher</title>
+<link rel="icon" href="${FAVICON}">
 <style>${STYLE}</style>
 </head>
 <body>

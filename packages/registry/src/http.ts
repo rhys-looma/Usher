@@ -286,7 +286,10 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
   url ||= listeningUrl(server);
   await registry.signingKey();
-  const keeper = options.keeper ? new Keeper(registry, options.keeper) : undefined;
+  // The keeper's runs also refresh the map viewer's picker; the first refresh warms its cache.
+  const refreshPicker = web ? () => web.viewer.refreshPicker() : undefined;
+  const keeper = options.keeper ? new Keeper(registry, { ...options.keeper, ...(refreshPicker && { afterRun: refreshPicker }) }) : undefined;
+  if (refreshPicker && options.keeper) setTimeout(() => void refreshPicker().catch(() => undefined), 20_000).unref();
   if (keeper) {
     // A drift report from a site script triggers a check of that form, in the background.
     registry.onDrift = (origin, path) => void keeper.check(origin, path).catch(() => undefined);

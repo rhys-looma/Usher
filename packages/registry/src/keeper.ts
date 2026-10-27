@@ -65,6 +65,8 @@ export interface KeeperOptions {
    * (our own demo site) until every request it makes is checked. Unset: every registered site.
    */
   origins?: string[];
+  /** Run after each scheduled pass: the map viewer refreshes its picker's forms. */
+  afterRun?: () => Promise<unknown>;
   now?: () => Date;
 }
 
@@ -185,6 +187,7 @@ export class Keeper {
       if (!this.listed(site.origin)) continue;
       for (const record of await this.currentMaps(site.origin)) results.push(await this.check(site.origin, record.map.path));
     }
+    await this.options.afterRun?.().catch(() => undefined);
     return results;
   }
 

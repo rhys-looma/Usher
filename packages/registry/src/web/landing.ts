@@ -2,7 +2,9 @@
 // from the committed reports, and an interest form that carries Usher's own script tag.
 
 import { readFile } from 'node:fs/promises';
-import { LOOMA_FOOTER, THEME, esc, html, type Raw } from './html.ts';
+import { FAVICON, LOOMA_FOOTER, THEME, esc, html, type Raw } from './html.ts';
+import type { PickerForm } from './picker.ts';
+import { PICKER_STYLE, pickerButtons } from './viewer.ts';
 
 const ROOT = new URL('../../../../', import.meta.url);
 
@@ -86,7 +88,7 @@ const JOURNEY_NAMES: Record<string, string> = {
 function numbersSection(numbers: Numbers): Raw {
   const { rows, generated } = numbers.benchmark;
   const a = numbers.accuracy;
-  return html`<section id="numbers"><h2>Numbers</h2>
+  return html`<section id="numbers" data-reveal><h2>Numbers</h2>
 ${
   rows.length
     ? html`<div class="card"><table>
@@ -116,15 +118,15 @@ export interface LandingOptions {
   /** Usher's own site key, for the tag on the interest form. */
   siteKey?: string;
   numbers: Numbers;
-  /** Whether the map viewer is on: the "Try it" box. */
-  viewerOn?: boolean;
+  /** The forms anyone can map from the "Try it" box. */
+  forms?: PickerForm[];
   /** The viewer box: what was pasted, and a reason if it failed. */
   viewer?: { url: string; error: string };
   interest?: { error?: string };
 }
 
 export function landingPage(o: LandingOptions): string {
-  const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_…" defer></script>`;
+  const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_your_site_key" defer></script>`;
   const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['tsx', '/path/to/Usher/packages/registry/src/mcp.ts'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
   const description = `${SENTENCE} ${SUBLINE}`;
   const [first, ...rest] = SENTENCE.split('. ');
@@ -150,7 +152,7 @@ export function landingPage(o: LandingOptions): string {
 </aside>
 </section>
 
-<section class="programme" id="how">
+<section class="programme" id="how" data-reveal>
 <h2>How it works</h2>
 <ol class="acts">
 <li><span class="act">I</span><div><h3>Map</h3><p>Each form is described once, by what its fields mean and which buttons matter, never what anyone typed.</p></div></li>
@@ -159,19 +161,17 @@ export function landingPage(o: LandingOptions): string {
 </ol>
 </section>
 
-${o.viewerOn ? html`<section id="try"><h2>Try it</h2>
-<form class="inline card" method="post" action="/viewer">
-<input type="hidden" name="from" value="home">
-<input type="url" name="url" required placeholder="https://example.com/contact" value="${o.viewer?.url ?? ''}" aria-label="Address of a page with a form">
-<button type="submit">See the map</button>
-</form>
-${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : html`<p class="small muted">Paste the address of a page with a form. Usher reads its structure, never anything typed, and Muse Spark says what each field means and how risky it is to act on. Nothing is submitted.</p>`}
+${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
+<p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
+${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
+${pickerButtons(o.forms, 'home')}
+<p class="small muted">Run a site? <a href="/dashboard">Sign in</a> and map any page on it.</p>
 </section>` : ''}
 
-<section class="grid two" id="start">
+<section class="grid two" id="start" data-reveal>
 <div class="card"><h2>For sites</h2>
 <p>Add one tag to the pages with your forms:</p>
-<pre>${tag}</pre>
+<pre class="wrap">${tag}</pre>
 <p><a class="button" href="/sites/new">Get your keys</a></p>
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
 <div class="card"><h2>For agents</h2>
@@ -183,7 +183,7 @@ ${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : html`<p cla
 
 ${numbersSection(o.numbers)}
 
-<section id="interest"><h2>I run a site with forms</h2>
+<section id="interest" data-reveal><h2>I run a site with forms</h2>
 ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : ''}
 <form class="card stack" method="post" action="/interest">
 <label>Your site<input type="url" name="site" required placeholder="https://www.example.com"></label>
@@ -209,10 +209,12 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="${FAVICON}">
 <style>${LANDING_STYLE}</style>
+<script src="/site.js" defer></script>
 ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o.url)}" data-usher-site-key="${esc(o.siteKey)}" defer></script>\n` : ''}</head>
 <body>
-<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav>${o.viewerOn ? '<a class="wide" href="#try">Try it</a>' : ''}<a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a><a class="button small-button" href="/sites/new">Get your keys</a></nav></div></header>
+<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a>${o.forms?.length ? '<a href="#try">Try it</a>' : ''}<a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
 <div class="foot-brand"><a class="brand" href="/">Usher</a><p>The front door for AI agents on web forms. Maps hold structure, never values.</p></div>
@@ -231,9 +233,15 @@ ${LOOMA_FOOTER}
 
 const LANDING_STYLE = `
 ${THEME}
-section { margin:0 0 80px; }
+section { margin:0 0 56px; }
+${PICKER_STYLE}
+/* Sections settle into place as they come near (site.js). Content is always present and fully
+   visible: only position moves, so pages without JavaScript and screenshots see everything. */
+[data-reveal] { transition:transform 240ms ease-out; }
+html.reveal [data-reveal]:not(.shown) { transform:translateY(16px); }
+@media (prefers-reduced-motion: reduce) { [data-reveal] { transition:none; } html.reveal [data-reveal]:not(.shown) { transform:none; } }
 main { padding-top:0; }
-.hero { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:56px; align-items:center; padding:64px 0 24px; border-bottom:1px solid var(--rule); padding-bottom:64px; }
+.hero { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:56px; align-items:center; padding:56px 0 44px; border-bottom:1px solid var(--rule); margin-bottom:44px; }
 @media (max-width:880px) { .hero { grid-template-columns:1fr; gap:40px; padding-top:36px; padding-bottom:48px; } }
 .hero h1 { font-size:clamp(36px, 5.6vw, 64px); margin:14px 0 20px; max-width:17ch; }
 .hero h1 em { font-style:italic; font-weight:600; color:var(--accent); }
@@ -252,7 +260,7 @@ main { padding-top:0; }
 .ticket-stub b { font-family:var(--serif); font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
 .ticket-stub span:last-child { font-size:12px; color:var(--muted); line-height:1.35; }
 @media (max-width:480px) { .ticket { grid-template-columns:1fr; transform:none; } .ticket::before, .ticket::after { display:none; } .ticket-stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:12px 22px; } .ticket-stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:2px; } }
-.programme { padding-top:8px; }
+.programme { padding-top:0; }
 ol.acts { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1.5px solid var(--rule); }
 @media (max-width:820px) { ol.acts { grid-template-columns:1fr; } }
 ol.acts li { display:grid; grid-template-columns:44px 1fr; gap:6px; padding:22px 22px 22px 0; border-bottom:1px solid var(--line); }
@@ -270,4 +278,5 @@ form.stack { display:flex; flex-direction:column; gap:18px; max-width:560px; }
 form.stack label { display:flex; flex-direction:column; gap:2px; font-weight:600; font-size:14px; }
 form.stack input { min-width:0; }
 form.inline input[type=url] { flex:1 1 240px; }
+pre.wrap { white-space:pre-wrap; word-break:break-word; }
 `;

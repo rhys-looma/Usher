@@ -4,10 +4,11 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
-import type { IncomingMessage } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { clientAddress, listeningUrl, requestScheme, requestUrl, startRegistry, type RunningRegistry } from '../src/index.ts';
+import type { UsherMap } from '@usher/core';
+import { Viewer, clientAddress, listeningUrl, requestScheme, requestUrl, startRegistry, type RunningRegistry } from '../src/index.ts';
 import { productionProblems, proxyHops } from '../src/production.ts';
 import { testStorage } from './storage-helper.ts';
 
@@ -110,15 +111,48 @@ test('cache headers: static things long, versioned for ever, everything dynamic 
   assert.equal(await cache('/sessions/s_x', {}), 'no-store');
 });
 
-test('the map viewer is off unless asked for, and production refuses it', async () => {
-  const front = await (await fetch(`${local}/`)).text();
-  assert.doesNotMatch(front, /Try it|action="\/viewer"/);
-  for (const init of [{}, { method: 'POST', body: new URLSearchParams({ url: 'https://example.com/' }) }]) {
-    const res = await fetch(`${local}/viewer`, init);
-    assert.equal(res.status, 404);
-    assert.match(await res.text(), /switched off/);
+test('the map viewer: a fixed list for everyone, addresses only from owners, never open in production', async () => {
+  // This registry has no forms configured: the page still loads, and no address is accepted.
+  const page = await (await fetch(`${local}/viewer`)).text();
+  assert.match(page, /Pick a form/);
+  assert.match(page, /Sign in<\/a> to map any page on it/);
+  const typed = await fetch(`${local}/viewer`, { method: 'POST', body: new URLSearchParams({ url: 'https://example.com/' }) });
+  assert.equal(typed.status, 422);
+  assert.match(await typed.text(), /Pick one of the forms listed/);
+  const unknown = await fetch(`${local}/viewer`, { method: 'POST', body: new URLSearchParams({ form: 'nope' }) });
+  assert.equal(unknown.status, 422);
+  for (const value of ['open', '1']) assert.match(productionProblems({ ...READY, USHER_VIEWER: value }).join('\n'), /open map viewer is for local demos only/);
+});
+
+test('the viewer serves a picked form from its cache, and only owners\' own origins', async () => {
+  const dir2 = await mkdtemp(join(tmpdir(), 'usher-picker-'));
+  const storage = await testStorage(dir2);
+  const viewer = new Viewer({ storage, forms: [{ id: 'demo', name: 'Demo', about: 'A form', url: 'https://demo.example/form' }] });
+  const map = { fingerprint: { digest: 'sha256:x' } } as unknown as UsherMap;
+  await storage.putCached('viewer-pick', 'demo', { map, model: 'muse-spark-1.3', compiled_at: '2026-10-28T00:00:00Z' });
+  const picked = await viewer.pick('demo', 'client');
+  assert.ok(picked.ok && picked.cached && picked.map.fingerprint.digest === 'sha256:x', 'from the cache, no browser');
+  const other = await viewer.compile('https://elsewhere.example/', 'client', { owner: 'https://mine.example' });
+  assert.deepEqual([other.ok, !other.ok && other.reason], [false, 'not_your_site']);
+  await viewer.close();
+  await rm(dir2, { recursive: true });
+});
+
+test('the viewer\'s browser never reaches a private address, even from a listed form', async () => {
+  let hits = 0;
+  const server = createServer((_, res) => (hits++, res.end('<form><label>Secret<input name="s"></label></form>')));
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const dir2 = await mkdtemp(join(tmpdir(), 'usher-guard-'));
+  const viewer = new Viewer({ storage: await testStorage(dir2), forms: [{ id: 'inside', name: 'Inside', about: 'A private page', url: `http://127.0.0.1:${(server.address() as { port: number }).port}/` }] });
+  try {
+    const result = await viewer.pick('inside', 'client');
+    assert.equal(result.ok, false);
+    assert.equal(hits, 0, 'the request was stopped in the browser');
+  } finally {
+    await viewer.close();
+    server.close();
+    await rm(dir2, { recursive: true });
   }
-  assert.match(productionProblems({ ...READY, USHER_VIEWER: '1' }).join('\n'), /map viewer stays off in production/);
 });
 
 test('HEAD answers like GET, without a body', async () => {
