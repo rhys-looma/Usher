@@ -81,7 +81,8 @@ npm run finetune:eval -- --baseline                  # the commonest key and ris
 
 It reports:
 
-- key accuracy, risk accuracy, and both together;
+- key accuracy, exact and equivalent, risk accuracy, and both together. Equivalent forgives listed synonyms (`contact.phone` and `contact.mobile`), a full name against a first or last name where the form has one name field, and custom keys whose slugs match once filler words and plurals are removed (`custom.room_count` and `custom.rooms`). The rules are in `packages/core/scripts/key-equivalence.ts`;
+- key misses by kind: synonym, custom wording, custom against vocabulary, or different vocabulary keys;
 - risk under-calls and over-calls, separately, because an under-call means an agent acts where the site wanted its user asked;
 - custom keys outside the vocabulary, and unusable answers;
 - the risk confusion.
@@ -100,7 +101,7 @@ Both models see one element at a time here, and the reference labels came from M
 
 Spark Open's answers change between runs at temperature 0, so it is shown twice: the same 41 elements and prompt, run minutes apart. Its risk misses beyond the two under-calls are over-calls (safe fields marked `needs_user`), which only make an agent ask more. An earlier run on 26 October used the `meta-models/muse-spark-open` alias, before `-1026` was available on our key, and scored 56.1% and 92.7%.
 
-- **Key misses.** Every miss by Muse Spark involves a `custom.*` key on one side or the other, and all but one by Spark Open. These are elements outside the vocabulary named differently (`custom.room_count` against `booking.party_size`), not wrong meanings. Exact-match key accuracy is a harsh measure for custom keys; scoring custom keys by vocabulary-or-not would be fairer.
+- **Key misses.** `npm run keys:disagreements` writes [reports/key-disagreements.md](../reports/key-disagreements.md): every element where Muse Spark's key isn't settled, between runs, per element against whole form, or against the review, grouped by kind. Of Muse Spark's 16 per-element misses, 13 are on one page, GOV.UK's search results, where links to services get a specific custom key from the whole form and `custom.search_result_link` per element. None is two different vocabulary keys: 9 are custom keys worded differently and 7 are a custom key against a vocabulary key (the search buttons, `lookup.vehicle` for "Check the MOT history", "Reject all"). Re-scored with equivalence, the saved predictions give Muse Spark 61.0% either way and Spark Open (`-1026`) 63.4% and 68.3% for its two runs.
 - **The risk under-calls are all search boxes.** The "Search" buttons on ICO's and GOV.UK's site search were labelled `form.submit` and consequential by the teacher, and a safe custom key by both models. Arguably the teacher over-calls here: a site search commits to nothing. The vocabulary could say so, with a `search.submit` key that defaults to safe.
 
 On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
