@@ -1,5 +1,6 @@
 // Pre-deploy dry run: the production images, on the production host names, behind a stand-in for
-// the load balancer, on this machine. Catches anything that assumes one host or plain http.
+// CloudFront and the ALB (proxy.mjs), on this machine. Catches anything that assumes one host,
+// plain http, or a single proxy hop.
 //
 //   REGISTRY_PUBLIC_URL=https://<registry host> USHER_SITE_URL=https://<demo site host> npm run dryrun
 //
@@ -31,7 +32,7 @@ const NET = 'usher-dryrun';
 const ADMIN_KEY = 'dryrun-admin-key-not-for-production-0001';
 const DB = 'postgres://usher:dryrun@postgres:5432/usher';
 // Node reads NODE_EXTRA_CA_CERTS only at startup: the first run makes the certificates, then runs
-// itself again trusting them, with the host names resolved to the stand-in load balancer.
+// itself again trusting them, with the host names resolved to the CloudFront + ALB stand-in.
 if (!process.env.USHER_DRYRUN_CERTS) {
   const dir = mkdtempSync(join(tmpdir(), 'usher-dryrun-'));
   makeCerts(dir);
@@ -98,7 +99,7 @@ try {
   execFileSync('docker', ['build', '-q', '-f', 'Dockerfile.mock-site', '-t', 'usher-dryrun-site', '.'], { cwd: root, stdio: 'ignore' });
   docker('network', 'create', NET);
   docker('run', '-d', '--name', 'usher-dryrun-postgres', '--network', NET, '--network-alias', 'postgres', '-e', 'POSTGRES_USER=usher', '-e', 'POSTGRES_PASSWORD=dryrun', '-e', 'POSTGRES_DB=usher', 'postgres:16-alpine');
-  // The stand-in load balancer answers to both host names, inside Docker and on this machine.
+  // The stand-in for CloudFront and the ALB answers to both host names, inside Docker and on this machine.
   docker('run', '-d', '--name', 'usher-dryrun-proxy', '--network', NET, '--network-alias', registryHost, '--network-alias', siteHost, '-p', '127.0.0.1:443:443',
     '-v', `${certs}:/certs:ro`, '-v', `${join(root, 'scripts/dryrun/proxy.mjs')}:/proxy.mjs:ro`,
     '-e', `ROUTES=${registryHost}=registry:4200,${siteHost}=site:4100`, '-e', 'CERT=/certs/tls.pem', '-e', 'KEY=/certs/tls.key', 'node:20-alpine', 'node', '/proxy.mjs');
@@ -121,6 +122,10 @@ try {
   check('HSTS over https', /max-age=/.test(front.headers.get('strict-transport-security') ?? ''));
   check('front page tag points at the public /usher.js', frontText.includes(`src="${registryUrl}/usher.js"`) && frontText.includes(`data-usher-registry="${registryUrl}"`));
   check('front page links privacy', frontText.includes('href="/privacy"'));
+  const version = await (await fetch(`${registryUrl}/usher/version.json`)).json();
+  const cacheOf = async (path) => (await fetch(`${registryUrl}${path}`)).headers.get('cache-control');
+  check('cache: versioned site script immutable, /usher.js short', (await cacheOf(version.path)) === 'public, max-age=31536000, immutable' && (await cacheOf('/usher.js')) === 'public, max-age=300');
+  check('cache: dynamic pages no-store', front.headers.get('cache-control') === 'no-store' && (await cacheOf('/dashboard')) === 'no-store' && (await cacheOf('/sites/new')) === 'no-store');
   const privacy = await (await fetch(`${registryUrl}/privacy`)).text();
   check('privacy page names the contact', privacy.includes('mailto:security@dryrun.invalid'));
   check('robots.txt allows all', (await (await fetch(`${registryUrl}/robots.txt`)).text()).includes('Allow: /'));
@@ -139,7 +144,7 @@ try {
   // reach it; in AWS it is public and this setting stays off.
   // Seeding outside production also registers the site; its maps are already in the database.
   const { NODE_ENV: __, USHER_SEED: ___, USHER_SEED_ORIGIN: ____, ...flowsEnv } = production;
-  registry({ ...flowsEnv, USHER_TRUST_PROXY: '1', USHER_ALLOW_PRIVATE: '1' });
+  registry({ ...flowsEnv, TRUSTED_PROXY_HOPS: '2', USHER_ALLOW_PRIVATE: '1' });
   await until('registry', healthy(registryUrl));
 
   const { chromium } = await import('playwright');
