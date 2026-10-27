@@ -93,6 +93,9 @@ export interface StoredKey {
   private_jwk: PrivateJwk;
 }
 
+/** Append-only logs. interest: "I run a site with forms" from the front page. */
+export type LogName = 'matches' | 'runs' | 'drift' | 'blocked' | 'interest';
+
 export interface Storage {
   signingKeys(): Promise<StoredKey[]>;
   addSigningKey(key: StoredKey): Promise<void>;
@@ -126,9 +129,9 @@ export interface Storage {
   putCached(kind: string, key: string, value: unknown): Promise<void>;
 
   /** Append-only logs: lookups and their scores, run reports, drift reports, blocked attempts. */
-  appendLog(name: 'matches' | 'runs' | 'drift' | 'blocked', record: object): Promise<void>;
+  appendLog(name: LogName, record: object): Promise<void>;
   /** A log in order, optionally only one origin's entries. */
-  readLog(name: 'matches' | 'runs' | 'drift' | 'blocked', origin?: string): Promise<object[]>;
+  readLog(name: LogName, origin?: string): Promise<object[]>;
 
   close?(): Promise<void>;
 }
@@ -321,14 +324,14 @@ export class FileStorage implements Storage {
     return this.write(this.cacheFile(kind, key), value);
   }
 
-  appendLog(name: 'matches' | 'runs' | 'drift' | 'blocked', record: object): Promise<void> {
+  appendLog(name: LogName, record: object): Promise<void> {
     return this.serial(async () => {
       await mkdir(this.dir, { recursive: true });
       await appendFile(this.file(`${name}.jsonl`), `${JSON.stringify(record)}\n`);
     });
   }
 
-  async readLog(name: 'matches' | 'runs' | 'drift' | 'blocked', origin?: string): Promise<object[]> {
+  async readLog(name: LogName, origin?: string): Promise<object[]> {
     try {
       const text = await readFile(this.file(`${name}.jsonl`), 'utf8');
       const all = text.split('\n').filter(Boolean).map((l) => JSON.parse(l) as { origin?: string });

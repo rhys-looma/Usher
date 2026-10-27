@@ -4,11 +4,10 @@
 import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
 import type { PublicJwk } from '@usher/core';
-import type { MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, SiteClaim, Storage, StoredKey } from './storage.ts';
+import type { LogName, MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, SiteClaim, Storage, StoredKey } from './storage.ts';
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url);
-type LogName = 'matches' | 'runs' | 'drift' | 'blocked';
-const LOG_TABLES: Record<LogName, string> = { matches: 'match_log', runs: 'run_reports', drift: 'drift_reports', blocked: 'blocked_attempts' };
+const LOG_TABLES: Record<LogName, string> = { matches: 'match_log', runs: 'run_reports', drift: 'drift_reports', blocked: 'blocked_attempts', interest: 'interest' };
 
 const iso = (d: Date | string | null | undefined) => (d instanceof Date ? d.toISOString() : (d ?? undefined));
 
