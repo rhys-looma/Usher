@@ -413,13 +413,6 @@
       "reason": "No form to map on https://www.churchill.com/car-insurance."
     },
     {
-      "id": "moneysupermarket-car",
-      "category": "insurance first step",
-      "url": "https://www.moneysupermarket.com/car-insurance/",
-      "status": "skipped",
-      "reason": "HTTP 403 (refuses automated browsers)"
-    },
-    {
       "id": "nationwide-mortgage",
       "category": "finance first step",
       "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/",
@@ -439,13 +432,6 @@
       "url": "https://www.hl.co.uk/investment-services/isa",
       "status": "skipped",
       "reason": "No form to map on https://www.hl.co.uk/investment-services/isa: the page has only a site search."
-    },
-    {
-      "id": "mse-mortgage",
-      "category": "finance first step",
-      "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/",
-      "status": "skipped",
-      "reason": "HTTP 403 (refuses automated browsers)"
     }
   ]
 }
