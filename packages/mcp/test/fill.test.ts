@@ -59,7 +59,7 @@ after(async () => {
   await rm(dir, { recursive: true });
 });
 
-type Reply = { status: string; id: string; decision?: { kind: string; key: string; label: string }; problems?: { key: string; message: string }[]; actions?: { page: string; action: string; key: string }[]; session?: string; used_model?: string[]; page_maps?: string[]; final_url?: string };
+type Reply = { status: string; id: string; decision?: { kind: string; key: string; label: string }; problems?: { key: string; message: string }[]; actions?: { page: string; action: string; key: string }[]; session?: string; used_model?: string[]; final_url?: string };
 const call = async (name: string, args: Record<string, unknown>): Promise<Reply> => {
   const result = await client.callTool({ name, arguments: args });
   assert.ok(!result.isError, JSON.stringify(result.content));
@@ -99,7 +99,6 @@ test('fill, then the user\'s answers and "Get my quote": the three-step quote co
   assert.equal(last.status, 'completed');
   assert.match(last.final_url!, /\/quote\/result$/);
   assert.deepEqual(last.used_model, [], 'every page from the map');
-  assert.deepEqual(last.page_maps, ['/quote/driver', '/quote/vehicle', '/quote/cover'], 'each page\'s own published map');
   const keysTaken = last.actions!.map((a) => `${a.action}:${a.key}`);
   for (const k of ['fill:person.first_name', 'fill:vehicle.registration', 'fill:policy.start_date', 'press:form.submit']) assert.ok(keysTaken.includes(k), k);
   assert.ok(!JSON.stringify(last).includes('Taylor'), 'no values in the reply');

@@ -78,8 +78,7 @@ test('the model chooses the callback form by intent; the next agent finds its ma
 
   const d = await runAgent({ browser, url: `${site.url}/help`, profile, intent: 'contact.callback', registry: await transport('d.json'), user: scriptedUser(profile) });
   assert.equal(d.outcome, 'completed', d.reason);
-  // The site script published the callback form's map (the one whose fingerprint the map has), not the likeliest form's.
-  assert.equal(d.pages[0]!.map_source, 'embedded', 'the page publishes the callback form\'s map');
+  assert.equal(d.pages[0]!.map_source, 'registry', 'found by the callback form\'s fingerprint');
   assert.equal(requests.length, 2, 'no model for agent D');
 
   const session = (await (await fetch(`${registry.url}/sessions/${d.session}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json()) as Session;

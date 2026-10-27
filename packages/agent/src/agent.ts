@@ -30,9 +30,6 @@ import {
   type Scan,
   type Usage,
   type UsherMap,
-  type Risk,
-  UNLABELLED,
-  vocabulary,
 } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import './page-api.ts';
@@ -108,8 +105,7 @@ export type AgentEvent =
 export interface PageRun {
   path: string;
   match: KnockResponse['match']['kind'];
-  /** embedded: the map the page publishes itself; registry: from the knock or a lookup; compiled: read by the model. */
-  map_source: 'embedded' | 'registry' | 'compiled';
+  map_source: 'registry' | 'compiled';
   knock_ms: number;
   model_ms: number;
   fill_ms: number;
@@ -325,17 +321,11 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       let t = performance.now();
       let knock: KnockResponse | null = null;
       let found: UsherMap | null = null;
-      // The site's own map, published in the page, is preferred: it was made from this very form.
-      const own = options.noUsher ? null : await pageMap(page, scan, options.intent);
-      if (own) {
-        found = own.map;
-        fp = own.fingerprint;
-      }
       if (knockUrl) {
-        knock = await options.registry.knock({ url: page.url(), fingerprint: fp, ...(session && { session }), ...(options.intent && { intent: options.intent }), ...(own && { have_map: own.fingerprint.digest }) });
+        knock = await options.registry.knock({ url: page.url(), fingerprint: fp, ...(session && { session }), ...(options.intent && { intent: options.intent }) });
         session = knock.session;
-        if (!own && knock.match.kind === 'exact') found = knock.map;
-      } else if (!own && !options.noUsher) {
+        if (knock.match.kind === 'exact') found = knock.map;
+      } else if (!options.noUsher) {
         const lookup = await options.registry.lookup(page.url(), fp).catch(() => null);
         if (lookup?.match.kind === 'exact') found = lookup.map;
       }
@@ -358,7 +348,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       // Only an exact map is trusted as a plan; anything else is re-read.
       let map: UsherMap | null = found;
       let modelMs = 0;
-      let source: PageRun['map_source'] = own ? 'embedded' : 'registry';
+      let source: PageRun['map_source'] = 'registry';
       if (!map) {
         if (!options.fallback) {
           outcome = 'stopped';
@@ -466,7 +456,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         }
         let confirmedKnock: KnockResponse;
         try {
-          confirmedKnock = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }), ...(own && { have_map: own.fingerprint.digest }) });
+          confirmedKnock = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
         } catch (err) {
           outcome = 'stopped';
           reason = `The site refused "${advance.label}": ${err instanceof Error ? err.message : String(err)}`;
@@ -506,7 +496,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           }
         }
         if (ruleFor(advance) === 'confirm' && knock) {
-          const again = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }), ...(own && { have_map: own.fingerprint.digest }) });
+          const again = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
           await page.evaluate((token) => window.usher.bind(token), again.token);
           await page.evaluate((key) => window.usher.confirm(key), advance.key);
         }
@@ -585,34 +575,4 @@ export function summaryLine(r: RunResult): string {
   const s = (n: number) => `${(n / 1000).toFixed(2)}s`;
   const exact = r.pages.filter((p) => p.map_source === 'registry').length;
   return `usher agent: ${r.outcome}${r.reason ? ` (${r.reason})` : ''} · ${r.pages.length} pages in ${s(r.total_ms)} (knock ${s(r.knock_ms)}, model ${s(r.model_ms)}, fill ${s(r.fill_ms)}) · maps from registry ${exact}/${r.pages.length} · ${r.usage.prompt_tokens}/${r.usage.completion_tokens} tokens · $${r.cost_usd.toFixed(4)} · ${r.transport}`;
-}
-
-const RANK: Record<Risk, number> = { safe: 0, consequential: 1, needs_user: 2 };
-const DEFAULT_RISK = new Map(vocabulary.entries.map((e) => [e.key, e.default_risk]));
-
-/**
- * The map the page publishes (<script type="application/usher+json" data-usher-map>), if it is for
- * one of the page's forms as the agent sees it, and every required element has a key. A page can
- * raise a risk but never lower one below its key's default.
- */
-async function pageMap(page: Page, scan: Scan, intent?: string): Promise<{ map: UsherMap; fingerprint: Awaited<ReturnType<typeof fingerprint>> } | null> {
-  const text = await page.locator('script[type="application/usher+json"][data-usher-map]').first().textContent({ timeout: 200 }).catch(() => null);
-  let map: UsherMap;
-  try {
-    map = JSON.parse(text ?? 'null') as UsherMap;
-  } catch {
-    return null;
-  }
-  if (!map?.fingerprint?.digest || !Array.isArray(map.fields) || !Array.isArray(map.actions)) return null;
-  for (const form of candidateForms(scan.forms, intent)) {
-    const fp = await fingerprint(form.elements);
-    if (fp.digest !== map.fingerprint.digest) continue;
-    if (map.fields.some((f) => f.required && UNLABELLED.test(f.key))) return null;
-    const floor = <T extends MapField | MapAction>(e: T): T => {
-      const least = DEFAULT_RISK.get(e.key);
-      return least && RANK[least] > RANK[e.risk] ? { ...e, risk: least } : e;
-    };
-    return { map: { ...map, fields: map.fields.map(floor), actions: map.actions.map(floor) }, fingerprint: fp };
-  }
-  return null;
 }
