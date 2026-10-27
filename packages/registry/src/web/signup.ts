@@ -4,7 +4,7 @@
 // for site owners: plain words, none of the protocol's own.
 
 import type { Raw } from './html.ts';
-import { html, page } from './html.ts';
+import { html, page, siteClaims } from './html.ts';
 import { claimInstructions } from '../registry.ts';
 
 export const STEPS = ['Your keys', 'The tag', 'Prove it\'s yours', 'Done'] as const;
@@ -25,6 +25,7 @@ export function startPage(o: { origin?: string; error?: Raw | string } = {}): st
     html`${STEP_STYLE}${steps(1)}
 <h1>Make your forms agent-ready</h1>
 <p class="lede">Enter your site's address. You'll get two keys, add one tag to your pages, and show that the site is yours. No password, no account.</p>
+${siteClaims()}
 ${o.error ? html`<div class="card error">${o.error}</div>` : ''}
 <form class="card" method="post" action="/sites/new">
 <label class="block">Your site's address<input type="url" name="origin" required placeholder="https://www.example.com" value="${o.origin ?? ''}"></label>
