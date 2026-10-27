@@ -112,7 +112,7 @@ With a map, an agent spends no model tokens on the form at all. The map is built
 | [spec/](spec/) | The specifications, with JSON Schemas: [map](spec/map.md), [vocabulary](spec/vocabulary.md), [knock](spec/knock.md) (including Web Bot Auth and domain claims), [policy](spec/policy.md), [plan](spec/plan.md) |
 | [DEPLOY.md](DEPLOY.md) | Running a registry: Docker, Postgres, keys, configuration |
 | [docs/security.md](docs/security.md) | Threats, controls, and what Usher does not do |
-| [docs/finetune.md](docs/finetune.md) | The per-element fine-tuning set and how a small model would be tuned and scored |
+| [docs/finetune.md](docs/finetune.md) | A small labeller: the short list and retrieval few-shot (no training, measured), the per-element dataset, and how Muse Glimmer would be tuned |
 | [reports/](reports/) | [Benchmark](reports/benchmark.md), [drift and rebuild](reports/drift-demo.md), [map accuracy](reports/accuracy.md), [classifier agreement](reports/classifier-agreement.md) |
 | [HACKATHON.md](HACKATHON.md) | Build log and the Meta models used |
 

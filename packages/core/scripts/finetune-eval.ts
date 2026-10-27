@@ -6,14 +6,15 @@
 //   npm run finetune:eval -- --model muse-spark-1.3         live, Meta Model API (about $0.002 an element)
 //   npm run finetune:eval -- --model meta-models/muse-spark-open --provider baseten
 //   npm run finetune:eval -- --baseline                     the commonest key and risk per control in train
-//   add --no-shortlist to a live run for the prompt without candidates (before the short list)
+//   add --no-shortlist to a live run for the prompt without candidates (before the short list),
+//   or --retrieval to add the five nearest labelled examples from train to each element
 //
 // Options: --data data/finetune, --save preds.jsonl (write the predictions), --report file.md.
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { costUsd, modelApi, parseJsonContent, type ChatRequest } from '../src/index.ts';
+import { ExampleIndex, costUsd, exampleLine, modelApi, parseJsonContent, type ChatRequest } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
 import { systemPrompt, withCandidates, type Example } from './finetune-shared.ts';
 import { compareKeys, singleNameField, type KeyComparison } from './key-equivalence.ts';
@@ -27,6 +28,8 @@ const { values } = parseArgs({
     baseline: { type: 'boolean', default: false },
     // The prompt before the short list, for before-and-after comparisons.
     'no-shortlist': { type: 'boolean', default: false },
+    // Retrieval few-shot: the five nearest labelled examples from train go in with each element.
+    retrieval: { type: 'boolean', default: false },
     save: { type: 'string' },
     report: { type: 'string' },
   },
@@ -70,7 +73,13 @@ if (values.predictions) {
 } else if (values.model) {
   const chat = modelApi({ provider: values.provider as 'meta' | 'baseten' });
   const useShortlist = !values['no-shortlist'];
-  const system = await systemPrompt({ shortlist: useShortlist });
+  const system = await systemPrompt({ shortlist: useShortlist, retrieval: values.retrieval });
+  const index = values.retrieval ? new ExampleIndex(train.map((t) => ({ label: t.input.label, kind: t.input.kind, control: t.input.control, key: t.output.key, risk: t.output.risk }))) : null;
+  const withExamples = (input: Example['input']): Example['input'] => {
+    if (!index) return input;
+    const options = input.options?.replace(/^\d+ options?: /, '').split(', ') ?? [];
+    return { ...input, examples: index.nearest({ label: input.label, kind: input.kind, control: input.control, options }, 5).map(exampleLine) };
+  };
   const schema = {
     type: 'object',
     additionalProperties: false,
@@ -88,7 +97,7 @@ if (values.predictions) {
           temperature: 0,
           messages: [
             { role: 'system', content: system },
-            { role: 'user', content: JSON.stringify(useShortlist ? withCandidates(ex.input) : ex.input) },
+            { role: 'user', content: JSON.stringify(withExamples(useShortlist ? withCandidates(ex.input) : ex.input)) },
           ],
           response_format: { type: 'json_schema', json_schema: { name: 'element_label', strict: true, schema } },
         };
@@ -104,7 +113,7 @@ if (values.predictions) {
       }
     }),
   );
-  source = `${values.model} (${values.provider}), live, ${useShortlist ? 'with the short list' : 'no short list'}`;
+  source = `${values.model} (${values.provider}), live, ${useShortlist ? 'with the short list' : 'no short list'}${values.retrieval ? ', with retrieval' : ''}`;
 } else {
   console.error('Give --predictions <file>, --model <id> [--provider baseten], or --baseline.');
   process.exit(1);

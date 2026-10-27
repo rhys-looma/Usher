@@ -13,6 +13,7 @@ export * from './policy.ts';
 export * from './compile/model.ts';
 export * from './compile/prompt.ts';
 export * from './compile/shortlist.ts';
+export * from './compile/retrieval.ts';
 export * from './compile/choose.ts';
 export * from './forms.ts';
 export * from './compile/log.ts';

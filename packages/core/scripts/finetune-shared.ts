@@ -17,6 +17,8 @@ export interface ElementInput {
   neighbours: { before: string[]; after: string[] };
   /** The short list: the closest vocabulary keys, best first, as "key: meaning". */
   candidates?: string[];
+  /** Retrieval few-shot: the nearest labelled examples from training, as "control: label → key (risk)". */
+  examples?: string[];
 }
 
 export interface Example {
@@ -38,7 +40,7 @@ export function withCandidates(input: ElementInput): ElementInput {
  * The system prompt a small model gets: the task, and the vocabulary as key, kind, default risk.
  * With the short list, the element carries candidates and the model chooses among them.
  */
-export async function systemPrompt(options: { shortlist?: boolean } = {}): Promise<string> {
+export async function systemPrompt(options: { shortlist?: boolean; retrieval?: boolean } = {}): Promise<string> {
   const vocab = JSON.parse(await readFile(new URL('../../../spec/vocabulary.json', import.meta.url), 'utf8')) as { entries: { key: string; kind: string; default_risk: string }[] };
   const keys = options.shortlist
     ? [
@@ -50,5 +52,6 @@ export async function systemPrompt(options: { shortlist?: boolean } = {}): Promi
         'You label one element of a web form for Usher. Answer with JSON: {"key": "<vocabulary key>", "risk": "safe" | "consequential" | "needs_user"}.',
         "Use the most specific key that fits; risk is at least the key's default. When no key fits, use custom.<snake_case_name>, with the risk the element deserves. Vocabulary (key, kind, default risk):",
       ];
-  return [...keys, ...vocab.entries.map((e) => `${e.key} ${e.kind} ${e.default_risk}`)].join('\n');
+  const retrieval = options.retrieval ? ['The element also comes with examples: the nearest labelled elements from other sites, as "control: label → key (risk)". Where an example means the same thing, give the same key and risk.'] : [];
+  return [...keys, ...retrieval, ...vocab.entries.map((e) => `${e.key} ${e.kind} ${e.default_risk}`)].join('\n');
 }

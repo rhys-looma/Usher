@@ -1,17 +1,20 @@
-// npm run compile -- <url> [--out file] [--form n] [--path pattern] [--classify]
+// npm run compile -- <url> [--out file] [--form n] [--path pattern] [--intent i] [--classify] [--open] [--examples train.jsonl]
 //
 // Compiles the form on a page into an Usher map with Muse Spark, prints the map (or writes it
-// to --out) and a one-line cost and latency summary.
+// to --out) and a one-line cost and latency summary. --open labels with Muse Spark Open instead;
+// --examples adds retrieval few-shot to Spark Open's prompts (the labeller with --open, and the
+// classifier), from a file in the fine-tuning export's format.
 
 import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { CompileError, compileUrl, summary } from './compile.ts';
 import { loadDotEnv } from './env.ts';
 import { compilerModel, modelApi, openModel } from './model.ts';
+import { ExampleIndex } from './retrieval.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { out: { type: 'string' }, form: { type: 'string' }, path: { type: 'string' }, classify: { type: 'boolean', default: false } },
+  options: { out: { type: 'string' }, form: { type: 'string' }, path: { type: 'string' }, intent: { type: 'string' }, classify: { type: 'boolean', default: false }, open: { type: 'boolean', default: false }, examples: { type: 'string' } },
 });
 const url = positionals[0];
 if (!url) {
@@ -20,14 +23,17 @@ if (!url) {
 }
 
 loadDotEnv();
+const examples = values.examples ? await ExampleIndex.fromFile(values.examples) : undefined;
 try {
   const result = await compileUrl(url, {
-    chat: modelApi(),
-    model: compilerModel(),
+    chat: modelApi(values.open ? { provider: 'baseten' } : {}),
+    model: values.open ? openModel() : compilerModel(),
+    ...(values.open && examples && { examples }),
+    ...(values.intent !== undefined && { intent: values.intent }),
     ...(values.form !== undefined && { formIndex: Number(values.form) }),
     ...(values.path !== undefined && { path: values.path }),
     // A second opinion on risk from Muse Spark Open on Baseten.
-    ...(values.classify && { classifier: { chat: modelApi({ provider: 'baseten' }), model: openModel() } }),
+    ...(values.classify && { classifier: { chat: modelApi({ provider: 'baseten' }), model: openModel(), ...(examples && { examples }) } }),
   });
   const json = `${JSON.stringify(result.map, null, 2)}\n`;
   if (values.out) await writeFile(values.out, json);

@@ -13,6 +13,7 @@ import { compilerModel, costUsd, parseJsonContent, type ChatFn, type ChatMessage
 import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt } from './prompt.ts';
 import { classifierRequest, classifyRisks, reconcile, type RiskFlag } from './classify.ts';
 import { chooseForm, chooseRequest, type FormChoice } from './choose.ts';
+import { examplesForForm, type ExampleIndex } from './retrieval.ts';
 import { candidateForms, mainForm } from '../forms.ts';
 
 /** Default compiler log folder: data/compiler-log at the repository root (gitignored). */
@@ -38,7 +39,9 @@ export interface CompileOptions {
   leadsTo?: string;
   now?: () => Date;
   /** A second opinion on risk from an open-weights model; the stricter risk is kept. */
-  classifier?: { chat: ChatFn; model: string };
+  classifier?: { chat: ChatFn; model: string; examples?: ExampleIndex };
+  /** Retrieval few-shot: labelled examples to show the model, nearest to each element. */
+  examples?: ExampleIndex;
 }
 
 export type ClassifierOutcome =
@@ -150,7 +153,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     {
       role: 'user',
       content: [
-        { type: 'text', text: userPrompt(extraction) },
+        { type: 'text', text: userPrompt(extraction, options.examples ? examplesForForm(options.examples, form.elements.map((e) => ({ label: e.label, kind: e.kind, control: e.control, ...(e.options && { options: e.options.items.map((o) => o.label) }) }))) : []) },
         { type: 'image_url', image_url: { url: `data:image/png;base64,${image}` } },
       ],
     },
@@ -224,7 +227,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     const labelled = validation.labels.elements;
     const els = form.elements.filter((e) => labelled.some((l) => l.id === e.id));
     try {
-      const c = await classifyRisks(options.classifier.chat, options.classifier.model, validation.labels.form.purpose, els);
+      const c = await classifyRisks(options.classifier.chat, options.classifier.model, validation.labels.form.purpose, els, options.classifier.examples);
       const { risks, flags, agreement } = reconcile(
         labelled.map((l) => ({ id: l.id, key: l.key, label: els.find((e) => e.id === l.id)!.label, risk: l.risk })),
         c.opinions,
@@ -232,7 +235,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
       validation.labels.elements = labelled.map((l) => ({ ...l, risk: risks.get(l.id)! }));
       classifier = { model: c.model, agreement, flags, usage: c.usage, cost_usd: c.cost_usd, latency_ms: c.latency_ms };
       if (logDir) {
-        await appendLog(logDir, { ts: now().toISOString(), model: c.model, url: scan.url, fingerprint: fp.digest, task: 'classify', request: classifierRequest(c.model, validation.labels.form.purpose, els), opinions: c.opinions, usage: c.usage, latency_ms: c.latency_ms, cost_usd: c.cost_usd, agreement, flags }, now());
+        await appendLog(logDir, { ts: now().toISOString(), model: c.model, url: scan.url, fingerprint: fp.digest, task: 'classify', request: classifierRequest(c.model, validation.labels.form.purpose, els, options.classifier.examples), opinions: c.opinions, usage: c.usage, latency_ms: c.latency_ms, cost_usd: c.cost_usd, agreement, flags }, now());
       }
     } catch (err) {
       classifier = { model: options.classifier.model, error: err instanceof Error ? err.message : String(err) };
