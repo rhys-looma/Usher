@@ -2,7 +2,7 @@
 // from the committed reports, and an interest form that carries Usher's own script tag.
 
 import { readFile } from 'node:fs/promises';
-import { FAVICON, LOOMA_FOOTER, THEME, esc, html, type Raw } from './html.ts';
+import { FAVICON, LOOMA_FOOTER, THEME, esc, html, siteClaims, type Raw } from './html.ts';
 import type { PickerForm } from './picker.ts';
 import { PICKER_STYLE, pickerButtons } from './viewer.ts';
 
@@ -10,6 +10,8 @@ const ROOT = new URL('../../../../', import.meta.url);
 
 export const SENTENCE = 'Usher is the front door for AI agents on web forms. Agents knock, get in fast, and follow the house rules.';
 export const SUBLINE = 'More of the web, open to agents.';
+/** The meta and OpenGraph description. */
+export const DESCRIPTION = 'Usher is the front door for AI agents on web forms: the control layer for sites, one call for agents, no integration required.';
 export const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 
 interface BenchmarkRow {
@@ -128,7 +130,7 @@ export interface LandingOptions {
 export function landingPage(o: LandingOptions): string {
   const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_your_site_key" defer></script>`;
   const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['-y', '@usher-run/mcp'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
-  const description = `${SENTENCE} ${SUBLINE}`;
+  const description = DESCRIPTION;
   const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">
 <div class="hero-copy">
@@ -169,16 +171,16 @@ ${pickerButtons(o.forms, 'home')}
 </section>` : ''}
 
 <section class="grid two" id="start" data-reveal>
-<div class="card"><h2>For sites</h2>
-<p>Add one tag to the pages with your forms:</p>
+<div class="card"><p class="label">For sites</p><h2>The control layer for AI agents on your forms.</h2>
+<p class="lede">No integration required.</p>
 <pre class="wrap">${tag}</pre>
+${siteClaims()}
 <p><a class="button" href="/sites/new">Get your keys</a></p>
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
-<div class="card"><h2>For agents</h2>
-<p>Add one MCP server to your agent's configuration:</p>
+<div class="card"><p class="label">For agents</p><h2>One call fills the form.</h2>
+<p class="lede">No signup. Your agent's key is its identity.</p>
 <pre>${mcp}</pre>
-<p><b>No signup. Your agent's key is its identity.</b></p>
-<p class="small muted">The server runs beside your agent and holds its key, made on first use. It gives the agent <code>knock</code>, <code>get_map</code> and <code>get_plan</code>.</p></div>
+<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p></div>
 </section>
 
 ${numbersSection(o.numbers)}
