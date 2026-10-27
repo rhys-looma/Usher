@@ -136,7 +136,7 @@ try {
   const viewer = await fetch(`${registryUrl}/viewer`, { method: 'POST', body: new URLSearchParams({ url: `${siteUrl}/quote/driver` }) });
   check('map viewer is switched off in production', viewer.status === 404 && /switched off/.test(await viewer.text()) && !frontText.includes('Try it'));
   const shared = await fetch(`${registryUrl}/maps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"map":{}}' });
-  check('agents\' maps are not accepted in production', shared.status === 403 && (await shared.json()).error === 'maps_closed');
+  check('agents\' maps are checked before they are stored (an unsigned, empty map is refused)', shared.status >= 400 && shared.status < 500);
   const discovery = await (await fetch(`${siteUrl}/.well-known/usher.json`)).json();
   check('demo site points agents at the public registry', discovery.knock_url === `${registryUrl}/knock`);
   const flip = await fetch(`${siteUrl}/__admin/variant`, { method: 'POST', body: new URLSearchParams({ variant: 'b' }), redirect: 'manual' });

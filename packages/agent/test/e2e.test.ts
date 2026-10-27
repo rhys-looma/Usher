@@ -1,6 +1,7 @@
 // End to end on the mock site. An unknocked API call is refused. Agent A (Muse Spark) finds no
 // maps, reads each page, completes the quote and shares the maps; the log shows every action by
-// semantic key. Agent B (Muse Spark Open, its own key, over MCP) knocks and runs on those maps,
+// semantic key. Agent C, with its own key, can't see them until verified: it builds its own, agrees
+// and completes, which verifies them. Agent B (Muse Spark Open, its own key, over MCP) runs on them,
 // faster. In layout B the site script reports drift and Agent B re-reads the pages with Spark Open.
 
 import { test, before, after } from 'node:test';
@@ -113,6 +114,22 @@ test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote an
   assert.ok(!actions.some((a) => a.includes('person.claims.date')), 'conditional claim fields skipped');
   const json = JSON.stringify(log);
   for (const value of ['Sam', 'Taylor', 'sam@example.com', 'WR14 1AA', 'AB12CDE', '1988-04-02', '07700 900123', '1 High Street']) assert.ok(!json.includes(value), `log holds ${value}`);
+});
+
+test('Agent C (Muse Spark, its own key) can\'t see A\'s unverified maps, builds its own, agrees and completes: the maps are verified', async () => {
+  const user = scriptedUser(profile);
+  const transport = await httpTransport(registry.url, join(dir, 'agent-c-key.json'));
+  const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user, fallback: spark });
+  await transport.close();
+  assert.equal(run.outcome, 'completed', run.reason);
+  assert.deepEqual(run.pages.map((p) => p.match), ['none', 'none', 'none'], 'Agent A\'s maps were private to Agent A');
+  const maps = await registry.registry.storage.mapsForOrigin(site.url);
+  assert.equal(maps.length, 3);
+  for (const r of maps) {
+    assert.equal(r.verification?.by, 'agent', r.map.path);
+    assert.notEqual(r.verification?.verifier, r.submitted_by, 'verified by a second identity');
+    assert.equal(r.map.provenance.verified, true);
+  }
 });
 
 test('Agent B (Muse Spark Open, own key, MCP) knocks and runs on the maps Agent A built: no model, faster', async () => {

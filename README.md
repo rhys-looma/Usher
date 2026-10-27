@@ -97,7 +97,7 @@ The same journeys three ways, five runs each, with model latency replayed from r
 | Demo quote site, 3 steps | 14.22 s · $0.031 (Muse Spark) / 14.01 s · $0.026 (Spark Open) | 2.68 s / 2.71 s · $0 | 2.69 s / 2.69 s · $0 |
 | httpbin.org/forms/post, 1 page | 11.12 s · $0.011 / 9.56 s · $0.013 | 2.53 s / 2.58 s · $0 | 2.54 s / 2.58 s · $0 |
 
-With a map, an agent spends no model tokens on the form at all. The map is built once, by the first agent or the registry, and kept fresh by the keeper.
+With a map, an agent spends no model tokens on the form at all. The map is built once, by the registry's keeper or by agents, and kept fresh by the keeper. An agent's map serves only that agent until it is verified: a second, independent agent builds the same map and completes the form, or the keeper rebuilds the form and gets the same result. Then it serves every agent.
 
 ## Documents
 

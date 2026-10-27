@@ -160,7 +160,7 @@ test('maps: get by digest, look up for a page, submit from an agent', async () =
   assert.equal(lookup.match.kind, 'exact');
 
   const mine: UsherMap = { ...maps[0]!, origin: 'http://localhost:4102', provenance: { source: 'agent', compiler: 'muse-spark-1.3', created_at: new Date().toISOString(), verified: true } };
-  assert.deepEqual(await client.submitMap(mine), { digest: mine.fingerprint.digest, stored: true });
+  assert.deepEqual(await client.submitMap(mine), { digest: mine.fingerprint.digest, stored: true, verified: false });
   assert.deepEqual(await client.submitMap(mine), { digest: mine.fingerprint.digest, stored: false });
   const stored = (await running.registry.storage.mapsForOrigin('http://localhost:4102'))[0]!;
   assert.equal(stored.submitted_by, agent.id);
@@ -255,7 +255,7 @@ test('edges: the agent that shared a map can add where its actions lead', async 
   await client.submitMap(mine);
   const withEdge = { ...mine, actions: mine.actions.map((a) => ({ ...a, leads_to: '/quote/vehicle' })) };
   const other = new RegistryClient(running.url, (await generateAgentIdentity()).identity);
-  assert.deepEqual(await other.submitMap(withEdge), { digest: mine.fingerprint.digest, stored: false }, 'not from another agent');
+  assert.deepEqual(await other.submitMap(withEdge), { digest: mine.fingerprint.digest, stored: false, agreed: true }, 'not from another agent: its keys only count as agreement');
   assert.deepEqual(await client.submitMap(withEdge), { digest: mine.fingerprint.digest, stored: false, edges: true });
   const stored = await running.registry.storage.getMap(origin, mine.fingerprint.digest);
   assert.equal(stored!.map.actions[0]!.leads_to, '/quote/vehicle');

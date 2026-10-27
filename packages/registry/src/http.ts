@@ -173,7 +173,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         return send(res, await registry.knock(body, via));
       }
       if (route === 'GET /plans') return send(res, await registry.getPlan(url.searchParams.get('url')));
-      if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req)));
+      if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req), req.headers.authorization));
       if (route === 'POST /maps') {
         const { body, via } = await signed();
         return send(res, await registry.submitMap(body, via));
@@ -234,8 +234,10 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
   url?: string;
   threshold?: number;
-  /** Store and share maps agents submit (default true; production turns it off). */
+  /** Store maps agents submit, private to each agent until verified (default true). */
   acceptMaps?: boolean;
+  /** Maps one agent may submit per hour (default 20). */
+  submitLimit?: number;
   /** Fetching agents' key directories: allow http:// and private hosts (local development). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
   /** Checking domain claims: allow private origins (local development), and test doubles. */
@@ -270,6 +272,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.directories && { directories: options.directories }),
     ...(options.claims && { claims: options.claims }),
     ...(options.acceptMaps !== undefined && { acceptMaps: options.acceptMaps }),
+    ...(options.submitLimit !== undefined && { submitLimit: options.submitLimit }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
@@ -293,6 +296,8 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   if (keeper) {
     // A drift report from a site script triggers a check of that form, in the background.
     registry.onDrift = (origin, path) => void keeper.check(origin, path).catch(() => undefined);
+    // A new agent map on a site the keeper visits: rebuilt and compared, in the background.
+    registry.onUnverifiedMap = (record) => void keeper.verifyAgentMap(record).catch(() => undefined);
     keeper.start();
   }
   // Keep each site's sessions only as long as its policy says, and re-check domain claims daily.

@@ -11,7 +11,7 @@ import type { Browser } from 'playwright';
 import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
 import type { MapRecord, Storage } from '../storage.ts';
-import { html, page, riskBadge, when, type Raw } from './html.ts';
+import { html, page, riskBadge, verificationNote, when, type Raw } from './html.ts';
 import type { PickerForm } from './picker.ts';
 
 export type ViewerFailure = 'invalid_url' | 'private_address' | 'unreachable' | 'http_error' | 'timeout' | 'no_form' | 'no_model' | 'labels_invalid' | 'rate_limited' | 'budget' | 'unknown_form' | 'not_your_site';
@@ -248,6 +248,7 @@ export function mapPage(map: UsherMap, info: { source: string; record?: MapRecor
     html`<p class="muted small"><a href="/viewer">Map viewer</a> · ${map.origin}${map.path}</p>
 <h1>${map.form.purpose}</h1>
 <p class="lede">${map.form.intent ? html`Intent <code>${map.form.intent}</code> · ` : ''}${map.fields.length} fields, ${map.actions.length} actions · ${info.source}</p>
+${info.record && verificationNote(info.record) ? html`<div class="card ${info.record.verification ? 'notice' : 'warn'}">${verificationNote(info.record)}</div>` : ''}
 ${drift ? html`<div class="card warn"><b>Drifted.</b> The live form no longer matches this map (similarity ${drift.score}), reported ${when(drift.at)}.</div>` : ''}
 ${info.flags?.length ? html`<div class="card warn"><b>Second opinion.</b> The open-weights classifier disagreed on ${info.flags.length} element${info.flags.length === 1 ? '' : 's'}; the stricter risk was kept.<ul class="small">${info.flags.map((f) => html`<li>${f.label} (<code>${f.key}</code>): labeller ${f.labeller}, classifier ${f.classifier}, kept ${riskBadge(f.kept)}. ${f.reason}</li>`)}</ul></div>` : ''}
 <h2>Fields</h2>
