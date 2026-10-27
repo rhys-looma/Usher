@@ -108,6 +108,9 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
   };
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    // HEAD is GET without a body: Node already leaves the body out of a HEAD response, so every
+    // route answers it (uptime checks and curl -I use it).
+    if (req.method === 'HEAD') req.method = 'GET';
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Nothing is cached unless its route says so (the site script, keys, specifications, images):
     // CloudFront and browsers follow these headers.

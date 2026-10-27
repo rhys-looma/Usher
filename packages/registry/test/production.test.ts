@@ -120,3 +120,13 @@ test('the map viewer is off unless asked for, and production refuses it', async 
   }
   assert.match(productionProblems({ ...READY, USHER_VIEWER: '1' }).join('\n'), /map viewer stays off in production/);
 });
+
+test('HEAD answers like GET, without a body', async () => {
+  for (const path of ['/', '/privacy', '/robots.txt', '/healthz']) {
+    const [head, get] = await Promise.all([fetch(`${local}${path}`, { method: 'HEAD' }), fetch(`${local}${path}`)]);
+    assert.equal(head.status, get.status, path);
+    assert.equal(head.headers.get('content-type'), get.headers.get('content-type'), path);
+    assert.equal(head.headers.get('cache-control'), get.headers.get('cache-control'), path);
+    assert.equal((await head.arrayBuffer()).byteLength, 0, path);
+  }
+});
