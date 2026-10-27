@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored). Hosts are examples.
+registry_host = "registry.example"
+site_host     = "quote.registry.example"
+contact_email = "hello@registry.example"
+image_tag     = "0123456789ab" # from deploy/terraform/ecr: terraform output images
+# certificates_issued  = true   # phase 2
+# mock_site_key        = "usp_…"  # after registering the demo site
