@@ -505,6 +505,27 @@ export class Registry {
   /** Set by the server when a keeper runs: a new agent map is rebuilt and compared. */
   onUnverifiedMap?: (record: MapRecord) => void;
 
+  /** Set by the server when a keeper runs: the sites it visits, where it alone verifies maps. */
+  keeperVisits?: (origin: string) => boolean;
+
+  /**
+   * Whether an agent can confirm another agent's map: it publishes its keys (Web Bot Auth with a
+   * Signature-Agent directory), or it has completed a run on another site before. A fresh key made
+   * to agree with oneself has neither.
+   */
+  private async established(check: { agentId: string; identity: SessionIdentity }, origin: string): Promise<boolean> {
+    if (check.identity.method === 'web-bot-auth' && check.identity.signature_agent) return true;
+    const runs = (await this.storage.readLog('runs')) as { agent?: string; outcome?: string; url?: string }[];
+    return runs.some((r) => {
+      if (r.agent !== check.agentId || r.outcome !== 'completed' || typeof r.url !== 'string') return false;
+      try {
+        return new URL(r.url).origin !== origin;
+      } catch {
+        return false;
+      }
+    });
+  }
+
   /**
    * The keeper's own map for a form an agent got wrong: it replaces the agent's (which was never
    * served to anyone else), verified, so a bad first submission can't hold the form's fast path.
@@ -559,8 +580,9 @@ export class Registry {
     await this.storage.appendLog('runs', { ...report, agent: check.agentId, received_at: this.now().toISOString() });
     const path = typeof run.url === 'string' ? new URL(run.url).pathname : undefined;
     // A completed run by an agent whose own maps agreed with another agent's maps of the pages it
-    // went through verifies those maps: two independent agents, the same keys, and it worked.
-    if (run.outcome === 'completed') {
+    // went through verifies those maps: two independent agents, the same keys, and it worked. The
+    // confirming agent must be established, and on sites the keeper visits the keeper decides.
+    if (run.outcome === 'completed' && !this.keeperVisits?.(session.origin) && (await this.established(check, session.origin))) {
       const pages = new Set([...session.events.filter((e) => e.action === 'knock' && e.path).map((e) => e.path!), ...(path ? [path] : [])]);
       for (const record of await this.storage.mapsForOrigin(session.origin)) {
         if (pages.has(record.map.path) && !visibleTo(record) && record.submitted_by !== check.agentId && record.agreements?.includes(check.agentId)) await this.verifyMap(session.origin, record.digest, 'agent', check.agentId);

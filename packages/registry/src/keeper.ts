@@ -215,6 +215,11 @@ export class Keeper {
     return [...latest.values()];
   }
 
+  /** Whether the keeper visits this site (it is on the list, or there is no list). */
+  visits(origin: string): boolean {
+    return this.listed(origin);
+  }
+
   private listed(origin: string): boolean {
     return !this.options.origins || this.options.origins.includes(origin);
   }

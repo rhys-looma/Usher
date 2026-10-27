@@ -16,6 +16,11 @@ import { registerSite } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
 
 const agent = async (registry: RunningRegistry) => new RegistryClient(registry.url, (await generateAgentIdentity()).identity);
+// An established identity: it has completed a run on another site before.
+const establish = async (client: RegistryClient, origin = 'http://elsewhere.example') => {
+  const knock = await client.knock({ url: `${origin}/contact`, intent: 'contact.message' });
+  await client.reportRun({ session: knock.session, url: `${origin}/contact`, outcome: 'completed' });
+};
 const asAgentMap = (m: UsherMap, origin: string): UsherMap => ({ ...m, origin, provenance: { source: 'agent', compiler: 'muse-spark-1.3', created_at: new Date().toISOString(), verified: false } });
 // A hostile map: the same structure, with the name and email keys swapped (a user's email would go
 // into the name box).
@@ -53,6 +58,7 @@ test('two agents: a second identity\'s matching map and a completed run verify i
   const origin = 'http://localhost:4211';
   const map = asAgentMap(driver, origin);
   const [a, b, c] = [await agent(registry), await agent(registry), await agent(registry)];
+  await establish(b);
   await a.submitMap(map);
   const knock = await b.knock({ url: `${origin}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' });
   assert.equal(knock.match.kind, 'none');
@@ -65,6 +71,39 @@ test('two agents: a second identity\'s matching map and a completed run verify i
   assert.equal(record.map.provenance.verified, true);
   assert.equal((await c.knock({ url: `${origin}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' })).match.kind, 'exact', 'now public');
   assert.match(await (await fetch(`${registry.url}/maps/view?origin=${encodeURIComponent(origin)}&digest=${map.fingerprint.digest}`)).text(), /Verified .* by a second agent/);
+});
+
+test('a brand-new identity can\'t confirm a map: two fresh keys can\'t agree with themselves', async () => {
+  const origin = 'http://localhost:4214';
+  const map = asAgentMap(driver, origin);
+  const [a, fresh] = [await agent(registry), await agent(registry)];
+  await a.submitMap(map);
+  const knock = await fresh.knock({ url: `${origin}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' });
+  assert.deepEqual(await fresh.submitMap(map), { digest: map.fingerprint.digest, stored: false, agreed: true });
+  await fresh.reportRun({ session: knock.session, url: `${origin}/quote/driver`, outcome: 'completed' });
+  assert.equal((await registry.registry.storage.getMap(origin, map.fingerprint.digest))!.verification, undefined, 'agreed, but not established');
+  // Once it has completed a run elsewhere, its next completed run here confirms the map.
+  await establish(fresh);
+  const again = await fresh.knock({ url: `${origin}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' });
+  await fresh.reportRun({ session: again.session, url: `${origin}/quote/driver`, outcome: 'completed' });
+  assert.equal((await registry.registry.storage.getMap(origin, map.fingerprint.digest))!.verification?.by, 'agent');
+});
+
+test('where the keeper visits, agents\' agreement never verifies a map: the keeper decides', async () => {
+  const origin = 'http://localhost:4215';
+  registry.registry.keeperVisits = (o) => o === origin;
+  try {
+    const map = asAgentMap(driver, origin);
+    const [a, b] = [await agent(registry), await agent(registry)];
+    await establish(b);
+    await a.submitMap(map);
+    const knock = await b.knock({ url: `${origin}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' });
+    await b.submitMap(map);
+    await b.reportRun({ session: knock.session, url: `${origin}/quote/driver`, outcome: 'completed' });
+    assert.equal((await registry.registry.storage.getMap(origin, map.fingerprint.digest))!.verification, undefined);
+  } finally {
+    registry.registry.keeperVisits = undefined;
+  }
 });
 
 test('an agent can\'t verify its own map, even with a run', async () => {
@@ -84,6 +123,7 @@ test('a poisoned map from one identity never reaches another, and an honest disa
   const bad = poison(honest);
   assert.equal(bad.fingerprint.digest, honest.fingerprint.digest, 'same structure');
   const [mallory, b, c] = [await agent(registry), await agent(registry), await agent(registry)];
+  await establish(b);
   await mallory.submitMap(bad);
   const knock = await b.knock({ url: `${origin}/quote/driver`, fingerprint: honest.fingerprint, intent: 'quote.car_insurance' });
   assert.equal(knock.map, null, 'B never sees it');

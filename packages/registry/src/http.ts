@@ -298,6 +298,8 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     registry.onDrift = (origin, path) => void keeper.check(origin, path).catch(() => undefined);
     // A new agent map on a site the keeper visits: rebuilt and compared, in the background.
     registry.onUnverifiedMap = (record) => void keeper.verifyAgentMap(record).catch(() => undefined);
+    // Where the keeper visits, it alone verifies agents' maps; only where it can rebuild them.
+    registry.keeperVisits = (origin) => keeper.visits(origin) && Boolean(options.keeper?.compiler);
     keeper.start();
   }
   // Keep each site's sessions only as long as its policy says, and re-check domain claims daily.
