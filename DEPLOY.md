@@ -34,12 +34,12 @@ cd deploy/terraform/ecr && terraform init && terraform apply -var git_sha=$(git 
 # 2. Phase 1: network, database, cluster, roles, secrets, certificate requests
 cd ../usher && cp terraform.tfvars.example terraform.tfvars   # hosts, contact email, image_tag
 terraform init && terraform apply
-terraform output certificate_validation_records               # add these CNAMEs to DNS (DNS only)
+terraform output certificate_validation_records               # add these CNAMEs to DNS, unless route53_zone_id is set (then they're made for you)
 ../../../scripts/put-secrets.sh                               # model keys (asked), signing and admin keys (generated)
 
 # 3. Phase 2, once both certificates show as issued: ALB listener, services, CloudFront
 terraform apply -var certificates_issued=true                 # or set it in terraform.tfvars
-terraform output dns_records                                  # point both hosts at CloudFront (DNS only)
+terraform output dns_records                                  # point both hosts at CloudFront, unless route53_zone_id is set
 terraform output -raw config_env > ../../ecs/config.env       # for scripts/ecs-deploy.sh and friends
 ```
 

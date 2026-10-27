@@ -20,13 +20,30 @@ resource "aws_acm_certificate" "cloudfront" {
   }
 }
 
+locals {
+  validate = var.route53_zone_id != "" || var.certificates_issued
+}
+
+# With a Route 53 zone the records are made here and issuing is awaited in phase 1.
+resource "aws_route53_record" "validation" {
+  for_each        = var.route53_zone_id == "" ? {} : { for o in aws_acm_certificate.alb.domain_validation_options : o.domain_name => o }
+  zone_id         = var.route53_zone_id
+  name            = each.value.resource_record_name
+  type            = each.value.resource_record_type
+  records         = [each.value.resource_record_value]
+  ttl             = 300
+  allow_overwrite = false
+}
+
 resource "aws_acm_certificate_validation" "alb" {
-  count           = var.certificates_issued ? 1 : 0
-  certificate_arn = aws_acm_certificate.alb.arn
+  count                   = local.validate ? 1 : 0
+  certificate_arn         = aws_acm_certificate.alb.arn
+  validation_record_fqdns = var.route53_zone_id == "" ? null : [for r in aws_route53_record.validation : r.fqdn]
 }
 
 resource "aws_acm_certificate_validation" "cloudfront" {
-  count           = var.certificates_issued ? 1 : 0
-  provider        = aws.us_east_1
-  certificate_arn = aws_acm_certificate.cloudfront.arn
+  count                   = local.validate ? 1 : 0
+  provider                = aws.us_east_1
+  certificate_arn         = aws_acm_certificate.cloudfront.arn
+  validation_record_fqdns = var.route53_zone_id == "" ? null : [for r in aws_route53_record.validation : r.fqdn]
 }

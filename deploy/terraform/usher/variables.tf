@@ -41,9 +41,15 @@ variable "mock_site_key" {
 }
 
 variable "certificates_issued" {
-  description = "Phase 2: set true once both certificates are issued (validation records in DNS)."
+  description = "Phase 2: set true once both certificates are issued and the secrets are filled. Adds the HTTPS listener, the services and CloudFront."
   type        = bool
   default     = false
+}
+
+variable "route53_zone_id" {
+  description = "The domain's Route 53 hosted zone. When set, Terraform adds the certificate validation records (phase 1) and both hosts' alias records (phase 2), never overwriting an existing record. Empty: add them by hand."
+  type        = string
+  default     = ""
 }
 
 variable "vpc_cidr" {
