@@ -14,7 +14,8 @@ import { Dashboard, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
-import { SITE_JS } from './site-js.ts';
+import { DEMO_JS, SITE_JS } from './site-js.ts';
+import { RateLimiter } from '../rate-limit.ts';
 import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
@@ -110,7 +111,7 @@ export class Web {
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
     this.numbers ??= loadNumbers();
     const own = await this.registry.ownSite();
-    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, ...extra });
+    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, demo: Boolean(this.registry.publicDemo), ...extra });
   }
 
   /** The server-side check on the interest form, as any site would run it. Keys come from this registry directly. */
@@ -162,6 +163,10 @@ export class Web {
     if (route === 'GET /site.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(SITE_JS), true;
+    }
+    if (route === 'GET /demo.js' && this.registry.publicDemo) {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(DEMO_JS), true;
     }
     if (route === 'GET /.well-known/security.txt') {
       const text = securityTxt({ url: this.registry.url, started: this.started, ...(this.options.contact && { contact: this.options.contact }) });
@@ -308,6 +313,33 @@ export class Web {
     return false;
   }
 
+  // The rules sandbox calls the model: a few previews per visitor an hour, and a ceiling for everyone.
+  private readonly previewPerClient = new RateLimiter(5, 3_600_000);
+  private readonly previewOverall = new RateLimiter(60, 3_600_000);
+
+  /** The demo site's dashboard for anyone, read-only: /demo/dashboard (dashboard.ts, DemoView). */
+  private async demoBoard(req: IncomingMessage, res: ServerResponse, url: URL, route: string): Promise<boolean> {
+    const demo = this.registry.publicDemo;
+    if (!demo) return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
+    const board = await this.board();
+    const live = { siteScript: true };
+    if (route === 'GET /demo/dashboard') return sendHtml(res, 200, await board.overview(demo.origin, undefined, {}), live), true;
+    if (route === 'POST /demo/dashboard/rules') {
+      const text = ((await readForm(req)).get('text') ?? '').trim();
+      const client = clientAddress(req, this.options.proxyHops);
+      const allowed = this.previewPerClient.allow(client) && this.previewOverall.allow('all');
+      const reply = allowed ? await this.registry.previewRules(demo.origin, text) : { status: 429, body: { message: 'Too many previews for now; try again in an hour.' } };
+      const maps = (await this.registry.mapsFor(demo.origin)).map((r) => r.map);
+      return sendHtml(res, reply.status === 200 ? 200 : reply.status, await board.overview(demo.origin, undefined, { preview: board.previewCard(text, reply, maps) }), live), true;
+    }
+    const session = /^\/demo\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)$/.exec(url.pathname);
+    if (session && req.method === 'GET') {
+      const body = await board.sessionPage(demo.origin, session[1]!, {});
+      return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such session on the demo site</h1><p><a href="/demo/dashboard">Back to the demo dashboard</a></p>`), live), true;
+    }
+    return sendHtml(res, req.method === 'GET' ? 404 : 405, page('Not found', html`<h1>Page not found</h1><p class="lede">The demo dashboard is read-only.</p>`)), true;
+  }
+
   private adminLogin(error?: string): string {
     return page('Admin', html`<h1>Admin</h1>${error ? html`<div class="card error">${error}</div>` : ''}<form class="card" method="post" action="/admin/login"><p><label>Admin key<br><input type="password" name="key" required autocomplete="off"></label></p><button type="submit">Sign in</button></form>`);
   }
@@ -360,6 +392,7 @@ export class Web {
       return sendHtml(res, 200, mapPage(record.map, { source: `held by this registry since ${record.added_at.slice(0, 10)}`, record })), true;
     }
 
+    if (url.pathname === '/demo/dashboard' || url.pathname.startsWith('/demo/dashboard/')) return this.demoBoard(req, res, url, route);
     if (url.pathname.startsWith('/sites/')) return this.signup(req, res, url, route);
     if (!url.pathname.startsWith('/dashboard')) return false;
     const board = await this.board();

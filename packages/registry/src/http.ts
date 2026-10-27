@@ -207,7 +207,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       const session = /^\/sessions\/(s_[A-Za-z0-9_-]+)(\/events)?$/.exec(url.pathname);
       if (session && req.method === 'GET' && !session[2]) return send(res, await registry.getSession(session[1]!, req.headers.authorization));
       if (session && req.method === 'POST' && session[2]) return send(res, await registry.appendEvents(session[1]!, req.headers.authorization, await readJson(req)));
-      if (options.demo && process.env.USHER_DEMO === '1' && isLoopback(req) && (url.pathname === '/demo' || url.pathname.startsWith('/demo/'))) return await options.demo(req, res, url);
+      if (options.demo && process.env.USHER_DEMO === '1' && isLoopback(req) && (url.pathname === '/demo' || url.pathname.startsWith('/demo/')) && !url.pathname.startsWith('/demo/dashboard')) return await options.demo(req, res, url);
       if (options.web && (await options.web.handle(req, res, url))) return;
       send(res, { status: 404, body: { error: 'not_found', message: `${route} is not a registry endpoint.` } });
     } catch (err) {
@@ -238,6 +238,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   acceptMaps?: boolean;
   /** Maps one agent may submit per hour (default 20). */
   submitLimit?: number;
+  /** The demo site whose dashboard anyone can read at /demo/dashboard. */
+  publicDemo?: { origin: string; keepAgents?: string[] };
   /** Fetching agents' key directories: allow http:// and private hosts (local development). */
   directories?: { allowHttp?: boolean; fetch?: typeof fetch };
   /** Checking domain claims: allow private origins (local development), and test doubles. */
@@ -273,6 +275,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.claims && { claims: options.claims }),
     ...(options.acceptMaps !== undefined && { acceptMaps: options.acceptMaps }),
     ...(options.submitLimit !== undefined && { submitLimit: options.submitLimit }),
+    ...(options.publicDemo && { publicDemo: options.publicDemo }),
   });
   const web = options.web ? new Web(registry, { ...options.web, ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
@@ -311,8 +314,14 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   void prune();
   const pruning = setInterval(prune, 3_600_000);
   pruning.unref();
+  // The public demo explains itself: recent sessions every ten minutes (cached while nothing changes,
+  // within the daily model budget).
+  const demo = options.publicDemo;
+  const explaining = demo ? setInterval(() => void registry.explainOrigin(demo.origin).catch(() => undefined), 600_000) : undefined;
+  explaining?.unref();
   server.on('close', () => {
     clearInterval(pruning);
+    clearInterval(explaining);
     void web?.viewer.close();
   });
   return {

@@ -100,6 +100,8 @@ footer nav { display:flex; flex-direction:column; gap:8px; }
 ul.claims { list-style:none; margin:18px 0; padding:0; display:grid; gap:12px; }
 ul.claims li { display:flex; flex-direction:column; gap:2px; padding-left:14px; border-left:3px solid var(--accent); }
 ul.claims span { color:var(--muted); font-size:15px; }
+/* Wide tables scroll inside their card on narrow screens, never the page. */
+.card:has(> table) { overflow-x:auto; }
 `;
 
 /** The tab icon: a serif U with Looma's purple point, inline so nothing is fetched. */
