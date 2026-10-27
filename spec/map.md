@@ -129,4 +129,4 @@ A runtime tries locators in order and uses the first that resolves to exactly on
 | `source` | `compiled` (built by a compiler), `site` (published by the site's own script) or `agent` (recorded from an agent's run) |
 | `compiler` | Model or tool that compiled it |
 | `created_at` | ISO 8601 timestamp |
-| `verified` | `true` once enough independent runs succeed, or when `source` is `site` |
+| `verified` | `true` once enough independent runs succeed. A map the site script publishes for a form that has changed since its current map (`source: site`, see [knock.md](knock.md#1a-maps-published-in-the-page)) is `false`: code carried its keys over, and elements it couldn't place are `custom.unlabelled_<n>` |

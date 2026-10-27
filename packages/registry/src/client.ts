@@ -13,6 +13,8 @@ export interface KnockInput {
   session?: string;
   /** Keys the user has confirmed, for a knock made just before acting on them. */
   confirmed?: string[];
+  /** The digest of the map the page itself publishes, which the agent is using: no map back. */
+  have_map?: string;
 }
 
 export interface RunReport {
@@ -74,6 +76,7 @@ export class RegistryClient {
       ...(input.fingerprint && { fingerprint: input.fingerprint }),
       ...(input.session && { session: input.session }),
       ...(input.confirmed?.length && { confirmed: input.confirmed }),
+      ...(input.have_map && { have_map: input.have_map }),
     };
     return this.call('POST', '/knock', await this.sign(payload));
   }

@@ -220,5 +220,22 @@ export function createUsherCheck(options: UsherCheckOptions) {
     }
   }
 
-  return { check, reject, knockRequired, knockUrl };
+  /**
+   * A Link header pointing agents at this page's map, which the registry serves as the site
+   * script publishes it: `Link: <…/maps/public?origin=…&path=…>; rel="usher-map"`. For HTML pages
+   * with forms; set it before the response starts.
+   */
+  function mapLink(req: IncomingMessage): string {
+    const path = new URL(req.url ?? '/', 'http://site').pathname;
+    return `<${registry}/maps/public?origin=${encodeURIComponent(originOf(req))}&path=${encodeURIComponent(path)}>; rel="usher-map"; type="application/json"`;
+  }
+
+  /** Adds the map Link header to a response that hasn't started, alongside any Link already set. */
+  function linkMap(req: IncomingMessage, res: ServerResponse): void {
+    if (res.headersSent) return;
+    const existing = res.getHeader('Link');
+    res.setHeader('Link', [...(existing === undefined ? [] : Array.isArray(existing) ? existing : [String(existing)]), mapLink(req)].join(', '));
+  }
+
+  return { check, reject, knockRequired, knockUrl, mapLink, linkMap };
 }

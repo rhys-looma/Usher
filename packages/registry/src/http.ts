@@ -52,7 +52,7 @@ export function isLoopback(req: IncomingMessage): boolean {
 }
 
 // Endpoints the site script calls from a site's pages.
-const CORS_ROUTES = [/^GET \/maps\/current$/, /^POST \/maps\/lookup$/, /^POST \/drift$/, /^POST \/sessions\/s_[A-Za-z0-9_-]+\/events$/, /^GET \/\.well-known\/usher-keys\.json$/, /^POST \/sites\/[^/]+\/blocked$/];
+const CORS_ROUTES = [/^GET \/maps\/current$/, /^GET \/maps\/public$/, /^POST \/maps\/lookup$/, /^POST \/drift$/, /^POST \/sessions\/s_[A-Za-z0-9_-]+\/events$/, /^GET \/\.well-known\/usher-keys\.json$/, /^POST \/sites\/[^/]+\/blocked$/];
 
 interface SiteScript {
   version: string;
@@ -188,6 +188,12 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
       if (verify && req.method === 'POST') return send(res, await registry.verifySite(decodeURIComponent(verify[1]!), req.headers.authorization));
       if (route === 'GET /maps/current') {
         return send(res, await registry.currentMap(url.searchParams.get('origin'), url.searchParams.get('path')), { 'Cache-Control': 'public, max-age=3600' });
+      }
+      if (route === 'GET /maps/public') {
+        const digest = url.searchParams.get('digest');
+        const reply = await registry.publicMap(url.searchParams.get('origin'), url.searchParams.get('path'), digest);
+        // A version never changes; the latest for a path may, hourly at most as the site script sees it.
+        return send(res, reply, { 'Cache-Control': reply.status !== 200 ? 'public, max-age=300' : digest ? 'public, max-age=31536000, immutable' : 'public, max-age=3600' });
       }
       const blocked = /^\/sites\/([^/]+)\/blocked$/.exec(url.pathname);
       if (blocked && req.method === 'POST') return send(res, await registry.reportBlocked(decodeURIComponent(blocked[1]!), header(req, 'usher-site-key'), await readJson(req)));
