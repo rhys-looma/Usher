@@ -132,7 +132,7 @@ export interface RunResult {
   errors?: PageError[];
 }
 
-const ADVANCE_KEYS = ['form.submit', 'nav.next'];
+const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next'];
 
 /** Ends a run early on purpose (the outcome and reason are already set). */
 class StopRun extends Error {}
@@ -347,6 +347,10 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         const compiled = await compilePage(page, { chat: options.fallback.chat, model: options.fallback.model, logDir: options.fallback.logDir ?? null });
         modelMs = ms(t);
         map = { ...compiled.map, provenance: { ...compiled.map.provenance, source: 'agent' } };
+        // The token names the intent this agent knocked with; the model's own name for the form
+        // varies between runs (quote.car_insurance, quote.motor_insurance), and the page only
+        // accepts a token whose intent matches the map.
+        if (knock && options.intent) map = { ...map, form: { ...map.form, intent: options.intent } };
         usage = { prompt_tokens: usage.prompt_tokens + compiled.usage.prompt_tokens, completion_tokens: usage.completion_tokens + compiled.usage.completion_tokens, total_tokens: usage.total_tokens + compiled.usage.total_tokens, cached_tokens: usage.cached_tokens + compiled.usage.cached_tokens };
         cost += compiled.cost_usd ?? costUsd(options.fallback.model, compiled.usage) ?? 0;
         source = 'compiled';
@@ -400,7 +404,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       }
 
       emit({ type: 'filled', path, filled });
-      const advance = map.actions.find((a) => a.key === 'form.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
+      const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
       if (!advance) {
         outcome = 'stopped';
         reason = `No way forward on ${path}.`;
