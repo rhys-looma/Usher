@@ -101,7 +101,15 @@ export interface RegistryOptions {
   submitLimit?: number;
   /** Checking domain claims: allow localhost and private origins (local development), and test doubles. */
   claims?: { allowPrivate?: boolean; fetch?: typeof fetch; resolveTxt?: (name: string) => Promise<string[][]> };
+  /**
+   * The demo site whose dashboard anyone can read at /demo/dashboard (USHER_DEMO_DASHBOARD_ORIGIN).
+   * Its sessions from agents other than `keepAgents` (ours) are kept 24 hours.
+   */
+  publicDemo?: { origin: string; keepAgents?: string[] };
 }
+
+/** How long the public demo keeps sessions from other people's agents. */
+export const DEMO_SESSION_HOURS = 24;
 
 /** What a registrant publishes to prove they control an origin: either one is enough. */
 export interface ClaimInstructions {
@@ -618,9 +626,13 @@ export class Registry {
   async pruneSessions(origin: string): Promise<number> {
     const days = (await this.policy(origin))?.retention?.session_days ?? DEFAULT_RETENTION_DAYS;
     const cutoff = this.now().getTime() - days * 86_400_000;
+    // On the public demo, other people's agents' sessions go after a day.
+    const demo = this.options.publicDemo?.origin === origin ? this.options.publicDemo : undefined;
+    const demoCutoff = this.now().getTime() - DEMO_SESSION_HOURS * 3_600_000;
     let removed = 0;
     for (const session of await this.storage.listSessions(origin)) {
-      if (Date.parse(session.created_at) < cutoff) {
+      const created = Date.parse(session.created_at);
+      if (created < cutoff || (demo && !demo.keepAgents?.includes(session.agent) && created < demoCutoff)) {
         await this.storage.deleteSession(session.id);
         removed++;
       }
@@ -806,6 +818,26 @@ export class Registry {
       if (err instanceof RulesError) return error(422, 'invalid_rules', err.message);
       if (err instanceof BudgetExceeded) return error(503, 'budget_reached', err.message);
       return error(502, 'model_error', `The model could not be reached or failed: ${err instanceof Error ? err.message.slice(0, 200) : 'unknown error'}`);
+    }
+  }
+
+  /** The demo site everyone may watch, if this registry has one. */
+  get publicDemo(): { origin: string; keepAgents?: string[] } | undefined {
+    return this.options.publicDemo;
+  }
+
+  /** What Muse Spark makes of some rules for an origin's forms, without storing or applying anything. */
+  async previewRules(origin: string, text: unknown): Promise<Reply> {
+    if (typeof text !== 'string' || !text.trim() || text.length > 1000) return error(400, 'invalid_request', 'Write the rules in under 1000 characters.');
+    if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'Rules in plain English need a model, and none is set up here yet.');
+    const maps = (await this.mapsFor(origin)).map((r) => r.map);
+    try {
+      const result = await compileRules(this.options.chat, this.options.model, text.trim(), origin, maps);
+      return ok({ text: text.trim(), policy: result.policy, summary: result.summary, model: this.options.model });
+    } catch (err) {
+      if (err instanceof RulesError) return error(422, 'invalid_rules', err.message);
+      if (err instanceof BudgetExceeded) return error(503, 'budget_reached', err.message);
+      return error(502, 'model_error', 'The model could not be reached or failed.');
     }
   }
 

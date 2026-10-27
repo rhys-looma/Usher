@@ -21,6 +21,10 @@
 //   USHER_KEEPER_ORIGINS            in production, the only origins the keeper opens (comma-separated;
 //                                   none by default)
 //   USHER_SEED, USHER_SEED_ORIGIN   seed maps for a demo site (USHER_SEED=mock-site)
+//   USHER_DEMO_DASHBOARD_ORIGIN     the demo site whose dashboard anyone can read at /demo/dashboard
+//                                   (default USHER_SEED_ORIGIN; "off" for none)
+//   USHER_DEMO_KEEP_AGENTS          our own agent ids on it (comma-separated): other agents' sessions
+//                                   there are kept 24 hours
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
 //   USHER_VIEWER=open               let the map viewer open any address (local demos only; refused in
@@ -95,8 +99,10 @@ const explainer = values['explain-open'] ? (open ?? spark) : (spark ?? open);
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 const signingKey = json<PrivateJwk>('USHER_SIGNING_KEY');
 const retiredKeys = json<PublicJwk[]>('USHER_RETIRED_KEYS');
+const demoOrigin = (env.USHER_DEMO_DASHBOARD_ORIGIN ?? values['seed-origin'] ?? '').trim().replace(/\/$/, '');
 const running = await startRegistry({
   storage,
+  ...(demoOrigin && demoOrigin !== 'off' && { publicDemo: { origin: demoOrigin, keepAgents: (env.USHER_DEMO_KEEP_AGENTS ?? '').split(',').map((a) => a.trim()).filter(Boolean) } }),
   port: Number(values.port),
   host: values.host,
   siteScript,
