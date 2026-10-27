@@ -46,7 +46,7 @@ export interface UsherPlan {
   stops_at: string | null;
 }
 
-const ADVANCE = ['form.submit', 'nav.next'];
+const ADVANCE = ['form.submit', 'search.submit', 'nav.next'];
 
 function advanceOf(map: UsherMap) {
   return map.actions.find((a) => a.leads_to && ADVANCE.includes(a.key)) ?? map.actions.find((a) => a.leads_to) ?? map.actions.find((a) => ADVANCE.includes(a.key)) ?? null;

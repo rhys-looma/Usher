@@ -506,6 +506,13 @@
       "sensitive": false
     },
     {
+      "key": "search.submit",
+      "meaning": "Run a search or filter results; commits nothing",
+      "kind": "action",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
       "key": "form.submit",
       "meaning": "Submit the form (request a quote, send a message, make a booking)",
       "kind": "action",

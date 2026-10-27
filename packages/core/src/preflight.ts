@@ -80,6 +80,12 @@ export function preflight(fields: FieldSpec[], profile: Profile): PreflightResul
       continue;
     }
     const text = String(value);
+    // A search box takes whatever the user wants to search for: only its length limit applies.
+    if (f.key === 'search.query') {
+      const max = f.constraints?.max_length;
+      if (max !== undefined && text.length > max) say(f, 'too_long', `"${f.label}" takes at most ${max} characters.`);
+      continue;
+    }
     if (f.options) {
       const byValue = f.options.items.find((o) => o.value === text);
       const byLabel = f.options.items.find((o) => o.label.trim().toLowerCase() === text.trim().toLowerCase());
