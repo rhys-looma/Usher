@@ -143,7 +143,9 @@ test('Agent B (Muse Spark Open, own key, MCP) knocks and runs on the maps Agent 
   runs['Agent B, Spark Open, with map'] = run;
   assert.equal(run.outcome, 'completed', run.reason);
   assert.equal(run.transport, 'mcp');
-  assert.deepEqual(run.pages.map((p) => [p.match, p.map_source]), [['exact', 'registry'], ['exact', 'registry'], ['exact', 'registry']]);
+  // The site publishes each page's map in the page (built from the maps A and C agreed on); the
+  // agent uses it, and its knocks carry only rules and a token.
+  assert.deepEqual(run.pages.map((p) => [p.match, p.map_source]), [['exact', 'embedded'], ['exact', 'embedded'], ['exact', 'embedded']]);
   assert.equal(run.model_ms, 0);
   assert.equal(run.usage.total_tokens, 0);
   const a = runs['Agent A, Muse Spark, no map']!;
@@ -163,12 +165,15 @@ test('layout B: the site script reports drift, the registry marks the maps, Agen
     assert.equal(run.outcome, 'completed', run.reason);
     // At the 0.3 threshold every layout B page is a near match; the agent only trusts exact ones.
     assert.deepEqual(run.pages.map((p) => p.match), ['near', 'near', 'near']);
-    assert.ok(run.pages.every((p) => p.map_source === 'compiled'));
+    // The site script relabels each changed form from the current maps. The vehicle and cover
+    // pages keep a key on every required field, so the agent runs on them; on the driver page
+    // "Surname" and "House number and street" are unlabelled, so the model reads it.
+    assert.deepEqual(run.pages.map((p) => p.map_source), ['compiled', 'embedded', 'embedded']);
 
     const records = await registry.registry.storage.mapsForOrigin(site.url);
     const a = records.filter((r) => r.drift);
     assert.equal(a.length, 3, 'the three layout A maps are marked drifted');
-    assert.equal(records.length, 6, 'layout B maps were shared too');
+    assert.equal(records.length, 4, 'the layout B map the model built was shared too');
     const scores = (await registry.registry.storage.readLog('drift')) as { path: string; score: number }[];
     console.log(`drift scores: ${scores.map((s) => `${s.path} ${s.score}`).join(', ')}`);
   } finally {
