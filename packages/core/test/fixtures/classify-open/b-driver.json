@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T09:43:32.581Z",
+  "recorded_at": "2026-10-27T10:02:33.915Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "ff6febe3ec40f486d72671d6d3167de0dce24df4551c8ac18045070c3c9643d0",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email input is reversible draft data entry with no external effect on its own.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible and has no effect outside the session until submitted.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is a reversible preference with no external consequence.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is standard personal detail input, reversible within the form.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is standard personal detail input, reversible within the form.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth is required for quote calculation but entering it is reversible with no immediate external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry for address lookup is reversible draft data.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address detail with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection from list is reversible and used only for quote calculation.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status choice is reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history yes/no question is reversible factual input for underwriting.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is reversible detail supporting the claims history answer.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible categorization with no external effect.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' is navigation to the next step of the quote flow, not a final commitment or external request.\"}]}",
+      "request_sha256": "781f237109af8e48246fe8000c77a49803d320ec359568b28a1869b61ccab0f9",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible and has no effect outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting a title is reversible non-sensitive input with no external commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible personal data input with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal data for quoting, not a legal/financial commitment or ID verification.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address data with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address data with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation is reversible factual input for quoting purposes.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Selecting employment status is reversible factual input with no external commitment.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history question is reversible factual input for the quote.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering claim date is reversible factual detail with no external effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting claim type is reversible factual detail with no external effect.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' is navigation to the next step of the quote flow, reversible with no quote requested or message sent yet.\"}]}",
       "usage": {
         "prompt_tokens": 860,
-        "completion_tokens": 1298,
-        "total_tokens": 2158,
+        "completion_tokens": 1027,
+        "total_tokens": 1887,
         "cached_tokens": 384
       },
-      "latency_ms": 4936
+      "latency_ms": 3404
     }
   ]
 }
