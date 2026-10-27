@@ -41,7 +41,7 @@ test('serves MCP over stdio: the tools, and a signed knock with a key made on fi
   const client = new Client({ name: 'usher-cli-test', version: '0.0.0' });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli], env: { ...(process.env as Record<string, string>), USHER_REGISTRY_URL: registry.url, USHER_AGENT_KEY_FILE: keyFile }, stderr: 'inherit' }));
   try {
-    assert.deepEqual((await client.listTools()).tools.map((t) => t.name).sort(), ['get_map', 'get_plan', 'knock', 'report_run', 'submit_map']);
+    assert.deepEqual((await client.listTools()).tools.map((t) => t.name).sort(), ['get_map', 'get_plan', 'knock', 'report_run', 'submit_map', 'usher_cancel', 'usher_confirm', 'usher_fill']);
     const knock = await client.callTool({ name: 'knock', arguments: { url: FORM, intent: 'quote.car_insurance' } });
     assert.ok(!knock.isError, JSON.stringify(knock.content));
     assert.equal(typeof (knock.structuredContent as { token?: unknown }).token, 'string');
