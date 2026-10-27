@@ -14,9 +14,12 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 - **Knock.** Before an agent fills a form, it knocks and says who it is, signing with its own key (Web Bot Auth). It gets back the map, the site's rules for that form, and short-lived signed permission. The site's page and server check that permission on their own.
 - **Log.** While a knocked agent works, the site sees each step by meaning ("filled date of birth", "asked the user before *Get my quote*"), never the values. People using the site are never logged.
 
-**For agents:** a map instead of a 20k-token page, and a trusted lane through the front door. On the demo quote form, three pages take 2.7 s with maps against 14 s reading each page with a model.
+**For sites: the control layer for AI agents on your forms. No integration required.**
+- **No changes to your systems.** One script tag on the pages you already have. Agents come through the same forms your customers use.
+- **You set the terms.** Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit.
+- **Every agent action on the record.** Who the agent was and what it did, step by step, by meaning. Your customers' data is never captured.
 
-**For sites:** see which agents use your forms and what they do, and set the rules in plain English: which forms, what needs the user's yes, and how often.
+**For agents: one call fills the form. No signup: your agent's key is its identity.** `usher_fill` in [`@usher-run/mcp`](packages/mcp) takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted. On the demo quote form it reaches "Get my quote" in about 1.6 s.
 
 **Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher the tag writes them: the site script publishes each form's map in the page (`<script type="application/usher+json">`), generated from the live form and labelled from the site's map. When the form changes, the published map follows the live page, keys what it still recognises and reports the rest as drift. Agents read the map straight from the page and knock only for the rules and a short-lived pass.
 
