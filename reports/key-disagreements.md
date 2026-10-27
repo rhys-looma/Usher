@@ -8,12 +8,12 @@ Every element where Muse Spark's (`muse-spark-1.3`) key is not settled, grouped 
 | Synonym pairs | 0 | 0 | 0 |
 | Custom slug wording | 1 | 0 | 0 |
 | Custom key against a vocabulary key | 0 | 6 | 0 |
-| Genuine disagreement | 5 | 1 | 0 |
-| **Total** | **11** of 116 elements on 17 forms labelled more than once | **10** of 28 eval elements | **0** of 68 reviewed |
+| Genuine disagreement | 5 | 1 | 18 |
+| **Total** | **11** of 116 elements on 17 forms labelled more than once | **10** of 28 eval elements | **18** of 69 human-checked |
 
 - **Between runs**: the same form, by fingerprint, labelled more than once by the compiler. Runs span prompt changes (custom keys encouraged on 26 October, `search.submit` added on 27 October), so some differences are the prompt, not chance.
 - **Per element vs whole form**: the fine-tuning eval. Muse Spark sees one element with its neighbours and is scored against its own labels from seeing the whole form with a screenshot. This is the exact-match key accuracy in docs/finetune.md.
-- **Review**: keys marked wrong by hand. Only the mock site has been reviewed so far.
+- **Review**: public-form keys marked wrong when human-checked in `reports/accuracy-review.csv`.
 
 Per element vs whole form, by page: www.eventbrite.co.uk/ 7, www.gov.uk/contact/govuk 3.
 
@@ -53,7 +53,7 @@ One side found a vocabulary key and the other invented a custom one. These are g
 | per element vs whole form | www.eventbrite.co.uk/ | This weekend | `search.submit` / `custom.filter_this_weekend` |
 | per element vs whole form | www.eventbrite.co.uk/ | Scroll carousel left | `ui.expand` / `custom.scroll_carousel_left` |
 
-## Genuine disagreement (6)
+## Genuine disagreement (24)
 
 Two different vocabulary keys, or a key a reviewer marked wrong.
 
@@ -65,3 +65,21 @@ Two different vocabulary keys, or a key a reviewer marked wrong.
 | between runs | ico.org.uk/global/contact-us/ (3 runs) | Search | `form.submit` / `search.submit` |
 | between runs | www.nhs.uk/ (2 runs) | Search | `nav.next` / `search.submit` |
 | per element vs whole form | www.eventbrite.co.uk/ | autocomplete | `search.location` / `search.query` |
+| review | eventbrite-search |  | `search.submit` |
+| review | eventbrite-search | All | `search.submit` |
+| review | eventbrite-search | For you | `search.submit` |
+| review | eventbrite-search | Today | `search.submit` |
+| review | eventbrite-search | This weekend | `search.submit` |
+| review | govuk-search | Sign in to your Universal Credit account | `custom.search_result` |
+| review | govuk-search | Check the MOT history of a vehicle | `custom.search_result` |
+| review | govuk-search | HMRC online services: sign in or set up an account | `custom.search_result` |
+| review | govuk-search | Sign in or set up an account | `custom.search_result` |
+| review | govuk-search | Get help with signing in to HMRC online services | `custom.search_result` |
+| review | govuk-search | Universal Credit | `custom.search_result` |
+| review | govuk-search | Get information about a company | `custom.search_result` |
+| review | govuk-search | Companies House | `custom.search_result` |
+| review | govuk-search | eVisas: access and use your online immigration status | `custom.search_result` |
+| review | govuk-search | Tax your vehicle | `custom.search_result` |
+| review | govuk-search | Check if a vehicle is taxed | `custom.search_result` |
+| review | govuk-search | Check the MOT status of a vehicle | `custom.search_result` |
+| review | aviva-car | Continue your saved quote | `nav.next` |
