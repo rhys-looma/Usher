@@ -1,19 +1,19 @@
 {
-  "model": "meta-models/muse-spark-open",
-  "recorded_at": "2026-10-26T21:01:33.889Z",
+  "model": "meta-models/muse-spark-open-1026",
+  "recorded_at": "2026-10-27T09:05:32.863Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "e412705cb95dfc2e55a5eddb2c3034ac3aeffcc78b35f2771d0dc79ee5c083e7",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Selecting title is reversible personal detail entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Entering first name is reversible and stays within session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering last name is reversible and has no outside commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering date of birth is standard personal data entry, reversible with no external action.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Providing email address is reversible contact detail entry.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible with no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Entering postcode is reversible address detail.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Entering address line is reversible personal data entry.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation is reversible choice with no external commitment.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Choosing employment status is reversible option selection.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history question is reversible factual disclosure.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering claim date is reversible detail entry.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting claim type is reversible categorization.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue button only advances to next step of quote flow, no quote requested or commitment made.\"}]}",
+      "request_sha256": "4b1a8f7883a35c31e1f0cf25ef600ae6677785b830f34dd277b6cc6585b3db14",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail entry with no external or legal effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name is basic personal data for quote calculation, reversible with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name is basic personal data for quote calculation, reversible with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth is personal detail for risk assessment, entered reversibly, not a declaration or ID submission.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address is contact detail for the quote, reversible input with no marketing consent or financial commitment implied.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact detail with no external effect on its own.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode is address detail for rating, reversible with no legal or financial commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"First line of address is location data for quote, reversible with no independent commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection is a reversible risk-factor choice for quoting, no legal declaration.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status is a reversible categorical choice for underwriting, no commitment.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history yes/no is factual disclosure for quote, reversible input, not a formal declaration, consent or payment.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is supplementary factual detail for the quote, reversible with no independent legal effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim is reversible categorical detail about past claim, no commitment or declaration.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step in quote flow, reversible, does not finalize quote, purchase, or legal agreement.\"}]}",
       "usage": {
         "prompt_tokens": 861,
-        "completion_tokens": 1035,
-        "total_tokens": 1896,
+        "completion_tokens": 2702,
+        "total_tokens": 3563,
         "cached_tokens": 768
       },
-      "latency_ms": 4136
+      "latency_ms": 11488
     }
   ]
 }
