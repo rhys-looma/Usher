@@ -65,7 +65,7 @@ How it is built:
 
 ### How many examples there are
 
-Rebuilt on 27 October from labels compiled with the current prompt only (`npm run finetune:export -- --since 2026-10-27T10:00:00Z`): the mock site's recordings and a fresh live accuracy run over `evals/forms.json`. That run compiled 19 of 34 pages. The rest refuse automated browsers, render their form with script only, failed validation, or have no form to map: Admiral and Churchill show only a consent widget, now left out, and Direct Line's page has no visible form field.
+Rebuilt on 27 October from labels compiled with the current prompt only (`npm run finetune:export -- --since 2026-10-27T10:00:00Z`): the mock site's recordings and a fresh live accuracy run over `evals/forms.json`. That run compiled 19 of the 28 pages that load in an automated browser. The other 9 have no form to map: Admiral and Churchill show only a consent widget, now left out, and Direct Line's page has no visible form field.
 
 | | |
 | --- | --- |
