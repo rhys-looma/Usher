@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T10:02:33.915Z",
+  "recorded_at": "2026-10-27T11:23:31.449Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
       "request_sha256": "781f237109af8e48246fe8000c77a49803d320ec359568b28a1869b61ccab0f9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible and has no effect outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting a title is reversible non-sensitive input with no external commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible personal data input with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal data for quoting, not a legal/financial commitment or ID verification.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address data with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address data with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Selecting occupation is reversible factual input for quoting purposes.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Selecting employment status is reversible factual input with no external commitment.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Answering claims history question is reversible factual input for the quote.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Entering claim date is reversible factual detail with no external effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Selecting claim type is reversible factual detail with no external effect.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' is navigation to the next step of the quote flow, reversible with no quote requested or message sent yet.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email is standard contact data entry for the quote; reversible with no external effect until quote is requested.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number is just contact info; reversible data entry with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is a reversible personal detail with no effect outside the session.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is basic personal data; reversible and expected for driver details.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is basic personal data; reversible and expected for driver details.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth is required for insurance rating; reversible data entry, not a legal declaration or ID submission itself.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode is address data for rating; reversible entry with no commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street is address data for rating; reversible entry with no commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Main occupation is a rating factor; choosing from list is reversible with no external effect.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status is a rating factor; radio selection is reversible.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history question is factual underwriting info; Yes/No selection is reversible and does not itself commit legally.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is detail of prior claim; reversible date entry with no external effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim is detail of prior claim; reversible selection with no external effect.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' only navigates to next step of quote flow; reversible and does not finalize or request the quote.\"}]}",
       "usage": {
         "prompt_tokens": 860,
-        "completion_tokens": 1027,
-        "total_tokens": 1887,
-        "cached_tokens": 384
+        "completion_tokens": 4200,
+        "total_tokens": 5060,
+        "cached_tokens": 768
       },
-      "latency_ms": 3404
+      "latency_ms": 13512
     }
   ]
 }

@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T10:02:30.376Z",
+  "recorded_at": "2026-10-27T11:23:17.634Z",
   "layout": "a",
   "step": "cover",
   "attempts": [
     {
       "request_sha256": "756eac258e630f0262f2eb053926fd11b879474378dfab84e8051639394dabd7",
-      "content": "{\"elements\": [{\"id\": \"e1\", \"risk\": \"safe\", \"reason\": \"Cover start date is a quote parameter; selecting a date is reversible with no external effect.\"}, {\"id\": \"e2\", \"risk\": \"safe\", \"reason\": \"Level of cover choice configures the quote, no commitment or external effect on its own.\"}, {\"id\": \"e3\", \"risk\": \"safe\", \"reason\": \"Voluntary excess selection is a reversible quote option with no outside effect.\"}, {\"id\": \"e4\", \"risk\": \"safe\", \"reason\": \"Years of no-claims discount is informational for pricing the quote, reversible.\"}, {\"id\": \"e5\", \"risk\": \"safe\", \"reason\": \"Payment frequency preference for the quote does not provide payment details or commit to purchase.\"}, {\"id\": \"e6\", \"risk\": \"needs_user\", \"reason\": \"Legal declaration that information is true and complete requires user's own judgement and commitment.\"}, {\"id\": \"e7\", \"risk\": \"needs_user\", \"reason\": \"Consent to marketing emails requires explicit user judgement.\"}, {\"id\": \"e8\", \"risk\": \"safe\", \"reason\": \"Back link is navigation with no data submission or external effect.\"}, {\"id\": \"e9\", \"risk\": \"consequential\", \"reason\": \"Submits details to request a quote, an external action the user should be aware of.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is a quote parameter, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover selection only configures the quote, no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess choice is a reversible quote input.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Years of no-claims discount is factual input for pricing, reversible.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference informs quote only, no payment details or charge.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires user's judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user's own judgement.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is reversible navigation with no external effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submit requests an insurance quote, an action with external effect the user should know about.\"}]}",
       "usage": {
         "prompt_tokens": 728,
-        "completion_tokens": 1044,
-        "total_tokens": 1772,
+        "completion_tokens": 1167,
+        "total_tokens": 1895,
         "cached_tokens": 640
       },
-      "latency_ms": 3393
+      "latency_ms": 3688
     }
   ]
 }

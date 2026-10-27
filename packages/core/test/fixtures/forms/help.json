@@ -1,76 +1,76 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-27T10:13:30.340Z",
+  "recorded_at": "2026-10-27T11:25:26.508Z",
   "choices": [
     {
       "intent": "contact.message",
       "chosen": "message",
-      "reason": "message form matches contact intent",
+      "reason": "send message contact form",
       "attempts": [
         {
-          "request_sha256": "e2bbc83c71d17b9fbe2d357be618f9f3a40cd6fc137e2a96d39941471b7ffe1a",
-          "content": "{\"form\":\"F2\",\"reason\":\"message form matches contact intent\"}",
+          "request_sha256": "a920b746d3e6a18aabae34bb4b76819c84a881f1a13accc6a9bb086e4cf7b01d",
+          "content": "{\"form\":\"F2\",\"reason\":\"send message contact form\"}",
           "usage": {
-            "prompt_tokens": 316,
-            "completion_tokens": 597,
-            "total_tokens": 913,
+            "prompt_tokens": 322,
+            "completion_tokens": 386,
+            "total_tokens": 708,
             "cached_tokens": 0
           },
-          "latency_ms": 2765
+          "latency_ms": 1815
         }
       ]
     },
     {
       "intent": "contact.callback",
       "chosen": "callback",
-      "reason": "Request a callback form",
+      "reason": "Requests a callback by phone",
       "attempts": [
         {
-          "request_sha256": "07b0540e88b3d1a02b0803702c2b8a88ce1e8ee684bac05078808b451938dcb1",
-          "content": "{\"form\":\"F1\",\"reason\":\"Request a callback form\"}",
+          "request_sha256": "5130d69841e53a4f4e94389667264977dcdd3d417655a368f82a1adf72fae67a",
+          "content": "{\"form\":\"F1\",\"reason\":\"Requests a callback by phone\"}",
           "usage": {
-            "prompt_tokens": 316,
-            "completion_tokens": 478,
-            "total_tokens": 794,
+            "prompt_tokens": 322,
+            "completion_tokens": 345,
+            "total_tokens": 667,
             "cached_tokens": 0
           },
-          "latency_ms": 2202
+          "latency_ms": 1595
         }
       ]
     },
     {
       "intent": "search.query",
       "chosen": "F0",
-      "reason": "matches search query intent",
+      "reason": "Matches search query intent",
       "attempts": [
         {
-          "request_sha256": "66c647dbf0fcbedbdaf3c205298df130d819dac226b1bb4297e853b28c148c11",
-          "content": "{\"form\":\"F0\",\"reason\":\"matches search query intent\"}",
+          "request_sha256": "86223d99e702096e5970aa605d4432d73d79825ac29b6ac1a2f668c09f43d0dd",
+          "content": "{\"form\":\"F0\",\"reason\":\"Matches search query intent\"}",
           "usage": {
-            "prompt_tokens": 354,
-            "completion_tokens": 558,
-            "total_tokens": 912,
+            "prompt_tokens": 360,
+            "completion_tokens": 625,
+            "total_tokens": 985,
             "cached_tokens": 0
           },
-          "latency_ms": 1757
+          "latency_ms": 2608
         }
       ]
     },
     {
       "intent": "newsletter.signup",
       "chosen": "newsletter",
-      "reason": "newsletter subscribe email form",
+      "reason": "newsletter subscribe form",
       "attempts": [
         {
-          "request_sha256": "4f7b18e450e6b63c52570dd82bfb9493d06b675f22157d64a85de827ad794509",
-          "content": "{\"form\":\"F3\",\"reason\":\"newsletter subscribe email form\"}",
+          "request_sha256": "c2d8b80a3926b7a5c1479783e9ef39256baec8d5cf84627b7dded80e23b289cc",
+          "content": "{\"form\":\"F3\",\"reason\":\"newsletter subscribe form\"}",
           "usage": {
-            "prompt_tokens": 361,
-            "completion_tokens": 304,
-            "total_tokens": 665,
+            "prompt_tokens": 367,
+            "completion_tokens": 467,
+            "total_tokens": 834,
             "cached_tokens": 0
           },
-          "latency_ms": 1205
+          "latency_ms": 2809
         }
       ]
     },
@@ -80,15 +80,15 @@
       "reason": "main contact message form",
       "attempts": [
         {
-          "request_sha256": "d38a8deb2f8b3b5b49aba1e174bf4db7d678028e8adb515b8fb66a27bed412d7",
+          "request_sha256": "d8cdf653c318a9394e45e9a8546e625dd10830fc27c8e3da8768c490b81eb47e",
           "content": "{\"form\":\"F2\",\"reason\":\"main contact message form\"}",
           "usage": {
-            "prompt_tokens": 330,
-            "completion_tokens": 886,
-            "total_tokens": 1216,
-            "cached_tokens": 113
+            "prompt_tokens": 336,
+            "completion_tokens": 725,
+            "total_tokens": 1061,
+            "cached_tokens": 0
           },
-          "latency_ms": 3194
+          "latency_ms": 2356
         }
       ]
     }
