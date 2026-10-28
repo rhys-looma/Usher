@@ -1,6 +1,68 @@
 # Overnight run, 28–29 October 2026
 
-A running log: what shipped, timings, spend, what was cut and why. Newest at the bottom of each part.
+## Morning report
+
+Everything in the brief shipped and is live, and the chat editor was built too, by 23:34 UK. Every part went through its own PR, merge, deploy and smoke test. Nothing was rolled back.
+
+### What's live (production `828fe2af7811`)
+
+| Part | PR | Merged (UK) | Live |
+| --- | --- | --- | --- |
+| 0, voting compiler | [#92](https://github.com/rhys-looma/Usher/pull/92) | 21:56 | The keeper and the eval label in vote mode |
+| W, Map my site | [#94](https://github.com/rhys-looma/Usher/pull/94), [#95](https://github.com/rhys-looma/Usher/pull/95) | 22:44 | Dashboard "Map my site", `/demo/walkthrough`, the picker's "See how Usher reads this form", `/admin/corrections.jsonl` |
+| L, learning loop | [#96](https://github.com/rhys-looma/Usher/pull/96), [#97](https://github.com/rhys-looma/Usher/pull/97) | 23:00 | `/learning`, `/dashboard/learning`; the student is built but off (`USHER_STUDENT_MODEL` unset) |
+| C3, eval expansion | [#98](https://github.com/rhys-looma/Usher/pull/98) | 23:19 | 64 forms in the eval; `/learning` shows 525 examples |
+| Chat editor | [#99](https://github.com/rhys-looma/Usher/pull/99) | 23:32 | "Change it in words" on the owner's walkthrough result; closes #93 |
+
+**Smoke tests:** every check that needs no site secret passed after each deploy. After the C3 deploy one check failed on the first run and passed on two reruns straight after (transient, just after the task started). The checks that need Brightwater's site secret were skipped.
+
+**Production walkthroughs** (Muse Spark, vote mode), both stopped before "Get my quote" as asked:
+- Health: 3 pages, the address list found, $0.081.
+- Car: 3 pages, the claims follow-ups written as `shown_if`, $0.065.
+
+Both are held as proposals, not published.
+
+![The car journey's first page as the walkthrough saw it in production: every field greyed out, each boxed and tagged with its key](overnight-2026-10-29/walkthrough-car-driver-production.png)
+
+### Spend
+
+- **Production:** $1.60 of the $5 cap on 28 October. That includes both walkthroughs ($0.15), the smoke tests' hosted fills and the keeper. The cap was never raised.
+- **Local, live model calls:**
+  - Part 0's before/after eval: $0.57.
+  - C3 accuracy run: $1.38, on its own $5 job budget.
+  - The chat editor's live check: about $0.01.
+  - The image check: a fraction of a cent.
+  - Total: about $1.96.
+- **No paid GPU run.** The training dry run was on this Mac's CPU.
+
+### Waiting on marks
+
+`reports/accuracy-review.csv` has **336 public rows to mark** (columns `key_correct` and `risk_correct`, y or n). Of these:
+- 330 are new: 37 new forms, plus elements from earlier forms that came out differently.
+- 6 are earlier marks dropped because those elements now label differently: GOV.UK contact, National Rail, Wikipedia.
+
+Then run `npm run accuracy:score`. The front page shows a run only once every public row in it is marked, so it keeps the 27 October numbers until then.
+
+### Rhys's three tasks
+
+1. **Re-add the ChatGPT connector** (the hosted MCP at `/mcp`) in ChatGPT. I can't do that from here.
+2. **Mark the 336 rows** in `reports/accuracy-review.csv` (above).
+3. **Decide the Friday training run.** Everything is ready: `npm run finetune:train -- --confirm-spend` on one Modal H100, then `finetune:serve`. Things to weigh:
+   - The set is 525 examples from 54 forms, with 0 owner-verified. docs/finetune.md says to wait for a few thousand.
+   - Training needs Modal credentials on the machine (`modal token new`) and a Hugging Face pull of Muse-Glimmer-30B, about 60 GB.
+   - The student would stay behind the flag until it beats Spark Open on the held-out set.
+
+### Also worth knowing
+
+- **Publishing the demo walkthroughs** would replace the demo site's seeded maps with the walkthrough's. That is your call. To publish, sign in to Brightwater's dashboard and press "Publish these maps", or, signed in to `/admin`, POST to `/admin/walkthrough/publish` (there is no button for it there).
+- **Still open from before:**
+  - `@usher-run/mcp` isn't published with the new parameters (it needs your approval).
+  - Please revoke the npm token you pasted earlier.
+  - `REPORT.md` stays untracked.
+
+---
+
+A running log follows: what shipped, timings, spend, what was cut and why. Newest at the bottom of each part.
 
 ## Precondition
 
