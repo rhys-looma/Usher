@@ -5,8 +5,7 @@
 // are rate limited, within the daily model budget, and cached by fingerprint digest.
 
 import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
-import { isPrivateAddress } from '@usher/core/public-fetch';
+import { isPrivateAddress, publicHost } from '@usher/core/public-fetch';
 import type { Browser } from 'playwright';
 import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
@@ -39,15 +38,6 @@ interface CachedLabels {
   labels: unknown;
   model: string;
   created_at: string;
-}
-
-/** Whether a host name or address reaches only public internet addresses. */
-async function publicHost(host: string): Promise<boolean> {
-  const bare = host.replace(/^\[|\]$/g, '');
-  if (isIP(bare)) return !isPrivateAddress(bare);
-  if (/^localhost$|\.localhost$/i.test(bare)) return false;
-  const addresses = await lookup(bare, { all: true }).catch(() => []);
-  return addresses.length > 0 && addresses.every((a) => !isPrivateAddress(a.address));
 }
 
 interface PickedMap {

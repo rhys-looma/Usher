@@ -50,6 +50,8 @@ export interface TokenClaims {
   forbid?: string[];
   /** Keys the agent stated, when knocking, that its user confirmed. */
   confirmed?: string[];
+  /** RFC 8693 actor: set to { sub: "hosted" } when the registry knocked for a hosted connection. */
+  act?: { sub: 'hosted' };
   /** The agent's public key (RFC 7800 confirmation): sites can check its request signatures. */
   cnf?: { jwk: PublicJwk };
 }

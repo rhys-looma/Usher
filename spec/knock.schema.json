@@ -151,7 +151,15 @@
         "jti": { "type": "string", "minLength": 16 },
         "confirm": { "type": "array", "items": { "type": "string" } },
         "forbid": { "type": "array", "items": { "type": "string" } },
-        "confirmed": { "type": "array", "items": { "type": "string" } }
+        "confirmed": { "type": "array", "items": { "type": "string" } },
+        "act": {
+          "type": "object",
+          "description": "RFC 8693 actor: the registry knocked on behalf of a hosted connection (the registry's /mcp).",
+          "required": ["sub"],
+          "additionalProperties": false,
+          "properties": { "sub": { "const": "hosted" } }
+        },
+        "cnf": { "type": "object", "description": "RFC 7800 confirmation: the agent's public key.", "required": ["jwk"], "properties": { "jwk": { "$ref": "#/$defs/ed25519PublicJwk" } } }
       }
     },
     "keySet": {

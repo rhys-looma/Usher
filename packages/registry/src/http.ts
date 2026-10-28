@@ -39,6 +39,14 @@ export interface HttpOptions {
   hourly?: Partial<Record<'signup' | 'interest' | 'login', number>>;
   /** The demo stage at /demo: served only when USHER_DEMO=1, and only to this machine. */
   demo?: DemoHandler;
+  /** Hosted MCP at /mcp (MCP's streamable HTTP transport). */
+  mcp?: McpEndpoint;
+}
+
+/** Hosted MCP (packages/mcp/src/hosted.ts), mounted at /mcp. It keeps its own limits. */
+export interface McpEndpoint {
+  handle(req: IncomingMessage, res: ServerResponse, client: string, body: unknown): Promise<void>;
+  close(): Promise<void>;
 }
 
 export { clientAddress, requestScheme, requestUrl };
@@ -127,6 +135,17 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key, Content-Digest, Signature, Signature-Input, Signature-Agent');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       }
+      // Browser-based MCP clients connect from their own origin; there are no cookies here.
+      if (url.pathname === '/mcp' && options.mcp) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
+        if (preflight) {
+          res.writeHead(204, { 'Access-Control-Max-Age': '600' });
+          return void res.end();
+        }
+      }
       if (preflight) {
         res.writeHead(corsRoute ? 204 : 405, corsRoute ? { 'Access-Control-Max-Age': '600' } : {});
         return void res.end();
@@ -134,6 +153,15 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 
       // Per client address, in memory only.
       const client = clientAddress(req, options.proxyHops);
+      if (url.pathname === '/mcp' && options.mcp) {
+        // Someone opening the address in a browser gets a pointer, not a protocol error.
+        if (req.method === 'GET' && !req.headers['mcp-session-id'] && !String(req.headers.accept ?? '').includes('text/event-stream')) {
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          return void res.end(`Usher's hosted MCP server. Add ${registry.url}/mcp to your assistant as a remote MCP server (connector); there is nothing to install.\nIt acts on sites that have joined Usher. For any other site, run it locally with your own key: npx -y @usher-run/mcp\n`);
+        }
+        const body = req.method === 'POST' ? await readJson(req).catch(() => undefined) : undefined;
+        return await options.mcp.handle(req, res, client, body);
+      }
       const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : /^POST \/sessions\/[^/]+\/events$/.test(route) ? 'events' : req.method === 'GET' ? 'read' : 'write';
       if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });
       const slow = hourlyGroup(route);
@@ -218,7 +246,7 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
   };
 }
 
-export interface StartOptions extends Omit<HttpOptions, 'web'> {
+export interface StartOptions extends Omit<HttpOptions, 'web' | 'mcp'> {
   /** The keeper: scheduled checks and drift rebuilds. */
   keeper?: KeeperOptions;
   signingKey?: PrivateJwk;
@@ -231,6 +259,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   explainer?: { chat: ChatFn; model: string };
   /** The registry's clock (tests). */
   now?: () => Date;
+  /** Hosted MCP at /mcp, made once the registry exists. */
+  mcp?: (registry: Registry) => McpEndpoint;
   port?: number;
   host?: string;
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
@@ -280,7 +310,8 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.submitLimit !== undefined && { submitLimit: options.submitLimit }),
     ...(options.publicDemo && { publicDemo: options.publicDemo }),
   });
-  const web = options.web ? new Web(registry, { ...options.web, ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const mcp = options.mcp?.(registry);
+  const web = options.web ? new Web(registry, { ...options.web, ...(mcp && { hostedMcp: true }), ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
     registryHandler(registry, {
       ...(options.siteScript && { siteScript: options.siteScript }),
@@ -290,6 +321,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
       ...(options.limits && { limits: options.limits }),
       ...(options.hourly && { hourly: options.hourly }),
       ...(options.demo && { demo: options.demo }),
+      ...(mcp && { mcp }),
     }),
   );
   await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve));
@@ -338,6 +370,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
         server.close(() => resolve());
       });
       await keeper?.close();
+      await mcp?.close();
       await options.storage.close?.();
     },
   };

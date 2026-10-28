@@ -12,6 +12,7 @@ import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
 function identityBadge(session: Session | undefined): Raw {
   const id = session?.identity;
+  if (id?.method === 'hosted') return html`<span class="badge plain" title="A key the registry minted for one hosted MCP connection; the registry signed its tokens as acting for it">hosted</span> <span class="small muted">Usher hosted MCP</span>`;
   if (id?.method === 'web-bot-auth') {
     const where = id.signature_agent ? new URL(id.signature_agent).host : 'key in the knock';
     return html`<span class="badge rule-allow" title="HTTP Message Signatures, tag web-bot-auth">verified identity</span> <span class="small muted">Web Bot Auth · ${where}</span>`;
@@ -30,6 +31,8 @@ export interface BlockedEntry {
   source: 'registry' | 'site';
   agent?: string;
   action?: string;
+  /** The agent was acting through a hosted Usher connection. */
+  hosted?: true;
 }
 
 /** An explanation of a form's recent sessions (LU-34), shown when present. */
@@ -68,8 +71,8 @@ const demoBanner = (origin: string) =>
   html`<div class="card notice"><b>This is the demo site's live dashboard.</b> Run <code>usher_fill</code> on <a href="${origin}/quote/driver">${new URL(origin).host}</a> and your agent's session appears here. Read-only: nothing here changes the site.</div>`;
 const LIVE_SCRIPT = html`<script src="/demo.js" defer></script>`;
 
-export function shortAgent(id: string | undefined): string {
-  return id ? (id.length > 16 ? `${id.slice(0, 10)}…` : id) : 'unknown';
+export function shortAgent(id: string | undefined, hosted = false): string {
+  return id ? `${hosted ? 'hosted:' : ''}${id.length > 16 ? `${id.slice(0, 10)}…` : id}` : 'unknown';
 }
 
 export class Dashboard {
@@ -227,7 +230,7 @@ ${
 <div class="card"><table>
 <thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
 <tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent)}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
+        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
 <td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
       ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
 
@@ -235,7 +238,7 @@ ${
 <div class="card"><table>
 <thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
 <tbody>${blocked.length ? blocked.slice(0, 50).map(
-        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
+        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent, b.hosted === true)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
       ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>
 </div>`,
     );
@@ -262,7 +265,7 @@ ${policySummary(preview.policy, maps)}
       'Agent session',
       html`${demo ? LIVE_SCRIPT : ''}<p class="muted small"><a href="${base}#sessions">${demo ? 'Demo dashboard' : 'Dashboard'}</a> · session ${session.id}</p>
 <h1>Agent session</h1>
-<p class="lede">Agent <span class="mono">${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
+<p class="lede">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
 ${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
 <form method="post" action="/dashboard/sessions/${session.id}/explain"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
 <div class="card" data-live="timeline"><ol class="timeline">${events.map(
@@ -312,6 +315,7 @@ function policySummary(policy: import('@usher/core').UsherPolicy, maps: import('
   )}</tbody></table>
 ${limits.length ? html`<p class="small">Limits: ${limits.map((l) => html`at most ${l.max} <code>${l.action}</code> per ${l.per} per ${l.window}; `)}</p>` : ''}
 ${policy.agents?.block?.length ? html`<p class="small">Blocked agents: ${policy.agents.block.map((a) => html`<span class="mono">${shortAgent(a)}</span> `)}</p>` : ''}
+${policy.agents?.hosted === 'block' ? html`<p class="small">Hosted agents (through a hosted Usher connection) are blocked.</p>` : ''}
 ${policy.retention?.session_days ? html`<p class="small">Sessions kept ${policy.retention.session_days} days.</p>` : ''}`;
 }
 

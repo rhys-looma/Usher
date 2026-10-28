@@ -4,6 +4,7 @@
 // is refused. Never follows redirects; bodies are capped. Node only.
 
 import { lookup, type LookupAddress, type LookupOptions } from 'node:dns';
+import { lookup as lookupAll } from 'node:dns/promises';
 import { request as httpRequest, type IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { isIP } from 'node:net';
@@ -106,4 +107,13 @@ export async function publicFetch(input: string | URL | Request, init: RequestIn
     req.on('error', reject);
     req.end();
   });
+}
+
+/** Whether a host name or address reaches only public internet addresses (for browsers we drive). */
+export async function publicHost(host: string): Promise<boolean> {
+  const bare = host.replace(/^\[|\]$/g, '');
+  if (isIP(bare)) return !isPrivateAddress(bare);
+  if (/^localhost$|\.localhost$/i.test(bare)) return false;
+  const addresses = await lookupAll(bare, { all: true }).catch(() => []);
+  return addresses.length > 0 && addresses.every((a) => !isPrivateAddress(a.address));
 }

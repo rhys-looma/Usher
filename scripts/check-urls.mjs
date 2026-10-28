@@ -8,9 +8,10 @@ import { readFileSync } from 'node:fs';
 const PATTERN = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])(?![\w.-])|usher\.run/i;
 
 // Tests (and what only tests read: fixtures, recordings), the Compose file, and the untracked report.
-// @usher-run/mcp is the published client for the public registry: its manifest and README name it.
+// @usher-run/mcp is the published client for the public registry: its manifest and README name it,
+// as does the setup guide for the public registry's hosted MCP (docs/hosted-mcp.md).
 // Recorded results of runs against the live deployment name it, as fixtures do.
-const ALLOWED = [/^packages\/mcp\/(package\.json|README\.md)$/, /^examples\/browser-use\/results\.jsonl$/, /^REPORT\.md$/, /(^|\/)test\//, /\.test\.[cm]?[jt]s$/, /(^|\/)fixtures\//, /^docker-compose\.ya?ml$/, /^scripts\/check-urls\.mjs$/, /^package-lock\.json$/];
+const ALLOWED = [/^packages\/mcp\/(package\.json|README\.md)$/, /^docs\/hosted-mcp\.md$/, /^examples\/browser-use\/results\.jsonl$/, /^REPORT\.md$/, /(^|\/)test\//, /\.test\.[cm]?[jt]s$/, /(^|\/)fixtures\//, /^docker-compose\.ya?ml$/, /^scripts\/check-urls\.mjs$/, /^package-lock\.json$/];
 
 const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\n').filter(Boolean);
 const found = [];

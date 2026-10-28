@@ -11,7 +11,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import type { Fingerprint, UsherMap } from '@usher/core';
-import { RegistryClient } from './client.ts';
+import { RegistryClient, type KnockInput, type RunReport } from './client.ts';
 import { loadOrCreateIdentity } from './identity-file.ts';
 
 const fingerprint = z.object({ algo: z.literal('usher-fp-1'), digest: z.string(), signature: z.array(z.string()) });
@@ -28,9 +28,25 @@ async function guarded(work: () => Promise<unknown>) {
   }
 }
 
+/** What the tools call: the registry over HTTP (RegistryClient), or in-process for hosted connections. */
+export interface RegistryTools {
+  knock(input: KnockInput): Promise<unknown>;
+  lookup(origin: string, path: string, fingerprint: Fingerprint): Promise<unknown>;
+  getMap(origin: string, digest: string): Promise<unknown>;
+  getPlan(url: string): Promise<unknown>;
+  /** Absent where agents can't share maps (hosted connections). */
+  submitMap?(map: UsherMap): Promise<unknown>;
+  reportRun(report: RunReport): Promise<unknown>;
+}
+
 export async function createMcpServer(registryUrl: string, keyFile?: string, version = '0.1.0'): Promise<McpServer> {
-  const client = new RegistryClient(registryUrl.replace(/\/$/, ''), await loadOrCreateIdentity(keyFile));
   const server = new McpServer({ name: 'usher', version });
+  registerRegistryTools(server, new RegistryClient(registryUrl.replace(/\/$/, ''), await loadOrCreateIdentity(keyFile)));
+  return server;
+}
+
+/** knock, get_map, get_plan, report_run, and submit_map where the client can share maps. */
+export function registerRegistryTools(server: McpServer, client: RegistryTools): void {
 
   server.registerTool(
     'knock',
@@ -85,14 +101,15 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
     (args) => guarded(() => client.getPlan(args.url)),
   );
 
-  server.registerTool(
+  const submit = client.submitMap?.bind(client);
+  if (submit) server.registerTool(
     'submit_map',
     {
       title: 'Submit a map',
       description: 'Submit a map built for a page that had none, so the next agent gets a fast path. Must validate against the Usher map schema; never include values.',
       inputSchema: { map: z.record(z.string(), z.unknown()) },
     },
-    (args) => guarded(() => client.submitMap(args.map as unknown as UsherMap)),
+    (args) => guarded(() => submit(args.map as unknown as UsherMap)),
   );
 
   server.registerTool(
@@ -104,8 +121,6 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
     },
     (args) => guarded(() => client.reportRun({ session: args.session, url: args.url, outcome: args.outcome, ...(args.summary && { summary: args.summary }) })),
   );
-
-  return server;
 }
 
 // Run directly from a checkout (not when bundled into @usher-run/mcp, which has its own entry).

@@ -22,6 +22,19 @@ export interface RunReport {
   summary?: Record<string, unknown>;
 }
 
+/** The knock body, before signing: the page without query or fragment. */
+export function knockRequest(input: KnockInput) {
+  const url = new URL(input.url);
+  return {
+    usher: '0.1',
+    url: url.origin + url.pathname,
+    ...(input.intent && { intent: input.intent }),
+    ...(input.fingerprint && { fingerprint: input.fingerprint }),
+    ...(input.session && { session: input.session }),
+    ...(input.confirmed?.length && { confirmed: input.confirmed }),
+  };
+}
+
 export class RegistryError extends Error {
   constructor(
     readonly status: number,
@@ -66,16 +79,7 @@ export class RegistryClient {
   }
 
   async knock(input: KnockInput): Promise<KnockResponse> {
-    const url = new URL(input.url);
-    const payload = {
-      usher: '0.1',
-      url: url.origin + url.pathname,
-      ...(input.intent && { intent: input.intent }),
-      ...(input.fingerprint && { fingerprint: input.fingerprint }),
-      ...(input.session && { session: input.session }),
-      ...(input.confirmed?.length && { confirmed: input.confirmed }),
-    };
-    return this.call('POST', '/knock', await this.sign(payload));
+    return this.call('POST', '/knock', await this.sign(knockRequest(input)));
   }
 
   lookup(origin: string, path: string, fingerprint: Fingerprint): Promise<{ match: KnockResponse['match']; map: UsherMap | null }> {

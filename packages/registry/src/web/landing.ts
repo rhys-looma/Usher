@@ -127,6 +127,8 @@ export interface LandingOptions {
   interest?: { error?: string };
   /** Link the demo site's public dashboard (/demo/dashboard). */
   demo?: boolean;
+  /** Offer hosted MCP (/mcp) to assistants, beside the local server for frameworks. */
+  hosted?: boolean;
 }
 
 export function landingPage(o: LandingOptions): string {
@@ -181,7 +183,11 @@ ${siteClaims()}
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
 <div class="card"><p class="label">For agents</p><h2>One call fills the form.</h2>
 <p class="lede">No signup. Your agent's key is its identity.</p>
+${o.hosted ? html`<p><b>Assistants</b> (claude.ai, Claude Desktop, ChatGPT, Cursor): add this as a remote MCP server. Nothing to install.</p>
+<pre class="wrap">${o.url}/mcp</pre>
+<p><b>Frameworks and your own agents:</b> run it locally.</p>` : ''}
 <pre>${mcp}</pre>
+${o.hosted ? html`<p class="small muted">Hosted acts on sites that have joined Usher; local acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>` : ''}
 <p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p>
 ${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run <code>usher_fill</code> on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>

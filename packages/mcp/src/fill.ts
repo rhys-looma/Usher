@@ -17,7 +17,7 @@ import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
 import { budgeted, compilerModel, modelApi, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger } from '@usher/core';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
-import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type Profile, type RunResult, type UserChannel } from '../../agent/src/index.ts';
+import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
 
 /** What the caller is asked to decide. */
 interface Decision {
@@ -45,16 +45,23 @@ interface Job {
 }
 
 export interface FillOptions {
-  registryUrl: string;
-  keyFile: string;
+  /** The registry, over HTTP, signing with the key in keyFile; or `transport` instead. */
+  registryUrl?: string;
+  keyFile?: string;
+  /** How each fill reaches the registry (hosted connections: in-process, with the connection's key). */
+  transport?: () => Promise<RegistryTransport>;
+  /** Checked before a fill starts: a refusal to return instead, or null to go ahead. */
+  admit?: (url: string) => Promise<{ refused: string } | { release: () => void }>;
   /** For pages with no map: Muse Spark (MODEL_API_KEY), within the daily cap. */
   fallback?: FallbackModel;
-  /** Launch the browser (tests pass their own). */
+  /** Launch the browser (tests and the hosted endpoint pass their own, and close it themselves). */
   browser?: () => Promise<Browser>;
   /** How long a run may go before it reaches a decision or the end. */
   stepTimeoutMs?: number;
   /** How long a decision waits for usher_confirm or usher_cancel. */
   decisionTimeoutMs?: number;
+  /** Every request a fill's browser makes must reach a host this allows (hosted: public only). */
+  allowHost?: (host: string) => Promise<boolean>;
   /** usher_fill calls per hour. */
   perHour?: number;
 }
@@ -175,8 +182,10 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       const odd = Object.entries(args.values).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
       if (odd.length) return { isError: true, content: [{ type: 'text' as const, text: `Values must be text, numbers or true/false: ${odd.join(', ')}.` }] };
       if (!limiter.allow('fill')) return { isError: true, content: [{ type: 'text' as const, text: 'Too many fills this hour; try again later.' }] };
+      const admitted = options.admit ? await options.admit(args.url) : { release: () => undefined };
+      if ('refused' in admitted) return { isError: true, content: [{ type: 'text' as const, text: admitted.refused }] };
       browser ??= (options.browser ?? launchChromium)();
-      const transport = await httpTransport(options.registryUrl, options.keyFile);
+      const transport = options.transport ? await options.transport() : await httpTransport(options.registryUrl!, options.keyFile);
       let changed!: () => void;
       const job: Job = {
         id: `f_${randomUUID().replace(/-/g, '').slice(0, 16)}`,
@@ -232,6 +241,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
             registry: transport,
             user,
             ...(options.fallback && { fallback: options.fallback }),
+            ...(options.allowHost && { allowHost: options.allowHost }),
             onPage: (page) => void (job.page = page),
             onEvent,
           });
@@ -240,6 +250,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           return { outcome: 'failed', reason: err instanceof Error ? err.message : String(err), session: null, final_url: job.page?.url() ?? args.url, pages: [], maps_submitted: 0, transport: 'http', total_ms: 0, knock_ms: 0, model_ms: 0, fill_ms: 0, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, cost_usd: 0, plan_used: false };
         } finally {
           await transport.close?.();
+          admitted.release();
           rearm();
         }
       })();
@@ -283,7 +294,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   return {
     async close() {
       for (const job of [...jobs.values()]) await finish(job);
-      if (browser) await (await browser).close().catch(() => undefined);
+      if (browser && !options.browser) await (await browser).close().catch(() => undefined);
     },
   };
 }

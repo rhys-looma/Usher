@@ -85,6 +85,8 @@ export interface AgentOptions {
   signatureAgent?: string;
   /** Ignore the site's knock notice (an agent that skips Usher), but still look maps up. */
   knock?: boolean;
+  /** Every request the browser makes (redirects, scripts, frames) must reach a host this allows. */
+  allowHost?: (host: string) => Promise<boolean>;
   /** Extra headers on every request the browser makes, e.g. Usher-Agent. */
   headers?: Record<string, string>;
   viewport?: { width: number; height: number };
@@ -120,7 +122,7 @@ export interface RunResult {
   final_url: string;
   pages: PageRun[];
   maps_submitted: number;
-  transport: 'http' | 'mcp';
+  transport: RegistryTransport['kind'];
   total_ms: number;
   knock_ms: number;
   model_ms: number;
@@ -233,6 +235,14 @@ async function fillField(page: Page, field: MapField, value: string | boolean): 
 export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const started = performance.now();
   const context = await options.browser.newContext({ viewport: options.viewport ?? { width: 1280, height: 900 }, ...(options.headers && { extraHTTPHeaders: options.headers }) });
+  const verdicts = new Map<string, Promise<boolean>>();
+  const allowed = (url: string) => {
+    if (!options.allowHost) return Promise.resolve(true);
+    const host = new URL(url).hostname;
+    if (!verdicts.has(host)) verdicts.set(host, options.allowHost(host));
+    return verdicts.get(host)!;
+  };
+  if (options.allowHost) await context.route('**/*', async (route) => ((await allowed(route.request().url())) ? route.continue() : route.abort('blockedbyclient')));
   const page = await context.newPage();
   const emit = (event: AgentEvent) => {
     try {
@@ -282,6 +292,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         (u) => u.origin === origin,
         async (route) => {
           const request = route.request();
+          // This page route runs before the context's, so it checks the host itself.
+          if (!(await allowed(request.url()))) return route.abort('blockedbyclient');
           const headers = Object.fromEntries(Object.entries(await request.allHeaders()).filter(([k]) => !k.startsWith(':')));
           const body = request.postDataBuffer();
           if (body?.length) headers['content-digest'] = await contentDigest(new Uint8Array(body));

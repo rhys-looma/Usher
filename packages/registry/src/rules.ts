@@ -28,6 +28,7 @@ export interface RulesDraftOutput {
   rate_limits: { action: string; per: 'agent' | 'origin'; max: number; window: 'minute' | 'hour' | 'day'; path: string | null }[];
   allowed_agents: string[] | null;
   blocked_agents: string[];
+  hosted_agents: 'allow' | 'block' | null;
   retention_days: number | null;
 }
 
@@ -51,6 +52,7 @@ export function rulesSchema(): Record<string, unknown> {
     },
     allowed_agents: { anyOf: [{ type: 'array', items: { type: 'string', description: 'A 43-character agent id from the text' } }, { type: 'null' }] },
     blocked_agents: { type: 'array', items: { type: 'string', description: 'A 43-character agent id from the text' } },
+    hosted_agents: { anyOf: [{ type: 'string', enum: ['allow', 'block'] }, { type: 'null' }] },
     retention_days: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
   });
 }
@@ -79,6 +81,7 @@ ${actionKeys}
 - actions: a rule per semantic key: "allow" (agents may do it), "confirm" (the agent must get its user's confirmation first) or "forbid" (agents may not do it; the user can). path is null for the whole site, or a form's path.
 - rate_limits: "at most max of action per agent (each agent separately) or per origin (all agents together) per minute, hour or day". action is a semantic key, or "knock" for any use of a form. If a limit does not say whether it is per agent or for the whole site, use "agent". path is null for the whole site.
 - allowed_agents and blocked_agents: agent ids are 43-character strings such as "Xq3vT0p2bN8mLr6sYwK1dE5gHj9uZc4aFo7iPe2Rk0Q". Only list ids the owner actually writes in the text. If the owner names no agent ids, allowed_agents is null and blocked_agents is an empty list [].
+- hosted_agents: "block" if the owner does not want agents that act through a hosted Usher connection (hosted agents, agents run by Usher for someone's assistant), "allow" if they explicitly welcome them, otherwise null.
 - retention_days: how long to keep logs of agent sessions, if the owner says; otherwise null.
 
 ## Rules
@@ -107,8 +110,8 @@ export function toPolicy(origin: string, out: RulesDraftOutput): UsherPolicy {
     target.rate_limits = [...(target.rate_limits ?? []), limit];
   }
   if (forms.size) policy.forms = [...forms.values()];
-  if (out.allowed_agents || out.blocked_agents.length) {
-    policy.agents = { allow: out.allowed_agents ?? '*', block: out.blocked_agents };
+  if (out.allowed_agents || out.blocked_agents.length || out.hosted_agents) {
+    policy.agents = { allow: out.allowed_agents ?? '*', block: out.blocked_agents, ...(out.hosted_agents && { hosted: out.hosted_agents }) };
   }
   if (out.retention_days) policy.retention = { session_days: out.retention_days };
   return policy;

@@ -50,6 +50,23 @@ Drift reports need the site's key and are limited to 60 a minute per site. The r
 - **Model API keys and the signing key** are read from the environment only and never logged. A site's secret key is shown once.
 - **People are never beaconed.** The site script logs only sessions an agent has bound with a token. A person filling the same form sends nothing to the registry.
 
+## Hosted MCP
+
+The registry's hosted MCP endpoint (`/mcp`) runs `usher_fill` in our browser, for anyone who adds the URL. Its controls:
+
+- **Where it acts.** Only on sites that have joined (a proved origin) and on the demo site. Anywhere else, the reply points to the local server and says why. A joined site can still block hosted agents as a class (`agents.hosted: "block"`).
+- **Requests.** Every request a fill's browser makes, including redirects, scripts and frames, must reach a public address. That's the same check the map viewer uses, so a joined domain pointed at a private address gets nowhere.
+- **Identity.**
+  - Each connection gets its own key, minted on first use and held in memory only. Its public key isn't stored either.
+  - The registry knocks for the connection in-process and marks the session `hosted`. It signs the token with `act: { "sub": "hosted" }`.
+  - Nothing over HTTP can claim to be hosted.
+- **Limits.**
+  - Per connection: 60 requests a minute and 10 fills an hour.
+  - Per address: a high ceiling, because assistants share their provider's addresses.
+  - At most three fills at once, 500 open connections, and idle connections closed after 30 minutes.
+  - Model fallback stays within the registry's daily spend cap.
+- **Values.** They pass from the assistant's call into the site's form, in a fresh browser context closed when the fill ends. They are never logged or stored.
+
 ## Other controls
 
 - **Rate limits** on every registry endpoint, per address and per key, plus the site's own limits per agent (for example, five quotes an hour).

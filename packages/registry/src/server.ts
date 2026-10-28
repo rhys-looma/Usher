@@ -25,6 +25,8 @@
 //                                   (default USHER_SEED_ORIGIN; "off" for none)
 //   USHER_DEMO_KEEP_AGENTS          our own agent ids on it (comma-separated): other agents' sessions
 //                                   there are kept 24 hours
+//   USHER_HOSTED_MCP=off            no hosted MCP at /mcp (on by default; it opens joined sites in a
+//                                   headless browser for usher_fill)
 //   USHER_ADMIN_KEY                 signs in to /admin (the front page's interest list); no admin pages without it
 //   USHER_CONTACT_EMAIL             named on /privacy and in /.well-known/security.txt
 //   USHER_VIEWER=open               let the map viewer open any address (local demos only; refused in
@@ -37,6 +39,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import type { Browser } from 'playwright';
+import { hostedMcp } from '../../mcp/src/hosted.ts';
 import { budgeted, compilerModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
@@ -99,10 +103,21 @@ const explainer = values['explain-open'] ? (open ?? spark) : (spark ?? open);
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 const signingKey = json<PrivateJwk>('USHER_SIGNING_KEY');
 const retiredKeys = json<PublicJwk[]>('USHER_RETIRED_KEYS');
+// Hosted MCP: one headless browser for every connection (relaunched if it goes), a fresh context per fill.
+let browser: Promise<Browser> | undefined;
+const hostedBrowser = async () => {
+  const current = browser && (await browser.catch(() => undefined));
+  if (!current?.isConnected()) browser = import('playwright').then(({ chromium }) => chromium.launch({ headless: true }));
+  return browser!;
+};
 const demoOrigin = (env.USHER_DEMO_DASHBOARD_ORIGIN ?? values['seed-origin'] ?? '').trim().replace(/\/$/, '');
 const running = await startRegistry({
   storage,
   ...(demoOrigin && demoOrigin !== 'off' && { publicDemo: { origin: demoOrigin, keepAgents: (env.USHER_DEMO_KEEP_AGENTS ?? '').split(',').map((a) => a.trim()).filter(Boolean) } }),
+  ...(env.USHER_HOSTED_MCP !== 'off' && {
+    // The registry's own model for pages with no map, within the same daily cap.
+    mcp: (registry) => hostedMcp({ registry, version: env.USHER_VERSION || 'dev', browser: hostedBrowser, allowPrivate: values['allow-private'], ...(spark && { fallback: { chat: spark.chat, model: spark.model, logDir: null } }) }),
+  }),
   port: Number(values.port),
   host: values.host,
   siteScript,

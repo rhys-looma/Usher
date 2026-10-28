@@ -39,7 +39,9 @@ Then lock consequential endpoints on your server with [`@usher/site-middleware`]
 
 ## Quickstart: an agent
 
-Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
+**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo quote site; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md).
+
+**In a framework or your own agent,** run it locally. It acts on any site, with your own key. Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
 ```json
 {
