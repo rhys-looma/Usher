@@ -32,15 +32,16 @@ after(async () => {
 const post = (path: string, form: Record<string, string>, headers: Record<string, string> = {}) =>
   fetch(`${registry.url}${path}`, { method: 'POST', body: new URLSearchParams(form), headers, redirect: 'manual' });
 
-test('front page: the sentence, the six steps, the viewer box, both quickstarts, numbers, sharing tags', async () => {
+test('front page: the sentence (no prompt box in the hero), the six steps, the viewer box, both quickstarts, numbers, sharing tags', async () => {
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', 'Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
+  assert.doesNotMatch(text.split('</section>')[0]!, /Ask your assistant|class="bubble"/, 'the hero shows no prompt box');
   assert.ok(text.includes('No signup. Your agent&#39;s key is its identity.') || text.includes("No signup. Your agent's key is its identity."));
   assert.ok(text.includes(`&quot;USHER_REGISTRY_URL&quot;: &quot;${registry.url}&quot;`), 'the MCP entry names this registry');
   assert.ok(text.includes(`data-usher-registry=&quot;${registry.url}&quot;`), 'the tag names this registry');

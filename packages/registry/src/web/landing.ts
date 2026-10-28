@@ -238,7 +238,6 @@ export function landingPage(o: LandingOptions): string {
 <p class="label">An open protocol for web forms</p>
 <h1>${first}. <em>${rest.join('. ')}</em></h1>
 <p class="lede">${POSITIONING}</p>
-<figure class="hero-ask"><figcaption class="label">Ask your assistant</figcaption><p class="bubble">${EXAMPLE}</p></figure>
 <p class="actions"><a class="button" href="/sites/new">Get your keys</a><a class="button ghost" href="#agents">Connect an agent</a></p>
 </div>
 <aside class="ticket" aria-label="An example of what an agent receives when it knocks">
@@ -375,9 +374,6 @@ main { padding-top:0; }
 .ticket-stub b { font-family:var(--serif); font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
 .ticket-stub span:last-child { font-size:12px; color:var(--muted); line-height:1.35; }
 @media (max-width:480px) { .ticket { grid-template-columns:1fr; transform:none; } .ticket::before, .ticket::after { display:none; } .ticket-stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:12px 22px; } .ticket-stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:2px; } }
-.hero-ask { margin:0 0 28px; max-width:46ch; }
-.hero-ask .label { margin:0 0 6px; }
-.bubble { margin:0; padding:12px 16px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; font-size:16px; line-height:1.5; }
 /* What your customer sees, and the rails underneath: two panes side by side, always dark like an
    assistant, playing in step (site.js marks the steps reached as r1…r6 on .views). */
 .between .lede { max-width:64ch; }
