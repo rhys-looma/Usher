@@ -30,7 +30,8 @@ export interface UsherPolicy {
   origin: string;
   default: PolicyRules;
   forms?: PolicyForm[];
-  agents?: { allow?: '*' | string[]; block?: string[] };
+  /** hosted: agents acting through a hosted Usher connection (a registry's /mcp), as a class. */
+  agents?: { allow?: '*' | string[]; block?: string[]; hosted?: 'allow' | 'block' };
   retention?: { session_days?: number };
 }
 
@@ -88,8 +89,8 @@ export function effectiveRules(policy: UsherPolicy | undefined, map: UsherMap | 
   return { agent_lane: own.agent_lane, actions, rate_limits: own.rate_limits };
 }
 
-export function agentStanding(policy: UsherPolicy | undefined, agentId: string): 'allowed' | 'blocked' | 'not_allowed' {
-  if (policy?.agents?.block?.includes(agentId)) return 'blocked';
+export function agentStanding(policy: UsherPolicy | undefined, agentId: string, hosted = false): 'allowed' | 'blocked' | 'not_allowed' {
+  if (policy?.agents?.block?.includes(agentId) || (hosted && policy?.agents?.hosted === 'block')) return 'blocked';
   const allow = policy?.agents?.allow ?? '*';
   return allow === '*' || allow.includes(agentId) ? 'allowed' : 'not_allowed';
 }

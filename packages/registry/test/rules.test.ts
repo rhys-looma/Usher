@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { WINDOW_MS, effectiveRules, generateAgentIdentity, policySchemaErrors, requestHash, type ChatFn, type UsherPolicy } from '@usher/core';
 import type { RecordedAttempt } from '../../core/test/replay.ts';
 import { RegistryClient, RegistryError, compileRules, seed, seedMaps, startRegistry, toPolicy, type RulesDraftOutput } from '../src/index.ts';
-import { PHRASINGS, RULES_ORIGIN } from './phrasings.ts';
+import { HOSTED_PHRASING, PHRASINGS, RULES_ORIGIN } from './phrasings.ts';
 import { registerSite } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
 
@@ -16,11 +16,12 @@ interface RulesFixture {
   attempts: RecordedAttempt[];
 }
 const fixtures: RulesFixture[] = await Promise.all(PHRASINGS.map(async (_, i) => JSON.parse(await readFile(new URL(`./fixtures/rules/${i + 1}.json`, import.meta.url), 'utf8'))));
+const hostedFixture: RulesFixture = JSON.parse(await readFile(new URL('./fixtures/rules/hosted.json', import.meta.url), 'utf8'));
 const maps = (await seedMaps('mock-site')).map((m) => ({ ...m, origin: RULES_ORIGIN }));
 
 /** Answers each request with the recorded reply for it, from any of the fixtures. */
 function replay(): ChatFn {
-  const byHash = new Map(fixtures.flatMap((f) => f.attempts.map((a) => [a.request_sha256, a] as const)));
+  const byHash = new Map([...fixtures, hostedFixture].flatMap((f) => f.attempts.map((a) => [a.request_sha256, a] as const)));
   return async (request) => {
     const a = byHash.get(requestHash(request));
     if (!a) throw new Error('No recorded reply for this request: run packages/registry/scripts/record-rules.ts.');
@@ -51,6 +52,13 @@ test('three phrasings of "agents can fill quotes, a human confirms submit, max f
   console.log(results.map((r, i) => `  ${i + 1}. ${PHRASINGS[i]}\n     → ${r.summary}`).join('\n'));
 });
 
+test('"no hosted agents" blocks the hosted class, and still confirms the submit', async () => {
+  const r = await compileRules(replay(), hostedFixture.model, HOSTED_PHRASING, RULES_ORIGIN, maps);
+  assert.equal(policySchemaErrors(r.policy), null);
+  assert.equal(r.policy.agents?.hosted, 'block');
+  assert.equal(effectiveRules(r.policy, maps.find((m) => m.path === '/quote/cover')!, '/quote/cover').actions['form.submit'], 'confirm');
+});
+
 test('the model output becomes a policy: per-form rules, agents, retention', () => {
   const out: RulesDraftOutput = {
     summary: 's',
@@ -63,6 +71,7 @@ test('the model output becomes a policy: per-form rules, agents, retention', () 
     rate_limits: [{ action: 'knock', per: 'origin', max: 100, window: 'day', path: '/quote/*' }],
     allowed_agents: null,
     blocked_agents: ['Xq3vT0p2bN8mLr6sYwK1dE5gHj9uZc4aFo7iPe2Rk0Q'],
+    hosted_agents: 'block',
     retention_days: 14,
   };
   const policy = toPolicy(RULES_ORIGIN, out);
@@ -75,13 +84,13 @@ test('the model output becomes a policy: per-form rules, agents, retention', () 
       { match: { path: '/account/**' }, agent_lane: false },
       { match: { path: '/quote/*' }, actions: { 'consent.marketing': 'forbid' }, rate_limits: [{ action: 'knock', per: 'origin', max: 100, window: 'day' }] },
     ],
-    agents: { allow: '*', block: ['Xq3vT0p2bN8mLr6sYwK1dE5gHj9uZc4aFo7iPe2Rk0Q'] },
+    agents: { allow: '*', block: ['Xq3vT0p2bN8mLr6sYwK1dE5gHj9uZc4aFo7iPe2Rk0Q'], hosted: 'block' },
     retention: { session_days: 14 },
   });
 });
 
 test('a rule looser than the map is sent back once, then refused', async () => {
-  const loose = JSON.stringify({ summary: 's', agent_lane: true, forms_without_agents: [], actions: [{ key: 'form.submit', rule: 'allow', path: null }], rate_limits: [], allowed_agents: null, blocked_agents: [], retention_days: null });
+  const loose = JSON.stringify({ summary: 's', agent_lane: true, forms_without_agents: [], actions: [{ key: 'form.submit', rule: 'allow', path: null }], rate_limits: [], allowed_agents: null, blocked_agents: [], hosted_agents: null, retention_days: null });
   const seen: string[] = [];
   const chat: ChatFn = async (request) => {
     seen.push(String(request.messages.at(-1)!.content));

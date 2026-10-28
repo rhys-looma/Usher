@@ -38,7 +38,8 @@
       "additionalProperties": false,
       "properties": {
         "allow": { "oneOf": [{ "const": "*" }, { "type": "array", "items": { "$ref": "#/$defs/agentId" } }] },
-        "block": { "type": "array", "items": { "$ref": "#/$defs/agentId" } }
+        "block": { "type": "array", "items": { "$ref": "#/$defs/agentId" } },
+        "hosted": { "enum": ["allow", "block"], "description": "Agents acting through a hosted Usher connection, as a class. Default allow." }
       }
     },
     "retention": {

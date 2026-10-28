@@ -30,7 +30,7 @@ The normative shape is [`policy.schema.json`](policy.schema.json).
 | `origin` | The site's origin |
 | `default` | Rules for every form on the origin |
 | `forms` | Rules for particular forms, matched by `path` (a pattern where `*` matches within one segment and `**` across segments) or by map `digest`. Later entries win over earlier ones and over `default` |
-| `agents` | `allow`: `"*"` or a list of agent ids; `block`: agent ids refused everywhere |
+| `agents` | `allow`: `"*"` or a list of agent ids; `block`: agent ids refused everywhere; `hosted`: `"allow"` (the default) or `"block"` for every agent acting through a hosted Usher connection (a registry's `/mcp`), whose tokens carry `act: { "sub": "hosted" }` |
 | `retention.session_days` | How long the registry keeps agent sessions (logs) for this origin |
 
 ### Rules (in `default` and each form)

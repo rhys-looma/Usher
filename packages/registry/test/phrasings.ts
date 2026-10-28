@@ -4,4 +4,6 @@ export const PHRASINGS = [
   'AI assistants are welcome to complete our quote form for people. Before an assistant requests the actual quote, the person it is acting for has to approve it. No more than 5 quote requests per hour.',
   'Bots may do the quote journey; getting a price always needs the customer to say yes first, capped at 5/hr.',
 ];
+// Rules that turn away hosted agents as a class.
+export const HOSTED_PHRASING = 'Agents can fill in quotes, but no hosted agents, and a person confirms the submit.';
 export const RULES_ORIGIN = 'http://localhost:4100';
