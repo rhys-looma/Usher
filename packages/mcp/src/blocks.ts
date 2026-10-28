@@ -91,19 +91,22 @@ export async function disclosureBlock(page: Page, action: MapAction): Promise<Bl
   const target = await locate(page, action);
   if (!target) return null;
   // No named helpers inside: the function is serialised into the page as it is. Plain text blocks
-  // only (no controls, headings or labels): up to two levels up from the button, its container's
-  // own text and the text blocks just before and after it.
+  // only (no controls, headings or labels) that a person can see (not Usher's own note for agents,
+  // nor anything visually hidden): up to two levels up from the button, its container's own text
+  // and the text blocks just before and after it.
   const parts = await target
     .evaluate((el) => {
-      const skip = 'input, select, textarea, button, a[href], [role="button"], [role="link"], h1, h2, h3, h4, h5, h6, fieldset, legend, label';
+      const skip = 'input, select, textarea, button, a[href], [role="button"], [role="link"], h1, h2, h3, h4, h5, h6, fieldset, legend, label, [data-usher-note], [hidden]';
       const found: string[] = [];
       let box: Element = el;
       for (let i = 0; i < 2 && box.parentElement && !box.parentElement.matches('form, body'); i++) box = box.parentElement;
-      for (let n = box.previousElementSibling, k = 0; n && k < 2 && !n.matches(skip) && !n.querySelector(skip); n = n.previousElementSibling, k++) found.unshift((n as HTMLElement).innerText);
-      for (const child of Array.from(box.children)) if (!child.matches(skip) && !child.querySelector(skip)) found.push((child as HTMLElement).innerText);
+      for (let n = box.previousElementSibling, k = 0; n && k < 2 && !n.matches(skip) && !n.querySelector(skip); n = n.previousElementSibling, k++) {
+        if ((n as HTMLElement).offsetWidth > 1 && (n as HTMLElement).offsetHeight > 1) found.unshift((n as HTMLElement).innerText);
+      }
+      for (const child of Array.from(box.children)) if (!child.matches(skip) && !child.querySelector(skip) && (child as HTMLElement).offsetWidth > 1 && (child as HTMLElement).offsetHeight > 1) found.push((child as HTMLElement).innerText);
       const after = box.nextElementSibling;
-      if (after && !after.matches(skip) && !after.querySelector(skip)) found.push((after as HTMLElement).innerText);
-      return found;
+      if (after && !after.matches(skip) && !after.querySelector(skip) && (after as HTMLElement).offsetWidth > 1 && (after as HTMLElement).offsetHeight > 1) found.push((after as HTMLElement).innerText);
+      return found.filter((t, i, all) => all.indexOf(t) === i);
     })
     .catch(() => [] as string[]);
   const text = parts.map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');

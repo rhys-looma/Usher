@@ -123,7 +123,7 @@ test('Brightwater pauses once, with three decisions and the page\'s own words; t
   const consent = first.blocks!.find((b) => b.kind === 'consent' && b.source.key === 'consent.declaration')!;
   assert.deepEqual([consent.text, consent.verbatim], ['I confirm the information I have given is true and complete', true]);
   const disclosure = first.blocks!.find((b) => b.kind === 'disclosure')!;
-  assert.match(disclosure.text, /^By selecting Get my quote you agree/);
+  assert.equal(disclosure.text, 'By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.', 'the visible text only: not Usher\'s own note for agents');
   assert.equal(disclosure.source.key, 'form.submit');
   const { last, sets } = await toTheEnd(first);
   assert.equal(sets.length, 1, 'one pause');
