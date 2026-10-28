@@ -6,7 +6,7 @@
 
 import type { UsherMap } from '@usher/core';
 import { vocabulary } from '@usher/core';
-import type { WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
+import type { EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
 import { esc, html, page, when, type Raw } from './html.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
@@ -103,7 +103,27 @@ export function liveView(run: WalkthroughRun, events: string): Raw {
 }
 
 /** The finished run: each page annotated, in order, with what leads where, the diff and Publish. */
-export function resultView(run: WalkthroughRun, options: { editable: boolean; publishAction?: string }): Raw {
+/** The chat editor: a sentence in, proposed changes out, nothing applied until the owner accepts. */
+function editPanel(run: WalkthroughRun, edits: EditProposal | null, error?: string): Raw {
+  const name = (r: string) => RISK_NAMES[r] ?? r;
+  const change = (c: EditProposal['changes'][number]) =>
+    html`<li><b>${c.element}</b> <span class="muted small">(${c.path})</span>: ${c.key ? html`key <code>${c.before.key}</code> → <code>${c.key}</code>; ` : ''}${c.risk ? html`risk ${name(c.before.risk)} → <b>${name(c.risk)}</b>; ` : ''}${c.label ? html`label "${c.before.label}" → "${c.label}"; ` : ''}<span class="muted">${c.why}</span></li>`;
+  const pending = edits
+    ? html`<div class="card notice"><p><b>You said:</b> ${edits.text}</p>
+${edits.changes.length ? html`<p>Usher would make ${String(edits.changes.length)} change${edits.changes.length === 1 ? '' : 's'}:</p><ul>${edits.changes.map(change)}</ul>` : html`<p>No changes to the map came out of that.</p>`}
+${edits.unclear ? html`<p class="small"><b>Not sure what you meant:</b> ${edits.unclear}</p>` : ''}
+${edits.rules ? html`<p class="small"><b>That sounds like a site rule</b>, not a label: "${edits.rules}". Rules go on the <a href="/dashboard/rules">rules page</a>, where they bind every agent.</p>` : ''}
+${edits.refused.length ? html`<p class="small muted"><b>Left out:</b> ${edits.refused.join('; ')}.</p>` : ''}
+<form method="post" action="/dashboard/walkthrough/edit/apply" class="inline">${edits.changes.length ? html`<input type="hidden" name="id" value="${edits.id}"><button type="submit">Make these changes</button> ` : ''}<button type="submit" formaction="/dashboard/walkthrough/edit/discard" class="secondary">Discard</button></form></div>`
+    : '';
+  return html`<section class="card" id="edit"><h2>Change it in words</h2>
+${error ? html`<div class="card error">${error}</div>` : ''}${pending}
+<form method="post" action="/dashboard/walkthrough/edit"><p><label for="edit-text">Tell Usher what to change, for example "the smoker question is the person's own on every page" or "call the third field the policy number".</label></p>
+<p><textarea id="edit-text" name="text" rows="3" maxlength="1000" required style="width:100%"></textarea></p>
+<p><button type="submit">Suggest changes</button> <span class="small muted">Muse Spark reads the request and the map's structure; nothing changes until you accept.</span></p></form></section>`;
+}
+
+export function resultView(run: WalkthroughRun, options: { editable: boolean; publishAction?: string; edits?: EditProposal | null; editError?: string }): Raw {
   const pageFor = (path: string) => run.pages.find((p) => p.path === path);
   const section = (p: WalkthroughPage, i: number) => {
     const next = p.leads_to ? pageFor(p.leads_to) : undefined;
@@ -120,11 +140,12 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
   return html`<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
 ${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Agents get them from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
+${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}
 <div class="pages">${run.pages.map(section)}</div>`;
 }
 
 /** The whole walkthrough page: live while running, the result after. */
-export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string }): string {
+export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string }): string {
   return page(
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>

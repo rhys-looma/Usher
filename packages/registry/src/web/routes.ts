@@ -6,7 +6,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { toBase64Url } from '@usher/core';
+import { BudgetExceeded, toBase64Url } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
 import { visibleTo, type Registry } from '../registry.ts';
@@ -513,10 +513,24 @@ ${annotated(drawn, { anchor: 'v' })}`;
         if ('refused' in started) return sendHtml(res, 422, startForm(origin, started.refused)), true;
         return redirect(res, '/dashboard/walkthrough'), true;
       }
-      if (route === 'GET /dashboard/walkthrough') {
+      const resultPage = async (status: number, editError?: string) => {
         const run = await walk.get(origin);
-        return sendHtml(res, 200, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish' }), { siteScript: true }), true;
+        return sendHtml(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), ...(editError && { editError }) }), { siteScript: true });
+      };
+      if (route === 'GET /dashboard/walkthrough') return await resultPage(200), true;
+      // The chat editor: suggest from a sentence, then accept or discard.
+      if (route === 'POST /dashboard/walkthrough/edit') {
+        const proposed = await walk.proposeEdits(origin, (await readForm(req)).get('text') ?? '').catch((err: Error) => (err instanceof BudgetExceeded ? err.message : 'Muse Spark could not read that request just now; try again.'));
+        if (typeof proposed === 'string') return await resultPage(422, proposed), true;
+        return redirect(res, '/dashboard/walkthrough#edit'), true;
       }
+      if (route === 'POST /dashboard/walkthrough/edit/apply') {
+        const applied = await walk.applyEdits(origin, (await readForm(req)).get('id') ?? '');
+        if (typeof applied === 'string') return await resultPage(409, applied), true;
+        if (applied.failed.length) return await resultPage(422, `${applied.applied} change${applied.applied === 1 ? '' : 's'} made; not made: ${applied.failed.join('; ')}`), true;
+        return redirect(res, '/dashboard/walkthrough'), true;
+      }
+      if (route === 'POST /dashboard/walkthrough/edit/discard') return await walk.discardEdits(origin), redirect(res, '/dashboard/walkthrough#edit'), true;
       if (route === 'GET /dashboard/walkthrough/events') return streamRun(req, res, walk, origin, url.searchParams.get('id') ?? ''), true;
       if (route === 'POST /dashboard/walkthrough/cancel') return walk.cancel(origin, (await readForm(req)).get('id') ?? ''), redirect(res, '/dashboard/walkthrough'), true;
       if (route === 'POST /dashboard/walkthrough/publish') return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;

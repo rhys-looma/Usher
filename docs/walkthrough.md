@@ -35,6 +35,7 @@ The values live in the run's memory and nowhere else: not in storage, logs, the 
 - **The result.** One annotated screenshot per page: each element boxed and coloured by risk (green safe, amber consequential, red the person's), with its key as a tag. The same elements as a table, with the condition that shows each one and where each action leads. Hovering or focusing a box lights its row and back; every box is a link to its row, so the whole view works from the keyboard and as text.
 - **A diff** against the maps agents get now: elements added, removed or labelled differently.
 - **Corrections.** Each row has a **Correct** control for key, risk and label. A change that would make the map invalid is refused and explained.
+- **Change it in words.** The owner can also say what to change ("the smoker question is the person's own on every page", "call the third field the policy number"). Muse Spark reads the sentence and the proposal's structure (ids, labels, controls, keys, risks; never a value) and proposes changes by element id. Code checks each one as it checks a row correction and leaves out any that name an element that isn't there or a key that isn't a key. The owner sees every change with its reason, then accepts or discards; accepted changes go through the same path as row corrections, so each is an owner-verified label. A request that is really a site rule ("only my customers answer medical questions") is not applied to the map; the owner is pointed to the rules page instead.
 - **Publish.** The proposal replaces the maps agents get, recorded as the site's own (`source: site`) and verified by the owner. Boxes are dropped from published maps; agents don't need them.
 
 The public demo site's last run can be watched by anyone at `/demo/walkthrough`, read-only. The picker on `/viewer` has the same annotated view for its public forms ("See how Usher reads this form"), drawn from the cached map's own locators with no model call.
@@ -58,4 +59,3 @@ It starts a run on the demo site as the operator and opens `/demo/walkthrough` i
 - It doesn't sign in, solve a CAPTCHA, upload files or pay.
 - Fields that only appear after a choice it didn't leave selected are noted, not mapped.
 - It never follows the site off its own origin, and every request its browser makes must reach a public address (the same check as the map viewer and hosted MCP).
-- Not yet: a chat editor for the proposal ("make the smoker question the person's own"). Corrections are made row by row for now.
