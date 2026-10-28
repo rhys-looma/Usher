@@ -12,4 +12,5 @@ reports/*
 !reports/accuracy-review.csv
 !reports/accuracy-review-*.csv
 !reports/classifier-agreement.md
+!reports/learning.json
 REPORT.md
