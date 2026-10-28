@@ -166,6 +166,8 @@ if (values.seed) {
   if (!origin) throw new Error('--seed needs the demo site\'s URL: --seed-origin <url> or USHER_SEED_ORIGIN.');
   const maps = await seed(running.registry, values.seed, origin);
   console.log(`seeded ${maps.length} maps for ${origin}`);
+  // The demo site's name read afresh on each start (it may have changed with the deploy); never fatal.
+  void running.registry.siteName(origin, { fresh: true }).catch(() => undefined);
   // In production a site registers through /sites/new and proves its domain like any other.
   if (!env.USHER_DEV_SITE_ORIGIN && !production) {
     const site = await running.registry.registerSite({ origin });
