@@ -39,14 +39,17 @@ export interface RegistryTools {
   reportRun(report: RunReport): Promise<unknown>;
 }
 
-export async function createMcpServer(registryUrl: string, keyFile?: string, version = '0.1.0'): Promise<McpServer> {
+export async function createMcpServer(registryUrl: string, keyFile?: string, version = '0.1.0', options: { knockMeta?: Record<string, unknown> } = {}): Promise<McpServer> {
   const server = new McpServer({ name: 'usher', version });
-  registerRegistryTools(server, new RegistryClient(registryUrl.replace(/\/$/, ''), await loadOrCreateIdentity(keyFile)));
+  registerRegistryTools(server, new RegistryClient(registryUrl.replace(/\/$/, ''), await loadOrCreateIdentity(keyFile)), options);
   return server;
 }
 
-/** knock, get_map, get_plan, report_run, and submit_map where the client can share maps. */
-export function registerRegistryTools(server: McpServer, client: RegistryTools): void {
+/**
+ * knock, get_map, get_plan, report_run, and submit_map where the client can share maps.
+ * `knockMeta`: tool metadata for knock (the card its result renders as, in clients with MCP Apps).
+ */
+export function registerRegistryTools(server: McpServer, client: RegistryTools, options: { knockMeta?: Record<string, unknown> } = {}): void {
 
   server.registerTool(
     'knock',
@@ -61,6 +64,7 @@ export function registerRegistryTools(server: McpServer, client: RegistryTools):
         session: z.string().optional(),
         confirmed: z.array(z.string()).optional().describe('Keys your user has just confirmed (e.g. form.submit), when knocking right before acting on them.'),
       },
+      ...(options.knockMeta && { _meta: options.knockMeta }),
     },
     (args) =>
       guarded(() =>
