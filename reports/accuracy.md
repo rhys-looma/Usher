@@ -19,6 +19,8 @@ Generated 2026-10-27 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 
 ## Per form
 
+The Brightwater Health rows (mock-*-health-*) were added on 28 October from the recorded Muse Spark labels, after this run: every locator resolves on both layouts, `person.smoker` is labelled needs_user and the declaration a consent. They are in `accuracy-review.csv` with the human columns blank, under the mock site, so the human-checked public-form figures are unchanged.
+
 | Form | Category | Source | Elements | Keys (vocabulary / custom) | Risk (safe / consequential / needs user) | Locators resolve | Classifier flags | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | mock-a-driver | mock site | recorded | 14 | 14 / 0 | 14 / 0 / 0 | 100% | 0 | Car insurance quote: driver details |
@@ -27,6 +29,12 @@ Generated 2026-10-27 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 | mock-b-driver | mock site | recorded | 14 | 14 / 0 | 14 / 0 / 0 | 100% | 0 | Car insurance quote: driver details |
 | mock-b-vehicle | mock site | recorded | 11 | 11 / 0 | 11 / 0 / 0 | 100% | 0 | Car insurance quote: vehicle details |
 | mock-b-cover | mock site | recorded | 9 | 9 / 0 | 6 / 1 / 2 | 100% | 0 | Motor insurance quote: cover options |
+| mock-a-health-about | mock site | recorded | 13 | 13 / 0 | 12 / 0 / 1 | 100% | – | Health insurance quote: about you |
+| mock-a-health-cover | mock site | recorded | 8 | 8 / 0 | 8 / 0 / 0 | 100% | – | Health insurance quote: cover options |
+| mock-a-health-declaration | mock site | recorded | 3 | 3 / 0 | 1 / 1 / 1 | 100% | – | Health insurance quote declaration and consent |
+| mock-b-health-about | mock site | recorded | 13 | 13 / 0 | 12 / 0 / 1 | 100% | – | Health insurance quote: your details |
+| mock-b-health-cover | mock site | recorded | 8 | 8 / 0 | 8 / 0 / 0 | 100% | – | Health insurance: choose your cover options |
+| mock-b-health-declaration | mock site | recorded | 3 | 3 / 0 | 1 / 1 / 1 | 100% | – | Health insurance quote declaration and confirmation |
 | govuk-contact | contact | recorded | 7 | 4 / 3 | 6 / 1 / 0 | 100% | 0 | Contact GOV.UK team with question or feedback |
 | ico-contact | contact | recorded | 2 | 2 / 0 | 2 / 0 / 0 | 100% | 0 | Site search: find ICO information |
 | ofcom-contact | contact | – | – | – | – | – | – | skipped: No form to map on https://www.ofcom.org.uk/about-ofcom/what-we-do/contact-us: the page has only a site search, a cookie or consent widget. |

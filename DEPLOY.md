@@ -229,7 +229,7 @@ The registry seeds the demo site's maps on start, so the first agent run needs n
 - [ ] `https://$REGISTRY_HOST/.well-known/usher-keys.json` lists one key whose `kid` matches your signing key. `https://$SITE_HOST/.well-known/usher-site.json` holds the demo site's key, not Usher's.
 - [ ] `/privacy`, `/robots.txt` and `/.well-known/security.txt` load and name your contact.
 - [ ] **Knock from an MCP client:** add the README's MCP entry with `USHER_REGISTRY_URL=https://$REGISTRY_HOST`, then call `knock` with `{"url":"https://$SITE_HOST/quote/driver"}`. You get a token and a map.
-- [ ] **Try it:** the front page offers ten forms to pick, and no address box. Picking one shows its map (from the cache after the first refresh). A POST with `url=` and no dashboard sign-in is refused. Signed in, an address on your own origin maps, and another site's is refused.
+- [ ] **Try it:** the front page offers eleven forms to pick (Brightwater Health first), and no address box. Picking one shows its map (from the cache after the first refresh). A POST with `url=` and no dashboard sign-in is refused. Signed in, an address on your own origin maps, and another site's is refused.
 - [ ] **Dashboard sign-in:** sign in at `/dashboard` with `https://$SITE_HOST` and its secret key. The sign-in cookie is `Secure`.
 - [ ] **Agent run against the demo site:** this uses recorded model responses (add `--live` for the models) and switches the demo to layout B and back.
 
@@ -314,7 +314,7 @@ Everything an outsider could steer, closed for launch, to reopen one at a time:
 
 | What | State | Why it is closed | To reopen |
 | --- | --- | --- | --- |
-| Map viewer (`/viewer`, "Try it") | A fixed list of ten public forms; owners map their own origin; `open` refused | An open address box let anyone probe other sites from our servers, and a redirect or the page's own requests reached a private address in a test | Done: see docs/security.md, "The map viewer". Every browser request is now checked against the address it resolves to |
+| Map viewer (`/viewer`, "Try it") | A fixed list of eleven forms (the demo site's two journeys and nine public ones); owners map their own origin; `open` refused | An open address box let anyone probe other sites from our servers, and a redirect or the page's own requests reached a private address in a test | Done: see docs/security.md, "The map viewer". Every browser request is now checked against the address it resolves to |
 | Keeper | Only `USHER_KEEPER_ORIGINS` (the demo site) | Same browser, and it visits any registered site, claimed or not | The same egress proxy; then claimed sites only |
 | Agents' shared maps (`POST /maps`) | Accepted, private to their agent until verified by a second agent or the keeper; 20 an hour per identity | An agent's keys and locators are its word, so a hostile agent could mislabel a form | Done: the verification ladder (docs/security.md) |
 

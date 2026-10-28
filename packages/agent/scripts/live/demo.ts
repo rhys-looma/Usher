@@ -21,7 +21,7 @@ import type { UsherMap } from '@usher/core';
 import { TOKEN_LIFETIME_SECONDS } from '@usher/core';
 import { httpTransport, runAgent, scriptedUser, type Profile } from '../../src/index.ts';
 import { diagramCard, raceCard, refusalCard, sceneCard, ticketCard, type RaceSide } from './cards.ts';
-import { DRIVER, PATHS, REGISTRY, SITE, currentDigest, dashboard, keeperOutcome, layout, mapByDigest, rulesFor, setLayout, timeline, waitForNewMap } from './production.ts';
+import { DRIVER, HEALTH, PATHS, REGISTRY, SITE, currentDigest, dashboard, keeperOutcome, layout, mapByDigest, rulesFor, setLayout, timeline, waitForNewMap } from './production.ts';
 
 const SCENES = [
   { n: 1, id: 'fill', title: 'usher_fill from an MCP client' },
@@ -58,8 +58,9 @@ const root = new URL('../../../../', import.meta.url);
 const [screenW, screenH] = values.screen.split('x').map(Number) as [number, number];
 const zoom = Number(values.zoom);
 const out = resolve(values.out);
-const profile = JSON.parse(await readFile(new URL('packages/agent/profiles/test-driver.json', root), 'utf8')) as Profile & { _comment?: string };
-delete profile._comment;
+// Brightwater Health, the headline example: the agent in "rules hold" fills its quote.
+const health = JSON.parse(await readFile(new URL('packages/agent/profiles/test-health.json', root), 'utf8')) as Profile & { _comment?: string };
+delete health._comment;
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const print = (scene: string, numbers: Record<string, unknown>) => {
   console.log(`\n${scene}`);
@@ -134,7 +135,8 @@ async function fill(): Promise<void> {
     ...state,
     'hosted MCP': `${REGISTRY}/mcp`,
     'local MCP': 'npx -y @usher-run/mcp',
-    'try': `"Get me a car insurance quote on ${new URL(SITE).host}"`,
+    'try': `"Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess."`,
+    'or the car quote': `"Get me a car insurance quote on ${new URL(SITE).host}"`,
     'dashboard': `${REGISTRY}/demo/dashboard`,
     'sessions listed now': d.sessions.length,
     'latest session': d.sessions[0] ?? 'none',
@@ -209,22 +211,22 @@ async function signup(): Promise<void> {
 async function rulesHold(): Promise<void> {
   const state = await reset();
   // An agent that skips the page and posts to the quote API without knocking.
-  const request = `POST ${SITE}/api/quote  (Usher-Agent: demo-unknocked, no token)`;
-  const res = await fetch(`${SITE}/api/quote`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Usher-Agent': 'demo-unknocked' }, body: '{}' });
+  const request = `POST ${SITE}/api/health-quote  (Usher-Agent: demo-unknocked, no token)`;
+  const res = await fetch(`${SITE}/api/health-quote`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Usher-Agent': 'demo-unknocked' }, body: '{}' });
   const body = await res.text();
   const left = await window('left');
   await left.setContent(refusalCard({ request, status: res.status, body: JSON.stringify(JSON.parse(body), null, 2), then: 'On the right, an agent that knocked fills the same quote by the map, and stops at "Get my quote" until its user says yes.' }));
   // The agent that knocked: a fresh key, the registry's maps, and a user who takes a moment.
   const transport = await httpTransport(REGISTRY, join(dir, `agent-${Date.now()}.json`));
-  const scripted = scriptedUser(profile);
+  const scripted = scriptedUser(health);
   const hold = Number(values.hold) * 1000;
   let paused = 0;
   const started = Date.now();
   const run = await runAgent({
     browser,
-    url: DRIVER,
-    profile,
-    intent: 'quote.car_insurance',
+    url: HEALTH,
+    profile: health,
+    intent: 'quote.health_insurance',
     registry: transport,
     viewport: { width: Math.round(screenW / 2 / zoom), height: Math.round(screenH / zoom) - 90 },
     onPage: (page) => place(page, 'right'),

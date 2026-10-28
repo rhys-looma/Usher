@@ -39,7 +39,11 @@ Then lock consequential endpoints on your server with [`@usher/site-middleware`]
 
 ## Quickstart: an agent
 
-**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo quote site; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md).
+**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo site, Brightwater; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md), and the ways to connect are compared in [docs/integrations.md](docs/integrations.md). Then ask in plain words:
+
+> Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.
+
+Usher fills the safe fields, asks the person to confirm the smoker answer and the declaration in the insurer's own words, and never fills medical questions. Brightwater's car insurance quote works the same way.
 
 **In a framework or your own agent,** run it locally. It acts on any site, with your own key. Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
@@ -86,6 +90,7 @@ USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --pre
 ```
 
 ```bash
+npm run agent -- "$SITE_URL/health/about" --profile packages/agent/profiles/test-health.json --mcp --auto-confirm
 npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
 ```
 
@@ -112,6 +117,8 @@ The model labels each field by meaning; the code locates it and fills it from th
 | Checkbox | Ticked or not; consents only from the person's own answer | 26 Oct |
 | Fields shown only after an answer (`shown_if`) | Filled when their condition holds | 26 Oct |
 | Lookup (`lookup.vehicle`, `lookup.address`) | Run first from the registration or postcode; what it fills is left as it filled it; a list of results gets the entry for the first address line | 28 Oct |
+| An answer that is the person's alone but not sensitive (`person.smoker`) | Entered only as they said it, and shown back to them on the decision card with the submit: if it isn't right, nothing is submitted | 28 Oct |
+| Medical questions (`health.*`, sensitive) | Never: Usher leaves them to the person, and stops on a page that requires one | 28 Oct |
 | Combobox, custom dropdown | Not yet: none of the real journeys checked so far needed one | |
 
 ## Benchmark
@@ -145,7 +152,7 @@ With a map, an agent spends no model tokens on the form at all. The map is built
 | [`packages/site-script/`](packages/site-script/) | The one-tag site script |
 | [`packages/site-middleware/`](packages/site-middleware/) | The server-side check |
 | [`packages/agent/`](packages/agent/) | A reference agent, the benchmark and the demo runner |
-| [`examples/mock-quote-site/`](examples/mock-quote-site/) | A fictional multi-step quote form, for development and the demo |
+| [`examples/mock-quote-site/`](examples/mock-quote-site/) | Brightwater, a fictional insurer: a health insurance quote and a car insurance quote, each three steps, for development and the demo |
 
 ## Open by design
 

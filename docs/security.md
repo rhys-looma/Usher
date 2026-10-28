@@ -4,6 +4,14 @@ Usher lets a website decide what AI agents may do on its forms and gives agents 
 
 Three parties are involved. The **site** runs a script tag and a server-side check. The **registry** holds maps, issues tokens and keeps the log. The **agent** knocks before it fills a form.
 
+## What Usher keeps
+
+- Nothing you type is stored. Usher fills the form and forgets it.
+- Maps describe forms, not answers. The site's log holds field names and your decisions, never the values.
+- Medical questions are never filled by Usher. The insurer asks you those.
+
+The front page and the privacy notice say the same, word for word. In code: `usher_fill` holds the person's values in the fill's own job only, and drops the job when the fill completes, is cancelled or times out. `packages/mcp/test/forget.test.ts` runs a completed, a cancelled and a timed-out fill and finds none of the values in any file the registry writes, in what the process prints, or in any Postgres table. Medical questions have their own vocabulary keys (`health.*`, sensitive): an agent never fills them, a plan never carries their values, and `usher_fill` stops on a page that requires one, leaving it to the person.
+
 ## What could go wrong, and what stops it
 
 **An agent that doesn't knock.** It fills the form and submits anyway.
@@ -65,7 +73,7 @@ The registry's hosted MCP endpoint (`/mcp`) runs `usher_fill` in our browser, fo
   - Per address: a high ceiling, because assistants share their provider's addresses.
   - At most three fills at once, 500 open connections, and idle connections closed after 30 minutes.
   - Model fallback stays within the registry's daily spend cap.
-- **Values.** They pass from the assistant's call into the site's form, in a fresh browser context closed when the fill ends. They are never logged or stored.
+- **Values.** They pass from the assistant's call into the site's form, in a fresh browser context closed when the fill ends. They are never logged or stored (see "What Usher keeps" above). A `needs_user` answer that isn't sensitive, such as whether the person smokes, is entered only as they said it and put back to them on the decision card before anything is submitted: if they say it isn't right, nothing is submitted.
 
 ## Other controls
 
@@ -88,13 +96,13 @@ The viewer loads a page in a browser on Usher's server, maps its form with the m
 - its browser followed redirects and ran each page's own requests, so a public address could lead it on to private ones behind the first check. We confirmed this with a redirect to a local service.
 
 **What replaced it:**
-- **Visitors pick, they don't type.** They choose one of ten public forms from a fixed list (`packages/registry/src/web/picker.ts`) by its id, and no address reaches the server. Results are cached by fingerprint digest and refreshed after each keeper run. A form that hasn't changed reuses its labels, so a refresh costs no model call. All of it is within the daily model budget.
+- **Visitors pick, they don't type.** They choose one of eleven forms (the demo site's two journeys and nine public forms) from a fixed list (`packages/registry/src/web/picker.ts`) by its id, and no address reaches the server. Results are cached by fingerprint digest and refreshed after each keeper run. A form that hasn't changed reuses its labels, so a refresh costs no model call. All of it is within the daily model budget.
 - **Owners map their own pages.** A site owner signed in to the dashboard can map any page on the origin they have proved they control, and no other.
 - **Every request is checked.** Whatever the page, every request the viewer's browser makes (the page, redirects, scripts, frames) is checked against the address it resolves to, and stopped if that is private.
 - **Open mode is local only.** `USHER_VIEWER=open`, for local demos, and production refuses it.
 
 **Why there is no CAPTCHA.** There's nothing left for a CAPTCHA to protect:
-- the public can only choose from ten cached forms, so a request costs Usher nothing new;
+- the public can only choose from eleven cached forms, so a request costs Usher nothing new;
 - the one open input belongs to authenticated owners, and only reaches their own site.
 
 A CAPTCHA would also mean a third party's script and cookies on the front page, contradicting the privacy notice and the "no cookie banner" promise. We would revisit it only if the rate limits proved not enough.
