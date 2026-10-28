@@ -59,7 +59,23 @@ after(async () => {
   await rm(dir, { recursive: true });
 });
 
-type Reply = { status: string; id: string; decision?: { kind: string; key: string; label: string }; problems?: { key: string; message: string }[]; actions?: { page: string; action: string; key: string }[]; session?: string; used_model?: string[]; final_url?: string };
+type Decision = { key: string; label: string; kind: string; page: string; default?: boolean };
+type Block = { kind: string; text: string; verbatim: boolean; source: { key?: string; url?: string } };
+type Reply = {
+  status: string;
+  id: string;
+  decisions?: Decision[];
+  blocks?: Block[];
+  problems?: { key: string; message: string }[];
+  actions?: { page: string; action: string; key: string }[];
+  session?: string;
+  used_model?: string[];
+  final_url?: string;
+  result?: { title: string; final_url: string; facts: string[] };
+  submitted?: string[];
+  pauses?: number;
+  reason?: string;
+};
 const call = async (name: string, args: Record<string, unknown>): Promise<Reply> => {
   const result = await client.callTool({ name, arguments: args });
   assert.ok(!result.isError, JSON.stringify(result.content));
@@ -67,46 +83,96 @@ const call = async (name: string, args: Record<string, unknown>): Promise<Reply>
 };
 const session = async (sid: string): Promise<Session> => (await fetch(`${registry.url}/sessions/${sid}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json() as Promise<Session>;
 
-/** Answers each pause as the user would: yes to the declaration, no to marketing, yes to Get my quote. */
-async function toTheEnd(first: Reply): Promise<{ last: Reply; decisions: string[] }> {
-  const decisions: string[] = [];
+/** Answers every decision set as the user would: yes to the declaration and Get my quote, no to marketing. */
+async function toTheEnd(first: Reply, extra: Record<string, string> = {}): Promise<{ last: Reply; sets: Decision[][] }> {
+  const sets: Decision[][] = [];
   let reply = first;
   while (reply.status === 'needs_decision') {
-    decisions.push(`${reply.decision!.kind}:${reply.decision!.key}`);
-    const answer = reply.decision!.key === 'consent.marketing' ? false : true;
-    reply = await call('usher_confirm', { id: reply.id, answer });
+    sets.push(reply.decisions!);
+    const answers = Object.fromEntries(reply.decisions!.map((d) => [d.key, d.kind === 'missing_value' ? extra[d.key]! : d.key !== 'consent.marketing']));
+    reply = await call('usher_confirm', { id: reply.id, answers });
   }
-  return { last: reply, decisions };
+  return { last: reply, sets };
 }
 
-test('the tools are offered alongside knock', async () => {
-  const names = (await client.listTools()).tools.map((t) => t.name);
-  for (const name of ['knock', 'usher_fill', 'usher_confirm', 'usher_cancel']) assert.ok(names.includes(name), name);
+test('the tools are offered alongside knock, and their descriptions carry the behaviour', async () => {
+  const tools = (await client.listTools()).tools;
+  for (const name of ['knock', 'usher_fill', 'usher_confirm', 'usher_cancel']) assert.ok(tools.some((t) => t.name === name), name);
+  const fill = tools.find((t) => t.name === 'usher_fill')!.description!;
+  assert.match(fill, /pauses before consents and submissions/);
+  assert.match(fill, /word for word/);
+  assert.match(fill, /never answer a decision on the user's behalf/);
+  assert.match(tools.find((t) => t.name === 'usher_confirm')!.description!, /never decide for them/);
 });
 
-test('pre-flight: an invalid value comes back by key, and nothing runs', async () => {
+test('pre-flight: a wrongly formatted value comes back by key, and nothing runs', async () => {
   const reply = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values: { ...values, 'person.dob': '02/04/1988' } });
   assert.equal(reply.status, 'invalid');
   assert.deepEqual(reply.problems?.map((p) => p.key), ['person.dob']);
-  assert.deepEqual(reply.actions, [], 'nothing entered');
+  assert.equal(reply.actions, undefined, 'nothing ran');
 });
 
-test('fill, then the user\'s answers and "Get my quote": the three-step quote completes, logged by key', async () => {
+test('Brightwater pauses once, with three decisions and the page\'s own words; the quote comes back verbatim', async () => {
   const first = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
   assert.equal(first.status, 'needs_decision');
-  const { last, decisions } = await toTheEnd(first);
-  assert.deepEqual(decisions, ['needs_user:consent.declaration', 'needs_user:consent.marketing', 'confirm:form.submit']);
-  assert.equal(last.status, 'completed');
-  assert.match(last.final_url!, /\/quote\/result$/);
+  assert.deepEqual(
+    first.decisions!.map((d) => `${d.kind}:${d.key}`),
+    ['required_consent:consent.declaration', 'optional_consent:consent.marketing', 'submit:form.submit'],
+  );
+  assert.equal(first.decisions!.find((d) => d.key === 'consent.marketing')!.default, false);
+  const consent = first.blocks!.find((b) => b.kind === 'consent' && b.source.key === 'consent.declaration')!;
+  assert.deepEqual([consent.text, consent.verbatim], ['I confirm the information I have given is true and complete', true]);
+  const disclosure = first.blocks!.find((b) => b.kind === 'disclosure')!;
+  assert.match(disclosure.text, /^By selecting Get my quote you agree/);
+  assert.equal(disclosure.source.key, 'form.submit');
+  const { last, sets } = await toTheEnd(first);
+  assert.equal(sets.length, 1, 'one pause');
+  assert.equal(last.status, 'completed', last.reason);
+  assert.equal(last.pauses, 1);
+  assert.equal(last.result!.title, 'Your quote');
+  assert.match(last.result!.final_url, /\/quote\/result$/);
+  assert.ok(last.result!.facts.some((f) => /^£[\d,]+\.\d\d a year$/.test(f)), last.result!.facts.join(' | '));
+  assert.ok(last.result!.facts.some((f) => /^Quote reference BW-[0-9A-F]{8}$/.test(f)));
+  assert.ok(last.result!.facts.some((f) => /^This quote is valid for 30 days, until /.test(f)));
+  assert.ok(last.blocks!.every((b) => b.kind === 'fact' && b.verbatim));
   assert.deepEqual(last.used_model, [], 'every page from the map');
-  const keysTaken = last.actions!.map((a) => `${a.action}:${a.key}`);
-  for (const k of ['fill:person.first_name', 'fill:vehicle.registration', 'fill:policy.start_date', 'press:form.submit']) assert.ok(keysTaken.includes(k), k);
-  assert.ok(!JSON.stringify(last).includes('Taylor'), 'no values in the reply');
+  for (const k of ['person.first_name', 'vehicle.registration', 'policy.start_date', 'consent.declaration']) assert.ok(last.submitted!.includes(k), k);
+  assert.ok(!JSON.stringify(last).includes('Taylor') && !JSON.stringify(last).includes('AB12CDE'), 'no values echoed back');
   const log = await session(last.session!);
   assert.ok(log.events.some((e) => e.source === 'site' && e.action === 'submit' && e.key === 'form.submit'), 'the site saw the submit by key');
+  const shown = log.events.filter((e) => e.action === 'shown');
+  assert.ok(shown.some((e) => e.key === 'consent.declaration' && (e.detail as { block: string }).block === 'consent'));
+  assert.ok(shown.some((e) => (e.detail as { block: string }).block === 'fact'));
+  assert.ok(shown.every((e) => /^sha256:[0-9a-f]{64}$/.test((e.detail as { sha256: string }).sha256)));
+  assert.ok(!JSON.stringify(log).includes('I confirm the information'), 'the log keeps hashes, never the text');
 });
 
-test('cancel: the fill stops at the first decision and nothing is submitted', async () => {
+test('a missing postcode is a question in the decision set, not a failure', async () => {
+  const { 'address.postcode': _p, ...without } = values;
+  const first = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values: without });
+  assert.equal(first.status, 'needs_decision');
+  const postcode = first.decisions!.find((d) => d.key === 'address.postcode')!;
+  assert.equal(postcode.kind, 'missing_value');
+  assert.ok(first.blocks!.some((b) => b.kind === 'question' && b.source.key === 'address.postcode' && !b.verbatim));
+  // The rest of the journey's decisions come with it, from the plan.
+  for (const k of ['consent.declaration', 'consent.marketing', 'form.submit']) assert.ok(first.decisions!.some((d) => d.key === k), k);
+  const { last } = await toTheEnd(first, { 'address.postcode': 'WR14 1AA' });
+  assert.equal(last.status, 'completed', last.reason);
+  assert.ok(last.submitted!.includes('address.postcode'));
+});
+
+test('every decision needs an answer; no to the declaration stops before anything is submitted', async () => {
+  const first = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
+  const partial = await client.callTool({ name: 'usher_confirm', arguments: { id: first.id, answers: { 'consent.declaration': true } } });
+  assert.ok(partial.isError);
+  assert.match((partial.content as { text: string }[])[0]!.text, /form\.submit/);
+  const stopped = await call('usher_confirm', { id: first.id, answers: { 'consent.declaration': false, 'consent.marketing': false, 'form.submit': true } });
+  assert.equal(stopped.status, 'stopped');
+  assert.match(stopped.reason!, /I confirm the information/);
+  assert.ok(!stopped.actions!.some((a) => a.key === 'form.submit'));
+});
+
+test('cancel: the fill stops at the decision set and nothing is submitted', async () => {
   const first = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
   assert.equal(first.status, 'needs_decision');
   const cancelled = await call('usher_cancel', { id: first.id });

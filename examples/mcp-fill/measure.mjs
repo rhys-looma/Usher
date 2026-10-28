@@ -29,8 +29,8 @@ for (let i = 0; i < runs; i++) {
   let reply = await call('usher_fill', { url, intent: 'quote.car_insurance', values });
   const pauses = [];
   while (reply.status === 'needs_decision') {
-    pauses.push({ at_ms: ms(), kind: reply.decision.kind, key: reply.decision.key });
-    reply = await call('usher_confirm', { id: reply.id, answer: reply.decision.key !== 'consent.marketing' });
+    pauses.push({ at_ms: ms(), decisions: reply.decisions.map((d) => `${d.kind}:${d.key}`) });
+    reply = await call('usher_confirm', { id: reply.id, answers: Object.fromEntries(reply.decisions.map((d) => [d.key, d.key !== 'consent.marketing'])) });
   }
   const done = ms();
   console.log(JSON.stringify({ run: i + 1, status: reply.status, to_first_pause_ms: pauses[0]?.at_ms, to_confirm_prompt_ms: pauses.find((p) => p.kind === 'confirm')?.at_ms, to_completion_ms: done, pauses, actions: reply.actions?.length, used_model: reply.used_model, session: reply.session, final_url: reply.final_url }));

@@ -66,7 +66,7 @@ async function connect(r = registry): Promise<Client> {
   open.push(client);
   return client;
 }
-type Reply = { status: string; id: string; session?: string; decision?: { kind: string; key: string } };
+type Reply = { status: string; id: string; session?: string; decisions?: { kind: string; key: string }[] };
 const call = async (client: Client, name: string, args: Record<string, unknown>) => client.callTool({ name, arguments: args });
 const text = (result: Awaited<ReturnType<typeof call>>) => (result.content as { text?: string }[])[0]?.text ?? '';
 const claims = (token: string) => JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8')) as Record<string, unknown>;
@@ -81,11 +81,11 @@ test('usher_fill on a joined site: decisions for the user, then a session marked
   let reply = (await call(client, 'usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values })).structuredContent as Reply;
   const decisions: string[] = [];
   while (reply.status === 'needs_decision') {
-    decisions.push(`${reply.decision!.kind}:${reply.decision!.key}`);
-    reply = (await call(client, 'usher_confirm', { id: reply.id, answer: reply.decision!.key !== 'consent.marketing' })).structuredContent as Reply;
+    decisions.push(reply.decisions!.map((d) => `${d.kind}:${d.key}`).join(' '));
+    reply = (await call(client, 'usher_confirm', { id: reply.id, answers: Object.fromEntries(reply.decisions!.map((d) => [d.key, d.key !== 'consent.marketing'])) })).structuredContent as Reply;
   }
   assert.equal(reply.status, 'completed', JSON.stringify(reply));
-  assert.deepEqual(decisions, ['needs_user:consent.declaration', 'needs_user:consent.marketing', 'confirm:form.submit']);
+  assert.deepEqual(decisions, ['required_consent:consent.declaration optional_consent:consent.marketing submit:form.submit'], 'one pause, three decisions');
   const session = (await registry.registry.storage.getSession(reply.session!))!;
   assert.deepEqual(session.identity, { method: 'hosted' });
   assert.match(session.agent, /^[A-Za-z0-9_-]{43}$/);

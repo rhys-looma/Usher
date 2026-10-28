@@ -36,10 +36,10 @@ const [a, b] = InMemoryTransport.createLinkedPair();
 await server.connect(a);
 const client = new Client({ name: 'screencast', version: '0' });
 await client.connect(b);
-type Reply = { status: string; id: string; decision?: { key: string }; session?: string };
+type Reply = { status: string; id: string; decisions?: { key: string }[]; session?: string };
 const call = async (name: string, args: Record<string, unknown>) => (await client.callTool({ name, arguments: args })).structuredContent as unknown as Reply;
 let reply = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
-while (reply.status === 'needs_decision') reply = await call('usher_confirm', { id: reply.id, answer: reply.decision!.key !== 'consent.marketing' });
+while (reply.status === 'needs_decision') reply = await call('usher_confirm', { id: reply.id, answers: Object.fromEntries(reply.decisions!.map((d) => [d.key, d.key !== 'consent.marketing'])) });
 console.log(`fill ${reply.status}, session ${reply.session}`);
 
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir, size: { width: 1280, height: 800 } } });
