@@ -15,12 +15,14 @@ export interface MappedDetails {
 }
 
 /**
- * The inputs the person's details can give: everything but consents and sensitive keys. A
+ * The inputs the person's details can give: everything but consents and sensitive keys the site
+ * hasn't permitted. A
  * needs_user answer that isn't sensitive (whether they smoke) is read from what they said, and
  * put back to them to confirm before anything is submitted.
  */
 export function detailInputs(plan: UsherPlan): PlanInput[] {
-  const inputs = plan.inputs.filter((i) => i.risk !== 'needs_user' || (!i.sensitive && i.control !== 'checkbox'));
+  // Sensitive ones (health.*) only where the site permits an agent to enter the person's own answer.
+  const inputs = plan.inputs.filter((i) => i.risk !== 'needs_user' || (i.control !== 'checkbox' && (!i.sensitive || i.rule === 'confirm' || i.rule === 'allow')));
   // An address the site finds from the postcode is chosen from its list by the first line, which
   // isn't on the page until the lookup runs: read it too.
   const line1 = plan.lookups?.find((l) => l.key === 'lookup.address' && !inputs.some((i) => i.key === 'address.line1'));
