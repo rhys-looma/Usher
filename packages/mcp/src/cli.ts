@@ -12,6 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { RegistryClient } from '../../registry/src/client.ts';
 import { DEFAULT_KEY_FILE, loadOrCreateIdentity } from '../../registry/src/identity-file.ts';
 import { createMcpServer } from '../../registry/src/mcp.ts';
+import { CARD_META, registerCards } from './apps.ts';
 import { capFallback, registerFillTools } from './fill.ts';
 
 // Filled in at build time from package.json (version, usher.defaultRegistry, usher.demoForm).
@@ -62,11 +63,13 @@ OK`);
   console.error(`Unknown option ${arg}.\n\n${HELP}`);
   process.exit(2);
 } else {
-  const server = await createMcpServer(registry, keyFile, USHER_MCP_VERSION);
+  const server = await createMcpServer(registry, keyFile, USHER_MCP_VERSION, { knockMeta: CARD_META });
+  // Results as cards in clients with MCP Apps; plain text everywhere else.
+  registerCards(server);
   // usher_fill: Usher does the filling, in its own headless browser; the model only for pages
   // with no map (MODEL_API_KEY, within USHER_DAILY_MODEL_BUDGET_USD a day).
   const fallback = capFallback();
-  const fill = registerFillTools(server, { registryUrl: registry, keyFile, ...(fallback && { fallback }) });
+  const fill = registerFillTools(server, { registryUrl: registry, keyFile, toolMeta: CARD_META, ...(fallback && { fallback }) });
   // The client closing stdin ends the server, browser and all; an open browser would keep it alive.
   const stop = () => void fill.close().finally(() => process.exit(0));
   process.stdin.once('end', stop).once('close', stop);

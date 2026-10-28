@@ -92,6 +92,8 @@ export interface FillOptions {
   allowHost?: (host: string) => Promise<boolean>;
   /** usher_fill calls per hour. */
   perHour?: number;
+  /** Tool metadata for usher_fill and usher_confirm (the card their results render as). */
+  toolMeta?: Record<string, unknown>;
 }
 
 /** The model for pages with no map, within a daily spend cap kept in ~/.usher/spend.json. */
@@ -249,7 +251,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     return out;
   }
 
-  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema } }, async (args) => {
+  const meta = options.toolMeta ? { _meta: options.toolMeta } : {};
+  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema }, ...meta }, async (args) => {
     const odd = Object.entries(args.values).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
     if (odd.length) return failure(`Values must be text, numbers or true/false: ${odd.join(', ')}.`);
     if (!limiter.allow('fill')) return failure('Too many fills this hour; try again later.');
@@ -409,6 +412,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         answers: z.record(z.string(), z.any()).optional().describe('The user\'s answer to each decision, by its key: true or false for consents and the submit, the value for a missing value.'),
         answer: z.any().optional().describe('Older clients: the answer when only one decision is pending.'),
       },
+      ...meta,
     },
     async (args) => {
       const job = jobs.get(args.id);

@@ -17,6 +17,7 @@ import { generateAgentIdentity, signRequest, type AgentIdentity, type Fingerprin
 import { RegistryError, knockRequest, notJoinedMessage, RateLimiter, type KnockInput, type KnockResponse, type Registry, type Reply, type RunReport } from '@usher/registry';
 import { registerRegistryTools, type RegistryTools } from '../../registry/src/mcp.ts';
 import type { FallbackModel, RegistryTransport } from '../../agent/src/index.ts';
+import { CARD_META, registerCards } from './apps.ts';
 import { registerFillTools } from './fill.ts';
 
 export interface HostedLimits {
@@ -142,7 +143,9 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
         instructions: `Hosted Usher: fill forms for your user on sites that have joined Usher${registry.publicDemo ? ` (try the demo quote at ${registry.publicDemo.origin}/quote/driver)` : ''}. usher_fill does the whole journey and stops for your user at each decision; answer with usher_confirm or usher_cancel. Other sites: the local server, npx -y @usher-run/mcp.`,
       },
     );
-    registerRegistryTools(server, tools);
+    registerRegistryTools(server, tools, { knockMeta: CARD_META });
+    // Results as cards in clients with MCP Apps; Claude gets this server's dedicated origin.
+    registerCards(server, { serverUrl: `${registry.url}/mcp` });
     const transport = async (): Promise<RegistryTransport> => ({
       kind: 'hosted',
       identity: await mint(),
@@ -161,6 +164,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       transport,
       browser: options.browser,
       perHour: limits.fillsPerConnectionHour,
+      toolMeta: CARD_META,
       // A joined site is still a page from the internet: its redirects and requests stay public.
       ...(!options.allowPrivate && { allowHost: publicHost }),
       ...(options.fallback && { fallback: options.fallback }),
