@@ -74,7 +74,7 @@ Lookups match on `digest` first, then on signature similarity (a Jaccard score o
 | `control` | yes | `text`, `email`, `tel`, `number`, `date`, `select`, `radio`, `checkbox`, `textarea`, `file`, `password` |
 | `required` | yes | Whether the form requires it |
 | `risk` | yes | `safe`, `consequential` or `needs_user` (below) |
-| `sensitive` | no | `true` for payment details, passwords, government ids. Plans never fill these |
+| `sensitive` | no | `true` for payment details, passwords, government ids and medical answers. A plan never carries their values; an agent fills a medical answer only where the site's rules permit it, with the person's own answer, confirmed by them |
 | `constraints` | no | `pattern`, `min`, `max`, `min_length`, `max_length`, `format` |
 | `options` | for select/radio | `items` (value and label), `total`, `truncated` |
 | `group` | no | Id of the containing group |

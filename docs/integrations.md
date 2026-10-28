@@ -37,5 +37,5 @@ npm run agent -- "$SITE_URL/health/about" --profile packages/agent/profiles/test
 ## What every way has in common
 
 - The person decides. Consents, the submit, and answers that are theirs alone (whether they smoke) are put to them in the site's own words, unticked.
-- Medical questions (`health.*`) are never filled. The insurer asks the person those, on its own site, usually after the quote.
+- Medical questions (`health.*`) are the site's to decide. By default the person answers them on the site; where the site's rules allow it, Usher fills them from what the person said, and the person confirms each answer.
 - The site sees each agent's session by key on its dashboard, never the values.

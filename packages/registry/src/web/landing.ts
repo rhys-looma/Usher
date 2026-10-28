@@ -158,7 +158,7 @@ const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
   { title: 'Knock', what: 'The agent identifies itself; the site opens for this one session.', sees: 'agent identity, site, intent, expiry.' },
   { title: 'Map, not values', what: 'Usher hands the agent the form\'s structure and the site\'s rules.', sees: 'field names and types. Never what anyone types.' },
   { title: 'The safe fields are filled', what: 'Name, date of birth, postcode, cover level: seconds.', sees: 'which fields were filled. Not the values.' },
-  { title: 'The questions that are yours', what: 'Smoker, the declaration: shown to you in the insurer\'s exact words, unticked, with Usher asking you, not the agent.', sees: 'that each was shown to you, and your yes or no.', note: 'Medical history is never Usher\'s to fill: the insurer asks you that directly, after the quote.' },
+  { title: 'The questions that are yours', what: 'Smoker, the declaration: shown to you in the insurer\'s exact words, unticked, with Usher asking you, not the agent.', sees: 'that each was shown to you, and your yes or no.', note: 'Medical questions are yours unless the insurer decides otherwise: Usher fills one only where the site allows it, with your own answer, which you confirm.' },
   { title: 'Submit with the token', what: 'The site checks it on its own server. No token, no quote.', sees: 'that the quote was asked for, with a valid token.' },
   { title: 'On the record', what: 'The site\'s dashboard shows the session: which agent, which fields, what was shown and confirmed.', sees: 'the session. Never the answers.' },
 ];
