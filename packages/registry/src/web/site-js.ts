@@ -14,7 +14,7 @@ export const SITE_JS = `(() => {
       chat.classList.add('play');
       chat.classList.remove('waiting');
       play.disconnect();
-    }, { threshold: 0.35 });
+    }, { rootMargin: '0px 0px -40% 0px' });
     play.observe(chat);
   }
   const sections = [...document.querySelectorAll('[data-reveal]')];

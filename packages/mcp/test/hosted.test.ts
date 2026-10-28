@@ -159,28 +159,40 @@ test('opening /mcp in a browser explains what it is', async () => {
   assert.match(await res.text(), /remote MCP server[\s\S]*npx -y @usher-run\/mcp/);
 });
 
-test('the front page offers both: the hosted URL for assistants, npx for frameworks, and the difference', async () => {
-  const home = await (await fetch(`${registry.url}/`)).text();
-  assert.ok(home.includes(`<pre class="wrap">${registry.url}/mcp</pre>`));
-  assert.match(home, /@usher-run\/mcp/);
-  assert.match(home, /Hosted acts on sites that have joined Usher; local acts on any site, with your own key\./);
-});
-
-test('the front page shows it inside an assistant: the cards\' own markup, in a window of our own, inert', async () => {
+test('the front page shows it inside an assistant: the cards\' own markup beside three steps, nothing consequential pre-ticked', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
   const section = /<section id="assistant"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
   assert.ok(section.includes('<h2>Inside the assistant</h2>'));
   assert.ok(section.includes(`Add ${registry.url}/mcp to any assistant that speaks MCP. Here, one built on Muse Spark asks for a quote. Usher does the rest, and the person decides.`));
   assert.ok(section.includes('An assistant built on Muse Spark') && section.includes('>Illustration<'));
-  assert.match(section, /class="assistant-chat uc" inert data-sequence/);
-  // The four steps, in order, with the cards' own classes.
-  const steps = [...section.matchAll(/<div class="step (person|said)">/g)].map((m) => m[1]);
-  assert.deepEqual(steps, ['person', 'said', 'said', 'said']);
-  for (const text of ['Get me a car insurance quote on Brightwater for my details.', 'Admit one agent', '3 pages, every field by meaning', 'Ask the person before submitting. Five quotes an hour.', '10 minutes, this site only', 'I confirm the information I have given is true and complete', 'Send me offers by email', '“Get my quote”', '>Confirm</button>', 'Usher is asking you, not the agent.', 'Quote reference', 'This quote is valid for', 'Every action by meaning, on the site\'s record. Your details never stored.']) assert.ok(section.includes(text), text);
+  assert.match(section, /<figure class="assistant uc"[^>]* inert data-sequence>/);
+  // The cards, each with the step that explains it, in order.
+  const order = [...section.matchAll(/class="(step person|step said s-ticket|explain e-ticket|step said s-decision|explain e-decision|step said s-result|explain e-result)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, ['step person', 'step said s-ticket', 'explain e-ticket', 'step said s-decision', 'explain e-decision', 'step said s-result', 'explain e-result']);
+  for (const text of ['<span>1</span> The agent knocks', 'Usher checks who it is, hands it the map and the house rules, and a pass that lasts ten minutes.', '<span>2</span> You decide', 'The site\'s own words, your tick. Usher never answers for you.', '<span>3</span> Done, on the record', 'The result as the site shows it. The site sees every action by meaning. Your details are never stored.']) assert.ok(section.includes(text), text);
+  for (const text of ['Get me a car insurance quote on Brightwater for my details.', 'Admit one agent', '3 pages, every field by meaning', 'Ask the person before submitting. Five quotes an hour.', '10 minutes, this site only', 'I confirm the information I have given is true and complete', 'Send me offers by email', '“Get my quote”', '>Confirm</span>', 'Usher is asking you, not the agent', 'Quote reference', 'This quote is valid for']) assert.ok(section.includes(text), text);
   for (const cls of ['class="card ticket"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"']) assert.ok(section.includes(cls), cls);
-  for (const line of ['Shown: an agent on Muse Spark through the Meta Model API. Also works in Claude, ChatGPT, Cursor and any MCP client.', 'Cards render where the client supports MCP Apps; plain text everywhere else.', 'Hosted Usher acts only on sites that have joined. The local server acts anywhere, with your own key.']) assert.ok(section.includes(line), line);
-  assert.doesNotMatch(section, /Meta AI|Muse Code|Muse agent/);
+  // Drawn boxes, not inputs, and no duplicate captions.
+  assert.doesNotMatch(section, /<input|<button|class="caption"/);
+  assert.equal((section.match(/Usher is asking you, not the agent/g) ?? []).length, 1, 'the badge only');
+  assert.ok(section.includes('Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.'));
+  assert.doesNotMatch(section, /<li>Shown|Meta AI|Muse Code|Muse agent/);
   assert.ok(home.indexOf('id="assistant"') > home.indexOf('id="how"'), 'after How it works');
-  assert.match(home, /<a href="#assistant">See it inside an assistant<\/a>/);
+  // The sequence starts with both boxes empty and Confirm greyed (site.js adds "waiting").
+  assert.match(home, /\.assistant\.waiting \.check \.box \{ background:transparent;/);
+  assert.match(home, /\.assistant\.waiting \.confirm \{ opacity:\.45; \}/);
   assert.match((await (await fetch(`${registry.url}/site.js`)).text()), /data-sequence/);
+});
+
+test('For agents leads with the hosted URL; the local server is one click away; the hero buttons go where they say', async () => {
+  const home = await (await fetch(`${registry.url}/`)).text();
+  const card = /<div class="card" id="agents">[\s\S]*?<\/details>/.exec(home)?.[0] ?? '';
+  const fold = card.split('<details')[0]!;
+  assert.ok(fold.includes('No signup. Your agent&#39;s key is its identity.') || fold.includes("No signup. Your agent's key is its identity."));
+  assert.ok(fold.includes(`<pre class="wrap">${registry.url}/mcp</pre>`));
+  assert.ok(fold.includes('<p>Hosted Usher acts on sites that have joined.</p>'));
+  assert.doesNotMatch(fold, /npx|mcpServers/, 'nothing local above the fold');
+  assert.match(card, /<details class="local"><summary>Running your own agent or framework\?<\/summary>[\s\S]*mcpServers[\s\S]*The local server acts on any site, with your own key\./);
+  assert.match(home, /<a class="button" href="\/sites\/new">Get your keys<\/a><a class="button ghost" href="#agents">Connect an agent<\/a>/);
+  assert.match(home, /<a href="#assistant">See it inside an assistant<\/a>/);
 });
