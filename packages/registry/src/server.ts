@@ -41,7 +41,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
 import { hostedMcp } from '../../mcp/src/hosted.ts';
-import { DEFAULT_LOG_DIR, budgeted, compilerModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
+import { DEFAULT_LOG_DIR, budgeted, compilerModel, studentModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
 import { Walkthroughs } from './walkthrough.ts';
@@ -98,6 +98,10 @@ const capped = (chat: ChatFn) => budgeted(chat, budget, ledger);
 const today = () => new Date().toISOString().slice(0, 10);
 const spentToday = () => ledger.spent(today());
 const spark = env.MODEL_API_KEY ? { chat: capped(modelApi()), model: compilerModel() } : undefined;
+// The tuned student as the viewer's second opinion on risk, only when USHER_STUDENT_MODEL (and its
+// endpoint) are set: off in production until a trained adapter has earned it (docs/finetune.md).
+const studentName = studentModel(env);
+const student = studentName ? { chat: capped(modelApi({ provider: 'student' })), model: studentName, student: true } : undefined;
 const open = env.BASETEN_API_KEY ? { chat: capped(modelApi({ provider: 'baseten' })), model: openModel() } : undefined;
 
 const explainer = values['explain-open'] ? (open ?? spark) : (spark ?? open);
@@ -159,7 +163,7 @@ const running = await startRegistry({
     // The picker refresh loads nothing once today's budget is spent.
     overBudget: async () => (await spentToday()) >= budget,
     // The viewer's second opinion on risk, from Muse Spark Open.
-    ...(open && { classifier: open }),
+    ...((student ?? open) && { classifier: (student ?? open)! }),
   },
   // Muse Spark compiles maps for the viewer and turns owners' English into policy.
   ...(spark && { chat: spark.chat, model: spark.model }),

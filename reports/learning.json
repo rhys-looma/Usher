@@ -1,0 +1,15 @@
+{
+  "student": {
+    "stage": "dry_run",
+    "date": "2026-10-28",
+    "detail": "The pipeline ran 1 training step on 10 examples on CPU, with a tiny stand-in for the base model, and saved the adapter"
+  },
+  "dataset": {
+    "generated": "2026-10-28T22:51:20.382Z",
+    "unique": 212,
+    "train": 168,
+    "eval": 44,
+    "forms": 19,
+    "owner_verified": 0
+  }
+}

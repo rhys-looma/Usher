@@ -29,6 +29,8 @@ const { values } = parseArgs({
     'eval-share': { type: 'string', default: '0.2' },
     since: { type: 'string' },
     corrections: { type: 'string' },
+    // Also write the counts the /learning page shows to reports/learning.json (committed).
+    publish: { type: 'boolean', default: false },
   },
 });
 const models = new Set(values.models.split(','));
@@ -214,4 +216,10 @@ const stats = {
   by_risk: count(unique, (ex) => ex.output.risk),
 };
 await writeFile(join(values.out, 'stats.json'), `${JSON.stringify(stats, null, 2)}\n`);
+if (values.publish) {
+  const report = new URL('../../../reports/learning.json', import.meta.url);
+  const current = JSON.parse(await readFile(report, 'utf8').catch(() => '{}')) as Record<string, unknown>;
+  const dataset = { generated: stats.generated, unique: stats.unique, train: stats.train, eval: stats.eval, forms: stats.forms.train + stats.forms.eval, owner_verified: stats.owner_verified.total };
+  await writeFile(report, `${JSON.stringify({ ...current, dataset }, null, 2)}\n`);
+}
 console.log(JSON.stringify(stats, null, 2));
