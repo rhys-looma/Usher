@@ -147,6 +147,8 @@ test('what happens in between: six steps in reading order, each with what Usher 
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
   assert.match(section, /<figure class="seq chat" data-steps/);
+  // Brightwater's app runs on Usher; the form is on Brightwater's own site.
+  assert.match(section, /<ol class="route"[^>]*><li>Your assistant<\/li><li>Brightwater(&#39;|')s app<\/li><li class="usher"><span>Usher<\/span><\/li><li>Brightwater(&#39;|')s site<\/li><\/ol>/);
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
