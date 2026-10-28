@@ -1,9 +1,11 @@
 // A real life insurance quote form: Aviva Direct's first page, captured in Chrome on 28 October
-// 2026, structure only (fixtures/real/aviva-life). Rebuilt as markup at its own address, it extracts
-// exactly as the real page did; Muse Spark's map of it (replayed from a recording) is schema-valid
-// and gives every field its meaning: the split date of birth as one key, smoking as the person's to
-// answer, "See your quote" as the consequential submit. Life cover's own questions have no
-// vocabulary key yet (custom.*), and smoking here has three answers, not yes or no.
+// 2026, structure only (fixtures/real/aviva-life), as it loads and in the two states its answers
+// open: family protection and mortgage protection, each for two people with critical illness cover
+// and a past smoker. Rebuilt as markup at its own address, each extracts exactly as the real page
+// did; Muse Spark's map of each (replayed from a recording) is schema-valid and gives every field its
+// meaning: the split date of birth as one key, smoking as the person's to answer, "See your quote"
+// as the consequential submit. Life cover's own questions and the second person have no vocabulary
+// key yet (custom.*), and smoking here has three answers, not yes or no.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -61,3 +63,47 @@ test('smoking has three answers here: "no" alone matches none of them, so the pe
   assert.equal(matchOption(smoker.options!.items, "I've never smoked"), '1');
   assert.equal(matchOption(captured.forms[0]!.elements.find((e) => e.name === 'id_quoteLivesRadio')!.options!.items, 'Me'), '1');
 });
+
+const STATES = {
+  family: { file: 'aviva-life/02-family-joint-ci-ex-smoker.json', only: ['id_sum_assured_family', 'id_quoteCoverAmountRadios', 'id_inflationCoverRadio', 'id_termList'] },
+  mortgage: { file: 'aviva-life/03-mortgage-joint-ci-ex-smoker.json', only: ['id_sum_assured_mortgage', 'id_mortgage_termList'] },
+} as const;
+const BOTH = ['id_quoteCoverPolicyRadios', 'id_ci_sum_assured', 'id_CI_quoteCoverAmountRadios', 'id_exsmokerStatusRadio_', 'id_forename_0', 'id_smokerStatusRadio_0', 'id_consent_life2_address', 'id_postcode_screen_10_currentAddress'];
+
+test('the answers open more of the form: each product its own amount and term, a second person, critical illness, a past smoker\'s when', async () => {
+  const names = (c: Awaited<ReturnType<typeof readReal>>) => new Set(c.forms[0]!.elements.map((e) => e.name));
+  const start = names(captured);
+  for (const [state, { file, only }] of Object.entries(STATES)) {
+    const opened = names(await readReal(file));
+    for (const n of [...only, ...BOTH]) assert.ok(opened.has(n) && !start.has(n), `${state}: ${n} appears with the answers`);
+    const other = Object.values(STATES).find((s) => s.file !== file)!;
+    for (const n of other.only) assert.ok(!opened.has(n), `${state}: no ${n}`);
+  }
+});
+
+for (const [state, { file }] of Object.entries(STATES)) {
+  test(`${state} protection, two people: rebuilt, it extracts as the real page did; Muse Spark's map of it`, async () => {
+    const page0 = await readReal(file);
+    const labels = { ...(JSON.parse(await readFile(new URL(`./fixtures/real/${file.replace('.json', '.labels.json')}`, import.meta.url), 'utf8')) as LabelFixture), layout: 'a', step: state } as unknown as LabelFixture;
+    const { context, page } = await openRebuilt(browser, page0);
+    const scan = (await page.evaluate(scanScript())) as Scan;
+    const shape = (e: { kind: string; control?: string | null; label: string; labelSource: string; visible: boolean; group?: string; part?: string }) => `${e.kind}/${e.control}|${e.label}|${e.labelSource}|${e.visible}|${e.group ?? ''}|${e.part ?? ''}`;
+    assert.deepEqual(scan.forms[0]!.elements.map(shape), page0.forms[0]!.elements.map(shape));
+    const { map } = await compilePage(page, { chat: replayChat(labels), model: labels.model, logDir: null, now: () => new Date(labels.recorded_at) });
+    await context.close();
+    assert.equal(mapSchemaErrors(map), null);
+    const byName = (n: string) => map.fields.find((f) => f.locators.some((l) => l.by === 'name' && l.value === n));
+    // The applicant by vocabulary key; their date of birth one key in three parts.
+    for (const [name, key] of [['id_forename_', 'person.first_name'], ['id_surname_', 'person.last_name'], ['id_emailAddress_', 'contact.email'], ['id_FF_phoneNumber_', 'contact.phone'], ['id_postcode_screen__currentAddress', 'address.postcode']] as const) assert.equal(byName(name)?.key, key, name);
+    assert.deepEqual(map.fields.filter((f) => f.key === 'person.dob').map((f) => f.part), ['day', 'month', 'year']);
+    // Smoking and when a past smoker stopped: the person's to answer, for both people.
+    for (const n of ['id_smokerStatusRadio_', 'id_exsmokerStatusRadio_', 'id_smokerStatusRadio_0']) assert.equal(byName(n)?.risk, 'needs_user', n);
+    // The second person: no vocabulary key for them yet.
+    for (const n of ['id_forename_0', 'id_surname_0', 'id_emailAddress_0']) assert.match(byName(n)?.key ?? '', /^custom\./, n);
+    // The product's term and the amounts: no vocabulary key either.
+    for (const n of [state === 'family' ? 'id_termList' : 'id_mortgage_termList', state === 'family' ? 'id_sum_assured_family' : 'id_sum_assured_mortgage', 'id_ci_sum_assured']) assert.match(byName(n)?.key ?? '', /^custom\./, n);
+    // Both address lookups, and the one way forward.
+    assert.deepEqual(map.actions.filter((a) => a.key === 'lookup.address').map((a) => a.label), ['Find my address', 'Find their address']);
+    assert.deepEqual(map.actions.filter((a) => a.key === 'form.submit').map((a) => [a.label, a.risk]), [['See your quote', 'consequential']]);
+  });
+}
