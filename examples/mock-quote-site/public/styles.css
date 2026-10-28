@@ -92,3 +92,11 @@ button.secondary { background: #fff; color: var(--brand); border: 1px solid var(
 .disclosure, .valid { color: var(--muted); font-size: 14px; }
 .admin { display: flex; gap: 12px; }
 .admin button.primary { margin-left: 0; }
+
+/* Layout C: radios styled as cards (the input hidden behind its label), a split date, a lookup result list. */
+.card-input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.choice.card { display: inline-block; border: 1px solid var(--line, #ccd); border-radius: 6px; padding: 8px 14px; margin: 0 8px 8px 0; cursor: pointer; }
+.card-input:checked + .choice.card { border-color: #0b6e4f; background: #e6f4ee; font-weight: 600; }
+.card-input:focus-visible + .choice.card { outline: 2px solid #0b6e4f; }
+.split .parts { display: flex; gap: 8px; } .split .parts input { width: 5em; } .split .parts input[autocomplete=bday-year] { width: 7em; }
+.lookup-results select { margin-top: 8px; }

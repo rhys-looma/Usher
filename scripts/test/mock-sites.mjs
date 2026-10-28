@@ -1,5 +1,5 @@
-// Test harness. Starts the mock quote site in layouts A and B on free ports, runs a command with their URLs
-// in USHER_MOCK_A and USHER_MOCK_B, then stops both. Exits with the command's exit code.
+// Test harness. Starts the mock quote site in layouts A, B and C on free ports, runs a command with their
+// URLs in USHER_MOCK_A, USHER_MOCK_B and USHER_MOCK_C, then stops them. Exits with the command's exit code.
 
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -53,12 +53,12 @@ export async function withMockSites(command, args) {
   });
   let code = 1;
   try {
-    const [a, b] = await Promise.all([startMockSite('a'), startMockSite('b')]);
-    console.log(`mock site: layout A ${a}, layout B ${b}`);
+    const [a, b, c] = await Promise.all([startMockSite('a'), startMockSite('b'), startMockSite('c')]);
+    console.log(`mock site: layout A ${a}, layout B ${b}, layout C ${c}`);
     code = await new Promise((resolve) => {
       const run = spawn(command, args, {
         cwd: root,
-        env: { ...process.env, USHER_MOCK_A: a, USHER_MOCK_B: b },
+        env: { ...process.env, USHER_MOCK_A: a, USHER_MOCK_B: b, USHER_MOCK_C: c },
         stdio: 'inherit',
         shell: process.platform === 'win32',
       });

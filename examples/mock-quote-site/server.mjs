@@ -3,7 +3,7 @@
 //
 //   node server.mjs            start on port 4100
 //   PORT=5000 node server.mjs  another port
-//   VARIANT=b node server.mjs  start with the alternative form layout
+//   VARIANT=b node server.mjs  start with the alternative form layout (VARIANT=c: real-world controls)
 //   USHER_REGISTRY_URL=<registry URL> node server.mjs
 //                              use Usher: discovery file and the server-side token check
 //                              (run `npm run build` at the repository root first;
@@ -25,7 +25,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4100);
 const occupations = JSON.parse(await readFile(join(here, 'data/occupations.json'), 'utf8'));
 
-let variant = process.env.VARIANT === 'b' ? 'b' : 'a';
+let variant = ['b', 'c'].includes(process.env.VARIANT) ? process.env.VARIANT : 'a';
 const sameKey = (given, expected) => timingSafeEqual(createHash('sha256').update(given).digest(), createHash('sha256').update(expected).digest());
 
 // Usher, when a registry is configured. The check only applies to requests that identify as
@@ -113,6 +113,33 @@ const steps = {
   },
 };
 
+// Variant "c" keeps layout A's names but uses the controls real quote forms use (seen on a real
+// insurer's journey): a date of birth split into day, month and year boxes; the address from a
+// postcode lookup that shows a list of addresses; mileage as bands; the year as a select; the cover
+// start as text in DD/MM/YYYY; radios styled as cards, the input hidden behind its label.
+const MILEAGE_BANDS = [4000, 8000, 12000, 15000, 20000].map((n) => ({ value: `UpTo${n}`, label: `Up to ${n.toLocaleString('en-GB')} a year` })).concat([{ value: 'Over20000', label: 'Over 20,000 a year' }]);
+const YEARS = Array.from({ length: 27 }, (_, i) => String(2000 + i)).map((y) => ({ value: y, label: y }));
+const CARDS = new Set(['employment_status', 'has_claims', 'use', 'modified', 'cover_level', 'payment', 'excess']);
+function layoutC(step, f) {
+  if (f.name === 'dob') return { ...f, type: 'splitdate' };
+  if (f.name === 'address_line1') return { ...f, type: 'addresslookup', label: 'Please select an address' };
+  if (f.name === 'annual_mileage') return { ...f, type: 'select', label: "What's this vehicle's annual mileage?", options: MILEAGE_BANDS, min: undefined, max: undefined };
+  if (f.name === 'year') return { ...f, type: 'select', options: YEARS, min: undefined, max: undefined };
+  if (f.name === 'start_date') return { ...f, type: 'text', label: 'When would you like your cover to start? (DD/MM/YYYY)', pattern: '\\d{2}\\/\\d{2}\\/\\d{4}', textDate: true };
+  if (f.name === 'excess') return { ...f, type: 'radio', card: true };
+  if (CARDS.has(f.name)) return { ...f, card: true };
+  return f;
+}
+const fieldsOf = (step) => (variant === 'c' ? step.fields.map((f) => layoutC(step, f)) : step.fields);
+
+/** The addresses on a postcode: a few houses in one street, numbered so "1" and "11" both appear. */
+function addressLookup(postcode) {
+  const pc = postcode.replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(pc)) return null;
+  const shown = `${pc.slice(0, -3)} ${pc.slice(-3)}`;
+  return ['1 High Street', '2 High Street', '11 High Street', 'Flat 1, 1 High Street', 'The Old Forge, High Street'].map((line1, i) => ({ id: `addr-${i + 1}`, line1, label: `${line1}, Malvern, ${shown}` }));
+}
+
 // Variant "b" renames every id and name with a prefix and a short hash.
 const nameFor = (field) => (variant === 'b' ? `bw_${field}_${hash(field).slice(0, 4)}` : field);
 const idFor = (field) => (variant === 'b' ? `fld-${hash(`id:${field}`).slice(0, 6)}` : field.replaceAll('_', '-'));
@@ -120,7 +147,7 @@ const labelFor = (f) => (variant === 'b' && f.labelB ? f.labelB : f.label);
 const orderedFields = (step) =>
   variant === 'b'
     ? [...step.fields].sort((x, y) => (x.orderB ?? 100) - (y.orderB ?? 100) || step.fields.indexOf(x) - step.fields.indexOf(y))
-    : step.fields;
+    : fieldsOf(step);
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -184,7 +211,7 @@ function renderStep(key, values = {}, errors = []) {
 
   const fieldsHtml = orderedFields(step)
     .map((f) => {
-      const html = renderField(f, values[f.name], errors.includes(f));
+      const html = renderField(f, values[f.name], errors.some((e) => e.name === f.name));
       // The vehicle lookup button sits straight after the registration field.
       return f.name === 'registration' ? html + lookup : html;
     })
@@ -214,9 +241,18 @@ function renderField(f, value, hasError) {
   const showIf = f.showIf ? ` data-show-if="${nameFor(f.showIf[0])}=${f.showIf[1]}" hidden` : '';
   const cls = `row${hasError ? ' has-error' : ''}`;
   const err = hasError ? `<p class="error-message">${f.type === 'checkbox' ? 'Please confirm to continue' : 'Please complete this field'}</p>` : '';
-  const v = value ?? '';
+  const v = f.textDate && /^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? value.split('-').reverse().join('/') : (value ?? '');
 
   switch (f.type) {
+    case 'splitdate': {
+      // Day, month and year boxes under one legend; the value is the whole date.
+      const [y, m, d] = (v || '').split('-');
+      const box = (part, max, ph, val) => `<input type="text" id="${id}-${part}" name="${name}_${part}" aria-label="${part[0].toUpperCase()}${part.slice(1)} of birth" autocomplete="bday-${part}" placeholder="${ph}" inputmode="numeric" pattern="[0-9]*" maxlength="${max}" value="${esc(val ?? '')}"${req}>`;
+      return `<fieldset class="${cls} split" id="${id}"><legend>${label}</legend>${err}<p class="hint">For example, 24 10 1996</p><div class="parts">${box('day', 2, 'DD', d)}${box('month', 2, 'MM', m)}${box('year', 4, 'YYYY', y)}</div></fieldset>`;
+    }
+    case 'addresslookup':
+      // The list of addresses appears only after "Find address" (quote.js); it isn't in the page before.
+      return `<div class="${cls}" id="${id}">${err}<div class="lookup"><button type="button" class="secondary" data-lookup="address" data-postcode="${nameFor('postcode')}">Find address</button><span class="lookup-status" aria-live="polite"></span></div><div class="lookup-results"></div></div>`;
     case 'select':
       return `<div class="${cls}"${showIf}><label for="${id}">${label}</label>${err}<select id="${id}" name="${name}"${req}><option value="">Please select</option>${f.options
         .map((o) => `<option value="${esc(o.value)}"${o.value === v ? ' selected' : ''}>${esc(o.label)}</option>`)
@@ -225,7 +261,9 @@ function renderField(f, value, hasError) {
       return `<fieldset class="${cls}" id="${id}"${showIf}><legend>${label}</legend>${err}<div class="choices">${f.options
         .map(
           (o, i) =>
-            `<label class="choice"><input type="radio" name="${name}" value="${esc(o.value)}" id="${id}-${i}"${o.value === v ? ' checked' : ''}${i === 0 ? req : ''}> ${esc(o.label)}</label>`,
+            f.card
+              ? `<input type="radio" class="card-input" name="${name}" value="${esc(o.value)}" id="${id}-${i}"${o.value === v ? ' checked' : ''}${i === 0 ? req : ''}><label class="choice card" for="${id}-${i}">${esc(o.label)}</label>`
+              : `<label class="choice"><input type="radio" name="${name}" value="${esc(o.value)}" id="${id}-${i}"${o.value === v ? ' checked' : ''}${i === 0 ? req : ''}> ${esc(o.label)}</label>`,
         )
         .join('')}</div></fieldset>`;
     case 'checkbox':
@@ -267,11 +305,12 @@ function renderAdmin() {
     `
 <h1>Demo controls</h1>
 <p>Current form layout: <strong>${variant.toUpperCase()}</strong></p>
-<p>Layout B renames every field id and name, rewords some labels and moves fields, like a site redesign.</p>
+<p>Layout B renames every field id and name, rewords some labels and moves fields, like a site redesign. Layout C uses the controls real quote forms use: a split date of birth, an address lookup with a list of results, mileage bands, a year select, a text date and radios styled as cards.</p>
 <form method="post" action="/__admin/variant" class="admin">
   ${ADMIN_KEY ? '<label>Admin key <input type="password" name="key" required></label>' : ''}
   <button name="variant" value="a" class="${variant === 'a' ? 'primary' : 'secondary'}">Use layout A</button>
   <button name="variant" value="b" class="${variant === 'b' ? 'primary' : 'secondary'}">Use layout B</button>
+  <button name="variant" value="c" class="${variant === 'c' ? 'primary' : 'secondary'}">Use layout C</button>
 </form>`,
   );
 }
@@ -283,14 +322,29 @@ function renderAdmin() {
 // Reads a submitted form into canonical field names, whichever layout posted it.
 function readStep(key, params) {
   const values = {};
-  for (const f of steps[key].fields) {
-    const raw = params.get(nameFor(f.name)) ?? params.get(f.name);
+  for (const f of fieldsOf(steps[key])) {
+    let raw = params.get(nameFor(f.name)) ?? params.get(f.name);
+    // Layout C's own controls; the plain names (as layout A posts them) are accepted too.
+    if (f.type === 'splitdate' && params.get(`${f.name}_day`) !== null) {
+      const [d, m, y] = ['day', 'month', 'year'].map((p) => (params.get(`${f.name}_${p}`) ?? '').trim());
+      raw = d && m && y ? `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
+    }
+    if (f.type === 'addresslookup' && params.get('address') !== null) {
+      const found = (addressLookup(params.get('postcode') ?? '') ?? []).find((a) => a.id === params.get('address'));
+      raw = found ? found.line1 : '';
+    }
+    if (f.textDate && raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw.trim());
+      raw = m ? `${m[3]}-${m[2]}-${m[1]}` : 'invalid';
+    }
+    if (f.name === 'annual_mileage' && /^UpTo|^Over/.test(raw ?? '')) raw = String(Number(raw.replace(/\D/g, '')) || 25000);
     if (raw !== null && raw !== '') values[f.name] = raw.trim();
   }
   return values;
 }
 
 function validate(key, values) {
+  // Values read back (readStep) are layout A's, so layout A's rules check them.
   return steps[key].fields.filter((f) => {
     if (!f.required) return false;
     if (f.showIf && values[f.showIf[0]] !== f.showIf[1]) return false;
@@ -390,6 +444,10 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    if (section === 'api' && key === 'address' && req.method === 'GET') {
+      const found = addressLookup(url.searchParams.get('postcode') ?? '');
+      return json(res, found ? { addresses: found.map(({ id, label }) => ({ id, label })) } : { error: 'not_found' }, found ? 200 : 404);
+    }
     if (section === 'api' && key === 'vehicle' && req.method === 'GET') {
       const found = vehicleLookup(url.searchParams.get('registration') ?? '');
       return json(res, found ?? { error: 'not_found' }, found ? 200 : 404);
@@ -440,7 +498,7 @@ const server = createServer(async (req, res) => {
         const form = new URLSearchParams(await body(req));
         if (ADMIN_KEY && !sameKey(form.get('key') ?? '', ADMIN_KEY)) return html(res, page('Not allowed', '<h1>That key is not right</h1><p><a href="/__admin">Back</a></p>'), 401);
         const v = form.get('variant');
-        if (v === 'a' || v === 'b') variant = v;
+        if (v === 'a' || v === 'b' || v === 'c') variant = v;
         console.log(`form layout switched to ${variant.toUpperCase()}`);
         return redirect(res, '/__admin');
       }

@@ -1,7 +1,8 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { scanScript, type Scan } from '../src/index.ts';
 
-export type Layout = 'a' | 'b';
+/** a and b: the form before and after a redesign; c: the controls real quote forms use. */
+export type Layout = 'a' | 'b' | 'c';
 export type Step = 'driver' | 'vehicle' | 'cover';
 
 export const LAYOUTS: Layout[] = ['a', 'b'];
@@ -9,7 +10,7 @@ export const STEPS: Step[] = ['driver', 'vehicle', 'cover'];
 
 /** Base URL of the mock site in a layout. Set by scripts/test.mjs. */
 export function mockUrl(layout: Layout): string {
-  const url = process.env[layout === 'a' ? 'USHER_MOCK_A' : 'USHER_MOCK_B'];
+  const url = process.env[`USHER_MOCK_${layout.toUpperCase()}`];
   if (!url) throw new Error('Mock site URLs are not set: run `npm test` from the repository root.');
   return url;
 }

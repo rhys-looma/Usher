@@ -39,7 +39,7 @@ for (const layout of LAYOUTS) {
       assert.equal(form.actionPath, `/quote/${step}`);
       assert.deepEqual(
         form.elements.map((e) => [e.control, e.label]),
-        expected[layout][step],
+        expected[layout as Exclude<typeof layout, 'c'>][step],
       );
       assert.deepEqual(
         form.elements.map((e) => e.id),

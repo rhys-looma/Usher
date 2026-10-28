@@ -23,7 +23,7 @@ import { testStorage } from '../../registry/test/storage-helper.ts';
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 const recorded = (set: 'labels' | 'labels-open') =>
-  Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, set))));
+  Promise.all((set === 'labels' ? (['a', 'b', 'c'] as const) : (['a', 'b'] as const)).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, set))));
 // Recorded responses, replayed with the latency they had when recorded.
 const spark = { chat: replayAny(await recorded('labels'), { simulateLatency: true }), model: 'muse-spark-1.3', logDir: null };
 // Replayed under the model id the fixtures were recorded with (see OPEN_MODEL).
@@ -181,6 +181,23 @@ test('the match log holds every lookup with its scores', async () => {
   const lines = log.map((m) => `${m.via.padEnd(6)} ${m.path.padEnd(14)} ${m.kind.padEnd(5)} best ${m.score.toFixed(3)}  [${m.scores.map((s) => `${s.path} ${s.score}`).join(', ')}]`);
   console.log(['', 'match log', ...lines.map((l) => `  ${l}`), ''].join('\n'));
   assert.ok(log.length >= 12);
+});
+
+test('layout C, the controls real quote forms use: split date of birth, address lookup with a list, bands, a year select, a text date, card radios', async () => {
+  await site.setLayout('c');
+  try {
+    const transport = await httpTransport(registry.url, join(dir, 'agent-c-layout.json'));
+    const actions: string[] = [];
+    const run = await runAgent({ browser, url: `${site.url}/quote/driver`, profile, intent: 'quote.car_insurance', registry: transport, user: scriptedUser(profile), fallback: spark, onEvent: (e) => e.type === 'action' && actions.push(`${e.action}:${e.key}`) });
+    await transport.close();
+    runs['Agent A, Spark, layout C'] = run;
+    assert.equal(run.outcome, 'completed', run.reason);
+    assert.match(run.final_url, /\/quote\/result$/);
+    for (const a of ['fill:person.dob', 'fill:address.postcode', 'press:lookup.address', 'press:lookup.vehicle', 'fill:vehicle.annual_mileage', 'fill:policy.start_date', 'fill:policy.voluntary_excess', 'fill:policy.payment_frequency', 'fill:person.employment_status']) assert.ok(actions.includes(a), `${a} in ${actions.join(' ')}`);
+    assert.ok(!actions.includes('fill:vehicle.year'), 'the year as the lookup set it');
+  } finally {
+    await site.setLayout('a');
+  }
 });
 
 test('live: Agent A on Muse Spark builds the maps, Agent B on Muse Spark Open runs on them, then reads layout B', { skip: process.env.USHER_LIVE !== '1' && 'set USHER_LIVE=1 to call the model APIs' }, async () => {
