@@ -127,10 +127,11 @@ The same journeys three ways, five runs each, with model latency replayed from r
 
 | Journey | Without Usher (reads every page) | With maps (knock or lookup) | With a plan, then maps |
 | --- | --- | --- | --- |
-| Demo quote site, 3 steps | 14.22 s · $0.031 (Muse Spark) / 14.01 s · $0.026 (Spark Open) | 2.68 s / 2.71 s · $0 | 2.69 s / 2.69 s · $0 |
-| httpbin.org/forms/post, 1 page | 11.12 s · $0.011 / 9.56 s · $0.013 | 2.53 s / 2.58 s · $0 | 2.54 s / 2.58 s · $0 |
+| Brightwater Health, 3 steps (demo site) | 17.09 s · $0.030 (Muse Spark) / 62.82 s · $0.024 (Spark Open) | 3.07 s / 3.07 s · $0 | 3.05 s / 3.06 s · $0 |
+| Brightwater car quote, 3 steps (demo site) | 17.42 s · $0.036 / 24.12 s · $0.024 | 2.88 s / 2.90 s · $0 | 2.89 s / 2.92 s · $0 |
+| httpbin.org/forms/post, 1 page | 11.22 s · $0.012 / 7.77 s · $0.008 | 2.53 s / 2.57 s · $0 | 2.53 s / 2.55 s · $0 |
 
-With a map, an agent spends no model tokens on the form at all. The map is built once, by the registry's keeper or by agents, and kept fresh by the keeper. An agent's map serves only that agent until it is verified: a second, independent agent builds the same map and completes the form, or the keeper rebuilds the form and gets the same result. Then it serves every agent.
+Spark Open's times are its recorded calls, made on 28 October while Baseten was slow (up to a minute a page). With a map, an agent spends no model tokens on the form at all. The map is built once, by the registry's keeper or by agents, and kept fresh by the keeper. An agent's map serves only that agent until it is verified: a second, independent agent builds the same map and completes the form, or the keeper rebuilds the form and gets the same result. Then it serves every agent.
 
 ## Documents
 

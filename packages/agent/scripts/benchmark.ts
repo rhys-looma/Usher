@@ -32,8 +32,9 @@ const root = new URL('../../../', import.meta.url);
 const logDir = new URL('data/compiler-log/', root);
 const read = async (path: string) => JSON.parse(await readFile(new URL(path, root), 'utf8'));
 
-const sparkFixtures = await Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s))));
-const openFixtures = await Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, 'labels-open'))));
+const steps = ['driver', 'vehicle', 'cover', 'health-about', 'health-cover', 'health-declaration'] as const;
+const sparkFixtures = await Promise.all((['a', 'b'] as const).flatMap((l) => steps.map((s) => readFixture(l, s))));
+const openFixtures = await Promise.all((['a', 'b'] as const).flatMap((l) => steps.map((s) => readFixture(l, s, 'labels-open'))));
 
 /** Recorded responses first (fixtures, then the compiler log, re-read each time), at recorded latency. */
 function replayed(fixtures: typeof sparkFixtures): ChatFn {
@@ -109,8 +110,9 @@ let publicSkipped: string | null = null;
 }
 
 const journeys = [
-  { name: 'Mock quote site, 3 steps, submitted', url: `${site.url}/quote/driver`, profile: (await read('packages/agent/profiles/test-driver.json')) as Profile, dryRun: false },
-  ...(publicSkipped ? [] : [{ name: 'httpbin.org/forms/post, 1 page, filled not submitted', url: PUBLIC, profile: (await read('packages/agent/profiles/httpbin-order.json')) as Profile, dryRun: true }]),
+  { name: 'Brightwater Health, 3 steps, submitted', url: `${site.url}/health/about`, intent: 'quote.health_insurance', profile: (await read('packages/agent/profiles/test-health.json')) as Profile, dryRun: false },
+  { name: 'Mock quote site, 3 steps, submitted', url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', profile: (await read('packages/agent/profiles/test-driver.json')) as Profile, dryRun: false },
+  ...(publicSkipped ? [] : [{ name: 'httpbin.org/forms/post, 1 page, filled not submitted', url: PUBLIC, intent: 'quote.car_insurance', profile: (await read('packages/agent/profiles/httpbin-order.json')) as Profile, dryRun: true }]),
 ];
 const configs = [
   { name: '(a) reads pages, no Usher', noUsher: true, usePlan: false, usesModel: true },
@@ -133,7 +135,7 @@ try {
               browser,
               url: journey.url,
               profile: journey.profile,
-              intent: 'quote.car_insurance',
+              intent: journey.intent,
               registry: transport,
               user: scriptedUser(journey.profile),
               fallback: agent.fallback(live),
@@ -180,7 +182,7 @@ const lines = [
   '',
   '## Method',
   '',
-  '- **Journeys.** The mock quote site\'s three steps, submitted (the quote is made up), and a real public single-page form, [httpbin.org/forms/post](https://httpbin.org/forms/post), filled but never submitted (a dry run stops before its submit).',
+  '- **Journeys.** The mock site\'s two quotes, Brightwater Health and the car quote ("Mock quote site"), three steps each, submitted (the quotes are made up), and a real public single-page form, [httpbin.org/forms/post](https://httpbin.org/forms/post), filled but never submitted (a dry run stops before its submit).',
   '- **Configurations.** (a) The agent reads each page with its model (extraction and a screenshot, labelled as the compiler does) and acts on that, without Usher: no knock, nothing shared. (b) The agent uses maps: on the mock site, which runs Usher, by knocking; on httpbin, which does not, by looking the map up in the registry by fingerprint (no token). (c) The agent first gets a plan for the journey and checks its data against it, then uses the maps.',
   '- **Agents.** Agent A falls back to Muse Spark over HTTP; Agent B to Muse Spark Open, talking to the registry over MCP. In (b) and (c) neither calls a model.',
   '- **Model responses** are replayed from recordings at the latency they had when recorded, so wall time and model time reflect real model calls without spending on every run. Tokens and cost are the recorded calls\' usage. Rows marked live include one live run, listed separately.',
