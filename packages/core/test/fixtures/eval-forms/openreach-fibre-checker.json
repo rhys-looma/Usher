@@ -1,0 +1,40 @@
+{
+ "url": "https://www.openreach.com/fibre-checker",
+ "final_url": "https://www.openreach.com/fibre-checker",
+ "recorded_at": "2026-10-28T22:59:10.972Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/fibre-checker",
+    "title": "Fibre broadband availability checker | Openreach"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter your postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Check postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

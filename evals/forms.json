@@ -1,32 +1,372 @@
 {
   "about": "Public forms for the accuracy evaluation (LU-50). Pages are loaded and read; nothing is ever submitted. Account sign-ups are mapped up to their submit button only. Pages that refuse a headless browser (403 and the like) are skipped and noted. 'recorded' marks forms whose model responses are already in the compiler log.",
   "forms": [
-    { "id": "govuk-contact", "category": "contact", "url": "https://www.gov.uk/contact/govuk", "recorded": true },
-    { "id": "ico-contact", "category": "contact", "url": "https://ico.org.uk/global/contact-us/" },
-    { "id": "parliament-contact", "category": "contact", "url": "https://www.parliament.uk/site-information/contact-us/" },
-    { "id": "ofcom-contact", "category": "contact", "url": "https://www.ofcom.org.uk/about-ofcom/contact-us" },
-    { "id": "travelodge-booking", "category": "booking", "url": "https://www.travelodge.co.uk/", "recorded": true },
-    { "id": "httpbin-order", "category": "booking", "url": "https://httpbin.org/forms/post", "recorded": true, "note": "a test form (pizza order), kept as a control" },
-    { "id": "nationalrail-journey", "category": "booking", "url": "https://www.nationalrail.co.uk/" },
-    { "id": "eventbrite-search", "category": "booking", "url": "https://www.eventbrite.co.uk/" },
-    { "id": "lner-booking", "category": "booking", "url": "https://www.lner.co.uk/" },
-    { "id": "mozilla-newsletter", "category": "newsletter", "url": "https://www.mozilla.org/en-US/newsletter/", "recorded": true },
-    { "id": "which-newsletter", "category": "newsletter", "url": "https://www.which.co.uk/newsletters" },
-    { "id": "guardian-newsletters", "category": "newsletter", "url": "https://www.theguardian.com/email-newsletters" },
-    { "id": "wikipedia-search", "category": "search", "url": "https://en.wikipedia.org/wiki/Special:Search", "recorded": true },
-    { "id": "govuk-search", "category": "search", "url": "https://www.gov.uk/search/all" },
-    { "id": "ons-search", "category": "search", "url": "https://www.ons.gov.uk/" },
-    { "id": "nhs-search", "category": "search", "url": "https://www.nhs.uk/" },
-    { "id": "github-signup", "category": "account sign-up", "url": "https://github.com/signup", "note": "stop before submit" },
-    { "id": "reddit-signup", "category": "account sign-up", "url": "https://www.reddit.com/register/", "note": "stop before submit" },
-    { "id": "bbc-signup", "category": "account sign-up", "url": "https://account.bbc.com/register", "note": "stop before submit" },
-    { "id": "aviva-car", "category": "insurance first step", "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/", "recorded": true },
-    { "id": "directline-car", "category": "insurance first step", "url": "https://www.directline.com/car-insurance" },
-    { "id": "admiral-car", "category": "insurance first step", "url": "https://www.admiral.com/car-insurance" },
-    { "id": "churchill-car", "category": "insurance first step", "url": "https://www.churchill.com/car-insurance" },
-    { "id": "nationwide-mortgage", "category": "finance first step", "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/" },
-    { "id": "barclays-loans", "category": "finance first step", "url": "https://www.barclays.co.uk/loans/" },
-    { "id": "hl-isa", "category": "finance first step", "url": "https://www.hl.co.uk/investment-services/isa" },
-    { "id": "mse-mortgage", "category": "finance first step", "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/" }
+    {
+      "id": "govuk-contact",
+      "category": "contact",
+      "url": "https://www.gov.uk/contact/govuk",
+      "recorded": true
+    },
+    {
+      "id": "ico-contact",
+      "category": "contact",
+      "url": "https://ico.org.uk/global/contact-us/"
+    },
+    {
+      "id": "parliament-contact",
+      "category": "contact",
+      "url": "https://www.parliament.uk/site-information/contact-us/"
+    },
+    {
+      "id": "ofcom-contact",
+      "category": "contact",
+      "url": "https://www.ofcom.org.uk/about-ofcom/contact-us"
+    },
+    {
+      "id": "travelodge-booking",
+      "category": "booking",
+      "url": "https://www.travelodge.co.uk/",
+      "recorded": true
+    },
+    {
+      "id": "httpbin-order",
+      "category": "booking",
+      "url": "https://httpbin.org/forms/post",
+      "recorded": true,
+      "note": "a test form (pizza order), kept as a control"
+    },
+    {
+      "id": "nationalrail-journey",
+      "category": "booking",
+      "url": "https://www.nationalrail.co.uk/"
+    },
+    {
+      "id": "eventbrite-search",
+      "category": "booking",
+      "url": "https://www.eventbrite.co.uk/"
+    },
+    {
+      "id": "lner-booking",
+      "category": "booking",
+      "url": "https://www.lner.co.uk/"
+    },
+    {
+      "id": "mozilla-newsletter",
+      "category": "newsletter",
+      "url": "https://www.mozilla.org/en-US/newsletter/",
+      "recorded": true
+    },
+    {
+      "id": "which-newsletter",
+      "category": "newsletter",
+      "url": "https://www.which.co.uk/newsletters"
+    },
+    {
+      "id": "guardian-newsletters",
+      "category": "newsletter",
+      "url": "https://www.theguardian.com/email-newsletters"
+    },
+    {
+      "id": "wikipedia-search",
+      "category": "search",
+      "url": "https://en.wikipedia.org/wiki/Special:Search",
+      "recorded": true
+    },
+    {
+      "id": "govuk-search",
+      "category": "search",
+      "url": "https://www.gov.uk/search/all"
+    },
+    {
+      "id": "ons-search",
+      "category": "search",
+      "url": "https://www.ons.gov.uk/"
+    },
+    {
+      "id": "nhs-search",
+      "category": "search",
+      "url": "https://www.nhs.uk/"
+    },
+    {
+      "id": "github-signup",
+      "category": "account sign-up",
+      "url": "https://github.com/signup",
+      "note": "stop before submit"
+    },
+    {
+      "id": "reddit-signup",
+      "category": "account sign-up",
+      "url": "https://www.reddit.com/register/",
+      "note": "stop before submit"
+    },
+    {
+      "id": "bbc-signup",
+      "category": "account sign-up",
+      "url": "https://account.bbc.com/register",
+      "note": "stop before submit"
+    },
+    {
+      "id": "aviva-car",
+      "category": "insurance first step",
+      "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
+      "recorded": true
+    },
+    {
+      "id": "directline-car",
+      "category": "insurance first step",
+      "url": "https://www.directline.com/car-insurance"
+    },
+    {
+      "id": "admiral-car",
+      "category": "insurance first step",
+      "url": "https://www.admiral.com/car-insurance"
+    },
+    {
+      "id": "churchill-car",
+      "category": "insurance first step",
+      "url": "https://www.churchill.com/car-insurance"
+    },
+    {
+      "id": "nationwide-mortgage",
+      "category": "finance first step",
+      "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/"
+    },
+    {
+      "id": "barclays-loans",
+      "category": "finance first step",
+      "url": "https://www.barclays.co.uk/loans/"
+    },
+    {
+      "id": "hl-isa",
+      "category": "finance first step",
+      "url": "https://www.hl.co.uk/investment-services/isa"
+    },
+    {
+      "id": "mse-mortgage",
+      "category": "finance first step",
+      "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/"
+    },
+    {
+      "id": "govuk-find-council",
+      "category": "lookup",
+      "url": "https://www.gov.uk/find-local-council",
+      "recorded": true
+    },
+    {
+      "id": "govuk-travel-advice",
+      "category": "search",
+      "url": "https://www.gov.uk/foreign-travel-advice",
+      "recorded": true
+    },
+    {
+      "id": "govuk-electoral-office",
+      "category": "lookup",
+      "url": "https://www.gov.uk/contact-electoral-registration-office",
+      "recorded": true
+    },
+    {
+      "id": "vehicle-enquiry",
+      "category": "lookup",
+      "url": "https://vehicleenquiry.service.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "companies-house-search",
+      "category": "search",
+      "url": "https://find-and-update.company-information.service.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "charity-register-search",
+      "category": "search",
+      "url": "https://register-of-charities.charitycommission.gov.uk/en/charity-search",
+      "recorded": true
+    },
+    {
+      "id": "food-ratings",
+      "category": "search",
+      "url": "https://ratings.food.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "flood-check",
+      "category": "lookup",
+      "url": "https://check-for-flooding.service.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "ofsted-reports",
+      "category": "search",
+      "url": "https://reports.ofsted.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "nhs-find-gp",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/find-a-gp",
+      "recorded": true
+    },
+    {
+      "id": "nhs-find-pharmacy",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/pharmacy/find-a-pharmacy",
+      "recorded": true
+    },
+    {
+      "id": "nhs-find-dentist",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/find-a-dentist",
+      "recorded": true
+    },
+    {
+      "id": "tfl-journey",
+      "category": "booking",
+      "url": "https://tfl.gov.uk/plan-a-journey/",
+      "recorded": true
+    },
+    {
+      "id": "metoffice-search",
+      "category": "search",
+      "url": "https://www.metoffice.gov.uk/",
+      "recorded": true
+    },
+    {
+      "id": "ofcom-broadband-checker",
+      "category": "lookup",
+      "url": "https://checker.ofcom.org.uk/en-gb/broadband-coverage",
+      "recorded": true
+    },
+    {
+      "id": "citizensadvice-search",
+      "category": "search",
+      "url": "https://www.citizensadvice.org.uk/",
+      "recorded": true
+    },
+    {
+      "id": "uswitch-broadband",
+      "category": "lookup",
+      "url": "https://www.uswitch.com/broadband/postcode_checker/",
+      "recorded": true
+    },
+    {
+      "id": "octopus-quote",
+      "category": "quote",
+      "url": "https://octopus.energy/",
+      "recorded": true
+    },
+    {
+      "id": "english-heritage-search",
+      "category": "search",
+      "url": "https://www.english-heritage.org.uk/",
+      "recorded": true
+    },
+    {
+      "id": "cruk-donate",
+      "category": "donation",
+      "url": "https://www.cancerresearchuk.org/get-involved/donate",
+      "recorded": true
+    },
+    {
+      "id": "redcross-donate",
+      "category": "donation",
+      "url": "https://donate.redcross.org.uk/appeal/disaster-fund",
+      "recorded": true
+    },
+    {
+      "id": "oxfam-donate",
+      "category": "donation",
+      "url": "https://www.oxfam.org.uk/donate/",
+      "recorded": true
+    },
+    {
+      "id": "shelter-donate",
+      "category": "donation",
+      "url": "https://england.shelter.org.uk/donate",
+      "recorded": true
+    },
+    {
+      "id": "parliament-petitions",
+      "category": "search",
+      "url": "https://petition.parliament.uk/petitions",
+      "recorded": true
+    },
+    {
+      "id": "gov-paye-calculator",
+      "category": "calculator",
+      "url": "https://www.tax.service.gov.uk/estimate-paye-take-home-pay/your-pay",
+      "recorded": true
+    },
+    {
+      "id": "nhs-111-start",
+      "category": "search",
+      "url": "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/",
+      "recorded": true
+    },
+    {
+      "id": "citizensadvice-contact",
+      "category": "contact",
+      "url": "https://www.citizensadvice.org.uk/about-us/contact-us/contact-us/contact-us/",
+      "recorded": true
+    },
+    {
+      "id": "ons-census-search",
+      "category": "search",
+      "url": "https://www.ons.gov.uk/census",
+      "recorded": true
+    },
+    {
+      "id": "bfi-newsletter",
+      "category": "newsletter",
+      "url": "https://www.bfi.org.uk/",
+      "recorded": true
+    },
+    {
+      "id": "nhm-search",
+      "category": "search",
+      "url": "https://www.nhm.ac.uk/",
+      "recorded": true
+    },
+    {
+      "id": "trainline-search",
+      "category": "booking",
+      "url": "https://www.thetrainline.com/",
+      "recorded": true
+    },
+    {
+      "id": "bbc-search",
+      "category": "search",
+      "url": "https://www.bbc.co.uk/search",
+      "recorded": true
+    },
+    {
+      "id": "ageuk-search",
+      "category": "search",
+      "url": "https://www.ageuk.org.uk/",
+      "recorded": true
+    },
+    {
+      "id": "openreach-fibre-checker",
+      "category": "lookup",
+      "url": "https://www.openreach.com/fibre-checker",
+      "recorded": true
+    },
+    {
+      "id": "gumtree-search",
+      "category": "search",
+      "url": "https://www.gumtree.com/",
+      "recorded": true
+    },
+    {
+      "id": "nhs-conditions-search",
+      "category": "search",
+      "url": "https://www.nhs.uk/conditions/",
+      "recorded": true
+    },
+    {
+      "id": "gov-find-apprenticeship",
+      "category": "search",
+      "url": "https://www.findapprenticeship.service.gov.uk/apprenticeships",
+      "recorded": true
+    }
   ]
 }

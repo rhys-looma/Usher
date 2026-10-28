@@ -1,0 +1,43 @@
+{
+ "url": "https://england.shelter.org.uk/donate",
+ "final_url": "https://england.shelter.org.uk/donate",
+ "recorded_at": "2026-10-28T22:57:39.222Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/donate",
+    "title": "Donate to Shelter - Shelter England"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search Shelter England site",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Submit Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "form.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

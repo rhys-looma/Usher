@@ -1,0 +1,42 @@
+{
+ "url": "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/",
+ "final_url": "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/",
+ "recorded_at": "2026-10-28T22:57:51.132Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/nhs-services/urgent-and-emergency-care-services/",
+    "title": "Urgent and emergency care services - NHS"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the NHS website",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

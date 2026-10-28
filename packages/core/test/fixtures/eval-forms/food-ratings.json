@@ -1,0 +1,450 @@
+{
+ "url": "https://ratings.food.gov.uk/",
+ "final_url": "https://ratings.food.gov.uk/",
+ "recorded_at": "2026-10-28T22:56:34.634Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Search for ratings | Food Hygiene Ratings"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "More search options"
+    },
+    {
+     "id": "g2",
+     "label": "Search by Hygiene rating"
+    },
+    {
+     "id": "g3",
+     "label": "Search by Hygiene status"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Business name",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "person.first_name",
+      "person.last_name",
+      "person.full_name",
+      "partner.first_name",
+      "partner.last_name",
+      "payment.name"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Street, town or postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.town",
+      "address.postcode",
+      "partner.address.postcode",
+      "address.line1"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "button",
+     "label": "Use my location",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "button",
+     "label": "Show results with map",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "link",
+     "label": "Search a local authority area",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "button",
+     "label": "More search options",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand",
+      "search.submit",
+      "ui.dismiss"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "select",
+     "label": "Business type",
+     "group": "g1",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "-1",
+        "label": "All"
+       },
+       {
+        "value": "7",
+        "label": "Distributors/Transporters"
+       },
+       {
+        "value": "7838",
+        "label": "Farmers/growers"
+       },
+       {
+        "value": "5",
+        "label": "Hospitals/Childcare/Caring Premises"
+       },
+       {
+        "value": "7842",
+        "label": "Hotel/bed & breakfast/guest house"
+       },
+       {
+        "value": "14",
+        "label": "Importers/Exporters"
+       },
+       {
+        "value": "7839",
+        "label": "Manufacturers/packers"
+       },
+       {
+        "value": "7846",
+        "label": "Mobile caterer"
+       },
+       {
+        "value": "7841",
+        "label": "Other catering premises"
+       },
+       {
+        "value": "7843",
+        "label": "Pub/bar/nightclub"
+       },
+       {
+        "value": "1",
+        "label": "Restaurant/Cafe/Canteen"
+       },
+       {
+        "value": "4613",
+        "label": "Retailers - other"
+       },
+       {
+        "value": "7840",
+        "label": "Retailers - supermarkets/hypermarkets"
+       },
+       {
+        "value": "7845",
+        "label": "School/college/university"
+       },
+       {
+        "value": "7844",
+        "label": "Takeaway/sandwich shop"
+       }
+      ],
+      "total": 15,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "person.licence.type",
+      "person.claims.type",
+      "person.industry",
+      "vehicle.use",
+      "policy.cover_level",
+      "cover.purpose"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "select",
+     "label": "Country or local authority",
+     "group": "g1",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "all",
+        "label": "All"
+       },
+       {
+        "value": "England-fhrs",
+        "label": "England"
+       },
+       {
+        "value": "Northern Ireland-fhrs",
+        "label": "Northern Ireland"
+       },
+       {
+        "value": "Scotland-fhis",
+        "label": "Scotland"
+       },
+       {
+        "value": "Wales-fhrs",
+        "label": "Wales"
+       },
+       {
+        "value": "197-fhis",
+        "label": "Aberdeen City"
+       },
+       {
+        "value": "198-fhis",
+        "label": "Aberdeenshire"
+       },
+       {
+        "value": "277-fhrs",
+        "label": "Adur"
+       },
+       {
+        "value": "48-fhrs",
+        "label": "Amber Valley"
+       },
+       {
+        "value": "334-fhrs",
+        "label": "Anglesey"
+       },
+       {
+        "value": "199-fhis",
+        "label": "Angus"
+       },
+       {
+        "value": "132-fhrs",
+        "label": "Antrim and Newtownabbey"
+       },
+       {
+        "value": "133-fhrs",
+        "label": "Ards and North Down"
+       },
+       {
+        "value": "200-fhis",
+        "label": "Argyll and Bute"
+       },
+       {
+        "value": "134-fhrs",
+        "label": "Armagh City, Banbridge and Craigavon"
+       },
+       {
+        "value": "278-fhrs",
+        "label": "Arun"
+       },
+       {
+        "value": "77-fhrs",
+        "label": "Ashfield"
+       },
+       {
+        "value": "249-fhrs",
+        "label": "Ashford"
+       },
+       {
+        "value": "35-fhrs",
+        "label": "Babergh"
+       },
+       {
+        "value": "88-fhrs",
+        "label": "Barking and Dagenham"
+       }
+      ],
+      "total": 368,
+      "truncated": true
+     },
+     "visible": false,
+     "candidates": [
+      "address.country",
+      "person.resident_since",
+      "address.town"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "field",
+     "control": "radio",
+     "label": "Search for a food hygiene rating",
+     "group": "g2",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "rating",
+        "label": "Hygiene rating (England, Northern Ireland and Wales)"
+       },
+       {
+        "value": "status",
+        "label": "Hygiene status (Scotland only)"
+       }
+      ],
+      "total": 2,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "person.marital_status",
+      "person.employment_status"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "field",
+     "control": "select",
+     "label": "Hygiene rating",
+     "group": "g2",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "all",
+        "label": "All"
+       },
+       {
+        "value": "5",
+        "label": "5"
+       },
+       {
+        "value": "4",
+        "label": "4"
+       },
+       {
+        "value": "3",
+        "label": "3"
+       },
+       {
+        "value": "2",
+        "label": "2"
+       },
+       {
+        "value": "1",
+        "label": "1"
+       },
+       {
+        "value": "0",
+        "label": "0"
+       }
+      ],
+      "total": 7,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e11",
+     "kind": "field",
+     "control": "select",
+     "label": "Range",
+     "group": "g1",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "Equal",
+        "label": "Equal"
+       },
+       {
+        "value": "GreaterThanOrEqual",
+        "label": "Greater than or equal"
+       },
+       {
+        "value": "LessThanOrEqual",
+        "label": "Less than or equal"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e12",
+     "kind": "field",
+     "control": "select",
+     "label": "Hygiene status",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "all",
+        "label": "All"
+       },
+       {
+        "value": "Pass",
+        "label": "Pass"
+       },
+       {
+        "value": "ImprovementRequired",
+        "label": "Improvement Required"
+       },
+       {
+        "value": "AwaitingPublication",
+        "label": "Awaiting Publication"
+       },
+       {
+        "value": "AwaitingInspection",
+        "label": "Awaiting Inspection"
+       },
+       {
+        "value": "Exempt",
+        "label": "Exempt"
+       }
+      ],
+      "total": 6,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "person.marital_status",
+      "person.employment_status"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

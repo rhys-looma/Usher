@@ -1,0 +1,32 @@
+{
+ "url": "https://www.gov.uk/foreign-travel-advice",
+ "final_url": "https://www.gov.uk/foreign-travel-advice",
+ "recorded_at": "2026-10-28T22:56:20.500Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/foreign-travel-advice",
+    "title": "Foreign travel advice - GOV.UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search for a country or territory - you can sign up for email updates on its page",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "contact.email",
+      "address.country",
+      "partner.email",
+      "search.query",
+      "search.location",
+      "search.date_from"
+     ]
+    }
+   ]
+  }
+ ]
+}

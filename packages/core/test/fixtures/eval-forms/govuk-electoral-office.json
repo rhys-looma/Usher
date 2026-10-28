@@ -1,0 +1,55 @@
+{
+ "url": "https://www.gov.uk/contact-electoral-registration-office",
+ "final_url": "https://www.gov.uk/contact-electoral-registration-office",
+ "recorded_at": "2026-10-28T22:56:22.454Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/contact-electoral-registration-office",
+    "title": "Contact your electoral registration office - GOV.UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter a postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Find your local council",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "link",
+     "label": "Find a postcode on Royal Mail's postcode finder",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "search.submit"
+     ]
+    }
+   ]
+  }
+ ]
+}

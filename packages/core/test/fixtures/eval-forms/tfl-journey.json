@@ -1,0 +1,838 @@
+{
+ "url": "https://tfl.gov.uk/plan-a-journey/",
+ "final_url": "https://tfl.gov.uk/plan-a-journey/",
+ "recorded_at": "2026-10-28T22:56:58.181Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/plan-a-journey/",
+    "title": "Plan a journey - Transport for London"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Journey preferences"
+    },
+    {
+     "id": "g2",
+     "label": "Travel by"
+    },
+    {
+     "id": "g3",
+     "label": "More options"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "From location",
+     "group": "g1",
+     "required": false,
+     "constraints": {
+      "max_length": 100
+     },
+     "visible": true,
+     "candidates": [
+      "search.date_from",
+      "vehicle.overnight_location",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "link",
+     "label": "Clear From location",
+     "group": "g1",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "To location",
+     "group": "g1",
+     "required": false,
+     "constraints": {
+      "max_length": 100
+     },
+     "visible": true,
+     "candidates": [
+      "vehicle.overnight_location",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "link",
+     "label": "Clear To location",
+     "group": "g1",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "link",
+     "label": "change time",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e6",
+     "kind": "field",
+     "control": "radio",
+     "label": "Journey preferences",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "departing",
+        "label": "Leaving"
+       },
+       {
+        "value": "arriving",
+        "label": "Arriving"
+       }
+      ],
+      "total": 2,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "select",
+     "label": "Date of departure",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "20261028",
+        "label": "Today"
+       },
+       {
+        "value": "20261029",
+        "label": "Tomorrow"
+       },
+       {
+        "value": "20261030",
+        "label": "Fri 30 Oct"
+       },
+       {
+        "value": "20261031",
+        "label": "Sat 31 Oct"
+       },
+       {
+        "value": "20261101",
+        "label": "Sun 01 Nov"
+       },
+       {
+        "value": "20261102",
+        "label": "Mon 02 Nov"
+       },
+       {
+        "value": "20261103",
+        "label": "Tue 03 Nov"
+       },
+       {
+        "value": "20261104",
+        "label": "Wed 04 Nov"
+       },
+       {
+        "value": "20261105",
+        "label": "Thu 05 Nov"
+       },
+       {
+        "value": "20261106",
+        "label": "Fri 06 Nov"
+       },
+       {
+        "value": "20261107",
+        "label": "Sat 07 Nov"
+       },
+       {
+        "value": "20261108",
+        "label": "Sun 08 Nov"
+       },
+       {
+        "value": "20261109",
+        "label": "Mon 09 Nov"
+       },
+       {
+        "value": "20261110",
+        "label": "Tue 10 Nov"
+       },
+       {
+        "value": "20261111",
+        "label": "Wed 11 Nov"
+       },
+       {
+        "value": "20261112",
+        "label": "Thu 12 Nov"
+       },
+       {
+        "value": "20261113",
+        "label": "Fri 13 Nov"
+       },
+       {
+        "value": "20261114",
+        "label": "Sat 14 Nov"
+       },
+       {
+        "value": "20261115",
+        "label": "Sun 15 Nov"
+       },
+       {
+        "value": "20261116",
+        "label": "Mon 16 Nov"
+       }
+      ],
+      "total": 30,
+      "truncated": true
+     },
+     "visible": false,
+     "candidates": [
+      "search.date_to",
+      "person.claims.date",
+      "vehicle.purchase_date",
+      "policy.start_date",
+      "search.date_from",
+      "booking.date"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "select",
+     "label": "Time",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "0000",
+        "label": "00:00"
+       },
+       {
+        "value": "0015",
+        "label": "00:15"
+       },
+       {
+        "value": "0030",
+        "label": "00:30"
+       },
+       {
+        "value": "0045",
+        "label": "00:45"
+       },
+       {
+        "value": "0100",
+        "label": "01:00"
+       },
+       {
+        "value": "0115",
+        "label": "01:15"
+       },
+       {
+        "value": "0130",
+        "label": "01:30"
+       },
+       {
+        "value": "0145",
+        "label": "01:45"
+       },
+       {
+        "value": "0200",
+        "label": "02:00"
+       },
+       {
+        "value": "0215",
+        "label": "02:15"
+       },
+       {
+        "value": "0230",
+        "label": "02:30"
+       },
+       {
+        "value": "0245",
+        "label": "02:45"
+       },
+       {
+        "value": "0300",
+        "label": "03:00"
+       },
+       {
+        "value": "0315",
+        "label": "03:15"
+       },
+       {
+        "value": "0330",
+        "label": "03:30"
+       },
+       {
+        "value": "0345",
+        "label": "03:45"
+       },
+       {
+        "value": "0400",
+        "label": "04:00"
+       },
+       {
+        "value": "0415",
+        "label": "04:15"
+       },
+       {
+        "value": "0430",
+        "label": "04:30"
+       },
+       {
+        "value": "0445",
+        "label": "04:45"
+       }
+      ],
+      "total": 97,
+      "truncated": true
+     },
+     "visible": false,
+     "candidates": [
+      "booking.time",
+      "booking.date"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "action",
+     "control": "submit",
+     "label": "Plan my journey",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "link",
+     "label": "My Journeys",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e11",
+     "kind": "action",
+     "control": "link",
+     "label": "Recents",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e12",
+     "kind": "action",
+     "control": "submit",
+     "label": "select all",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "action",
+     "control": "submit",
+     "label": "deselect all",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e14",
+     "kind": "field",
+     "control": "select",
+     "label": "Travelling by",
+     "group": "g2",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "bus",
+        "label": "Bus"
+       },
+       {
+        "value": "tube",
+        "label": "Tube"
+       },
+       {
+        "value": "national-rail",
+        "label": "National Rail"
+       },
+       {
+        "value": "dlr",
+        "label": "DLR"
+       },
+       {
+        "value": "overground",
+        "label": "London Overground"
+       },
+       {
+        "value": "elizabeth-line",
+        "label": "Elizabeth line"
+       },
+       {
+        "value": "river-bus",
+        "label": "River Bus"
+       },
+       {
+        "value": "tram",
+        "label": "Tram"
+       },
+       {
+        "value": "cable-car",
+        "label": "London Cable Car"
+       },
+       {
+        "value": "coach",
+        "label": "Coach"
+       }
+      ],
+      "total": 10,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "address.line1",
+      "address.line2",
+      "message.subject"
+     ]
+    },
+    {
+     "id": "e15",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Bus",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e16",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Tube",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e17",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "National Rail",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e18",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "DLR",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e19",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "London Overground",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e20",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Elizabeth line",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "address.line1",
+      "address.line2",
+      "message.subject"
+     ]
+    },
+    {
+     "id": "e21",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "River Bus",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e22",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Tram",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e23",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "London Cable Car",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "vehicle.registration"
+     ]
+    },
+    {
+     "id": "e24",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Coach",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e25",
+     "kind": "field",
+     "control": "radio",
+     "label": "For cycling journeys, I want to",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "CycleHire",
+        "label": "Use Cycle Hire"
+       },
+       {
+        "value": "AllTheWay",
+        "label": "Cycle directly to my destination"
+       }
+      ],
+      "total": 2,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "vehicle.use",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e26",
+     "kind": "field",
+     "control": "radio",
+     "label": "My walking speed is",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "slow",
+        "label": "Slow"
+       },
+       {
+        "value": "average",
+        "label": "Average"
+       },
+       {
+        "value": "fast",
+        "label": "Fast"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e27",
+     "kind": "field",
+     "control": "radio",
+     "label": "Show me",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "leasttime",
+        "label": "The fastest routes"
+       },
+       {
+        "value": "leastinterchange",
+        "label": "Routes with fewest changes"
+       },
+       {
+        "value": "leastwalking",
+        "label": "Routes with least walking"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "cover.who"
+     ]
+    },
+    {
+     "id": "e28",
+     "kind": "field",
+     "control": "radio",
+     "label": "Access options",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "norequirements",
+        "label": "No accessibility requirement"
+       },
+       {
+        "value": "nosolidstairs",
+        "label": "Use escalators, not stairs"
+       },
+       {
+        "value": "noescalators",
+        "label": "Use stairs, not escalators"
+       },
+       {
+        "value": "stepfreetoplatform",
+        "label": "Step-free to platform only"
+       },
+       {
+        "value": "stepfreetovehicle",
+        "label": "Full step-free access"
+       }
+      ],
+      "total": 5,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "person.full_name",
+      "vehicle.use",
+      "policy.no_claims_years",
+      "search.query"
+     ]
+    },
+    {
+     "id": "e29",
+     "kind": "field",
+     "control": "select",
+     "label": "I only want to walk for a maximum of",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "5",
+        "label": "5 mins"
+       },
+       {
+        "value": "10",
+        "label": "10 mins"
+       },
+       {
+        "value": "15",
+        "label": "15 mins"
+       },
+       {
+        "value": "20",
+        "label": "20 mins"
+       },
+       {
+        "value": "25",
+        "label": "25 mins"
+       },
+       {
+        "value": "30",
+        "label": "30 mins"
+       },
+       {
+        "value": "35",
+        "label": "35 mins"
+       },
+       {
+        "value": "40",
+        "label": "40 mins"
+       },
+       {
+        "value": "45",
+        "label": "45 mins"
+       },
+       {
+        "value": "50",
+        "label": "50 mins"
+       },
+       {
+        "value": "55",
+        "label": "55 mins"
+       },
+       {
+        "value": "60",
+        "label": "60 mins"
+       }
+      ],
+      "total": 12,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e30",
+     "kind": "field",
+     "control": "select",
+     "label": "My walking speed is",
+     "group": "g3",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "slow",
+        "label": "Slow"
+       },
+       {
+        "value": "average",
+        "label": "Average"
+       },
+       {
+        "value": "fast",
+        "label": "Fast"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e31",
+     "kind": "field",
+     "control": "text",
+     "label": "Travel via",
+     "group": "g3",
+     "required": false,
+     "constraints": {
+      "max_length": 100
+     },
+     "visible": false,
+     "candidates": [
+      "vehicle.overnight_location",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e32",
+     "kind": "action",
+     "control": "link",
+     "label": "Clear Travel via",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e33",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Search outside London",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e34",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "I'd rather walk if it makes my journey quicker",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e35",
+     "kind": "action",
+     "control": "link",
+     "label": "here",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e36",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Save these preferences for future visits",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e37",
+     "kind": "action",
+     "control": "submit",
+     "label": "Plan my journey",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,78 @@
+{
+ "url": "https://www.nhs.uk/service-search/pharmacy/find-a-pharmacy",
+ "final_url": "https://www.nhs.uk/service-search/pharmacy/find-a-pharmacy",
+ "recorded_at": "2026-10-28T22:56:46.812Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/service-search/pharmacy/find-a-pharmacy",
+    "title": "Find a pharmacy - NHS"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter a town, city or postcode in England",
+     "required": false,
+     "constraints": {
+      "max_length": 60
+     },
+     "visible": true,
+     "candidates": [
+      "address.town",
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Use your location",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "link",
+     "label": "See all online-only pharmacies.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "link",
+     "label": "See all dispensing appliance contractors.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

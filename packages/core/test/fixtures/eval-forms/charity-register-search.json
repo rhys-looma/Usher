@@ -1,0 +1,55 @@
+{
+ "url": "https://register-of-charities.charitycommission.gov.uk/en/charity-search",
+ "final_url": "https://register-of-charities.charitycommission.gov.uk/en/charity-search",
+ "recorded_at": "2026-10-28T22:56:32.341Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/en/charity-search",
+    "title": "Search the register of charities"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "vehicle.year",
+      "vehicle.keeper"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "link",
+     "label": "Advanced search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit"
+     ]
+    }
+   ]
+  }
+ ]
+}
