@@ -151,8 +151,6 @@ export interface LandingOptions {
   demo?: boolean;
   /** Offer hosted MCP (/mcp) to assistants, beside the local server for frameworks. */
   hosted?: boolean;
-  /** The demo site's origin, for the assistant illustration's addresses. */
-  demoOrigin?: string;
 }
 
 /**
@@ -165,8 +163,9 @@ export interface LandingOptions {
  * the ticks marked as yours. One grid: the window spans the left column, each step sits in the row
  * of its card, and on a phone each step falls under its card.
  */
-function assistantSection(url: string, demoOrigin = 'https://brightwater.example'): Raw {
-  const host = new URL(demoOrigin).host;
+function assistantSection(url: string): Raw {
+  // Brightwater's own site, by name: the demo is hosted beside Usher, but a real site isn't.
+  const host = "Brightwater's site · ";
   const tick = html`<span class="box" aria-hidden="true"></span>`;
   const you = html`<span class="by-you">you</span>`;
   return html`<section id="assistant" data-reveal><h2>Inside the assistant</h2>
@@ -222,7 +221,6 @@ const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
  * With reduced motion, or without JavaScript, all six show at once.
  */
 function betweenSection(): Raw {
-  const host = 'brightwater.usher.run';
   return html`<section class="between" id="how" data-reveal>
 <h2>What happens in between</h2>
 <p class="lede">Your assistant uses Brightwater's own app. Underneath, the app runs on Usher: the infrastructure between assistants and a site's forms. From your message to your quote, what Usher sees at each step is underneath it.</p>
@@ -233,7 +231,7 @@ function betweenSection(): Raw {
 <div class="seq-ask msg you"><p class="label">You, to your assistant</p><p class="bubble">${EXAMPLE}</p></div>
 <div class="msg bot"><span class="avatar" aria-hidden="true"></span><div class="bot-col">
 <p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater<span class="runs-on">runs on Usher</span></p>
-<ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>${host}</li></ol>
+<ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>Brightwater's site</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
   )}</ol>
@@ -285,7 +283,7 @@ export function landingPage(o: LandingOptions): string {
 
 ${betweenSection()}
 
-${o.hosted ? assistantSection(o.url, o.demoOrigin) : ''}
+${o.hosted ? assistantSection(o.url) : ''}
 
 ${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
 <p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>

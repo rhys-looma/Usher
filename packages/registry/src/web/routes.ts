@@ -113,7 +113,7 @@ export class Web {
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
     this.numbers ??= loadNumbers();
     const own = await this.registry.ownSite();
-    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, demo: Boolean(this.registry.publicDemo), hosted: Boolean(this.options.hostedMcp), ...(this.registry.publicDemo && { demoOrigin: this.registry.publicDemo.origin }), ...extra });
+    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, demo: Boolean(this.registry.publicDemo), hosted: Boolean(this.options.hostedMcp), ...extra });
   }
 
   /** The server-side check on the interest form, as any site would run it. Keys come from this registry directly. */
