@@ -1,4 +1,4 @@
-// Brightwater: a fictional insurer with two quote journeys, for developing and demonstrating Usher:
+// Brightwater Insurance: a fictional insurer with two quote journeys, for developing and demonstrating Usher:
 // private medical (health) insurance at /health/* and car insurance at /quote/*. Not a real insurer.
 // No dependencies; needs Node 20+.
 //
@@ -236,11 +236,12 @@ function page(title, body, product = 'Health and car insurance') {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} | Brightwater</title>
+<meta property="og:site_name" content="Brightwater Insurance">
 <link rel="stylesheet" href="/static/styles.css">
 ${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}"${SITE_KEY ? ` data-usher-site-key="${SITE_KEY}"` : ''} defer></script>\n` : ''}</head>
 <body>
-<div class="demo-banner">Demo site for the Usher project. Brightwater is not a real insurer.</div>
-<header class="site-header"><a href="/" class="brand">Brightwater</a><span class="tag">${esc(product)}</span></header>
+<div class="demo-banner">Demo site for the Usher project. Brightwater Insurance is not a real insurer.</div>
+<header class="site-header"><a href="/" class="brand">Brightwater Insurance</a><span class="tag">${esc(product)}</span></header>
 <main>${body}</main>
 <script src="/static/quote.js" defer></script>
 </body>
@@ -273,7 +274,7 @@ function renderHome() {
   return page(
     'Health and car insurance',
     `<h1>Get a quote</h1>
-<p>Brightwater offers two products. Pick one to start a quote.</p>
+<p>Brightwater Insurance offers two products. Pick one to start a quote.</p>
 <ul class="products">
 <li><a href="/health/about"><strong>Health insurance</strong><span>Private medical insurance: a quick quote in three steps</span></a></li>
 <li><a href="/quote/driver"><strong>Car insurance</strong><span>A car insurance quote in three steps</span></a></li>
@@ -650,7 +651,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, process.env.HOST ?? '::', () => {
-  console.log(`Brightwater (demo) on port ${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
+  console.log(`Brightwater Insurance (demo) on port ${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
 });
 
 // ---------------------------------------------------------------------------

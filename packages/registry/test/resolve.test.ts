@@ -36,21 +36,21 @@ test('a site\'s name comes from its own home page', async () => {
   assert.equal(siteNameFrom('<meta property="og:site_name" content="Acme Insurance"><title>Home - Acme</title>'), 'Acme Insurance');
   assert.equal(siteNameFrom('<meta content="Shop" name="application-name">'), 'Shop');
   assert.equal(siteNameFrom('<p>nothing</p>'), null);
-  assert.equal(await registry.registry.siteName(site.url), 'Brightwater');
+  assert.equal(await registry.registry.siteName(site.url), 'Brightwater Insurance');
   const [joined] = await registry.registry.joinedSites();
-  assert.deepEqual([joined!.name, joined!.journeys.map((j) => [j.start, j.intent, j.label]).sort()], ['Brightwater', [['/health/about', 'quote.health_insurance', 'health insurance quote'], ['/quote/driver', 'quote.car_insurance', 'car insurance quote']]]);
+  assert.deepEqual([joined!.name, joined!.journeys.map((j) => [j.start, j.intent, j.label]).sort()], ['Brightwater Insurance', [['/health/about', 'quote.health_insurance', 'health insurance quote'], ['/quote/driver', 'quote.car_insurance', 'car insurance quote']]]);
 });
 
 test('by name (with or without Motor, any case), host or a URL on the site', async () => {
-  const car = { status: 'resolved', url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', site: { name: 'Brightwater', origin: site.url } };
-  for (const said of ['Brightwater', 'brightwater motor', 'BRIGHTWATER', new URL(site.url).host, `${site.url}/quote/cover`, site.url]) assert.deepEqual(await resolve(said, 'car insurance quote'), car, said);
+  const car = { status: 'resolved', url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', site: { name: 'Brightwater Insurance', origin: site.url } };
+  for (const said of ['Brightwater', 'Brightwater Insurance', 'brightwater motor', 'BRIGHTWATER', new URL(site.url).host, `${site.url}/quote/cover`, site.url]) assert.deepEqual(await resolve(said, 'car insurance quote'), car, said);
   assert.deepEqual(await resolve('Brightwater', 'get me a quote for my car'), car);
   assert.deepEqual(await resolve('Brightwater', 'motor insurance'), car);
   assert.equal((await resolve('Brightwater')).status, 'needs_details', 'two journeys and no task: the choices');
 });
 
 test('health insurance, medical insurance and PMI are the health quote; car insurance is still the car quote', async () => {
-  const health = { status: 'resolved', url: `${site.url}/health/about`, intent: 'quote.health_insurance', site: { name: 'Brightwater', origin: site.url } };
+  const health = { status: 'resolved', url: `${site.url}/health/about`, intent: 'quote.health_insurance', site: { name: 'Brightwater Insurance', origin: site.url } };
   for (const task of ['health insurance quote', 'medical insurance', 'PMI', 'private medical insurance', 'a PMI quote', 'health cover']) assert.deepEqual(await resolve('Brightwater', task), health, task);
   assert.equal((await resolve('Brightwater', 'car insurance') as { intent?: string }).intent, 'quote.car_insurance');
 });
@@ -58,7 +58,7 @@ test('health insurance, medical insurance and PMI are the health quote; car insu
 test('a site that hasn\'t joined: the answer hosted Usher gives today, pointing at the local server', async () => {
   const byName = await resolve('Acme Insurance', 'car insurance quote');
   assert.equal(byName.status, 'not_joined');
-  assert.match((byName as { message: string }).message, /"Acme Insurance" isn't one of the sites that have joined \(Brightwater \(/);
+  assert.match((byName as { message: string }).message, /"Acme Insurance" isn't one of the sites that have joined \(Brightwater Insurance \(/);
   assert.match((byName as { message: string }).message, /npx -y @usher-run\/mcp/);
   const byUrl = await resolve('https://quotes.example.org/car', 'car insurance quote');
   assert.equal(byUrl.status, 'not_joined');
@@ -80,13 +80,13 @@ test('two plausible journeys: the choices, never a guess; a task that says which
   assert.equal((homeQuote as { url: string }).url, `${site.url}/home/start`);
   const nothing = await resolve('Brightwater', 'book a flight');
   assert.equal(nothing.status, 'needs_details');
-  assert.match((nothing as { message: string }).message, /Nothing on Brightwater matches "book a flight"\. It offers: /);
+  assert.match((nothing as { message: string }).message, /Nothing on Brightwater Insurance matches "book a flight"\. It offers: /);
 });
 
 test('a site\'s name is read again after a day, or at once when asked', async () => {
   await registry.registry.storage.putCached('site-name', site.url, { name: 'Brightwater Motor', at: new Date(Date.now() - 2 * 86_400_000).toISOString() });
-  assert.equal(await registry.registry.siteName(site.url), 'Brightwater', 'a day-old name is read again');
+  assert.equal(await registry.registry.siteName(site.url), 'Brightwater Insurance', 'a day-old name is read again');
   await registry.registry.storage.putCached('site-name', site.url, { name: 'Old Name', at: new Date().toISOString() });
   assert.equal(await registry.registry.siteName(site.url), 'Old Name', 'a fresh one is kept');
-  assert.equal(await registry.registry.siteName(site.url, { fresh: true }), 'Brightwater');
+  assert.equal(await registry.registry.siteName(site.url, { fresh: true }), 'Brightwater Insurance');
 });

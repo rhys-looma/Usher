@@ -27,8 +27,8 @@ export function pickerForms(demoOrigin?: string): PickerForm[] {
   const origin = demoOrigin?.replace(/\/$/, '');
   const demo = origin
     ? [
-        { id: 'brightwater-health', name: 'Brightwater Health', about: 'A three-step health insurance quote (our demo site)', url: `${origin}/health/about` },
-        { id: 'brightwater', name: 'Brightwater Car', about: 'A three-step car insurance quote (our demo site)', url: `${origin}/quote/driver` },
+        { id: 'brightwater-health', name: 'Brightwater Insurance', about: 'A three-step health insurance quote (our demo site)', url: `${origin}/health/about` },
+        { id: 'brightwater', name: 'Brightwater Insurance', about: 'A three-step car insurance quote (our demo site)', url: `${origin}/quote/driver` },
       ]
     : [];
   return [...demo, ...PUBLIC_FORMS];
