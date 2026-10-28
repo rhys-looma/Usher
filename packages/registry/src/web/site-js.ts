@@ -17,11 +17,10 @@ export const SITE_JS = `(() => {
     }, { rootMargin: '0px 0px -40% 0px' });
     play.observe(chat);
   }
-  // What happens in between: each step in turn (about two seconds each), the line filling to it,
+  // What happens in between: each step in turn (under two seconds each), the line filling to it,
   // then the last frame with all six shown. A step's number jumps to it; Replay plays it again.
   for (const seq of document.querySelectorAll('[data-steps]')) {
     const steps = [...seq.querySelectorAll('li[data-step]')];
-    const fill = seq.querySelector('.seq-track .fill');
     const replay = seq.querySelector('.seq-replay');
     let timer = 0;
     const show = (at, ended) => {
@@ -30,16 +29,22 @@ export const SITE_JS = `(() => {
         li.classList.toggle('on', i === at && !ended);
         if (i === at && !ended) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
       });
-      if (fill) fill.style.strokeDashoffset = String(100 - (100 * Math.min(at + 1, steps.length)) / steps.length);
       seq.classList.toggle('ended', ended);
+      seq.classList.remove('typing-now');
     };
     const run = (from) => {
       clearTimeout(timer);
       if (replay) replay.hidden = true;
       const tick = (at) => {
-        if (at >= steps.length) { show(steps.length - 1, true); if (replay) replay.hidden = false; return; }
+        if (at >= steps.length) {
+          // The last step done, the assistant types its reply, then the quote arrives.
+          steps.forEach((li) => { li.classList.add('done'); li.classList.remove('on'); li.removeAttribute('aria-current'); });
+          seq.classList.add('typing-now');
+          timer = setTimeout(() => { show(steps.length - 1, true); if (replay) replay.hidden = false; }, 1300);
+          return;
+        }
         show(at, false);
-        timer = setTimeout(() => tick(at + 1), 2000);
+        timer = setTimeout(() => tick(at + 1), 1800);
       };
       tick(from);
     };
