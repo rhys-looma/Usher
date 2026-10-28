@@ -1,23 +1,12 @@
 // The front page's only script of its own, served at /site.js (the page's policy allows scripts from
 // this origin only). Sections settle into place as they come within a screen of view, and the six
-// steps and the assistant illustration play in order; nothing is ever hidden, so the page reads the
-// same without JavaScript, with reduced motion and in screenshots.
+// steps play with the customer's side in step; nothing is ever hidden, so the page reads the same
+// without JavaScript, with reduced motion and in screenshots.
 
 export const SITE_JS = `(() => {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  // The assistant illustration plays its steps in order once it is in view; until then the later
-  // steps wait dimmed, never hidden.
-  for (const chat of document.querySelectorAll('[data-sequence]')) {
-    chat.classList.add('waiting');
-    const play = new IntersectionObserver((entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      chat.classList.add('play');
-      chat.classList.remove('waiting');
-      play.disconnect();
-    }, { rootMargin: '0px 0px -40% 0px' });
-    play.observe(chat);
-  }
-  // What happens in between: each step in turn (under two seconds each), the line filling to it,
+  // What your customer sees and the rails underneath: each step in turn (under two seconds each),
+  // the customer's side following in step, the line filling to it,
   // then the last frame with all six shown. A step's number jumps to it; Replay plays it again.
   for (const seq of document.querySelectorAll('[data-steps]')) {
     const steps = [...seq.querySelectorAll('li[data-step]')];
@@ -30,16 +19,17 @@ export const SITE_JS = `(() => {
         if (i === at && !ended) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
       });
       seq.classList.toggle('ended', ended);
-      seq.classList.remove('typing-now');
+      // The steps reached, for the customer's side to follow in step.
+      const reached = ended ? steps.length : at + 1;
+      for (let k = 1; k <= steps.length; k++) seq.classList.toggle('r' + k, k <= reached);
     };
     const run = (from) => {
       clearTimeout(timer);
       if (replay) replay.hidden = true;
       const tick = (at) => {
         if (at >= steps.length) {
-          // The last step done, the assistant types its reply, then the quote arrives.
+          // The last step done; a moment later the quote arrives.
           steps.forEach((li) => { li.classList.add('done'); li.classList.remove('on'); li.removeAttribute('aria-current'); });
-          seq.classList.add('typing-now');
           timer = setTimeout(() => { show(steps.length - 1, true); if (replay) replay.hidden = false; }, 1300);
           return;
         }
