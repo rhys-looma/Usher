@@ -55,12 +55,38 @@
         "source": { "enum": ["compiled", "site", "agent"] },
         "compiler": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
-        "verified": { "type": "boolean" }
+        "verified": { "type": "boolean" },
+        "votes": {
+          "type": "object",
+          "description": "Vote mode: labelling runs, and per element how many runs saw it and how many agreed on its key and risk. Counts only.",
+          "required": ["runs", "agreement"],
+          "additionalProperties": false,
+          "properties": {
+            "runs": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "agreement": {
+              "type": "object",
+              "propertyNames": { "pattern": "^e[0-9]+$" },
+              "additionalProperties": {
+                "type": "object",
+                "required": ["runs", "key", "risk"],
+                "additionalProperties": false,
+                "properties": { "runs": { "type": "integer", "minimum": 1 }, "key": { "type": "integer", "minimum": 0 }, "risk": { "type": "integer", "minimum": 0 } }
+              }
+            }
+          }
+        }
       }
     }
   },
   "$defs": {
     "elementId": { "type": "string", "pattern": "^[eg][0-9]+$" },
+    "box": {
+      "type": "object",
+      "description": "Where the element was on the page when the map was made, in CSS pixels from the top left of the document: position and size only. Optional; for drawing the map over a screenshot.",
+      "required": ["x", "y", "width", "height"],
+      "additionalProperties": false,
+      "properties": { "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer", "minimum": 0 }, "height": { "type": "integer", "minimum": 0 } }
+    },
     "key": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
@@ -113,6 +139,7 @@
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/elementId" },
+        "box": { "$ref": "#/$defs/box" },
         "key": { "$ref": "#/$defs/key" },
         "label": { "type": "string" },
         "control": {
@@ -176,6 +203,7 @@
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/elementId" },
+        "box": { "$ref": "#/$defs/box" },
         "key": { "$ref": "#/$defs/key" },
         "label": { "type": "string" },
         "kind": { "enum": ["submit", "button", "link"] },

@@ -91,7 +91,8 @@ test('keeper: layout B is triaged by Spark Open, recompiled by Muse Spark, and b
   try {
     const result: KeeperCheck = await running.keeper!.check(site.url, '/quote/driver');
     assert.equal(result.outcome, 'rebuilt', result.detail);
-    assert.deepEqual(calls, ['open', 'spark'], 'triage first, then the recompile');
+    assert.deepEqual(calls.slice(0, 2), ['open', 'spark'], 'triage first, then the recompile');
+    assert.ok(calls.length <= 4 && calls.slice(2).every((c) => c === 'spark'), 'then at most two more runs in vote mode, for the contested elements');
     assert.equal(result.review, false, 'nothing consequential changed');
     assert.match(result.detail, /reword/i);
     const current = (await running.registry.storage.mapsForOrigin(site.url)).filter((r) => r.map.path === '/quote/driver').sort((x, y) => y.added_at.localeCompare(x.added_at));

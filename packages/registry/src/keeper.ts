@@ -243,7 +243,7 @@ export class Keeper {
       const candidates = await Promise.all(candidateForms(scan.forms).map(async (f) => ({ form: f, fp: await fingerprint(f.elements) })));
       const match = candidates.find((c) => c.fp.digest === record.digest);
       if (!match) return (outcome = 'differs'), (detail = 'no form on the live page has this structure'), outcome;
-      const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: match.form.index, logDir: null });
+      const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: match.form.index, logDir: null, vote: true });
       if (compiled.map.fingerprint.digest === record.digest && mapKeys(compiled.map) === mapKeys(record.map)) {
         await this.registry.verifyMap(origin, record.digest, 'keeper');
         outcome = 'verified';
@@ -341,7 +341,7 @@ export class Keeper {
       }
       if (!map) {
         if (!this.options.compiler) return await done('no_model', `Changed (${verdict.summary}) but no model is configured to rebuild it.`, { from: current.digest });
-        const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: form.index });
+        const compiled = await compilePage(page, { chat: this.options.compiler.chat, model: this.options.compiler.model, formIndex: form.index, vote: true });
         cost += compiled.cost_usd ?? 0;
         map = compiled.map;
         how = `recompiled with ${compiled.model}`;

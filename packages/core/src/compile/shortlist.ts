@@ -181,6 +181,13 @@ function indexed(vocab: Vocabulary) {
  * reveals more; a link with nothing in common gets none, because it usually leads somewhere else.
  */
 export function shortlist(element: ShortlistElement, size = 6, vocab: Vocabulary = defaultVocabulary): string[] {
+  const keys = shortlistScored(element, size, vocab).map((s) => s.key);
+  if (element.kind === 'action' && element.control !== 'link' && !keys.includes('ui.expand')) keys.push('ui.expand');
+  return keys;
+}
+
+/** The short list with each key's score, best first (vote mode reads how close the runners-up are). */
+export function shortlistScored(element: ShortlistElement, size = 6, vocab: Vocabulary = defaultVocabulary): { key: string; score: number }[] {
   const label = words(element.label);
   const options = words((element.options ?? []).slice(0, 8).join(' '));
   const kind = element.kind === 'action' ? 'action' : 'field';
@@ -201,7 +208,6 @@ export function shortlist(element: ShortlistElement, size = 6, vocab: Vocabulary
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score || a.order - b.order)
     .slice(0, size)
-    .map((s) => s.key);
-  if (kind === 'action' && element.control !== 'link' && !keys.includes('ui.expand')) keys.push('ui.expand');
+    .map((s) => ({ key: s.key, score: s.score }));
   return keys;
 }

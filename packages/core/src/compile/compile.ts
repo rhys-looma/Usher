@@ -14,6 +14,7 @@ import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt 
 import { classifierRequest, classifyRisks, reconcile, type RiskFlag } from './classify.ts';
 import { chooseForm, chooseRequest, type FormChoice } from './choose.ts';
 import { examplesForForm, type ExampleIndex } from './retrieval.ts';
+import { vote, type ElementAgreement } from './vote.ts';
 import { candidateForms, mainForm } from '../forms.ts';
 
 /** Default compiler log folder: data/compiler-log at the repository root (gitignored). */
@@ -42,6 +43,13 @@ export interface CompileOptions {
   classifier?: { chat: ChatFn; model: string; examples?: ExampleIndex };
   /** Retrieval few-shot: labelled examples to show the model, nearest to each element. */
   examples?: ExampleIndex;
+  /**
+   * Vote mode (vote.ts): up to three runs, majority per element, only contested elements asked
+   * again. The keeper, the walkthrough and the eval runner use it; the CLI doesn't by default.
+   */
+  vote?: boolean;
+  /** Keep each element's box in the map (the walkthrough and the annotated viewer). */
+  boxes?: boolean;
 }
 
 export type ClassifierOutcome =
@@ -72,6 +80,8 @@ export interface CompileResult {
   classifier?: ClassifierOutcome;
   /** The model's choice of form, when the page had more than one candidate. */
   choice?: FormChoice;
+  /** Vote mode: runs, and per element how many agreed (counts only). */
+  votes?: { runs: number; agreement: Record<string, ElementAgreement>; disagreements: number };
 }
 
 export class CompileError extends Error {
@@ -162,6 +172,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
   const attempts: Attempt[] = [];
   let validation: LabelValidation | undefined;
   let accepted: unknown;
+  let votes: CompileResult['votes'];
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const request: ChatRequest = {
@@ -208,6 +219,22 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: retryPrompt(validation.errors) });
   }
 
+  if (validation?.ok && options.vote) {
+    const outcome = await vote({ chat: options.chat, model, form, page: { path: pageUrl.pathname, title }, image, first: { raw: accepted, elements: validation.labels.elements } });
+    for (const run of outcome.extra) attempts.push({ usage: run.usage, latency_ms: run.latency_ms, cost_usd: costUsd(model, run.usage), errors: [] });
+    const decided = validateLabels(outcome.labels, form.elements);
+    if (decided.ok) {
+      validation = decided;
+      accepted = outcome.labels;
+    }
+    votes = { runs: outcome.runs, agreement: outcome.agreement, disagreements: outcome.disagreements.length };
+    if (logDir) {
+      for (const run of outcome.extra) await appendLog(logDir, { ts: now().toISOString(), model, url: scan.url, fingerprint: fp.digest, task: 'vote', asked: run.asked, request: redactRequest(run.request), usage: run.usage, latency_ms: run.latency_ms, cost_usd: costUsd(model, run.usage), ok: run.ok }, now());
+      // Counts only: how many runs, and per element how many agreed.
+      await appendLog(logDir, { ts: now().toISOString(), model, url: scan.url, fingerprint: fp.digest, task: 'vote_result', runs: outcome.runs, agreement: outcome.agreement, disagreements: outcome.disagreements }, now());
+    }
+  }
+
   const usage = [...attempts, ...(choice ? [choice] : [])].reduce((sum, a) => addUsage(sum, a.usage), { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 });
   const costs = [...attempts, ...(choice ? [choice] : [])].map((a) => a.cost_usd);
   const cost_usd = costs.every((c) => c !== null) ? costs.reduce((s, c) => s + c!, 0) : null;
@@ -248,9 +275,10 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     validation,
     origin: pageUrl.origin,
     path: options.path ?? pageUrl.pathname,
-    provenance: { source: 'compiled', compiler: model, created_at: now().toISOString(), verified: false },
+    provenance: { source: 'compiled', compiler: model, created_at: now().toISOString(), verified: false, ...(votes && { votes: { runs: votes.runs, agreement: votes.agreement } }) },
     ...(options.step !== undefined && { step: options.step }),
     ...(options.leadsTo !== undefined && { leadsTo: options.leadsTo }),
+    ...(options.boxes && { boxes: true }),
   });
 
   return {
@@ -266,6 +294,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     total_ms: Math.round(performance.now() - started),
     ...(classifier && { classifier }),
     ...(choice && { choice }),
+    ...(votes && { votes }),
   };
 }
 

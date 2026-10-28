@@ -12,8 +12,17 @@ export interface MapConstraints extends Constraints {
   format?: string;
 }
 
+/** Where an element was on the page: position and size only, in document CSS pixels. */
+export interface MapBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface MapField {
   id: string;
+  box?: MapBox;
   key: string;
   label: string;
   control: string;
@@ -31,6 +40,7 @@ export interface MapField {
 
 export interface MapAction {
   id: string;
+  box?: MapBox;
   key: string;
   label: string;
   kind: string;
@@ -44,6 +54,8 @@ export interface Provenance {
   compiler?: string;
   created_at: string;
   verified: boolean;
+  /** Vote mode: how many labelling runs, and per element how many agreed (counts only). */
+  votes?: { runs: number; agreement: Record<string, { runs: number; key: number; risk: number }> };
 }
 
 export interface UsherMap {
@@ -70,6 +82,8 @@ export interface MergeInput {
   step?: number;
   /** Path the advance action leads to, once known. */
   leadsTo?: string;
+  /** Keep each element's box (the walkthrough and the annotated viewer). */
+  boxes?: boolean;
 }
 
 // Formats an agent needs to know that the control type implies.
@@ -86,7 +100,7 @@ export function mergeMap(input: MergeInput): UsherMap {
   for (const label of labels.elements) {
     const el = byId.get(label.id)!;
     if (el.kind === 'action') {
-      const action: MapAction = { id: el.id, key: label.key, label: el.label, kind: el.control, risk: label.risk, locators: el.locators };
+      const action: MapAction = { id: el.id, ...(input.boxes && { box: el.box }), key: label.key, label: el.label, kind: el.control, risk: label.risk, locators: el.locators };
       if (input.leadsTo && label.id === labels.advance_action_id) action.leads_to = input.leadsTo;
       actions.push(action);
       continue;
@@ -96,6 +110,7 @@ export function mergeMap(input: MergeInput): UsherMap {
     // Property order follows spec/examples, so maps diff cleanly.
     const field: MapField = {
       id: el.id,
+      ...(input.boxes && { box: el.box }),
       key: label.key,
       label: el.label,
       control: el.control,
