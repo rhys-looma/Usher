@@ -12,6 +12,7 @@
 
 import { createHash } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { CARD_CSS, CARD_DARK, CARD_LIGHT } from '../../registry/src/web/cards.ts';
 
 export const CARD_URI = 'ui://usher/card.html';
 export const CARD_MIME = 'text/html;profile=mcp-app';
@@ -48,59 +49,18 @@ const CARD_HTML = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Usher</title>
 <style>
-:root { --bg:#fbf9f4; --card:#fffdf8; --ink:#191942; --muted:#5b5f7a; --line:#d9d4c7; --rule:#191942; --accent:#7434d3;
-  --cons:#8a5a00; --cons-bg:#f8edd2; --user:#a1251b; --user-bg:#f7e2de; --safe:#0f7a3d; --safe-bg:#e3f1e6;
-  --serif:"Iowan Old Style","Charter","Palatino Linotype",Palatino,Georgia,serif; color-scheme:light dark; }
-@media (prefers-color-scheme: dark) { :root { --bg:#12132c; --card:#1b1d3d; --ink:#f1ede3; --muted:#b0afc4; --line:#34365a; --rule:#f1ede3; --accent:#c5a3ff;
-  --cons:#f0c05a; --cons-bg:#3a2f14; --user:#f19389; --user-bg:#3b1d1a; --safe:#6fd39a; --safe-bg:#173325; } }
-:root[data-theme="light"] { --bg:#fbf9f4; --card:#fffdf8; --ink:#191942; --muted:#5b5f7a; --line:#d9d4c7; --rule:#191942; --accent:#7434d3; --cons:#8a5a00; --cons-bg:#f8edd2; --user:#a1251b; --user-bg:#f7e2de; --safe:#0f7a3d; --safe-bg:#e3f1e6; }
-:root[data-theme="dark"] { --bg:#12132c; --card:#1b1d3d; --ink:#f1ede3; --muted:#b0afc4; --line:#34365a; --rule:#f1ede3; --accent:#c5a3ff; --cons:#f0c05a; --cons-bg:#3a2f14; --user:#f19389; --user-bg:#3b1d1a; --safe:#6fd39a; --safe-bg:#173325; }
+:root { ${CARD_LIGHT} --serif:"Iowan Old Style","Charter","Palatino Linotype",Palatino,Georgia,serif; color-scheme:light dark; }
+@media (prefers-color-scheme: dark) { :root { ${CARD_DARK} } }
+:root[data-theme="light"] { ${CARD_LIGHT} }
+:root[data-theme="dark"] { ${CARD_DARK} }
 * { box-sizing:border-box; }
 html, body { margin:0; background:transparent; color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased; }
 main { padding:14px; max-width:560px; }
-.card { background:var(--card); border:1.5px solid var(--rule); padding:16px 18px; }
-.label { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0; }
-h1 { font-family:var(--serif); font-size:22px; line-height:1.2; margin:4px 0 2px; }
-h1::after { content:"."; color:var(--accent); }
-.where { color:var(--muted); font-size:13px; margin:0 0 10px; word-break:break-all; }
-.asking { display:inline-block; font-size:12.5px; font-weight:600; background:var(--cons-bg); color:var(--cons); padding:2px 10px; border-radius:999px; margin:0 0 12px; }
-.row { border-top:1px dotted var(--line); padding:10px 0; }
-.row:first-of-type { border-top:0; }
-label.check { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
-label.check input { margin-top:3px; width:18px; height:18px; accent-color:var(--accent); flex:none; }
-.verbatim { white-space:pre-wrap; }
-.terms { margin:8px 0 0 28px; font-size:13px; color:var(--muted); border-left:2px solid var(--line); padding-left:10px; max-height:140px; overflow:auto; white-space:pre-wrap; }
-.terms a, a { color:var(--ink); text-decoration-color:var(--accent); text-underline-offset:3px; }
-.tag { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
-.req { background:var(--user-bg); color:var(--user); } .opt { background:var(--safe-bg); color:var(--safe); }
-.yesno { display:flex; gap:14px; margin:8px 0 0 28px; font-size:14px; }
-.yesno label { display:flex; gap:6px; align-items:center; cursor:pointer; }
-.disclosure { margin:6px 0 0 28px; font-size:13px; color:var(--muted); white-space:pre-wrap; }
-input[type=text] { width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:7px 9px; margin-top:6px; }
-button { font:inherit; font-weight:600; background:var(--rule); color:var(--card); border:0; padding:10px 18px; cursor:pointer; margin-top:12px; }
-button:disabled { opacity:.5; cursor:default; }
-.note { font-size:12.5px; color:var(--muted); margin:8px 0 0; }
-.warn { color:var(--user); }
-.ticket { display:grid; grid-template-columns:minmax(0,1fr) 92px; padding:0; }
-.ticket-main { padding:16px 18px; }
-.ticket dl { margin:10px 0 0; display:grid; gap:7px; }
-.ticket dl div { display:grid; grid-template-columns:92px 1fr; gap:10px; border-top:1px dotted var(--line); padding-top:7px; }
-.ticket dt { font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-top:2px; }
-.ticket dd { margin:0; font-size:14px; }
-.stub { border-left:1.5px dashed var(--rule); padding:16px 8px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; gap:6px; }
-.stub b { font-family:var(--serif); font-size:24px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
-.stub span:last-child { font-size:11px; color:var(--muted); }
-.facts { list-style:none; margin:10px 0 0; padding:0; }
-.facts li { border-top:1px dotted var(--line); padding:7px 0; font-size:15px; }
-.facts li:first-child { border-top:0; font-family:var(--serif); font-size:22px; font-weight:700; }
-.thumb { display:block; width:100%; max-height:180px; object-fit:cover; object-position:top; border:1px solid var(--line); margin-top:10px; }
-.outcome { font-weight:700; }
-.outcome.ok { color:var(--safe); } .outcome.no { color:var(--user); }
-@media (max-width:420px) { .ticket { grid-template-columns:1fr; } .stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:10px 18px; } .stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:1px; } }
+${CARD_CSS}
 </style>
 </head>
 <body>
-<main id="root"><p class="note">Waiting for Usher…</p></main>
+<main id="root" class="uc"><p class="note">Waiting for Usher…</p></main>
 <script>
 (function () {
   var nextId = 1, waiting = {}, root = document.getElementById('root');
@@ -144,7 +104,7 @@ button:disabled { opacity:.5; cursor:default; }
   function decisionCard(d) {
     var blocks = d.blocks || [], page = '', first = blocks.filter(function (b) { return b.source && b.source.url; })[0];
     if (first) page = where(first.source.url);
-    var html = '<div class="card"><p class="label">Your decision</p><h1>Before Usher goes on</h1>'
+    var html = '<div class="card"><p class="label">Your decision</p><h1 class="title">Before Usher goes on</h1>'
       + (page ? '<p class="where">' + esc(page) + '</p>' : '')
       + '<p class="asking">Usher is asking you, not the agent</p><div id="f">';
     (d.decisions || []).forEach(function (q, i) {
@@ -204,7 +164,7 @@ button:disabled { opacity:.5; cursor:default; }
     var until = k.expires_at ? new Date(k.expires_at) : null;
     var house = (confirm.length ? 'Ask the person before ' + confirm.join(', ') + '. ' : '') + (forbid.length ? forbid.join(', ') + ' are the person\\'s alone.' : '') || 'No extra rules.';
     var purpose = (map.form && map.form.purpose) || 'A form';
-    root.innerHTML = '<div class="card ticket"><div class="ticket-main"><p class="label">Admit one agent</p><h1>' + esc(purpose.replace(/:.*$/, '')) + '</h1>'
+    root.innerHTML = '<div class="card ticket"><div class="ticket-main"><p class="label">Admit one agent</p><h1 class="title">' + esc(purpose.replace(/:.*$/, '')) + '</h1>'
       + '<p class="where">' + esc(where((map.path && claims.origin) ? claims.origin + map.path : '')) + '</p><dl>'
       + '<div><dt>Agent</dt><dd>' + esc(agent) + '</dd></div>'
       + '<div><dt>Map</dt><dd>' + (map.path ? esc(map.path) + ': ' + fields + ' fields by meaning' + (k.match ? ' · ' + esc(k.match.kind) + ' match' : '') : 'No map for this page yet') + '</dd></div>'
@@ -218,7 +178,7 @@ button:disabled { opacity:.5; cursor:default; }
     var res = r.result || {}, ok = r.status === 'completed';
     var facts = res.facts || [];
     var url = res.final_url || r.final_url || '';
-    root.innerHTML = '<div class="card"><p class="label">Usher</p><h1>' + esc(res.title || (ok ? 'Done' : 'Stopped')) + '</h1>'
+    root.innerHTML = '<div class="card"><p class="label">Usher</p><h1 class="title">' + esc(res.title || (ok ? 'Done' : 'Stopped')) + '</h1>'
       + (url ? '<p class="where">' + esc(where(url)) + '</p>' : '')
       + '<p class="outcome ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Completed' : esc(r.status)) + (r.reason ? ': ' + esc(r.reason) : '') + '</p>'
       + (facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
