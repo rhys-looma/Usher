@@ -167,7 +167,7 @@ Then run the script again.
 
 | Task definition | Size | Environment | Secrets |
 | --- | --- | --- | --- |
-| `usher-registry` | 1 vCPU, 2 GB (Chromium) | `NODE_ENV=production`, `PORT=4200`, `REGISTRY_PUBLIC_URL`, `TRUSTED_PROXY_HOPS=2`, `USHER_DAILY_MODEL_BUDGET_USD`, `USHER_CONTACT_EMAIL`, `USHER_SEED=mock-site`, `USHER_SEED_ORIGIN`, `USHER_KEEPER_ORIGINS` | all five |
+| `usher-registry` | 1 vCPU, 2 GB (Chromium) | `NODE_ENV=production`, `PORT=4200`, `REGISTRY_PUBLIC_URL`, `TRUSTED_PROXY_HOPS=2`, `USHER_DAILY_MODEL_BUDGET_USD`, `USHER_CONTACT_EMAIL`, `USHER_SEED=mock-site`, `USHER_SEED_ORIGIN`, `USHER_KEEPER_ORIGINS`, `USHER_WALKTHROUGH_DAILY_LIMIT=6` | all five |
 | `usher-mock-site` | 0.25 vCPU, 0.5 GB | `NODE_ENV=production`, `PORT=4100`, `USHER_REGISTRY_URL`, `USHER_SITE_ORIGIN`, `USHER_SITE_KEY` | `USHER_ADMIN_KEY` |
 | `usher-migrate` | 0.25 vCPU, 0.5 GB | none | `DATABASE_URL` |
 
@@ -292,6 +292,7 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
 | `USHER_HOSTED_MCP` | on | Hosted MCP at `/mcp` (docs/hosted-mcp.md): `usher_fill` for assistants, on joined sites only, in the registry's Chromium. `off` turns it off. |
 | `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
+| `USHER_WALKTHROUGH_DAILY_LIMIT` | 6 | Walkthroughs ("Map my site") the demo site may run per UTC day. Every other site gets one ([docs/walkthrough.md](docs/walkthrough.md)). |
 | `USHER_ACCEPT_MAPS` | on | Maps agents submit are stored private to their agent, and served to every agent once a second agent or the keeper verifies them (docs/security.md). `0` refuses submissions. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
 | `USHER_VIEWER` | refused as `open` | Unset: visitors pick from a fixed list of public forms, and signed-in owners map pages on their own origin. `open` lets anyone map any address: local demos only. |
