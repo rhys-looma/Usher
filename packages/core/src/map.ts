@@ -23,6 +23,8 @@ export interface MapField {
   constraints?: MapConstraints;
   options?: Options;
   group?: string;
+  /** One part of a date split across fields: the parts share one key and one group. */
+  part?: 'day' | 'month' | 'year';
   shown_if?: { field: string; op: ConditionOp; value?: string | string[] };
   locators: Locator[];
 }
@@ -103,6 +105,7 @@ export function mergeMap(input: MergeInput): UsherMap {
       ...(Object.keys(constraints).length > 0 && { constraints }),
       ...(el.options && { options: el.options }),
       ...(el.group && { group: el.group }),
+      ...(el.part && { part: el.part }),
       ...(label.shown_if && { shown_if: label.shown_if }),
       locators: el.locators,
     };

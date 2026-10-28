@@ -82,6 +82,8 @@ export interface ExtractedElement {
   role?: string;
   group?: string;
   options?: Options;
+  /** One part of a date split across fields (day, month, year), when its group holds two or more. */
+  part?: 'day' | 'month' | 'year';
   box: Box;
   visible: boolean;
 }
@@ -484,13 +486,15 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
         if (target !== el) radioContainers.add(target);
         label = radioGroupLabel(target, radios);
         required = radios.some(isRequired) || target.getAttribute('aria-required') === 'true';
-        visible = target !== el ? isVisible(target) && radios.some((r) => isVisible(r) || isVisible(r.closest('label') ?? r)) : radios.some(isVisible);
+        // Radios styled as cards hide the input behind its label: the label shows it.
+        const shown = (r: Element) => isVisible(r) || isVisible(r.closest('label') ?? r) || Array.from((r as HTMLInputElement).labels ?? []).some(isVisible);
+        visible = target !== el ? isVisible(target) && radios.some(shown) : radios.some(shown);
         choices = radioOptions(radios);
       } else if (kind.kind === 'field') {
         label = fieldLabel(el);
         required = isRequired(el);
         // Styled checkboxes are often invisible themselves with a visible label.
-        visible = isVisible(el) || (kind.control === 'checkbox' && !!el.closest('label') && isVisible(el.closest('label')!));
+        visible = isVisible(el) || (kind.control === 'checkbox' && ((!!el.closest('label') && isVisible(el.closest('label')!)) || Array.from((el as HTMLInputElement).labels ?? []).some(isVisible)));
         if (kind.control === 'select') choices = selectOptions(el as HTMLSelectElement);
       } else {
         label = actionLabel(el);
@@ -526,6 +530,25 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       if (choices) record.options = choices;
       elements.push(record);
       nodes.push(target);
+    }
+
+    // A date split across fields: each part from its own words (autocomplete bday-day, a name like
+    // DayOfBirth, dob-day or dob[day], "Day of birth", a DD placeholder), kept only where a group
+    // holds two parts or more, so a lone "Year of manufacture" stays a field of its own.
+    const partOf = (e: ExtractedElement): 'day' | 'month' | 'year' | null => {
+      if (e.kind !== 'field' || !['text', 'number', 'tel', 'select'].includes(e.control)) return null;
+      const auto = /-(day|month|year)$/.exec(e.autocomplete ?? '')?.[1];
+      if (auto) return auto as 'day' | 'month' | 'year';
+      const said = `${e.name ?? ''} ${e.domId ?? ''}`.toLowerCase();
+      const m = /(?:^|[\s_\-[.])(day|month|year|dd|mm|yyyy)(?:[\s_\-\]]|$)|(day|month|year)of|(?:dob|birth|date|start)(day|month|year)/.exec(said);
+      const word = m?.[1] ?? m?.[2] ?? m?.[3] ?? /^(day|month|year)\b/.exec(e.label.trim().toLowerCase())?.[1] ?? ({ dd: 'day', mm: 'month', yyyy: 'year' } as Record<string, string>)[(e.placeholder ?? '').trim().toLowerCase()];
+      const part = word === 'dd' ? 'day' : word === 'mm' ? 'month' : word === 'yyyy' ? 'year' : word;
+      return part === 'day' || part === 'month' || part === 'year' ? part : null;
+    };
+    const parted = elements.map((e) => ({ e, part: partOf(e) })).filter((x) => x.part && x.e.group);
+    for (const x of parted) {
+      const kinds = new Set(parted.filter((y) => y.e.group === x.e.group).map((y) => y.part));
+      if (kinds.size >= 2) x.e.part = x.part!;
     }
 
     // A cookie or consent banner: the form, or a container, says so in its id, class or label, or
