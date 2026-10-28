@@ -3,6 +3,7 @@
 
 import { html, page } from './html.ts';
 import { DEFAULT_RETENTION_DAYS } from '../registry.ts';
+import { KEEPS, KEEPS_HEADING } from './keeps.ts';
 
 const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 
@@ -12,6 +13,10 @@ export function privacyPage(o: { contact?: string; url: string }): string {
     'Privacy',
     html`<h1>Privacy</h1>
 <p class="lede">What Usher keeps, and what it never sees. Questions, or a request to see or delete what we hold about you: ${contact}.</p>
+
+<div class="card"><h2>${KEEPS_HEADING}</h2>
+<ul>${KEEPS.map((line) => html`<li>${line}</li>`)}</ul>
+<p>When an assistant uses Usher to fill a form for you, what you said passes from the assistant into the site's form in a browser that is closed when the fill ends. It is never written to a log, a session record or a database, and a test checks that after every fill.</p></div>
 
 <div class="card"><h2>The "I run a site with forms" form</h2>
 <p>We store what you send: your site's address, your email address and your note, with the time and whether a person or an agent sent it. We use it only to reply to you about Usher. It is kept until you ask us to delete it, and only the people who run Usher can read it.</p></div>

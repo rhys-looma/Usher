@@ -22,8 +22,14 @@ const PUBLIC_FORMS: PickerForm[] = [
   { id: 'bbc-signup', name: 'BBC', about: 'Sign in to a BBC account', url: 'https://account.bbc.com/register' },
 ];
 
-/** The ten forms: the demo site's quote form first, when this registry knows the demo site. */
+/** The forms: the demo site's two journeys first (health, then car), when this registry knows the demo site. */
 export function pickerForms(demoOrigin?: string): PickerForm[] {
-  const demo = demoOrigin ? [{ id: 'brightwater', name: 'Brightwater Motor', about: 'A three-step car insurance quote (our demo site)', url: `${demoOrigin.replace(/\/$/, '')}/quote/driver` }] : [];
+  const origin = demoOrigin?.replace(/\/$/, '');
+  const demo = origin
+    ? [
+        { id: 'brightwater-health', name: 'Brightwater Health', about: 'A three-step health insurance quote (our demo site)', url: `${origin}/health/about` },
+        { id: 'brightwater', name: 'Brightwater Car', about: 'A three-step car insurance quote (our demo site)', url: `${origin}/quote/driver` },
+      ]
+    : [];
   return [...demo, ...PUBLIC_FORMS];
 }

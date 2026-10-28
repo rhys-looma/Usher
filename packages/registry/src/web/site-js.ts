@@ -1,7 +1,7 @@
 // The front page's only script of its own, served at /site.js (the page's policy allows scripts from
-// this origin only). Sections settle into place as they come within a screen of view, and the
-// assistant illustration plays in order; nothing is ever hidden, so the page reads the same without
-// JavaScript and in screenshots.
+// this origin only). Sections settle into place as they come within a screen of view, and the six
+// steps and the assistant illustration play in order; nothing is ever hidden, so the page reads the
+// same without JavaScript, with reduced motion and in screenshots.
 
 export const SITE_JS = `(() => {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -16,6 +16,53 @@ export const SITE_JS = `(() => {
       play.disconnect();
     }, { rootMargin: '0px 0px -40% 0px' });
     play.observe(chat);
+  }
+  // What happens in between: each step in turn (about two seconds each), the line filling to it,
+  // then the last frame with all six shown. A step's number jumps to it; Replay plays it again.
+  for (const seq of document.querySelectorAll('[data-steps]')) {
+    const steps = [...seq.querySelectorAll('li[data-step]')];
+    const fill = seq.querySelector('.seq-track .fill');
+    const replay = seq.querySelector('.seq-replay');
+    let timer = 0;
+    const show = (at, ended) => {
+      steps.forEach((li, i) => {
+        li.classList.toggle('done', i < at || ended);
+        li.classList.toggle('on', i === at && !ended);
+        if (i === at && !ended) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+      });
+      if (fill) fill.style.strokeDashoffset = String(100 - (100 * Math.min(at + 1, steps.length)) / steps.length);
+      seq.classList.toggle('ended', ended);
+    };
+    const run = (from) => {
+      clearTimeout(timer);
+      if (replay) replay.hidden = true;
+      const tick = (at) => {
+        if (at >= steps.length) { show(steps.length - 1, true); if (replay) replay.hidden = false; return; }
+        show(at, false);
+        timer = setTimeout(() => tick(at + 1), 2000);
+      };
+      tick(from);
+    };
+    steps.forEach((li, i) => {
+      const n = li.querySelector('.n');
+      if (!n) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'n';
+      button.textContent = n.textContent;
+      button.setAttribute('aria-label', 'Show step ' + (i + 1) + ': ' + li.querySelector('h3').textContent.replace(/^\\s*\\d+\\s*/, ''));
+      button.addEventListener('click', () => { clearTimeout(timer); show(i, i === steps.length - 1); if (replay) replay.hidden = false; });
+      n.replaceWith(button);
+    });
+    if (replay) replay.addEventListener('click', () => run(0));
+    seq.classList.add('seq-on');
+    show(-1, false);
+    const start = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      start.disconnect();
+      run(0);
+    }, { rootMargin: '0px 0px -30% 0px' });
+    start.observe(seq);
   }
   const sections = [...document.querySelectorAll('[data-reveal]')];
   // Within one screen below the fold: already in place, never moved.

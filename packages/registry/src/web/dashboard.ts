@@ -68,7 +68,7 @@ export interface DemoView {
 }
 
 const demoBanner = (origin: string) =>
-  html`<div class="card notice"><b>This is the demo site's live dashboard.</b> Run <code>usher_fill</code> on <a href="${origin}/quote/driver">${new URL(origin).host}</a> and your agent's session appears here. Read-only: nothing here changes the site.</div>`;
+  html`<div class="card notice"><b>This is the demo site's live dashboard.</b> Run <code>usher_fill</code> on <a href="${origin}/health/about">Brightwater's health quote</a> (or <a href="${origin}/quote/driver">its car quote</a>) and your agent's session appears here. Read-only: nothing here changes the site.</div>`;
 const LIVE_SCRIPT = html`<script src="/demo.js" defer></script>`;
 
 export function shortAgent(id: string | undefined, hosted = false): string {

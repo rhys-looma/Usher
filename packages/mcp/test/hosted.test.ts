@@ -170,14 +170,18 @@ test('the front page shows it inside an assistant: the cards\' own markup beside
   const order = [...section.matchAll(/class="(step person|step said s-ticket|explain e-ticket|step said s-decision|explain e-decision|step said s-result|explain e-result)"/g)].map((m) => m[1]);
   assert.deepEqual(order, ['step person', 'step said s-ticket', 'explain e-ticket', 'step said s-decision', 'explain e-decision', 'step said s-result', 'explain e-result']);
   for (const text of ['<span>1</span> The agent knocks', 'Usher checks who it is, hands it the map and the house rules, and a pass that lasts ten minutes.', '<span>2</span> You decide', 'The site\'s own words, your tick. Usher never answers for you.', '<span>3</span> Done, on the record', 'The result as the site shows it. The site sees every action by meaning. Your details are never stored.']) assert.ok(section.includes(text), text);
-  for (const text of ['Get me a car insurance quote on Brightwater for my details.', 'Admit one agent', '3 pages, every field by meaning', 'Ask the person before submitting. Five quotes an hour.', '10 minutes, this site only', 'I confirm the information I have given is true and complete', 'Send me offers by email', '“Get my quote”', '>Confirm</span>', 'Usher is asking you, not the agent', 'Quote reference', 'This quote is valid for']) assert.ok(section.includes(text), text);
+  // The health quote: the smoker answer put back to confirm, the declaration verbatim, then the price.
+  for (const text of ['Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', 'Health insurance quote', '/health/about', 'Admit one agent', '3 pages, every field by meaning', 'Ask the person before submitting. Five quotes an hour.', '10 minutes, this site only', 'Have you smoked or used nicotine products in the last 12 months?', 'You said: <b>No</b>', 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', '“Get my quote”', '>Confirm</span>', 'Usher is asking you, not the agent', 'a month', 'Quote reference', 'This quote is valid for']) assert.ok(section.includes(text), text);
+  // A generic assistant: no third party's product or logo in the illustration itself.
+  const figure = /<figure class="assistant uc"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
+  assert.doesNotMatch(figure, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|Meta AI|<img|<svg/);
   for (const cls of ['class="card ticket"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"']) assert.ok(section.includes(cls), cls);
   // Drawn boxes, not inputs, and no duplicate captions.
   assert.doesNotMatch(section, /<input|<button|class="caption"/);
   assert.equal((section.match(/Usher is asking you, not the agent/g) ?? []).length, 1, 'the badge only');
   assert.ok(section.includes('Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.'));
   assert.doesNotMatch(section, /<li>Shown|Meta AI|Muse Code|Muse agent/);
-  assert.ok(home.indexOf('id="assistant"') > home.indexOf('id="how"'), 'after How it works');
+  assert.ok(home.indexOf('id="assistant"') > home.indexOf('id="how"'), 'after what happens in between');
   // The sequence starts with both boxes empty and Confirm greyed (site.js adds "waiting").
   assert.match(home, /\.assistant\.waiting \.check \.box \{ background:transparent;/);
   assert.match(home, /\.assistant\.waiting \.confirm \{ opacity:\.45; \}/);
