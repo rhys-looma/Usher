@@ -1,0 +1,388 @@
+{
+ "url": "https://petition.parliament.uk/petitions",
+ "final_url": "https://petition.parliament.uk/petitions",
+ "recorded_at": "2026-10-28T22:57:41.210Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/petitions",
+    "title": "View all petitions - Petitions"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Search"
+    },
+    {
+     "id": "g2",
+     "label": "Lists of petitions"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "button",
+     "label": "Lists of petitions",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "link",
+     "label": "View archived petitions from previous Parliaments",
+     "group": "g2",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "nav.back",
+      "lookup.address",
+      "lookup.vehicle",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "link",
+     "label": "Call a General Election",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "link",
+     "label": "Do not introduce Digital ID cards",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e7",
+     "kind": "action",
+     "control": "link",
+     "label": "Call an immediate general election",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e8",
+     "kind": "action",
+     "control": "link",
+     "label": "Introduce offshore detention/mass deportation for illegal migrants",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e9",
+     "kind": "action",
+     "control": "link",
+     "label": "Repeal the Online Safety Act",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "link",
+     "label": "Stop financial and other support for asylum seekers",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e11",
+     "kind": "action",
+     "control": "link",
+     "label": "Raise the income tax personal allowance from £12,570 to £20,000",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle"
+     ]
+    },
+    {
+     "id": "e12",
+     "kind": "action",
+     "control": "link",
+     "label": "Mandatory collection and publication of certain child sexual offender data",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e13",
+     "kind": "action",
+     "control": "link",
+     "label": "Ban immediately the use of dogs in scientific and regulatory procedures",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e14",
+     "kind": "action",
+     "control": "link",
+     "label": "Shut the migrant hotels down now and deport illegal migrants housed there",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e15",
+     "kind": "action",
+     "control": "link",
+     "label": "Make a public animal abuser register & automatically ban ownership",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.submit",
+      "account.create"
+     ]
+    },
+    {
+     "id": "e16",
+     "kind": "action",
+     "control": "link",
+     "label": "Keep 5-Year ILR and Restrict Access to Benefits for New ILR Holders",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e17",
+     "kind": "action",
+     "control": "link",
+     "label": "Close the borders! Suspend ALL immigration for 5 years!",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.dismiss"
+     ]
+    },
+    {
+     "id": "e18",
+     "kind": "action",
+     "control": "link",
+     "label": "Dissolve Parliament and call a General Election now!",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e19",
+     "kind": "action",
+     "control": "link",
+     "label": "Do not ban social media for under 16s",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e20",
+     "kind": "action",
+     "control": "link",
+     "label": "Hold a referendum to bring the water industry into public ownership",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e21",
+     "kind": "action",
+     "control": "link",
+     "label": "Protect Northern Ireland Veterans from Prosecutions",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle"
+     ]
+    },
+    {
+     "id": "e22",
+     "kind": "action",
+     "control": "link",
+     "label": "Ban anyone convicted of terrorism offences from standing for public office",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle"
+     ]
+    },
+    {
+     "id": "e23",
+     "kind": "action",
+     "control": "link",
+     "label": "Make all court and tribunal transcripts available free of charge",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.submit"
+     ]
+    },
+    {
+     "id": "e24",
+     "kind": "action",
+     "control": "link",
+     "label": "Urgently fulfil humanitarian obligations to Gaza",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e25",
+     "kind": "action",
+     "control": "link",
+     "label": "Limit the sale of fireworks to those running local council approved events only",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.dismiss"
+     ]
+    },
+    {
+     "id": "e26",
+     "kind": "action",
+     "control": "link",
+     "label": "Review possible penalties for social media posts, including the use of prison",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e27",
+     "kind": "action",
+     "control": "link",
+     "label": "Prohibit publishers irrevocably disabling video games they have already sold",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e28",
+     "kind": "action",
+     "control": "link",
+     "label": "Legislate to require drivers to report collisions with cats",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e29",
+     "kind": "action",
+     "control": "link",
+     "label": "Keep the 5-Year ILR pathway for existing Skilled Worker visa holders",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e30",
+     "kind": "action",
+     "control": "link",
+     "label": "Page 1",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e31",
+     "kind": "action",
+     "control": "link",
+     "label": "Page 2",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e32",
+     "kind": "action",
+     "control": "link",
+     "label": "Page 3",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e33",
+     "kind": "action",
+     "control": "link",
+     "label": "Page 680",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e34",
+     "kind": "action",
+     "control": "link",
+     "label": "Next page",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "nav.next"
+     ]
+    },
+    {
+     "id": "e35",
+     "kind": "action",
+     "control": "link",
+     "label": "JSON",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e36",
+     "kind": "action",
+     "control": "link",
+     "label": "CSV",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    }
+   ]
+  }
+ ]
+}

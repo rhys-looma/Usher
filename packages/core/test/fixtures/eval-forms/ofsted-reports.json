@@ -1,0 +1,397 @@
+{
+ "url": "https://reports.ofsted.gov.uk/",
+ "final_url": "https://reports.ofsted.gov.uk/",
+ "recorded_at": "2026-10-28T22:56:38.535Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Find an Ofsted inspection report"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Search for"
+    },
+    {
+     "id": "g2",
+     "label": "Category"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Name, URN or keyword",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "person.first_name",
+      "person.last_name",
+      "person.full_name",
+      "partner.first_name",
+      "partner.last_name",
+      "payment.name"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Location or postcode",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "vehicle.overnight_location",
+      "partner.address.postcode",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "radio",
+     "label": "Category",
+     "group": "g2",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "0",
+        "label": "All categories"
+       },
+       {
+        "value": "1",
+        "label": "Education and training"
+       },
+       {
+        "value": "2",
+        "label": "Childcare and early education"
+       },
+       {
+        "value": "3",
+        "label": "Children's social care"
+       },
+       {
+        "value": "4",
+        "label": "Other organisations"
+       }
+      ],
+      "total": 5,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "vehicle.use",
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Primary",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Secondary",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e6",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Multi-academy trusts",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Further education and skills",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Teacher training",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e9",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Teacher development",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e10",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Childminder",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e11",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Nanny",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e12",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Pre-school/day nursery/out-of-school care",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "cover.amount",
+      "search.date_to",
+      "booking.date"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Nursery school/school with nursery",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e14",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Fostering",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e15",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Adoption",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e16",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Residential and boarding",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e17",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Children's home",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e18",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Supported accommodation",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e19",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Local authority children's services",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e20",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Cafcass",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e21",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Children's centres and groups",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e22",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Childminder agency",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e23",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Immigration removal centre",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e24",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Local authority children's services",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e25",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Area SEND",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e26",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Prison and young offender institution",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e27",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Probation trust",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e28",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Registered person",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "person.title",
+      "person.first_name",
+      "person.last_name",
+      "person.full_name",
+      "person.dob",
+      "person.gender"
+     ]
+    },
+    {
+     "id": "e29",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Residential holiday schemes",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e30",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Secure training centre",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e31",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

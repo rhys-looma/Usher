@@ -1,0 +1,85 @@
+{
+ "url": "https://checker.ofcom.org.uk/en-gb/broadband-coverage",
+ "final_url": "https://checker.ofcom.org.uk/en-gb/broadband-coverage",
+ "recorded_at": "2026-10-28T22:57:04.008Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/en-gb/broadband-coverage",
+    "title": "View broadband availability - Ofcom Checker title"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "action",
+     "control": "button",
+     "label": "Get postcode automatically",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "form.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Postcode",
+     "required": true,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Set postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "button",
+     "label": "Change Location",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "select",
+     "label": "Select your address",
+     "required": false,
+     "options": {
+      "items": [],
+      "total": 0,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "address.line1",
+      "address.line2",
+      "address.town",
+      "address.county",
+      "address.postcode",
+      "address.country"
+     ]
+    }
+   ]
+  }
+ ]
+}

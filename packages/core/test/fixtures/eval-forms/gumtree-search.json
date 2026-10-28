@@ -1,0 +1,110 @@
+{
+ "url": "https://www.gumtree.com/",
+ "final_url": "https://www.gumtree.com/",
+ "recorded_at": "2026-10-28T22:59:14.613Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Gumtree UK | Buy, Sell & Find Local Classified Ads"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search Gumtree",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Type search query",
+     "required": false,
+     "constraints": {
+      "max_length": 50
+     },
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "person.licence.type",
+      "person.claims.type"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "Location",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "vehicle.overnight_location",
+      "search.location",
+      "address.postcode",
+      "cover.critical_illness",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "submit",
+     "label": "",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/",
+    "title": "Gumtree UK | Buy, Sell & Find Local Classified Ads"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter reg",
+     "required": true,
+     "constraints": {
+      "min_length": 2,
+      "max_length": 8
+     },
+     "visible": true,
+     "candidates": [
+      "vehicle.registration"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Sell Now",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

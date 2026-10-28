@@ -1,0 +1,134 @@
+{
+ "url": "https://www.oxfam.org.uk/donate/",
+ "final_url": "https://www.oxfam.org.uk/donate/",
+ "recorded_at": "2026-10-28T22:57:36.798Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/donate/",
+    "title": "Donate to charity online | Oxfam GB"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 25",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 50",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 75",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter an amount to donate",
+     "required": false,
+     "constraints": {
+      "pattern": "[0-9.]*"
+     },
+     "visible": false,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate now",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 5",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 8",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "action",
+     "control": "button",
+     "label": "£ 14",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter an amount to donate",
+     "required": false,
+     "constraints": {
+      "pattern": "[0-9.]*"
+     },
+     "visible": true,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate monthly",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,585 @@
+{
+ "url": "https://www.english-heritage.org.uk/",
+ "final_url": "https://www.english-heritage.org.uk/",
+ "recorded_at": "2026-10-28T22:57:26.853Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "English Heritage | English Heritage"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e11",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e12",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e14",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e15",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e16",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e17",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e18",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e19",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e20",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e21",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e22",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e23",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the site",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e24",
+     "kind": "action",
+     "control": "button",
+     "label": "LOGIN TO THE MEMBERS' AREA",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e25",
+     "kind": "action",
+     "control": "button",
+     "label": "REGISTER FOR THE MEMBERS' AREA",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "form.submit",
+      "account.create",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e26",
+     "kind": "field",
+     "control": "text",
+     "label": "Type place name, postcode or region",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "person.first_name",
+      "person.last_name",
+      "person.full_name",
+      "person.licence.type",
+      "person.claims.type",
+      "address.postcode"
+     ]
+    },
+    {
+     "id": "e27",
+     "kind": "action",
+     "control": "button",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e28",
+     "kind": "action",
+     "control": "button",
+     "label": "Previous",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e29",
+     "kind": "action",
+     "control": "button",
+     "label": "Next",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.next",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e30",
+     "kind": "action",
+     "control": "button",
+     "label": "Good translation",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e31",
+     "kind": "action",
+     "control": "button",
+     "label": "Poor translation",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e32",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Strictly necessary",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e33",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Performance",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e34",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Targeting",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e35",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Functionality",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e36",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Unclassified",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e37",
+     "kind": "action",
+     "control": "button",
+     "label": "Save & Close",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "form.save",
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e38",
+     "kind": "action",
+     "control": "button",
+     "label": "Accept All",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e39",
+     "kind": "action",
+     "control": "button",
+     "label": "Decline All",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e40",
+     "kind": "action",
+     "control": "button",
+     "label": "Show details Hide details",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand",
+      "ui.dismiss"
+     ]
+    },
+    {
+     "id": "e41",
+     "kind": "action",
+     "control": "button",
+     "label": "Strictly necessary",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e42",
+     "kind": "action",
+     "control": "button",
+     "label": "Performance",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e43",
+     "kind": "action",
+     "control": "button",
+     "label": "Targeting",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e44",
+     "kind": "action",
+     "control": "button",
+     "label": "Functionality",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e45",
+     "kind": "action",
+     "control": "button",
+     "label": "Unclassified",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

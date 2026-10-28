@@ -1,0 +1,58 @@
+{
+ "url": "https://www.bbc.co.uk/search",
+ "final_url": "https://www.bbc.co.uk/search",
+ "recorded_at": "2026-10-28T22:58:58.913Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/search",
+    "title": "BBC - Search"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Input your search term",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "cover.term",
+      "consent.terms"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "Search",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    }
+   ]
+  }
+ ]
+}

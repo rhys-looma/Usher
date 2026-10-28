@@ -1,0 +1,40 @@
+{
+ "url": "https://octopus.energy/",
+ "final_url": "https://octopus.energy/",
+ "recorded_at": "2026-10-28T22:57:17.659Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Octopus Energy: The UK's most awarded energy supplier"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Your postcode",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Get a quote",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

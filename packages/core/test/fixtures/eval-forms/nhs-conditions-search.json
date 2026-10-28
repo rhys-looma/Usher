@@ -1,0 +1,42 @@
+{
+ "url": "https://www.nhs.uk/conditions/",
+ "final_url": "https://www.nhs.uk/conditions/",
+ "recorded_at": "2026-10-28T22:59:16.551Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/conditions/",
+    "title": "Conditions A to Z - NHS"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search the NHS website",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

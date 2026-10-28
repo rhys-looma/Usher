@@ -1,0 +1,83 @@
+{
+ "url": "https://www.tax.service.gov.uk/estimate-paye-take-home-pay/your-pay",
+ "final_url": "https://www.tax.service.gov.uk/estimate-paye-take-home-pay/your-pay",
+ "recorded_at": "2026-10-28T22:57:45.531Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/estimate-paye-take-home-pay/your-pay",
+    "title": "How much are you paid? - PAYE Tax Calculator - GOV.UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Income amount",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "radio",
+     "label": "How often are you paid this amount?",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "a year",
+        "label": "Yearly"
+       },
+       {
+        "value": "a month",
+        "label": "Monthly"
+       },
+       {
+        "value": "every 4 weeks",
+        "label": "Every 4 weeks"
+       },
+       {
+        "value": "a week",
+        "label": "Weekly"
+       },
+       {
+        "value": "a day",
+        "label": "Daily"
+       },
+       {
+        "value": "an hour",
+        "label": "Hourly"
+       }
+      ],
+      "total": 6,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount",
+      "policy.payment_frequency"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Continue",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "nav.next",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

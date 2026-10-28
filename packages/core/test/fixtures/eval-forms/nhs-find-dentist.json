@@ -1,0 +1,55 @@
+{
+ "url": "https://www.nhs.uk/service-search/find-a-dentist",
+ "final_url": "https://www.nhs.uk/service-search/find-a-dentist",
+ "recorded_at": "2026-10-28T22:56:48.780Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/service-search/find-a-dentist",
+    "title": "Find a dentist - NHS"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter a town, city or postcode in England",
+     "required": false,
+     "constraints": {
+      "max_length": 60
+     },
+     "visible": true,
+     "candidates": [
+      "address.town",
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Use your location",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

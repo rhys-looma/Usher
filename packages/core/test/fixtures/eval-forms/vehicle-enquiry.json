@@ -1,0 +1,53 @@
+{
+ "url": "https://vehicleenquiry.service.gov.uk/",
+ "final_url": "https://vehicleenquiry.service.gov.uk/",
+ "recorded_at": "2026-10-28T22:56:25.065Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Enter the registration number of the vehicle - Check if a vehicle is taxed and has an MOT - GOV.UK"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Enter the registration number of the vehicle"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Registration number (number plate)",
+     "group": "g1",
+     "required": false,
+     "constraints": {
+      "max_length": 8
+     },
+     "visible": true,
+     "candidates": [
+      "vehicle.registration",
+      "person.licence.number",
+      "payment.card_number",
+      "payment.account_number",
+      "contact.phone",
+      "contact.mobile"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Continue",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "nav.next",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

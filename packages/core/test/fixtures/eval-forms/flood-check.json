@@ -1,0 +1,44 @@
+{
+ "url": "https://check-for-flooding.service.gov.uk/",
+ "final_url": "https://check-for-flooding.service.gov.uk/",
+ "recorded_at": "2026-10-28T22:56:36.499Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Check for flooding in England - GOV.UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search for a town, city or postcode in England",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.town",
+      "address.postcode",
+      "partner.address.postcode",
+      "search.query",
+      "search.location",
+      "search.date_from"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

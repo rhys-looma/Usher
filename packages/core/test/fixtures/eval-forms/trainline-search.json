@@ -1,0 +1,166 @@
+{
+ "url": "https://www.thetrainline.com/",
+ "final_url": "https://www.thetrainline.com/",
+ "recorded_at": "2026-10-28T22:58:05.461Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Trainline : Search, Compare & Buy Cheap Train Tickets"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "From",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.date_from",
+      "address.town",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "To",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.town",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "radio",
+     "label": "Journey type",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "on",
+        "label": "One-way"
+       }
+      ],
+      "total": 1,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "person.licence.type",
+      "person.claims.type",
+      "cover.joint",
+      "policy.cover_level",
+      "cover.purpose",
+      "person.full_name"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "radio",
+     "label": "Journey type",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "on",
+        "label": "Return"
+       }
+      ],
+      "total": 1,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "person.licence.type",
+      "person.claims.type",
+      "policy.cover_level",
+      "cover.purpose",
+      "cover.joint",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "radio",
+     "label": "Journey type",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "on",
+        "label": "Open Return"
+       }
+      ],
+      "total": 1,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "person.licence.type",
+      "person.claims.type",
+      "policy.cover_level",
+      "cover.purpose",
+      "cover.joint",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "field",
+     "control": "text",
+     "label": "Out",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.date_to",
+      "cover.amount",
+      "cover.critical_illness"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "text",
+     "label": "Add passenger",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "cover.critical_illness"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Get up to 20% off stays with Genius",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e9",
+     "kind": "action",
+     "control": "submit",
+     "label": "Find cheap tickets",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

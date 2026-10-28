@@ -1,0 +1,45 @@
+{
+ "url": "https://www.metoffice.gov.uk/",
+ "final_url": "https://www.metoffice.gov.uk/",
+ "recorded_at": "2026-10-28T22:57:00.524Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Weather and climate change - Met Office"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search for a place",
+     "required": true,
+     "constraints": {
+      "max_length": 64
+     },
+     "visible": true,
+     "candidates": [
+      "search.location",
+      "search.query",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,66 @@
+{
+ "url": "https://www.nhs.uk/service-search/find-a-gp",
+ "final_url": "https://www.nhs.uk/service-search/find-a-gp",
+ "recorded_at": "2026-10-28T22:56:44.791Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/service-search/find-a-gp",
+    "title": "Find a GP - NHS"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter a postcode in England",
+     "required": false,
+     "constraints": {
+      "max_length": 8
+     },
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Use your location",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "link",
+     "label": "How to register with a GP surgery",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.submit",
+      "account.create"
+     ]
+    }
+   ]
+  }
+ ]
+}

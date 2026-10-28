@@ -1,0 +1,1066 @@
+{
+ "url": "https://www.uswitch.com/broadband/postcode_checker/",
+ "final_url": "https://www.uswitch.com/broadband/postcode_checker/",
+ "recorded_at": "2026-10-28T22:57:14.932Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/broadband/postcode_checker/",
+    "title": "Check Broadband In My Area - Postcode Checker - Uswitch"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Find broadband deals for your address"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter your postcode to find addresses",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode",
+      "address.line1",
+      "address.line2",
+      "address.town",
+      "address.county"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "button",
+     "label": "Find deals",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "link",
+     "label": "Privacy Notice",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/broadband/postcode_checker/",
+    "title": "Check Broadband In My Area - Postcode Checker - Uswitch"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to all products",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Energy",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Broadband & TV",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to SIM only",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Mobile phones",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Personal finance",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Insurance",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "action",
+     "control": "button",
+     "label": "Back to Business",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "nav.back",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "action",
+     "control": "button",
+     "label": "Search for Samsung Galaxy deals",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "button",
+     "label": "Search for iPhone deals",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e11",
+     "kind": "action",
+     "control": "button",
+     "label": "Search for SIM Only deals",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e12",
+     "kind": "action",
+     "control": "button",
+     "label": "Search for Credit Cards",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "action",
+     "control": "button",
+     "label": "Search for Pay as you Go",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "nav.next",
+      "nav.back",
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e14",
+     "kind": "action",
+     "control": "button",
+     "label": "open search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e15",
+     "kind": "action",
+     "control": "button",
+     "label": "Open navigation",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e16",
+     "kind": "action",
+     "control": "button",
+     "label": "Close navigation",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e17",
+     "kind": "field",
+     "control": "select",
+     "label": "Sort Options",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "RANK_ASC",
+        "label": "Uswitch rated"
+       },
+       {
+        "value": "COST_ASC",
+        "label": "Cost (low to high)"
+       },
+       {
+        "value": "CONTRACT_LENGTH_ASC",
+        "label": "Contract length"
+       },
+       {
+        "value": "SPEED_DESC",
+        "label": "Speed (high to low)"
+       },
+       {
+        "value": "SPEED_ASC",
+        "label": "Speed (low to high)"
+       }
+      ],
+      "total": 5,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "payment.sort_code",
+      "cover.term"
+     ]
+    },
+    {
+     "id": "e18",
+     "kind": "action",
+     "control": "button",
+     "label": "Uswitch rated takes into account deals that are proving to be popular with our customers, that are competitive in the market and have a smooth buying process.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "account.create",
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e19",
+     "kind": "action",
+     "control": "button",
+     "label": "Special offers",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e20",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Early switch credit ( 82 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e21",
+     "kind": "action",
+     "control": "button",
+     "label": "Some providers offer bill credit to cover exit fees if you switch contracts early",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e22",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "No price rise during contract ( 63 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "policy.no_claims_years",
+      "cover.inflation_linked"
+     ]
+    },
+    {
+     "id": "e23",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Exclusives ( 13 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e24",
+     "kind": "action",
+     "control": "button",
+     "label": "Package",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e25",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Broadband ( 249 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e26",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Broadband + TV ( 54 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e27",
+     "kind": "action",
+     "control": "button",
+     "label": "Download speed",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e28",
+     "kind": "field",
+     "control": "radio",
+     "label": "Download speed",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "LOW_SPEED",
+        "label": "10 Mbps + ( 303 ) From £ 13.00"
+       },
+       {
+        "value": "MEDIUM_LOW_SPEED",
+        "label": "30 Mbps + ( 302 ) From £ 13.00"
+       },
+       {
+        "value": "MEDIUM_SPEED",
+        "label": "100 Mbps + ( 254 ) From £ 13.00"
+       },
+       {
+        "value": "MEDIUM_HIGH_SPEED",
+        "label": "300 Mbps + ( 171 ) From £ 17.00"
+       },
+       {
+        "value": "HIGH_SPEED",
+        "label": "900 Mbps + ( 97 ) From £ 17.50"
+       }
+      ],
+      "total": 5,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "search.date_from"
+     ]
+    },
+    {
+     "id": "e29",
+     "kind": "action",
+     "control": "button",
+     "label": "Connection type",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e30",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Full fibre ( 248 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "person.full_name"
+     ]
+    },
+    {
+     "id": "e31",
+     "kind": "action",
+     "control": "button",
+     "label": "Full fibre (or FTTP) broadband uses modern fibre-optic cables to deliver the fastest and most reliable connection - even at peak times.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e32",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Part fibre ( 28 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e33",
+     "kind": "action",
+     "control": "button",
+     "label": "Part fibre (or FTTC) broadband uses a mix of modern fibre-optic cables and older copper wires. The condition and length of the copper can affect your connection’s speed and reliability.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e34",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Cable ( 16 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e35",
+     "kind": "action",
+     "control": "button",
+     "label": "Cable broadband uses a mix of fibre-optic and coaxial cables to deliver your internet. It’s mainly used by Virgin Media. While it’s not as fast or reliable as full fibre, the cables from the cabinet are better than copper.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e36",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Mobile ( 11 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "contact.mobile"
+     ]
+    },
+    {
+     "id": "e37",
+     "kind": "action",
+     "control": "button",
+     "label": "Mobile broadband uses a wireless 4G or 5G network. It’s a great option if you can’t get fixed-line broadband, or you live far from a telephone exchange and need faster speeds.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "form.submit",
+      "ui.dismiss",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e38",
+     "kind": "action",
+     "control": "button",
+     "label": "Home phone",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e39",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "No phone service ( 288 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "contact.phone",
+      "policy.no_claims_years",
+      "partner.phone"
+     ]
+    },
+    {
+     "id": "e40",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "No calls included ( 6 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "policy.no_claims_years",
+      "cover.hospital_list"
+     ]
+    },
+    {
+     "id": "e41",
+     "kind": "action",
+     "control": "button",
+     "label": "Home phone service with pay as you go calls.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "nav.next",
+      "nav.back",
+      "search.submit",
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e42",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Weekend calls included ( 5 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "cover.hospital_list"
+     ]
+    },
+    {
+     "id": "e43",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Anytime calls included ( 4 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "cover.hospital_list"
+     ]
+    },
+    {
+     "id": "e44",
+     "kind": "action",
+     "control": "button",
+     "label": "Awards and recognition",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e45",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Uswitch Award winner ( 53 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e46",
+     "kind": "action",
+     "control": "button",
+     "label": "Provider",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e47",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "BT ( 20 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e48",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Sky ( 25 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e49",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Virgin Media ( 16 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e50",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Plusnet ( 6 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e51",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Vodafone ( 30 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e52",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "EE ( 20 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e53",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Three ( 3 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e54",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Hyperoptic ( 6 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e55",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Gigaclear ( 3 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e56",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "NOW Broadband ( 7 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e57",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Onestream ( 4 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e58",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Zen Internet ( 16 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e59",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Community Fibre ( 8 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e60",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "KCOM ( 3 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e61",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Hull Fibre ( 6 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e62",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Open Fibre ( 1 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e63",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Squirrel ( 15 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e64",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Trooli ( 5 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e65",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "MTH Networks ( 15 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e66",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "YouFibre ( 4 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e67",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "4th Utility ( 30 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e68",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Hey! Broadband ( 3 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e69",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Rise Fibre ( 30 )",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "cover.inflation_linked"
+     ]
+    },
+    {
+     "id": "e70",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Zzoomm ( 8 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e71",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "LilaConnect ( 4 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e72",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Fibrus ( 3 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e73",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "toob ( 7 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e74",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Quickline ( 5 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e75",
+     "kind": "action",
+     "control": "button",
+     "label": "Show 21 more",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e76",
+     "kind": "action",
+     "control": "button",
+     "label": "Contract length",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e77",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "12 months ( 20 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e78",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "18 months ( 20 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e79",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "24 months ( 263 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e80",
+     "kind": "action",
+     "control": "button",
+     "label": "Monthly cost",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e81",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "£0-£25 ( 140 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e82",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "£25-£40 ( 102 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e83",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "£40+ ( 61 )",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e84",
+     "kind": "action",
+     "control": "button",
+     "label": "Show 303 deals",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e85",
+     "kind": "action",
+     "control": "button",
+     "label": "Filter & Sort",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e86",
+     "kind": "action",
+     "control": "button",
+     "label": "Uswitch rated takes into account deals that are proving to be popular with our customers, that are competitive in the market and have a smooth buying process.",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "account.create",
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e87",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Compare Deals",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e88",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "About",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e89",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Help & Support",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e90",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Legal",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    }
+   ]
+  }
+ ]
+}

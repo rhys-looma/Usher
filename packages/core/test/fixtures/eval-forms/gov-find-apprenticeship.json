@@ -1,0 +1,471 @@
+{
+ "url": "https://www.findapprenticeship.service.gov.uk/apprenticeships",
+ "final_url": "https://www.findapprenticeship.service.gov.uk/apprenticeships",
+ "recorded_at": "2026-10-28T22:59:18.613Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/apprenticeships",
+    "title": "4106 results found (page 1 of 411) - Find an apprenticeship - GOV.UK"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Apprenticeship level"
+    },
+    {
+     "id": "g2",
+     "label": "Apprenticeship level"
+    },
+    {
+     "id": "g3",
+     "label": "Job categories"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "action",
+     "control": "submit",
+     "label": "Apply filters",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "form.submit",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "What",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "Where",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "account.password",
+      "vehicle.overnight_location",
+      "search.location"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "select",
+     "label": "Within",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "2",
+        "label": "2 miles"
+       },
+       {
+        "value": "5",
+        "label": "5 miles"
+       },
+       {
+        "value": "10",
+        "label": "10 miles"
+       },
+       {
+        "value": "15",
+        "label": "15 miles"
+       },
+       {
+        "value": "20",
+        "label": "20 miles"
+       },
+       {
+        "value": "30",
+        "label": "30 miles"
+       },
+       {
+        "value": "40",
+        "label": "40 miles"
+       },
+       {
+        "value": "all",
+        "label": "across England"
+       }
+      ],
+      "total": 8,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "vehicle.annual_mileage"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Hide companies recruiting nationally",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "button",
+     "label": "Show all sections",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "action",
+     "control": "button",
+     "label": "Apprenticeship type , Show this section",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e8",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Foundation apprenticeship",
+     "group": "g1",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e9",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Apprenticeship",
+     "group": "g1",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "button",
+     "label": "Apprenticeship level , Show this section",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e11",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 2",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e12",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 3",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e13",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 4",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e14",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 5",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e15",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 6",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e16",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Level 7",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "policy.cover_level",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e17",
+     "kind": "action",
+     "control": "link",
+     "label": "Learn more about levels (opens in new tab)",
+     "group": "g2",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e18",
+     "kind": "action",
+     "control": "button",
+     "label": "Job category , Show this section",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e19",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Agriculture, environmental and animal care",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e20",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Business and administration",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "person.industry",
+      "vehicle.use"
+     ]
+    },
+    {
+     "id": "e21",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Care services",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e22",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Catering and hospitality",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e23",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Construction and building",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e24",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Creative and design",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e25",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Digital",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e26",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Education and early years",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "person.licence.held_years",
+      "address.years_at",
+      "vehicle.year",
+      "policy.no_claims_years",
+      "person.resident_since",
+      "cover.term"
+     ]
+    },
+    {
+     "id": "e27",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Engineering and manufacturing",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e28",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Hair and beauty",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e29",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Health and science",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "health.condition",
+      "health.medication",
+      "health.history",
+      "health.gp_details",
+      "cover.who",
+      "cover.level"
+     ]
+    },
+    {
+     "id": "e30",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Legal, finance and accounting",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "account.username",
+      "account.password",
+      "payment.account_number"
+     ]
+    },
+    {
+     "id": "e31",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Protective services",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e32",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Sales and marketing",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "consent.marketing"
+     ]
+    },
+    {
+     "id": "e33",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Transport and logistics",
+     "group": "g3",
+     "required": false,
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e34",
+     "kind": "field",
+     "control": "checkbox",
+     "label": "Only show Disability Confident companies",
+     "required": false,
+     "visible": true,
+     "candidates": []
+    },
+    {
+     "id": "e35",
+     "kind": "action",
+     "control": "submit",
+     "label": "Apply filters",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "form.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

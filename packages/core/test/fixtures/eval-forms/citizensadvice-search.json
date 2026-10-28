@@ -1,0 +1,114 @@
+{
+ "url": "https://www.citizensadvice.org.uk/",
+ "final_url": "https://www.citizensadvice.org.uk/",
+ "recorded_at": "2026-10-28T22:57:10.426Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Citizens Advice"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search through site content",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/",
+    "title": "Citizens Advice"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search for advice",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/",
+    "title": "Citizens Advice"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search with your postcode or town to find your local service in England or Wales.",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "search.query",
+      "address.town",
+      "partner.address.postcode",
+      "search.location",
+      "search.date_from"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

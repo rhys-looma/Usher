@@ -1,0 +1,188 @@
+{
+ "url": "https://donate.redcross.org.uk/appeal/disaster-fund",
+ "final_url": "https://donate.redcross.org.uk/appeal/disaster-fund",
+ "recorded_at": "2026-10-28T22:57:34.759Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/appeal/disaster-fund",
+    "title": "Donate to the Disaster Fund | British Red Cross"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "radio",
+     "label": "How much would you like to donate?",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "5",
+        "label": "£5"
+       },
+       {
+        "value": "8",
+        "label": "£8"
+       },
+       {
+        "value": "10",
+        "label": "£10"
+       },
+       {
+        "value": "other",
+        "label": "Other"
+       }
+      ],
+      "total": 4,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "number",
+     "label": "Other",
+     "required": false,
+     "constraints": {
+      "min": 2,
+      "max": 90000
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate by direct debit",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "action",
+     "control": "submit",
+     "label": "Regular gift by card",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "button",
+     "label": "Donate with Amazon",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "field",
+     "control": "radio",
+     "label": "How much would you like to donate?",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "30",
+        "label": "£30"
+       },
+       {
+        "value": "50",
+        "label": "£50"
+       },
+       {
+        "value": "100",
+        "label": "£100"
+       },
+       {
+        "value": "other",
+        "label": "Other"
+       }
+      ],
+      "total": 4,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e7",
+     "kind": "field",
+     "control": "number",
+     "label": "Other",
+     "required": false,
+     "constraints": {
+      "min": 2,
+      "max": 90000
+     },
+     "visible": false,
+     "candidates": []
+    },
+    {
+     "id": "e8",
+     "kind": "action",
+     "control": "submit",
+     "label": "Card",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e9",
+     "kind": "action",
+     "control": "submit",
+     "label": "PayPal",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e10",
+     "kind": "action",
+     "control": "submit",
+     "label": "Apple Pay",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "form.purchase",
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e11",
+     "kind": "action",
+     "control": "button",
+     "label": "Donate with Amazon",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

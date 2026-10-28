@@ -1,0 +1,171 @@
+{
+ "url": "https://www.ageuk.org.uk/",
+ "final_url": "https://www.ageuk.org.uk/",
+ "recorded_at": "2026-10-28T22:59:08.122Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Age UK | Let's change how we age"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Site search"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search term",
+     "group": "g1",
+     "required": false,
+     "constraints": {
+      "max_length": 80
+     },
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "cover.term",
+      "consent.terms"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/",
+    "title": "Age UK | Let's change how we age"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "In your area"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "radio",
+     "label": "In your area",
+     "group": "g1",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "services",
+        "label": "Age UK Services"
+       },
+       {
+        "value": "support",
+        "label": "Age UKs Near me"
+       },
+       {
+        "value": "shops",
+        "label": "Age UK Shops"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "person.resident_since",
+      "cover.who"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Postcode",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "address.postcode",
+      "partner.address.postcode",
+      "payment.cvc",
+      "payment.sort_code"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/",
+    "title": "Age UK | Let's change how we age"
+   },
+   "groups": [
+    {
+     "id": "g1",
+     "label": "Sign up today"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Email address",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "contact.email",
+      "partner.email",
+      "address.line1",
+      "address.line2",
+      "address.town",
+      "address.county"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Subscribe",
+     "group": "g1",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "form.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

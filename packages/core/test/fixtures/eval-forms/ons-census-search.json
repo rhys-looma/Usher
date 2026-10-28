@@ -1,0 +1,44 @@
+{
+ "url": "https://www.ons.gov.uk/census",
+ "final_url": "https://www.ons.gov.uk/census",
+ "recorded_at": "2026-10-28T22:57:55.450Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/census",
+    "title": "Census - Office for National Statistics"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Search for a keyword(s) or time series ID",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.query",
+      "search.location",
+      "search.date_from",
+      "search.date_to",
+      "booking.time",
+      "booking.date"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

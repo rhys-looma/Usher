@@ -1,0 +1,44 @@
+{
+ "url": "https://find-and-update.company-information.service.gov.uk/",
+ "final_url": "https://find-and-update.company-information.service.gov.uk/",
+ "recorded_at": "2026-10-28T22:56:30.248Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Search the register - Find and update company information - GOV.UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "Enter company name, number or officer name",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "person.first_name",
+      "person.last_name",
+      "person.full_name",
+      "person.licence.number",
+      "partner.first_name",
+      "partner.last_name"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Search",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "search.submit",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

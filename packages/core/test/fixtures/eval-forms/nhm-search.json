@@ -1,0 +1,90 @@
+{
+ "url": "https://www.nhm.ac.uk/",
+ "final_url": "https://www.nhm.ac.uk/",
+ "recorded_at": "2026-10-28T22:58:02.722Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "Home | Natural History Museum"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "text",
+     "label": "",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "account.password"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "First name *",
+     "required": true,
+     "visible": true,
+     "candidates": [
+      "person.first_name",
+      "partner.first_name",
+      "person.last_name",
+      "person.full_name",
+      "partner.last_name",
+      "payment.name"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "field",
+     "control": "text",
+     "label": "Last name *",
+     "required": true,
+     "visible": true,
+     "candidates": [
+      "person.last_name",
+      "partner.last_name",
+      "person.first_name",
+      "person.full_name",
+      "partner.first_name",
+      "payment.name"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "email",
+     "label": "Email address *",
+     "required": true,
+     "visible": true,
+     "candidates": [
+      "contact.email",
+      "partner.email",
+      "address.line1",
+      "address.line2",
+      "address.town",
+      "address.county"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "action",
+     "control": "submit",
+     "label": "Sign up",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "form.submit",
+      "account.create",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

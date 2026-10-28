@@ -1,0 +1,234 @@
+{
+ "url": "https://www.cancerresearchuk.org/get-involved/donate",
+ "final_url": "https://www.cancerresearchuk.org/get-involved/donate",
+ "recorded_at": "2026-10-28T22:57:28.769Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/get-involved/donate",
+    "title": "Donate To Beat Cancer | Cancer Research UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "radio",
+     "label": "List of undefined: 3 options",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "6",
+        "label": "£6"
+       },
+       {
+        "value": "15",
+        "label": "£15"
+       },
+       {
+        "value": "30",
+        "label": "£30"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "cover.hospital_list"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "field",
+     "control": "text",
+     "label": "Or enter another amount",
+     "required": false,
+     "constraints": {
+      "pattern": "^[0-9]*(\\.[0-9]{1,2})?$",
+      "min": "0"
+     },
+     "visible": true,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e3",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate now",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    },
+    {
+     "id": "e4",
+     "kind": "field",
+     "control": "radio",
+     "label": "List of undefined: 3 options",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "20",
+        "label": "£20"
+       },
+       {
+        "value": "50",
+        "label": "£50"
+       },
+       {
+        "value": "100",
+        "label": "£100"
+       }
+      ],
+      "total": 3,
+      "truncated": false
+     },
+     "visible": false,
+     "candidates": [
+      "cover.hospital_list"
+     ]
+    },
+    {
+     "id": "e5",
+     "kind": "field",
+     "control": "text",
+     "label": "Or enter another amount",
+     "required": false,
+     "constraints": {
+      "pattern": "^[0-9]*(\\.[0-9]{1,2})?$",
+      "min": "0"
+     },
+     "visible": false,
+     "candidates": [
+      "cover.amount",
+      "cover.critical_illness_amount"
+     ]
+    },
+    {
+     "id": "e6",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate now",
+     "required": false,
+     "visible": false,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  },
+  {
+   "page": {
+    "path": "/get-involved/donate",
+    "title": "Donate To Beat Cancer | Cancer Research UK"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "select",
+     "label": "Select a research area to fund",
+     "required": false,
+     "options": {
+      "items": [
+       {
+        "value": "RES005",
+        "label": "Bowel cancer"
+       },
+       {
+        "value": "RES038",
+        "label": "Brain tumours"
+       },
+       {
+        "value": "RES003",
+        "label": "Breast cancer"
+       },
+       {
+        "value": "RES814",
+        "label": "Children's cancers"
+       },
+       {
+        "value": "RES828",
+        "label": "Developing better treatments"
+       },
+       {
+        "value": "RES769",
+        "label": "Diagnosing cancer early"
+       },
+       {
+        "value": "RES009",
+        "label": "Leukaemia"
+       },
+       {
+        "value": "RES004",
+        "label": "Lung cancer"
+       },
+       {
+        "value": "RES010",
+        "label": "Lymphoma"
+       },
+       {
+        "value": "RES085",
+        "label": "Oesophageal cancer"
+       },
+       {
+        "value": "RES008",
+        "label": "Ovarian cancer"
+       },
+       {
+        "value": "RES011",
+        "label": "Pancreatic cancer"
+       },
+       {
+        "value": "RES813",
+        "label": "Preventing cancer"
+       },
+       {
+        "value": "RES006",
+        "label": "Prostate cancer"
+       },
+       {
+        "value": "RES829",
+        "label": "Rare cancers"
+       },
+       {
+        "value": "RES490",
+        "label": "Skin cancer"
+       },
+       {
+        "value": "Unlisted",
+        "label": "The cancer type or area of research isn't listed"
+       }
+      ],
+      "total": 17,
+      "truncated": false
+     },
+     "visible": true,
+     "candidates": [
+      "health.history",
+      "booking.party_size"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Donate now",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

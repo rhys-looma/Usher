@@ -1,0 +1,47 @@
+{
+ "url": "https://www.bfi.org.uk/",
+ "final_url": "https://www.bfi.org.uk/",
+ "recorded_at": "2026-10-28T22:58:00.137Z",
+ "forms": [
+  {
+   "page": {
+    "path": "/",
+    "title": "BFI homepage | BFI"
+   },
+   "groups": [],
+   "elements": [
+    {
+     "id": "e1",
+     "kind": "field",
+     "control": "email",
+     "label": "Email",
+     "required": true,
+     "constraints": {
+      "pattern": ".+@.+\\..+",
+      "max_length": 200
+     },
+     "visible": true,
+     "candidates": [
+      "contact.email",
+      "partner.email"
+     ]
+    },
+    {
+     "id": "e2",
+     "kind": "action",
+     "control": "submit",
+     "label": "Sign up",
+     "required": false,
+     "visible": true,
+     "candidates": [
+      "lookup.address",
+      "lookup.vehicle",
+      "form.submit",
+      "account.create",
+      "ui.expand"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-27T19:17:21.765Z",
+  "generated": "2026-10-28T23:17:51.635Z",
   "results": [
     {
       "id": "mock-a-driver",
@@ -16,7 +16,7 @@
       },
       "locators_resolved": 14,
       "flags": 0,
-      "cost_usd": 0.01304325
+      "cost_usd": 0.013901
     },
     {
       "id": "mock-a-vehicle",
@@ -24,7 +24,7 @@
       "url": "/quote/vehicle (layout A)",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Car insurance quote: vehicle details",
+      "purpose": "Car insurance quote: your car",
       "elements": 11,
       "vocabulary_keys": 11,
       "custom_keys": 0,
@@ -33,7 +33,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.010406
+      "cost_usd": 0.011298
     },
     {
       "id": "mock-a-cover",
@@ -52,7 +52,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.00985675
+      "cost_usd": 0.01082775
     },
     {
       "id": "mock-b-driver",
@@ -69,7 +69,7 @@
       },
       "locators_resolved": 14,
       "flags": 0,
-      "cost_usd": 0.01207675
+      "cost_usd": 0.01248825
     },
     {
       "id": "mock-b-vehicle",
@@ -86,7 +86,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.010587
+      "cost_usd": 0.011241
     },
     {
       "id": "mock-b-cover",
@@ -94,7 +94,7 @@
       "url": "/quote/cover (layout B)",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Motor insurance quote: cover options",
+      "purpose": "Car insurance quote: cover options",
       "elements": 9,
       "vocabulary_keys": 9,
       "custom_keys": 0,
@@ -105,7 +105,7 @@
       },
       "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.00953325
+      "cost_usd": 0.011492
     },
     {
       "id": "govuk-contact",
@@ -113,25 +113,25 @@
       "url": "https://www.gov.uk/contact/govuk",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Contact GOV.UK team with question or feedback",
-      "elements": 7,
+      "elements": 9,
       "vocabulary_keys": 4,
-      "custom_keys": 3,
+      "custom_keys": 5,
       "risk": {
-        "safe": 6,
+        "safe": 8,
         "consequential": 1
       },
-      "locators_resolved": 7,
+      "locators_resolved": 9,
       "flags": 0,
-      "cost_usd": 0.06079225
+      "cost_usd": 0.0433795
     },
     {
       "id": "ico-contact",
       "category": "contact",
       "url": "https://ico.org.uk/global/contact-us/",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Site search: find ICO information",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -141,7 +141,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.0072675
+      "cost_usd": 0.01498925
     },
     {
       "id": "parliament-contact",
@@ -154,8 +154,19 @@
       "id": "ofcom-contact",
       "category": "contact",
       "url": "https://www.ofcom.org.uk/about-ofcom/contact-us",
-      "status": "skipped",
-      "reason": "No form to map on https://www.ofcom.org.uk/about-ofcom/what-we-do/contact-us: the page has only a site search, a cookie or consent widget."
+      "status": "ok",
+      "source": "live",
+      "purpose": "Rate this page: feedback on helpfulness",
+      "elements": 3,
+      "vocabulary_keys": 1,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 2,
+        "consequential": 1
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.0350895
     },
     {
       "id": "travelodge-booking",
@@ -163,8 +174,8 @@
       "url": "https://www.travelodge.co.uk/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Hotel search: destination, dates, rooms and guests",
+      "source": "live",
+      "purpose": "Hotel search by destination, dates and guests",
       "elements": 6,
       "vocabulary_keys": 5,
       "custom_keys": 1,
@@ -173,7 +184,7 @@
       },
       "locators_resolved": 6,
       "flags": 0,
-      "cost_usd": 0.02281875
+      "cost_usd": 0.043117
     },
     {
       "id": "httpbin-order",
@@ -182,7 +193,7 @@
       "recorded": true,
       "note": "a test form (pizza order), kept as a control",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Pizza order: customer, size, toppings and delivery",
       "elements": 11,
       "vocabulary_keys": 5,
@@ -193,7 +204,7 @@
       },
       "locators_resolved": 11,
       "flags": 0,
-      "cost_usd": 0.01164725
+      "cost_usd": 0.03505825
     },
     {
       "id": "nationalrail-journey",
@@ -210,7 +221,7 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.03039025
+      "cost_usd": 0.03415225
     },
     {
       "id": "eventbrite-search",
@@ -218,7 +229,7 @@
       "url": "https://www.eventbrite.co.uk/",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Search for local events by keyword and location",
+      "purpose": "Discover local events: search by keyword and location",
       "elements": 3,
       "vocabulary_keys": 3,
       "custom_keys": 0,
@@ -227,7 +238,7 @@
       },
       "locators_resolved": 3,
       "flags": 0,
-      "cost_usd": 0.014695
+      "cost_usd": 0.02551675
     },
     {
       "id": "lner-booking",
@@ -242,8 +253,8 @@
       "url": "https://www.mozilla.org/en-US/newsletter/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Get Firefox news newsletter signup",
+      "source": "live",
+      "purpose": "Firefox newsletter signup",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -253,7 +264,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.023556
+      "cost_usd": 0.0371545
     },
     {
       "id": "which-newsletter",
@@ -266,8 +277,19 @@
       "id": "guardian-newsletters",
       "category": "newsletter",
       "url": "https://www.theguardian.com/email-newsletters",
-      "status": "skipped",
-      "reason": "No form to map on https://www.theguardian.com/email-newsletters: the page has only a site search, a newsletter sign-up."
+      "status": "ok",
+      "source": "live",
+      "purpose": "Sign up for Guardian newsletters",
+      "elements": 53,
+      "vocabulary_keys": 52,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 3,
+        "consequential": 50
+      },
+      "locators_resolved": 53,
+      "flags": 0,
+      "cost_usd": 0.11967575000000001
     },
     {
       "id": "wikipedia-search",
@@ -277,15 +299,15 @@
       "status": "ok",
       "source": "recorded",
       "purpose": "Search Wikipedia articles",
-      "elements": 2,
-      "vocabulary_keys": 2,
-      "custom_keys": 0,
+      "elements": 3,
+      "vocabulary_keys": 1,
+      "custom_keys": 2,
       "risk": {
-        "safe": 2
+        "safe": 3
       },
-      "locators_resolved": 1,
+      "locators_resolved": 3,
       "flags": 0,
-      "cost_usd": 0.018994999999999998
+      "cost_usd": 0.0132635
     },
     {
       "id": "govuk-search",
@@ -302,7 +324,7 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.01612675
+      "cost_usd": 0.02676025
     },
     {
       "id": "ons-search",
@@ -310,7 +332,7 @@
       "url": "https://www.ons.gov.uk/",
       "status": "ok",
       "source": "recorded",
-      "purpose": "Search ONS data by keyword or time series ID",
+      "purpose": "ONS site search by keyword or time series ID",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -319,14 +341,14 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.007707
+      "cost_usd": 0.00820125
     },
     {
       "id": "nhs-search",
       "category": "search",
       "url": "https://www.nhs.uk/",
       "status": "ok",
-      "source": "recorded",
+      "source": "live",
       "purpose": "Search the NHS website",
       "elements": 2,
       "vocabulary_keys": 2,
@@ -336,7 +358,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.009372
+      "cost_usd": 0.015437
     },
     {
       "id": "github-signup",
@@ -361,7 +383,7 @@
       "note": "stop before submit",
       "status": "ok",
       "source": "recorded",
-      "purpose": "BBC sign-in: enter email or username",
+      "purpose": "BBC sign in: enter email or username",
       "elements": 2,
       "vocabulary_keys": 2,
       "custom_keys": 0,
@@ -370,7 +392,7 @@
       },
       "locators_resolved": 2,
       "flags": 0,
-      "cost_usd": 0.00817925
+      "cost_usd": 0.0036644499999999997
     },
     {
       "id": "aviva-car",
@@ -378,8 +400,8 @@
       "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
       "recorded": true,
       "status": "ok",
-      "source": "recorded",
-      "purpose": "Car insurance quote: start with registration",
+      "source": "live",
+      "purpose": "Car insurance quote by registration",
       "elements": 4,
       "vocabulary_keys": 4,
       "custom_keys": 0,
@@ -389,7 +411,7 @@
       },
       "locators_resolved": 4,
       "flags": 0,
-      "cost_usd": 0.009054
+      "cost_usd": 0.028207999999999997
     },
     {
       "id": "directline-car",
@@ -439,6 +461,679 @@
       "url": "https://www.moneysavingexpert.com/mortgages/mortgage-rate-calculator/",
       "status": "skipped",
       "reason": "HTTP 403 (refuses automated browsers)"
+    },
+    {
+      "id": "govuk-find-council",
+      "category": "lookup",
+      "url": "https://www.gov.uk/find-local-council",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find your local council",
+      "elements": 3,
+      "vocabulary_keys": 3,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.017327
+    },
+    {
+      "id": "govuk-travel-advice",
+      "category": "search",
+      "url": "https://www.gov.uk/foreign-travel-advice",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search foreign travel advice by country or territory",
+      "elements": 1,
+      "vocabulary_keys": 1,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1
+      },
+      "locators_resolved": 1,
+      "flags": 0,
+      "cost_usd": 0.025275750000000003
+    },
+    {
+      "id": "govuk-electoral-office",
+      "category": "lookup",
+      "url": "https://www.gov.uk/contact-electoral-registration-office",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find electoral registration office by postcode",
+      "elements": 3,
+      "vocabulary_keys": 3,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.02990175
+    },
+    {
+      "id": "vehicle-enquiry",
+      "category": "lookup",
+      "url": "https://vehicleenquiry.service.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Check if a vehicle is taxed and has an MOT",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.00810825
+    },
+    {
+      "id": "companies-house-search",
+      "category": "search",
+      "url": "https://find-and-update.company-information.service.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search the company register",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.020366750000000003
+    },
+    {
+      "id": "charity-register-search",
+      "category": "search",
+      "url": "https://register-of-charities.charitycommission.gov.uk/en/charity-search",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search the register of charities",
+      "elements": 3,
+      "vocabulary_keys": 2,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.0186975
+    },
+    {
+      "id": "food-ratings",
+      "category": "search",
+      "url": "https://ratings.food.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search for food hygiene ratings by business and location",
+      "elements": 7,
+      "vocabulary_keys": 4,
+      "custom_keys": 3,
+      "risk": {
+        "safe": 7
+      },
+      "locators_resolved": 7,
+      "flags": 0,
+      "cost_usd": 0.04393925
+    },
+    {
+      "id": "flood-check",
+      "category": "lookup",
+      "url": "https://check-for-flooding.service.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Check for flooding in England",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.00921175
+    },
+    {
+      "id": "ofsted-reports",
+      "category": "search",
+      "url": "https://reports.ofsted.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find an Ofsted inspection report",
+      "elements": 31,
+      "vocabulary_keys": 3,
+      "custom_keys": 28,
+      "risk": {
+        "safe": 31
+      },
+      "locators_resolved": 31,
+      "flags": 0,
+      "cost_usd": 0.050564250000000005
+    },
+    {
+      "id": "nhs-find-gp",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/find-a-gp",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find a GP surgery by postcode in England",
+      "elements": 4,
+      "vocabulary_keys": 2,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 4
+      },
+      "locators_resolved": 4,
+      "flags": 0,
+      "cost_usd": 0.02279475
+    },
+    {
+      "id": "nhs-find-pharmacy",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/pharmacy/find-a-pharmacy",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find a pharmacy in England",
+      "elements": 5,
+      "vocabulary_keys": 2,
+      "custom_keys": 3,
+      "risk": {
+        "safe": 5
+      },
+      "locators_resolved": 5,
+      "flags": 0,
+      "cost_usd": 0.033604
+    },
+    {
+      "id": "nhs-find-dentist",
+      "category": "lookup",
+      "url": "https://www.nhs.uk/service-search/find-a-dentist",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find NHS dentist accepting new patients",
+      "elements": 3,
+      "vocabulary_keys": 3,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.01600775
+    },
+    {
+      "id": "tfl-journey",
+      "category": "booking",
+      "url": "https://tfl.gov.uk/plan-a-journey/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Plan a journey on Transport for London",
+      "elements": 6,
+      "vocabulary_keys": 2,
+      "custom_keys": 4,
+      "risk": {
+        "safe": 6
+      },
+      "locators_resolved": 6,
+      "flags": 0,
+      "cost_usd": 0.050879
+    },
+    {
+      "id": "metoffice-search",
+      "category": "search",
+      "url": "https://www.metoffice.gov.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find a weather forecast for a place",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.00922475
+    },
+    {
+      "id": "ofcom-broadband-checker",
+      "category": "lookup",
+      "url": "https://checker.ofcom.org.uk/en-gb/broadband-coverage",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Check broadband availability by postcode",
+      "elements": 4,
+      "vocabulary_keys": 4,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 4
+      },
+      "locators_resolved": 4,
+      "flags": 0,
+      "cost_usd": 0.026037249999999998
+    },
+    {
+      "id": "citizensadvice-search",
+      "category": "search",
+      "url": "https://www.citizensadvice.org.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find your local Citizens Advice service",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.02248825
+    },
+    {
+      "id": "uswitch-broadband",
+      "category": "lookup",
+      "url": "https://www.uswitch.com/broadband/postcode_checker/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find and compare broadband deals in your area",
+      "elements": 72,
+      "vocabulary_keys": 18,
+      "custom_keys": 54,
+      "risk": {
+        "safe": 72
+      },
+      "locators_resolved": 23,
+      "flags": 0,
+      "cost_usd": 0.07017525
+    },
+    {
+      "id": "octopus-quote",
+      "category": "quote",
+      "url": "https://octopus.energy/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Energy quote: enter postcode to get a quote",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1,
+        "consequential": 1
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.02222075
+    },
+    {
+      "id": "english-heritage-search",
+      "category": "search",
+      "url": "https://www.english-heritage.org.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find a day out near you",
+      "elements": 10,
+      "vocabulary_keys": 4,
+      "custom_keys": 6,
+      "risk": {
+        "safe": 4,
+        "needs_user": 6
+      },
+      "locators_resolved": 10,
+      "flags": 0,
+      "cost_usd": 0.088497
+    },
+    {
+      "id": "cruk-donate",
+      "category": "donation",
+      "url": "https://www.cancerresearchuk.org/get-involved/donate",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Donate to beat cancer: choose amount",
+      "elements": 3,
+      "vocabulary_keys": 1,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.0333405
+    },
+    {
+      "id": "redcross-donate",
+      "category": "donation",
+      "url": "https://donate.redcross.org.uk/appeal/disaster-fund",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Monthly donation to Disaster Fund",
+      "elements": 4,
+      "vocabulary_keys": 2,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 4
+      },
+      "locators_resolved": 4,
+      "flags": 0,
+      "cost_usd": 0.0235755
+    },
+    {
+      "id": "oxfam-donate",
+      "category": "donation",
+      "url": "https://www.oxfam.org.uk/donate/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Monthly charity donation",
+      "elements": 5,
+      "vocabulary_keys": 1,
+      "custom_keys": 4,
+      "risk": {
+        "safe": 4,
+        "needs_user": 1
+      },
+      "locators_resolved": 5,
+      "flags": 0,
+      "cost_usd": 0.05354475
+    },
+    {
+      "id": "shelter-donate",
+      "category": "donation",
+      "url": "https://england.shelter.org.uk/donate",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Donate to Shelter to fight homelessness",
+      "elements": 7,
+      "vocabulary_keys": 1,
+      "custom_keys": 6,
+      "risk": {
+        "safe": 6,
+        "needs_user": 1
+      },
+      "locators_resolved": 7,
+      "flags": 0,
+      "cost_usd": 0.043334
+    },
+    {
+      "id": "parliament-petitions",
+      "category": "search",
+      "url": "https://petition.parliament.uk/petitions",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search and view UK Parliament petitions",
+      "elements": 35,
+      "vocabulary_keys": 3,
+      "custom_keys": 32,
+      "risk": {
+        "safe": 35
+      },
+      "locators_resolved": 35,
+      "flags": 0,
+      "cost_usd": 0.04229175
+    },
+    {
+      "id": "gov-paye-calculator",
+      "category": "calculator",
+      "url": "https://www.tax.service.gov.uk/estimate-paye-take-home-pay/your-pay",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "PAYE take-home pay estimate: your pay amount",
+      "elements": 3,
+      "vocabulary_keys": 1,
+      "custom_keys": 2,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.0190815
+    },
+    {
+      "id": "nhs-111-start",
+      "category": "search",
+      "url": "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search the NHS website",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.01653625
+    },
+    {
+      "id": "citizensadvice-contact",
+      "category": "contact",
+      "url": "https://www.citizensadvice.org.uk/about-us/contact-us/contact-us/contact-us/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find nearest Citizens Advice office",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.01678325
+    },
+    {
+      "id": "ons-census-search",
+      "category": "search",
+      "url": "https://www.ons.gov.uk/census",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search ONS statistics by keyword or time series ID",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.010007
+    },
+    {
+      "id": "bfi-newsletter",
+      "category": "newsletter",
+      "url": "https://www.bfi.org.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Sign up to BFI news emails",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 1,
+        "consequential": 1
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.02778175
+    },
+    {
+      "id": "nhm-search",
+      "category": "search",
+      "url": "https://www.nhm.ac.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Newsletter signup for museum updates",
+      "elements": 5,
+      "vocabulary_keys": 4,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 4,
+        "consequential": 1
+      },
+      "locators_resolved": 5,
+      "flags": 0,
+      "cost_usd": 0.03827825
+    },
+    {
+      "id": "trainline-search",
+      "category": "booking",
+      "url": "https://www.thetrainline.com/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search, compare and buy cheap train tickets",
+      "elements": 9,
+      "vocabulary_keys": 5,
+      "custom_keys": 4,
+      "risk": {
+        "safe": 8,
+        "needs_user": 1
+      },
+      "locators_resolved": 9,
+      "flags": 0,
+      "cost_usd": 0.0584447
+    },
+    {
+      "id": "bbc-search",
+      "category": "search",
+      "url": "https://www.bbc.co.uk/search",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search BBC content",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.018372
+    },
+    {
+      "id": "ageuk-search",
+      "category": "search",
+      "url": "https://www.ageuk.org.uk/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find Age UK services, branches and shops nearby",
+      "elements": 3,
+      "vocabulary_keys": 2,
+      "custom_keys": 1,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.0207935
+    },
+    {
+      "id": "openreach-fibre-checker",
+      "category": "lookup",
+      "url": "https://www.openreach.com/fibre-checker",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Fibre broadband availability checker",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.016709500000000002
+    },
+    {
+      "id": "gumtree-search",
+      "category": "search",
+      "url": "https://www.gumtree.com/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search Gumtree classified ads",
+      "elements": 3,
+      "vocabulary_keys": 3,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 3
+      },
+      "locators_resolved": 3,
+      "flags": 0,
+      "cost_usd": 0.02918425
+    },
+    {
+      "id": "nhs-conditions-search",
+      "category": "search",
+      "url": "https://www.nhs.uk/conditions/",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Search the NHS website",
+      "elements": 2,
+      "vocabulary_keys": 2,
+      "custom_keys": 0,
+      "risk": {
+        "safe": 2
+      },
+      "locators_resolved": 2,
+      "flags": 0,
+      "cost_usd": 0.015839
+    },
+    {
+      "id": "gov-find-apprenticeship",
+      "category": "search",
+      "url": "https://www.findapprenticeship.service.gov.uk/apprenticeships",
+      "recorded": true,
+      "status": "ok",
+      "source": "live",
+      "purpose": "Find an apprenticeship: filter by job, location and type",
+      "elements": 11,
+      "vocabulary_keys": 7,
+      "custom_keys": 4,
+      "risk": {
+        "safe": 11
+      },
+      "locators_resolved": 11,
+      "flags": 0,
+      "cost_usd": 0.02032275
     }
   ]
 }
