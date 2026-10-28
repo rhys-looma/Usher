@@ -153,14 +153,14 @@ export interface LandingOptions {
   hosted?: boolean;
 }
 
-/** The six steps between the person's message and their quote, and what Usher sees at each. */
+/** The six steps under the hood, told to the site that runs the form, and what Usher sees at each. */
 const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
-  { title: 'Knock', what: 'The agent identifies itself; the site opens for this one session.', sees: 'agent identity, site, intent, expiry.' },
-  { title: 'Map, not values', what: 'Usher hands the agent the form\'s structure and the site\'s rules.', sees: 'field names and types. Never what anyone types.' },
-  { title: 'The safe fields are filled', what: 'Name, date of birth, postcode, cover level: seconds.', sees: 'which fields were filled. Not the values.' },
-  { title: 'The questions that are yours', what: 'Smoker, the declaration: shown to you in the insurer\'s exact words, unticked, with Usher asking you, not the agent.', sees: 'that each was shown to you, and your yes or no.', note: 'Medical questions are yours unless the insurer decides otherwise: Usher fills one only where the site allows it, with your own answer, which you confirm.' },
-  { title: 'Submit with the token', what: 'The site checks it on its own server. No token, no quote.', sees: 'that the quote was asked for, with a valid token.' },
-  { title: 'On the record', what: 'The site\'s dashboard shows the session: which agent, which fields, what was shown and confirmed.', sees: 'the session. Never the answers.' },
+  { title: 'Knock', what: 'Your customer\'s agent says who it is before it touches your form, and your site opens for that one session.', sees: 'the agent, your site, what it came to do, when its pass expires.' },
+  { title: 'Map, not values', what: 'Usher gives the agent your form\'s structure and your rules, so it fills by meaning, not by guessing.', sees: 'field names and types. Never what anyone types.' },
+  { title: 'The fields you\'re happy to hand over', what: 'Name, date of birth, postcode, cover level: the ones you let agents fill are done in seconds.', sees: 'which fields were filled. Not the values.' },
+  { title: 'The questions you keep for people', what: 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', note: 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', sees: 'that each was shown, and your customer\'s yes or no.' },
+  { title: 'Nothing without a pass', what: 'Your server checks the agent\'s token before it quotes. No token, no quote.', sees: 'that a quote was asked for, with a valid token.' },
+  { title: 'On your record', what: 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', sees: 'the session. Never the answers.' },
 ];
 
 /**
