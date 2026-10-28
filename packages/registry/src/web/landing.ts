@@ -222,19 +222,30 @@ const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
  * With reduced motion, or without JavaScript, all six show at once.
  */
 function betweenSection(): Raw {
+  const host = 'brightwater.usher.run';
   return html`<section class="between" id="how" data-reveal>
 <h2>What happens in between</h2>
-<p class="lede">From your message to your quote. What Usher sees at each step is underneath it.</p>
-<figure class="seq" data-steps>
-<div class="seq-ask"><p class="label">You, to your assistant</p><p class="bubble">${EXAMPLE}</p></div>
-<div class="seq-track" aria-hidden="true"><svg viewBox="0 0 100 4" preserveAspectRatio="none" focusable="false"><line class="rail" x1="0" y1="2" x2="100" y2="2"></line><line class="fill" x1="0" y1="2" x2="100" y2="2" pathLength="100"></line></svg></div>
+<p class="lede">Your assistant uses Brightwater's own app. Underneath, the app runs on Usher: the infrastructure between assistants and a site's forms. From your message to your quote, what Usher sees at each step is underneath it.</p>
+<div class="between-grid">
+<figure class="seq chat" data-steps aria-label="What happens between your message and your quote, in a chat with an assistant">
+<div class="chat-bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span><span class="chat-title">Your assistant</span><span class="chat-chip"><span class="dot"></span>Brightwater app connected</span></div>
+<div class="chat-body">
+<div class="seq-ask msg you"><p class="label">You, to your assistant</p><p class="bubble">${EXAMPLE}</p></div>
+<div class="msg bot"><span class="avatar" aria-hidden="true"></span><div class="bot-col">
+<p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater<span class="runs-on">runs on Usher</span></p>
+<ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>${host}</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
   )}</ol>
-<div class="seq-result uc"><div class="card"><p class="label">The site's own result</p><p class="title">Your quote</p><ul class="facts"><li>£66.91 a month</li><li>Quote reference BWH-3F9A2C71</li></ul></div></div>
+</div></div>
+<div class="typing msg bot" aria-hidden="true"><span class="avatar"></span><span class="dots"><i></i><i></i><i></i></span></div>
+<div class="seq-result msg bot uc"><span class="avatar" aria-hidden="true"></span><div class="bot-col"><p class="reply">Here's your quote from Brightwater, as the site shows it:</p><div class="card"><p class="label">The site's own result</p><p class="title">Your quote</p><ul class="facts"><li>£66.91 a month</li><li>Quote reference BWH-3F9A2C71</li><li>Valid for 30 days</li></ul></div></div></div>
+</div>
+<div class="chat-input" aria-hidden="true"><span>Message your assistant</span><span class="send"></span></div>
 <p class="seq-controls"><button type="button" class="seq-replay" hidden>Replay</button></p>
 </figure>
 <div class="keeps" id="keeps"><h3>${KEEPS_HEADING}</h3><ul>${KEEPS.map((line) => html`<li>${line}</li>`)}</ul></div>
+</div>
 </section>`;
 }
 
@@ -457,55 +468,101 @@ main { padding-top:0; }
 .hero-ask { margin:0 0 28px; max-width:46ch; }
 .hero-ask .label { margin:0 0 6px; }
 .bubble { margin:0; padding:12px 16px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; font-size:16px; line-height:1.5; }
-/* What happens in between: the message, six steps with a thin line between them, the result. The
-   steps are always in the page in reading order; site.js only changes which is emphasised. */
+/* What happens in between: a chat with an assistant (no product's interface), always dark like the
+   illustration below it. Your message, the assistant's "Using Usher" panel with the six steps
+   streaming in (a pulsing marker, then a tick, the line filling down to the step), a typing
+   indicator, and the quote as its reply. Everything is in the page in reading order; site.js
+   (seq-on) only animates it, and without it, or with reduced motion, the last frame shows. */
 .between .lede { max-width:60ch; }
-.seq { margin:22px 0 0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px 28px; }
-.seq-ask { grid-column:1; max-width:520px; }
-.seq-ask .label, .seq-result .label { margin:0 0 6px; }
-.seq-track { grid-column:1 / -1; height:4px; position:relative; }
-.seq-track svg { display:block; width:100%; height:4px; overflow:visible; }
-.seq-track line { stroke-width:2; }
-.seq-track .rail { stroke:var(--line); }
-.seq-track .fill { stroke:var(--accent); stroke-dasharray:100; stroke-dashoffset:0; transition:stroke-dashoffset 600ms ease-out; }
-ol.seq-steps { grid-column:1 / -1; list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0; border-top:1.5px solid var(--rule); }
-.seq-steps li { padding:16px 16px 18px 0; border-bottom:1px solid var(--line); transition:opacity 400ms ease-out, background-color 400ms ease-out; }
-.seq-steps li + li { border-left:1px solid var(--line); padding-left:16px; }
-.seq-steps h3 { font-family:var(--serif); font-size:19px; line-height:1.2; margin:0 0 6px; display:flex; gap:10px; align-items:baseline; }
-.seq-steps .n { flex:none; font-family:Inter,system-ui,sans-serif; font-size:13px; font-weight:700; color:var(--accent); border:1.5px solid currentColor; border-radius:999px; width:24px; height:24px; display:inline-grid; place-items:center; background:none; padding:0; margin:0; }
+.between-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:32px; align-items:start; margin-top:22px; }
+.chat { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
+.chat-bar { display:flex; align-items:center; gap:14px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--card); }
+.lights { display:flex; gap:6px; } .lights i { width:10px; height:10px; border-radius:50%; background:var(--line); display:block; }
+.chat-title { font-weight:600; font-size:14px; }
+.chat-chip { margin-left:auto; display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--safe); background:var(--safe-bg); padding:3px 10px; border-radius:999px; }
+.chat-chip .dot { width:7px; height:7px; border-radius:50%; background:var(--safe); animation:breathe 2.4s ease-in-out infinite; }
+.chat-body { padding:22px 20px 8px; display:flex; flex-direction:column; gap:18px; }
+.msg.you { align-self:flex-end; max-width:86%; }
+.msg.you .label { text-align:right; margin:0 0 6px; color:var(--muted); }
+.msg.you .bubble { background:var(--accent); color:#12132c; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
+.msg.bot { display:grid; grid-template-columns:30px minmax(0,1fr); gap:12px; align-items:start; }
+.avatar { width:30px; height:30px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), #5ab0ff, var(--accent)); display:block; }
+.tool-head { margin:4px 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
+.runs-on { margin-left:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 8px; }
+/* The route: assistant, the site's app, Usher, the site's form; a pulse runs along it while the
+   steps play. */
+ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; font-size:12.5px; position:relative; }
+.route li { display:flex; align-items:center; color:var(--muted); }
+.route li + li::before { content:""; width:26px; height:2px; margin:0 6px; background:linear-gradient(90deg, var(--line) 0 40%, var(--accent) 40% 60%, var(--line) 60% 100%) 0 0 / 300% 100%; }
+.seq.seq-on:not(.ended) .route li + li::before { animation:flow 1.2s linear infinite; }
+.route li.usher span { color:#12132c; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(197,163,255,.18); }
+@keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
+.tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; }
+.seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); border-right-color:var(--safe); }
+ol.seq-steps { list-style:none; margin:0; padding:6px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+.seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px dotted var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out, background-color 300ms; }
+.seq-steps li:first-child { border-top:0; }
+/* The line between the markers, filling down as the steps complete. */
+.seq-steps li::before { content:""; position:absolute; left:12px; top:38px; bottom:-14px; width:2px; background:var(--line); }
+.seq-steps li:last-child::before { display:none; }
+.seq-steps li::after { content:""; position:absolute; left:12px; top:38px; width:2px; height:0; background:var(--accent); transition:height 700ms ease-out; }
+.seq-steps li:last-child::after { display:none; }
+.seq-steps li.done::after, .seq:not(.seq-on) .seq-steps li::after { height:calc(100% - 24px); }
+.seq-steps h3 { font-family:var(--serif); font-size:18px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
+.seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:700 12.5px Inter,system-ui,sans-serif; color:var(--accent); background:var(--bg); border:1.5px solid var(--accent); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
 button.n { cursor:pointer; }
 button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-.seq-steps p { margin:0 0 8px; font-size:15px; }
-.seq-steps .note { color:var(--ink); font-weight:600; }
-.seq-steps .sees { margin:0; font-size:13.5px; color:var(--muted); border-top:1px dotted var(--line); padding-top:8px; }
-.seq-steps .sees b { color:var(--ink); font-weight:700; }
-.seq-result { grid-column:2; justify-self:end; width:min(100%,360px); }
+.seq-steps p { margin:0 0 6px; font-size:14.5px; color:var(--ink); }
+.seq-steps .note { font-weight:600; color:var(--user); }
+.seq-steps .sees { display:inline-block; margin:2px 0 0; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px 11px 3px 10px; }
+.seq-steps .sees b { color:var(--safe); font-weight:700; }
+.seq-steps li.done .n, .seq:not(.seq-on) .seq-steps .n { background:var(--accent); color:#12132c; }
+.seq .typing.msg { display:none; }
+.typing .dots { justify-self:start; }
+.dots { display:inline-flex; gap:5px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; }
+.dots i { width:7px; height:7px; border-radius:50%; background:var(--muted); display:block; animation:bounce 1.1s infinite ease-in-out; }
+.dots i:nth-child(2) { animation-delay:.15s; } .dots i:nth-child(3) { animation-delay:.3s; }
+.seq-result .reply { margin:4px 0 10px; font-size:15px; }
+.seq-result .card { border-radius:12px; max-width:360px; }
 .seq-result .facts li:first-child { font-family:var(--serif); }
-.seq-controls { grid-column:1 / -1; margin:0; }
+.chat-input { display:flex; align-items:center; gap:10px; margin:10px 16px 16px; padding:11px 12px 11px 16px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:14px; background:var(--card); }
+.chat-input .send { margin-left:auto; width:28px; height:28px; border-radius:50%; background:var(--line); position:relative; }
+.chat-input .send::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; border-left:2px solid var(--bg); border-top:2px solid var(--bg); transform:translate(-50%,-30%) rotate(45deg); }
+.seq-controls { margin:0 16px 14px; }
 .seq-replay[hidden] { display:none; }
-.seq-replay { font:inherit; font-size:14px; font-weight:600; background:none; color:var(--ink); border:1.5px solid var(--rule); padding:6px 14px; cursor:pointer; }
-/* While the steps play (site.js adds seq-on): every step's text stays at full contrast; the step
-   in play is highlighted, steps reached get a filled number, the line fills to the step, and the
-   result's card is drawn dashed until the last step. */
-.seq.seq-on li.on { background:var(--card); box-shadow:inset 0 3px 0 var(--accent); }
-.seq-steps .n { transition:background-color 300ms ease-out, color 300ms ease-out; }
-.seq.seq-on li.done .n, .seq.seq-on li.on .n, .seq:not(.seq-on) .n { background:var(--accent); color:var(--card); border-color:var(--accent); }
-.seq.seq-on .seq-result .card { border-style:dashed; }
-.seq.seq-on.ended .seq-result .card { border-style:solid; }
-.keeps { margin:28px 0 0; padding:18px 22px; border:1.5px solid var(--rule); background:var(--card); max-width:760px; }
-.keeps h3 { font-family:var(--serif); font-size:21px; margin:0 0 8px; }
+.seq-replay { font:inherit; font-size:13px; font-weight:600; background:none; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 14px; cursor:pointer; }
+/* Playing (site.js adds seq-on): steps not reached wait faded and lowered; the step in play rises in,
+   its marker pulses and its title shimmers; then the assistant types, and the quote arrives. */
+.seq.seq-on .seq-steps li { opacity:.22; transform:translateY(6px); }
+.seq.seq-on .seq-steps li.on, .seq.seq-on .seq-steps li.done { opacity:1; transform:none; }
+.seq.seq-on .seq-steps li.on .n { animation:pulse 1.2s ease-out infinite; }
+.seq.seq-on .seq-steps li.on h3 { background:linear-gradient(90deg, var(--ink) 0%, var(--accent) 50%, var(--ink) 100%) 0 0 / 200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:shimmer 1.6s linear infinite; }
+.seq.seq-on .tool-icon { animation:spin .9s linear infinite; }
+.seq.seq-on.ended .tool-icon { animation:none; }
+.seq.seq-on.typing-now .typing.msg { display:grid; }
+.seq.seq-on .seq-result { opacity:0; transform:translateY(10px); max-height:0; overflow:hidden; transition:opacity 500ms ease-out, transform 500ms ease-out, max-height 600ms ease-out; }
+.seq.seq-on.ended .seq-result { opacity:1; transform:none; max-height:420px; }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(197,163,255,.6); } 100% { box-shadow:0 0 0 12px rgba(197,163,255,0); } }
+@keyframes shimmer { to { background-position:-200% 0; } }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes bounce { 0%, 80%, 100% { transform:translateY(0); opacity:.5; } 40% { transform:translateY(-4px); opacity:1; } }
+@keyframes breathe { 50% { opacity:.35; } }
+.keeps { margin:0; padding:20px 22px; border:1.5px solid var(--rule); background:var(--card); position:sticky; top:24px; }
+.keeps h3 { font-family:var(--serif); font-size:22px; margin:0 0 10px; }
 .keeps ul { margin:0; padding-left:20px; }
-.keeps li { margin:4px 0; }
-@media (prefers-reduced-motion: reduce) { .seq * { transition:none !important; } }
-@media (max-width:1000px) {
-  .seq { grid-template-columns:minmax(0,1fr); }
-  .seq-track { display:none; }
-  ol.seq-steps { grid-template-columns:minmax(0,1fr); border-top:0; border-left:2px solid var(--line); margin-left:11px; }
-  .seq-steps li, .seq-steps li + li { border-left:0; padding:12px 0 14px 20px; position:relative; }
-  .seq-steps h3 .n { position:absolute; left:-13px; top:12px; background:var(--bg); }
-  .seq-steps h3 { padding-left:12px; }
-  .seq.seq-on li.on { box-shadow:inset 3px 0 0 var(--accent); }
-  .seq-result { grid-column:1; justify-self:start; }
+.keeps li { margin:8px 0; }
+@media (prefers-reduced-motion: reduce) { .seq *, .seq *::after { transition:none !important; animation:none !important; } }
+@media (max-width:900px) {
+  .between-grid { grid-template-columns:minmax(0,1fr); }
+  .keeps { position:static; }
+}
+@media (max-width:480px) {
+  .chat-body { padding:16px 12px 6px; }
+  .msg.bot { grid-template-columns:minmax(0,1fr); }
+  .msg.bot > .avatar, .typing .avatar { display:none; }
+  ol.seq-steps { padding:4px 12px; }
+  .msg.you { max-width:94%; }
+  .chat-input { margin:8px 12px 12px; }
 }
 .grid.three { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
 .grid.two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); align-items:start; }

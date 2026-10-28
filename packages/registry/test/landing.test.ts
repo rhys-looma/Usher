@@ -146,12 +146,14 @@ test('what happens in between: six steps in reading order, each with what Usher 
   ]);
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
-  assert.match(section, /<figure class="seq" data-steps>/);
+  assert.match(section, /<figure class="seq chat" data-steps/);
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
-  assert.match(text, /\.seq\.seq-on li\.on \{ background:var\(--card\);/, 'emphasis only once site.js marks the sequence');
-  assert.doesNotMatch(text.split('.seq.seq-on')[1]?.split('</style>')[0] ?? '', /opacity:/, 'never dimmed: every step at full contrast');
+  assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.22;/, 'faded only once site.js plays the sequence');
+  // A generic chat, no product's interface.
+  const figure = /<figure class="seq chat"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
+  assert.doesNotMatch(figure, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
 });
 
 test('what Usher keeps: the same three lines on the page, in /privacy and in docs/security.md', async () => {
