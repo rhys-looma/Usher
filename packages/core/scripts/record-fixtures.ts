@@ -6,7 +6,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { CompileError, compilePage, compilerModel, modelApi, openModel } from '../src/index.ts';
 import { loadDotEnv } from '../src/compile/env.ts';
-import { LAYOUTS, STEPS, launch, openStep } from '../test/helpers.ts';
+import { LAYOUTS, STEPS, launch, openStep, type Layout } from '../test/helpers.ts';
 import { fixtureUrl, recordingChat, type LabelFixture, type RecordedAttempt } from '../test/replay.ts';
 
 loadDotEnv();
@@ -18,7 +18,9 @@ const browser = await launch();
 const rows: string[] = [];
 let failed = false;
 
-for (const layout of LAYOUTS) {
+// --layout c records one layout only (layout C is recorded on its own: A and B keep theirs).
+const only = process.argv.includes('--layout') ? (process.argv[process.argv.indexOf('--layout') + 1] as Layout) : null;
+for (const layout of only ? [only] : [...LAYOUTS, 'c' as Layout]) {
   for (const step of STEPS) {
     const attempts: RecordedAttempt[] = [];
     const { context, page } = await openStep(browser, layout, step);

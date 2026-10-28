@@ -209,13 +209,22 @@ export function validateLabels(raw: unknown, elements: readonly ExtractedElement
     if (!element.visible && !seen.has(element.id)) excluded.push({ id: element.id, label: element.label, reason: 'hidden_without_condition' });
   }
 
-  // Field keys must be unique: conditions refer to fields by key.
-  const fieldKeys = new Map<string, string>();
+  // Field keys must be unique: conditions refer to fields by key. The parts of one split date
+  // (day, month, year in one group) share theirs, each part once.
+  const fieldKeys = new Map<string, { id: string; group?: string; parts: Set<string> }>();
   for (const p of included.values()) {
     if (p.element.kind !== 'field') continue;
     const other = fieldKeys.get(p.label.key);
-    if (other) err(`elements[${p.index}].key`, 'duplicate_key', `"${p.label.key}" is already used by ${other}. Each field needs its own key.`);
-    else fieldKeys.set(p.label.key, p.element.id);
+    const part = p.element.part;
+    if (!other) {
+      fieldKeys.set(p.label.key, { id: p.element.id, ...(p.element.group && { group: p.element.group }), parts: new Set(part ? [part] : []) });
+      continue;
+    }
+    if (part && other.parts.size && !other.parts.has(part) && other.group === p.element.group) {
+      other.parts.add(part);
+      continue;
+    }
+    err(`elements[${p.index}].key`, 'duplicate_key', part ? `"${p.label.key}" is already used by ${other.id}. The parts of one date share a key only within one group, each part once.` : `"${p.label.key}" is already used by ${other.id}. Each field needs its own key.`);
   }
 
   // Second pass: conditions and final risk.

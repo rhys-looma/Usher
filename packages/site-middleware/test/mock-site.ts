@@ -21,13 +21,13 @@ export interface MockSite {
   url: string;
   process: ChildProcess;
   /** Switches the live layout, as /__admin does. */
-  setLayout(layout: 'a' | 'b'): Promise<void>;
+  setLayout(layout: 'a' | 'b' | 'c'): Promise<void>;
   stop(): Promise<void>;
 }
 
 export interface MockSiteOptions {
   registry?: string;
-  variant?: 'a' | 'b';
+  variant?: 'a' | 'b' | 'c';
   /** Registers the site's origin before it starts and returns the site key for its script tag. */
   register?: (origin: string) => Promise<string>;
   /** A fixed port instead of a free one. */

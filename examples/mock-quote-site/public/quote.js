@@ -18,6 +18,35 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('change', refresh);
   refresh();
 
+  // "Find address" (layout C) adds a list of the addresses on the postcode, for the person to pick.
+  const findAddress = form.querySelector('[data-lookup="address"]');
+  if (findAddress) {
+    const postcode = form.querySelector(`[name="${CSS.escape(findAddress.dataset.postcode)}"]`);
+    const results = findAddress.closest('.row').querySelector('.lookup-results');
+    const status = findAddress.parentElement.querySelector('.lookup-status');
+    findAddress.addEventListener('click', async () => {
+      status.textContent = 'Looking up…';
+      results.textContent = '';
+      try {
+        const res = await fetch(`/api/address?postcode=${encodeURIComponent(postcode.value)}`);
+        if (!res.ok) throw new Error('not found');
+        const { addresses } = await res.json();
+        const label = document.createElement('label');
+        label.htmlFor = 'address';
+        label.textContent = 'Please select an address';
+        const select = document.createElement('select');
+        select.id = 'address';
+        select.name = 'address';
+        select.required = true;
+        select.append(new Option('Please select', ''), ...addresses.map((a) => new Option(a.label, a.id)));
+        results.append(label, select);
+        status.textContent = `${addresses.length} addresses found`;
+      } catch {
+        status.textContent = 'We couldn’t find that postcode.';
+      }
+    });
+  }
+
   // "Find car" fills make, model and year from the registration.
   const button = form.querySelector('[data-lookup="vehicle"]');
   if (button) {

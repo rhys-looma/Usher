@@ -23,7 +23,7 @@ import { registerFillTools } from '../src/fill.ts';
 const profile = JSON.parse(await readFile(new URL('../../agent/profiles/test-driver.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
 // The user's values by key; needs_user answers are the user's to give at the pause, so they're not here.
 const { _comment: _, 'consent.declaration': _d, 'consent.marketing': _m, ...values } = profile;
-const labels = await Promise.all((['driver', 'vehicle', 'cover'] as const).map((s) => readFixture('a', s)));
+const labels = await Promise.all((['a', 'c'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s))));
 
 let dir: string;
 let registry: RunningRegistry;
@@ -181,6 +181,20 @@ test('cancel: the fill stops at the decision set and nothing is submitted', asyn
   assert.ok(!cancelled.actions!.some((a) => a.key === 'form.submit'));
   const again = await client.callTool({ name: 'usher_confirm', arguments: { id: first.id } });
   assert.ok(again.isError, 'nothing left to confirm');
+});
+
+test('layout C: the same three decisions, every value filled through the controls real forms use', async () => {
+  await site.setLayout('c');
+  try {
+    const first = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
+    assert.equal(first.status, 'needs_decision', JSON.stringify(first).slice(0, 300));
+    assert.deepEqual(first.decisions!.map((d) => `${d.kind}:${d.key}`), ['required_consent:consent.declaration', 'optional_consent:consent.marketing', 'submit:form.submit']);
+    const { last } = await toTheEnd(first);
+    assert.equal(last.status, 'completed', last.reason);
+    assert.match(last.result!.facts.join(' '), /£[\d,]+\.\d\d a year/);
+  } finally {
+    await site.setLayout('a');
+  }
 });
 
 test('a page with no map: the model reads it, and the reply says so', async () => {

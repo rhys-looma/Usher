@@ -4,6 +4,7 @@
 
 import type { Options } from './extract.ts';
 import type { MapConstraints, MapField } from './map.ts';
+import { isDateKey, matchOption } from './values.ts';
 
 export type ProfileValue = string | boolean;
 export type Profile = Record<string, ProfileValue>;
@@ -18,6 +19,7 @@ export interface FieldSpec {
   constraints?: MapConstraints;
   options?: Options;
   shown_if?: MapField['shown_if'];
+  part?: MapField['part'];
 }
 
 export interface PreflightProblem {
@@ -86,25 +88,29 @@ export function preflight(fields: FieldSpec[], profile: Profile): PreflightResul
       if (max !== undefined && text.length > max) say(f, 'too_long', `"${f.label}" takes at most ${max} characters.`);
       continue;
     }
+    const c = f.constraints ?? {};
+    // A date is YYYY-MM-DD whatever the site shows (vocabulary, "Values"). A text box in the site's
+    // own format, or a date split into parts, is checked as a date; its pattern and length are for
+    // the form the fill types, not for this value.
+    const date = f.control === 'date' || c.format === 'date' || Boolean(f.part) || isDateKey(f.key);
+    if (date) {
+      if (!ISO_DATE.test(text) || Number.isNaN(Date.parse(text))) {
+        say(f, 'format', `"${text}" is not a date in the form YYYY-MM-DD for "${f.label}".`, 'YYYY-MM-DD');
+        continue;
+      }
+      if (f.control !== 'date') continue;
+    }
     if (f.options) {
-      const byValue = f.options.items.find((o) => o.value === text);
-      const byLabel = f.options.items.find((o) => o.label.trim().toLowerCase() === text.trim().toLowerCase());
-      if (byValue) continue;
-      if (byLabel) {
-        normalised[f.key] = byLabel.value;
+      // The option the value means: by value, label, yes/no, or the one number it carries.
+      const matched = matchOption(f.options.items, value);
+      if (matched !== null) {
+        normalised[f.key] = matched;
         continue;
       }
       // Only the first options are in the map; a value beyond them can't be checked here.
       if (f.options.truncated) continue;
       say(f, 'not_an_option', `"${text}" is not an option for "${f.label}".`, f.options.items.map((o) => o.label).join(', '));
       continue;
-    }
-    const c = f.constraints ?? {};
-    if (f.control === 'date' || c.format === 'date') {
-      if (!ISO_DATE.test(text) || Number.isNaN(Date.parse(text))) {
-        say(f, 'format', `"${text}" is not a date in the form YYYY-MM-DD for "${f.label}".`, 'YYYY-MM-DD');
-        continue;
-      }
     }
     if ((f.control === 'email' || c.format === 'email') && !EMAIL.test(text)) say(f, 'format', `"${f.label}" needs an email address.`, 'name@example.com');
     if (c.pattern && !new RegExp(`^(?:${c.pattern})$`).test(text)) say(f, 'pattern', `"${f.label}" doesn't match the format the site expects.`, `pattern ${c.pattern}`);

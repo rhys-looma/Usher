@@ -11,6 +11,12 @@ import type { Browser, Locator, Page } from 'playwright';
 import {
   FLOOR,
   LOOKUP_FILLS,
+  dateFormatOf,
+  datePart,
+  formatDate,
+  isDateKey,
+  matchOption,
+  pickOption,
   preflight,
   validationErrorsScript,
   type FieldSpec,
@@ -159,7 +165,9 @@ export interface RunResult {
   errors?: PageError[];
 }
 
-const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next'];
+// The way forward on a page, in order. A purchase is the user's to make (needs_user), so a run
+// reaching one stops there; a dry run stops before it as before any other.
+const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next', 'form.purchase'];
 
 /** Ends a run early on purpose (the outcome and reason are already set). */
 class StopRun extends Error {}
@@ -275,49 +283,74 @@ async function runLookups(page: Page, map: UsherMap, profile: Profile, ruleFor: 
   return done;
 }
 
-/** In a lookup's list of results, the entry whose text matches the first address line. */
+/**
+ * In a lookup's list of results, the entry for the first address line: one whose first part (before
+ * the first comma) is the line, else one that starts with it, else one that contains it. So "1 High
+ * Street" is never "11 High Street" or "Flat 1, 1 High Street".
+ */
 async function pickResult(page: Page, line1: string): Promise<void> {
-  const want = line1.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  // A select: the option whose text starts with (or contains) the line; a radio: the one whose label does.
+  const plain = (s: string) => s.toLowerCase().replace(/[^a-z0-9,]+/g, ' ').replace(/\s*,\s*/g, ',').trim();
+  const want = plain(line1).replace(/,/g, ' ');
+  const best = (labels: string[]) => {
+    const p = labels.map(plain);
+    const at = (test: (l: string) => boolean) => p.findIndex(test);
+    const i = at((l) => l.split(',')[0] === want);
+    if (i >= 0) return i;
+    const j = at((l) => l.startsWith(`${want},`) || l.startsWith(`${want} `));
+    return j >= 0 ? j : at((l) => l.includes(want));
+  };
   for (const select of await page.locator('select:visible').all()) {
-    const labels = await select.locator('option').allTextContents();
-    const index = labels.findIndex((l) => l.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().includes(want));
+    const index = best(await select.locator('option').allTextContents());
     if (index >= 0) {
       await select.selectOption({ index });
       await page.waitForTimeout(300);
       return;
     }
   }
-  for (const radio of await page.locator('input[type=radio]:visible').all()) {
-    const label = ((await radio.evaluate((el) => (el as HTMLInputElement).labels?.[0]?.textContent ?? '')) || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    if (label.includes(want)) {
-      await radio.check();
-      await page.waitForTimeout(300);
-      return;
-    }
+  const radios = await page.locator('input[type=radio]').all();
+  const labels = await Promise.all(radios.map((r) => r.evaluate((el) => (el as HTMLInputElement).labels?.[0]?.textContent ?? '').catch(() => '')));
+  const index = best(labels);
+  if (index >= 0) {
+    await radios[index]!.check().catch(() => radios[index]!.evaluate((el) => (el as HTMLElement).click()));
+    await page.waitForTimeout(300);
   }
 }
 
 export async function fillField(page: Page, field: MapField, value: string | boolean): Promise<boolean> {
   const target = await locate(page, field);
   if (!target) throw new Error(`Could not find ${field.key} ("${field.label}") on the page.`);
+  const items = field.options?.items;
+  // The option a value means (by value, label, yes/no, or its number), else the value as given.
+  const option = (v: string | boolean) => (items ? (matchOption(items, v) ?? String(v)) : String(v));
+  // Dates are YYYY-MM-DD by key; a split date fills each part, a text date in the field's own form.
+  const iso = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
   switch (field.control) {
     case 'select':
-      await target.selectOption(String(value));
+      await target.selectOption(field.part && iso ? (datePart(iso, field.part, items) ?? option(value)) : option(value));
       return true;
     case 'radio': {
       // The group is found as its container (id, role) or as its radios (name).
-      const option = `[value=${JSON.stringify(String(value))}]`;
+      const chosen = `[value=${JSON.stringify(option(value))}]`;
       const isRadio = (await target.first().evaluate((n) => n.tagName)) === 'INPUT';
-      await (isRadio ? page.locator(`input[type=radio][name=${JSON.stringify(await target.first().getAttribute('name'))}]${option}`) : target.locator(`input[type=radio]${option}`)).check();
+      const radio = (isRadio ? page.locator(`input[type=radio][name=${JSON.stringify(await target.first().getAttribute('name'))}]${chosen}`) : target.locator(`input[type=radio]${chosen}`)).first();
+      await radio.check({ timeout: 3000 }).catch(() => undefined);
+      if (!(await radio.isChecked().catch(() => false))) {
+        // Radios styled as cards: the input is hidden and the site listens on its label.
+        const id = await radio.getAttribute('id');
+        const label = id ? page.locator(`label[for=${JSON.stringify(id)}]`) : radio.locator('xpath=ancestor::label');
+        if (await label.count()) await label.first().click();
+        else await radio.evaluate((el) => (el as HTMLElement).click());
+      }
       return true;
     }
     case 'checkbox':
-      if (value === true) await target.check();
+      if (value === true || (typeof value === 'string' && /^(yes|y|true)$/i.test(value))) await target.check();
       else await target.uncheck();
       return true;
     default:
-      await target.fill(String(value));
+      if (field.part && iso) await target.fill(datePart(iso, field.part) ?? String(value));
+      else if (iso && field.control !== 'date' && (isDateKey(field.key) || field.constraints?.format === 'date')) await target.fill(formatDate(iso, dateFormatOf(field) ?? 'DD/MM/YYYY'));
+      else await target.fill(String(value));
       return true;
   }
 }
@@ -358,6 +391,17 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const check = async (fields: FieldSpec[]): Promise<boolean> => {
     if (options.preflight === false) return true;
     let result = preflight(fields, profile);
+    // An answer no rule matches to an option: the model chooses among the labels (or none).
+    if (!result.ok && options.fallback) {
+      let picked = false;
+      for (const p of result.problems.filter((x) => x.problem === 'not_an_option')) {
+        const f = fields.find((x) => x.key === p.key);
+        if (!f?.options) continue;
+        const v = await pickOption(options.fallback.chat, options.fallback.model, f, f.options.items, String(profile[p.key])).catch(() => null);
+        if (v !== null) (profile = { ...profile, [p.key]: v }), (picked = true);
+      }
+      if (picked) result = preflight(fields, profile);
+    }
     // A missing value is a question for the user at the page's review, not a failure.
     if (options.user.review && !result.ok && result.problems.every((p) => p.problem === 'missing')) result = { ...result, ok: true, problems: [] };
     else if (options.user.review && !result.ok) result = { ...result, problems: result.problems.filter((p) => p.problem !== 'missing') };
@@ -557,15 +601,15 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         reason = `No way forward on ${path}.`;
         break;
       }
-      if (ruleFor(advance) === 'forbid') {
-        outcome = 'stopped';
-        reason = `"${advance.label}" is for the user to do.`;
-        break;
-      }
       if (options.dryRun) {
         // Filled and checked; the way forward is left alone.
         pages.push({ path, match: knock?.match.kind ?? (found ? 'exact' : 'none'), map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: ms(t), filled, handed_off: handedOff });
         reason = `dry run: stopped before "${advance.label}"`;
+        break;
+      }
+      if (ruleFor(advance) === 'forbid') {
+        outcome = 'stopped';
+        reason = `"${advance.label}" is for the user to do.`;
         break;
       }
       if (ruleFor(advance) === 'confirm' && !knock) {

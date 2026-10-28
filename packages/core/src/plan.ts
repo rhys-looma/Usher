@@ -112,6 +112,11 @@ export function composePlan(start: string, maps: Map<string, UsherMap>): UsherPl
         existing.steps.push(path);
         continue;
       }
+      // A date split into parts is one input: the whole date.
+      if (f.part) {
+        inputs.set(f.key, { key: f.key, label: f.label, control: 'date', required: f.required, risk: f.risk, constraints: { format: 'date' }, ...(f.shown_if && { shown_if: f.shown_if }), steps: [path] });
+        continue;
+      }
       inputs.set(f.key, {
         key: f.key,
         label: f.label,

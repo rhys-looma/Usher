@@ -6,7 +6,7 @@ type Row = [control: string, label: string];
 
 const claimsQuestion = 'Have you made any claims in the last 5 years?';
 
-export const expected: Record<Layout, Record<Step, Row[]>> = {
+export const expected: Record<Exclude<Layout, 'c'>, Record<Step, Row[]>> = {
   a: {
     driver: [
       ['select', 'Title'],
