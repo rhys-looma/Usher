@@ -97,6 +97,23 @@ Live model calls need `MODEL_API_KEY` (Meta Model API) and `BASETEN_API_KEY` (Mu
 
 **With Docker:** `docker compose up --build`, then `npm run e2e:remote`. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
 
+## What Usher can fill
+
+The model labels each field by meaning; the code locates it and fills it from the person's value, written one way by key (dates YYYY-MM-DD, answers by meaning).
+
+| Control | How it is filled | Since |
+| --- | --- | --- |
+| Text, email, phone, number, text area | Typed as given | 26 Oct |
+| Date picker | YYYY-MM-DD as given | 26 Oct |
+| Date as text in the site's format (DD/MM/YYYY, MM/YYYY …) | Written in the format the field's placeholder, label or pattern shows | 28 Oct |
+| Date split into day, month and year | Each part (`part` in the map) from the one date | 28 Oct |
+| Select and radio group | The option the value means: by value, label, yes/no, or the one number it carries ("250" is "£250", "12,000" is "Up to 12,000 a year"), a year included; else Muse Spark picks one of the labels | 28 Oct (by value only before) |
+| Radios styled as cards (hidden input, visible label) | The radio, or its label when the input can't be checked | 28 Oct |
+| Checkbox | Ticked or not; consents only from the person's own answer | 26 Oct |
+| Fields shown only after an answer (`shown_if`) | Filled when their condition holds | 26 Oct |
+| Lookup (`lookup.vehicle`, `lookup.address`) | Run first from the registration or postcode; what it fills is left as it filled it; a list of results gets the entry for the first address line | 28 Oct |
+| Combobox, custom dropdown | Not yet: none of the real journeys checked so far needed one | |
+
 ## Benchmark
 
 The same journeys three ways, five runs each, with model latency replayed from recordings. These are medians; [reports/benchmark.md](reports/benchmark.md) has the method and ranges.
