@@ -7,8 +7,9 @@
 import { lookup } from 'node:dns/promises';
 import { isPrivateAddress, publicHost } from '@usher/core/public-fetch';
 import type { Browser } from 'playwright';
-import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
+import { BudgetExceeded, CompileError, NoFormError, VIEWPORT, candidateForms, compilePage, fingerprint, locate, mapFromLabels, scanScript, type ChatFn, type RiskFlag, type Scan, type UsherMap } from '@usher/core';
 import { RateLimiter } from '../rate-limit.ts';
+import { MASK } from '../walkthrough.ts';
 import type { MapRecord, Storage } from '../storage.ts';
 import { html, page, riskBadge, verificationNote, when, type Raw } from './html.ts';
 import type { PickerForm } from './picker.ts';
@@ -91,6 +92,46 @@ export class Viewer {
       if (!result.ok && result.reason === 'budget') break;
     }
     return results;
+  }
+
+  /**
+   * A picked form's map drawn over the page: each element's box, found by the map's own locators,
+   * on one masked screenshot. No model call; kept for a day per map.
+   */
+  async annotate(id: string): Promise<{ map: UsherMap; screenshot: string; width: number; height: number; url: string } | null> {
+    const form = this.forms.find((f) => f.id === id);
+    const picked = form && (await this.options.storage.getCached<PickedMap>('viewer-pick', id));
+    if (!form || !picked) return null;
+    const key = `${id}|${picked.map.fingerprint.digest}`;
+    const kept = await this.options.storage.getCached<{ map: UsherMap; screenshot: string; width: number; height: number; at: string }>('viewer-annotated', key);
+    if (kept && Date.now() - Date.parse(kept.at) < 86_400_000) return { ...kept, url: form.url };
+    const context = await (await this.getBrowser()).newContext({ viewport: VIEWPORT });
+    if (!this.options.allowPrivate) {
+      await context.route('**/*', async (route) => ((await publicHost(new URL(route.request().url()).hostname)) ? route.continue() : route.abort('blockedbyclient')));
+    }
+    try {
+      const tab = await context.newPage();
+      tab.setDefaultTimeout(5_000);
+      await tab.goto(form.url, { waitUntil: 'load', timeout: this.options.timeoutMs ?? 30_000 });
+      const boxed = async <T extends UsherMap['fields'][number] | UsherMap['actions'][number]>(e: T): Promise<T> => {
+        const target = await locate(tab, e).catch(() => null);
+        const box = await target?.first().evaluate((n) => {
+          const r = n.getBoundingClientRect();
+          return { x: Math.round(r.x + scrollX), y: Math.round(r.y + scrollY), width: Math.round(r.width), height: Math.round(r.height) };
+        }).catch(() => null);
+        return box && box.width > 0 ? { ...e, box } : e;
+      };
+      const map = { ...picked.map, fields: await Promise.all(picked.map.fields.map(boxed)), actions: await Promise.all(picked.map.actions.map(boxed)) };
+      const size = await tab.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }));
+      const screenshot = (await tab.screenshot({ type: 'png', fullPage: true, mask: [tab.locator(MASK)], maskColor: '#c9ccd4' })).toString('base64');
+      const result = { map, screenshot, ...size };
+      await this.options.storage.putCached('viewer-annotated', key, { ...result, at: new Date().toISOString() });
+      return { ...result, url: form.url };
+    } catch {
+      return null;
+    } finally {
+      await context.close();
+    }
   }
 
   private async mapPicked(form: PickerForm, client: string, limited: boolean): Promise<ViewerResult> {
@@ -231,13 +272,14 @@ function locators(el: { locators: UsherMap['fields'][number]['locators'] }): Raw
 
 /** A map, readable: purpose, fields with key and risk, actions, locators, fingerprint, raw JSON. */
 /** A map as a page. For a site owner (owner: true), without the structure signature and the raw file, which are for developers. */
-export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord; flags?: RiskFlag[]; owner?: boolean }): string {
+export function mapPage(map: UsherMap, info: { source: string; record?: MapRecord; flags?: RiskFlag[]; owner?: boolean; annotated?: string }): string {
   const drift = info.record?.drift;
   return page(
     map.form.purpose,
     html`<p class="muted small"><a href="/viewer">Map viewer</a> · ${map.origin}${map.path}</p>
 <h1>${map.form.purpose}</h1>
 <p class="lede">${map.form.intent ? html`Intent <code>${map.form.intent}</code> · ` : ''}${map.fields.length} fields, ${map.actions.length} actions · ${info.source}</p>
+${info.annotated ? html`<p><a href="${info.annotated}">See how Usher reads this form</a>: each element boxed on the page, coloured by risk.</p>` : ''}
 ${info.record && verificationNote(info.record) ? html`<div class="card ${info.record.verification ? 'notice' : 'warn'}">${verificationNote(info.record)}</div>` : ''}
 ${drift ? html`<div class="card warn"><b>Drifted.</b> The live form no longer matches this map (similarity ${drift.score}), reported ${when(drift.at)}.</div>` : ''}
 ${info.flags?.length ? html`<div class="card warn"><b>Second opinion.</b> The open-weights classifier disagreed on ${info.flags.length} element${info.flags.length === 1 ? '' : 's'}; the stricter risk was kept.<ul class="small">${info.flags.map((f) => html`<li>${f.label} (<code>${f.key}</code>): labeller ${f.labeller}, classifier ${f.classifier}, kept ${riskBadge(f.kept)}. ${f.reason}</li>`)}</ul></div>` : ''}

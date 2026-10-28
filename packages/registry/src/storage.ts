@@ -63,7 +63,7 @@ export interface SessionIdentity {
    * web-bot-auth: an HTTP Message Signature (RFC 9421); usher-signature: the signed knock body;
    * hosted: a key the registry minted for one hosted MCP connection, knocking through the registry.
    */
-  method: 'web-bot-auth' | 'usher-signature' | 'hosted';
+  method: 'web-bot-auth' | 'usher-signature' | 'hosted' | 'walkthrough';
   /** Where the agent publishes its keys (Signature-Agent), when it said. */
   signature_agent?: string;
 }
@@ -105,7 +105,7 @@ export interface StoredKey {
 }
 
 /** Append-only logs. interest: "I run a site with forms" from the front page. */
-export type LogName = 'matches' | 'runs' | 'drift' | 'blocked' | 'interest';
+export type LogName = 'matches' | 'runs' | 'drift' | 'blocked' | 'interest' | 'corrections';
 
 export interface Storage {
   signingKeys(): Promise<StoredKey[]>;

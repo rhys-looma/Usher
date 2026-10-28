@@ -75,6 +75,17 @@ The registry's hosted MCP endpoint (`/mcp`) runs `usher_fill` in our browser, fo
   - Model fallback stays within the registry's daily spend cap.
 - **Values.** They pass from the assistant's call into the site's form, in a fresh browser context closed when the fill ends. They are never logged or stored (see "What Usher keeps" above). A `needs_user` answer that isn't sensitive, such as whether the person smokes, is entered only as they said it and put back to them on the decision card before anything is submitted: if they say it isn't right, nothing is submitted.
 
+## Map my site (the walkthrough)
+
+The walkthrough ([walkthrough.md](walkthrough.md)) drives a real browser through a site's form with test values. Its controls:
+
+- **Who.** Only the signed-in owner of a site that has proved its origin, on that origin; the operator only on the public demo site. One run per site per UTC day, one at a time, and refused if it would pass the daily model cap.
+- **Where its browser goes.** Never off the site's origin for a page load, and every request (page, redirect, script, frame) must reach a public address, as for the viewer and hosted MCP. A test points a run at a private address and checks it gets nowhere.
+- **Values.** The owner's test values (or the generated person) are held in the run's memory only. Every screenshot and live frame greys out inputs, selects, text areas and chosen options before it is taken (Playwright masks, not a later blur), so no value is ever in an image. Lookup results are kept as a label and a count. Errors are reported by key and label. Tests check completed, cancelled and failed runs against every file written and every event streamed, and check the mask colour under every field's box.
+- **Identity.** The run knocks as `walkthrough:<site>`, in-process; nothing over HTTP can claim it. The site's log shows these sessions as the walkthrough.
+- **The final action.** Pressed only when the owner ticked it, after a knock that confirms it, like any agent.
+- **Publishing.** A proposal changes nothing until the owner publishes it. Corrections are validated against the map schema and stored as structure, for training (owner-verified labels).
+
 ## Other controls
 
 - **Rate limits** on every registry endpoint, per address and per key, plus the site's own limits per agent (for example, five quotes an hour).

@@ -32,6 +32,7 @@
     "accuracy:score": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/accuracy-score.ts",
     "demo": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/live/demo.ts",
     "demo:local": "USHER_DEMO=1 node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/demo/demo.ts",
+    "demo:walkthrough": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/walkthrough-demo.ts",
     "demo:drift": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/drift-demo.ts",
     "finetune:export": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/finetune-export.ts",
     "finetune:eval": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/finetune-eval.ts",

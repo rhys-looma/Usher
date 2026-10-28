@@ -41,9 +41,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
 import { hostedMcp } from '../../mcp/src/hosted.ts';
-import { budgeted, compilerModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
+import { DEFAULT_LOG_DIR, budgeted, compilerModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
+import { Walkthroughs } from './walkthrough.ts';
 import { PostgresStorage } from './postgres.ts';
 import { isProduction, productionProblems, proxyHops } from './production.ts';
 import { seed } from './seed.ts';
@@ -117,6 +118,21 @@ const running = await startRegistry({
   ...(env.USHER_HOSTED_MCP !== 'off' && {
     // The registry's own model for pages with no map, within the same daily cap.
     mcp: (registry) => hostedMcp({ registry, version: env.USHER_VERSION || 'dev', browser: hostedBrowser, allowPrivate: values['allow-private'], ...(spark && { fallback: { chat: spark.chat, model: spark.model, logDir: null } }) }),
+  }),
+  // "Map my site": an owner's walkthrough, in the hosted browser, by Muse Spark within the same cap.
+  // One run per site per UTC day; USHER_WALKTHROUGH_DAILY_LIMIT raises it for our own demo site.
+  ...(spark && {
+    walkthroughs: (registry) =>
+      new Walkthroughs({
+        registry,
+        browser: hostedBrowser,
+        compiler: spark,
+        spend: { today: spentToday, cap: budget },
+        dailyLimit: (origin) => (origin === demoOrigin ? Number(env.USHER_WALKTHROUGH_DAILY_LIMIT ?? 1) : 1),
+        allowPrivate: values['allow-private'],
+        // Owners' corrections are kept in storage; the file log is for local development.
+        logDir: production ? null : DEFAULT_LOG_DIR,
+      }),
   }),
   port: Number(values.port),
   host: values.host,
