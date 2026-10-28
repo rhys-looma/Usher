@@ -180,3 +180,21 @@ test('values echoed back by the server in value attributes are not read', async 
     assertNoneOf(result, typed, `${layout} re-rendered driver`);
   }
 });
+
+test('a radio group named by a heading inside its own fieldset takes that heading, not the question before', async () => {
+  const page = await browser.newPage();
+  await page.setContent(`<form>
+<h2>Your cover</h2>
+<fieldset><h3>Which cover type would you like?</h3><input type="radio" id="c1" name="cover" value="family"><label for="c1">Family protection</label><input type="radio" id="c2" name="cover" value="mortgage"><label for="c2">Mortgage protection</label></fieldset>
+<fieldset><h3>Who would you like to cover?</h3><input type="radio" id="w1" name="who" value="1"><label for="w1">Me</label><input type="radio" id="w2" name="who" value="2"><label for="w2">Me and someone else</label></fieldset>
+<h3>Do you want to add critical illness cover?</h3>
+<fieldset><input type="radio" id="i1" name="ci" value="yes"><label for="i1">Yes</label><input type="radio" id="i2" name="ci" value="no"><label for="i2">No</label></fieldset>
+</form>`);
+  const found = (await scan(page)).forms[0]!.elements.map((e) => [e.name, e.label, e.labelSource]);
+  assert.deepEqual(found, [
+    ['cover', 'Which cover type would you like?', 'heading'],
+    ['who', 'Who would you like to cover?', 'heading'],
+    ['ci', 'Do you want to add critical illness cover?', 'heading'],
+  ]);
+  await page.close();
+});

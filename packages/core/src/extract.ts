@@ -250,6 +250,13 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       const aria = norm(target.getAttribute('aria-label'));
       if (aria) return { label: aria, source: 'aria-label' };
     }
+    // A heading inside the group, before its first option, names it (a fieldset with no legend, as on
+    // Aviva's quote forms); one of the headings before the group would name the question before it.
+    if (target !== radios[0]) {
+      for (const h of Array.from(target.querySelectorAll('h1, h2, h3, h4, h5, h6'))) {
+        if (h.compareDocumentPosition(radios[0]!) & Node.DOCUMENT_POSITION_FOLLOWING && textOf(h)) return { label: textOf(h), source: 'heading' };
+      }
+    }
     // A common heading: the nearest heading before the group.
     const scope = scopeOf(target);
     const start = target.closest('label') ?? target;
