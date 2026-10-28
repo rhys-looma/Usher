@@ -43,7 +43,9 @@ test('front page: the sentence, map / knock / log, the viewer box, both quicksta
   assert.ok(text.includes(`data-usher-registry=&quot;${registry.url}&quot;`), 'the tag names this registry');
   assert.ok(text.includes('href="/sites/new"'), 'Get your keys');
   assert.match(text, /× faster/, 'the benchmark');
-  assert.match(text, /given the right meaning, human-checked \(\d+ on public forms\)/, 'human-checked public forms only, never the mock site\'s answer key');
+  assert.match(text, /of fields and buttons on public forms given the right meaning \(\d+ of \d+\), human-checked/, 'human-checked public forms only, never the mock site\'s answer key');
+  assert.match(text, /given the right risk \(\d+ of \d+\)/, 'with the sample size');
+  assert.ok(text.includes('Maps are cached and refreshed by Usher&#39;s keeper; nothing is submitted to any of these sites.') || text.includes("Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites."));
   assert.match(text, /<code>usher_fill<\/code> takes the form&#39;s values by meaning|<code>usher_fill<\/code> takes the form's values by meaning/);
   const description = 'Usher is the front door for AI agents on web forms: the control layer for sites, one call for agents, no integration required.';
   assert.ok(text.includes(`<meta name="description" content="${description}">`) && text.includes(`<meta property="og:description" content="${description}">`));
@@ -112,4 +114,14 @@ test('the dashboard sign-in and signup step 1 carry the same three claims', asyn
     const text = await (await fetch(`${registry.url}${path}`)).text();
     for (const claim of ['No changes to your systems.', 'You set the terms.', 'Every agent action on the record.']) assert.ok(text.includes(`<b>${claim}</b>`), `${path}: ${claim}`);
   }
+});
+
+test('numbers: a half-marked accuracy run is never shown; the latest complete one is, with its sample sizes', async () => {
+  const { loadNumbers } = await import('../src/web/landing.ts');
+  const { accuracy } = await loadNumbers();
+  assert.equal(accuracy?.kind, 'reviewed');
+  if (accuracy?.kind !== 'reviewed') return;
+  // The current review still has unmarked public rows, so the complete run of 27 October shows.
+  assert.equal(accuracy.run, '2026-10-27');
+  assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.9%', '51 of 69', '98.6%', '68 of 69']);
 });

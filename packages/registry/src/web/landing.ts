@@ -1,7 +1,7 @@
 // The front page (LU-53): what Usher is, the map viewer inline (when it is on), the two quickstarts, the numbers
 // from the committed reports, and an interest form that carries Usher's own script tag.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { FAVICON, LOOMA_FOOTER, THEME, esc, html, siteClaims, type Raw } from './html.ts';
 import type { PickerForm } from './picker.ts';
 import { PICKER_STYLE, pickerButtons } from './viewer.ts';
@@ -25,7 +25,7 @@ export interface Numbers {
   benchmark: { rows: BenchmarkRow[]; generated?: string };
   /** Human-checked accuracy once anyone has marked the public forms; until then, what code can check. */
   accuracy:
-    | { kind: 'reviewed'; keys: string; risk: string; reviewed: number }
+    | { kind: 'reviewed'; keys: string; risk: string; keysOf: string; riskOf: string; reviewed: number; run?: string }
     | { kind: 'automatic'; resolved: number; elements: number; forms: number; agreement: { set: string; pct: string; of: number }[] }
     | null;
 }
@@ -66,14 +66,22 @@ export async function loadNumbers(): Promise<Numbers> {
   const generated = /Generated (\d{4}-\d{2}-\d{2})/.exec(bench)?.[1];
 
   let accuracy: Numbers['accuracy'] = null;
-  const [header, ...lines] = (await read('reports/accuracy-review.csv')).trim().split('\n');
-  const cols = header ? csvRow(header) : [];
-  const marked = lines.map((l) => Object.fromEntries(csvRow(l).map((v, i) => [cols[i], v.trim().toLowerCase()])) as Record<string, string>).filter((r) => r.category !== 'mock site' && ['y', 'n'].includes(r.key_correct ?? ''));
-  if (marked.length) {
+  // The latest human-checked run whose public-form rows are all marked: the current review once it
+  // is complete, else the most recent complete dated one. A half-marked run is never shown.
+  const reviews = ['accuracy-review.csv', ...(await readdir(new URL('reports/', ROOT)).catch(() => [] as string[])).filter((f) => /^accuracy-review-\d{4}-\d{2}-\d{2}\.csv$/.test(f)).sort().reverse()];
+  for (const file of reviews) {
+    const [header, ...lines] = (await read(`reports/${file}`)).trim().split('\n');
+    const cols = header ? csvRow(header) : [];
+    const rows = lines.map((l) => Object.fromEntries(csvRow(l).map((v, i) => [cols[i], v.trim().toLowerCase()])) as Record<string, string>).filter((r) => r.category !== 'mock site');
+    const marked = rows.filter((r) => ['y', 'n'].includes(r.key_correct ?? '') && ['y', 'n'].includes(r.risk_correct ?? ''));
+    if (!rows.length || marked.length < rows.length) continue;
     const keys = marked.filter((r) => r.key_correct === 'y').length;
-    const risked = marked.filter((r) => ['y', 'n'].includes(r.risk_correct ?? ''));
-    accuracy = { kind: 'reviewed', keys: pct(keys, marked.length), risk: risked.length ? pct(risked.filter((r) => r.risk_correct === 'y').length, risked.length) : '–', reviewed: marked.length };
-  } else {
+    const risk = marked.filter((r) => r.risk_correct === 'y').length;
+    const run = /(\d{4}-\d{2}-\d{2})/.exec(file)?.[1];
+    accuracy = { kind: 'reviewed', keys: pct(keys, marked.length), risk: pct(risk, marked.length), keysOf: `${keys} of ${marked.length}`, riskOf: `${risk} of ${marked.length}`, reviewed: marked.length, ...(run && { run }) };
+    break;
+  }
+  if (!accuracy) {
     const report = JSON.parse((await read('reports/accuracy.json')) || '{"results":[]}') as { results: { status: string; elements?: number; locators_resolved?: number }[] };
     const ok = report.results.filter((r) => r.status === 'ok');
     const elements = ok.reduce((s, r) => s + (r.elements ?? 0), 0);
@@ -104,7 +112,8 @@ ${
 }
 ${
   a?.kind === 'reviewed'
-    ? html`<div class="grid"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons given the right meaning, human-checked (${a.reviewed} on public forms)</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk</span></div></div>`
+    ? html`<div class="grid"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons on public forms given the right meaning (${a.keysOf}), human-checked</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk (${a.riskOf})</span></div></div>
+<p class="small muted">${a.run ? `The run of ${a.run}, every element marked by hand. ` : 'Every element marked by hand. '}<a href="${REPOSITORY}/blob/main/reports/accuracy-scored.md">Both runs, scored</a>.</p>`
     : a?.kind === 'automatic'
       ? html`<div class="grid"><div class="card stat"><b>${pct(a.resolved, a.elements)}</b><span>of ${a.elements} fields and buttons on ${a.forms} forms found again on the live page by their map</span></div>${a.agreement.map(
           (g) => html`<div class="card stat"><b>${g.pct}</b><span>agreement on risk between two models (Muse Spark and Muse Spark Open), ${g.of} elements on ${g.set}</span></div>`,
@@ -136,20 +145,25 @@ export interface LandingOptions {
 
 /**
  * "Inside the assistant": an illustrated conversation with an assistant built on Muse Spark, in a
- * plain window of our own (no product's interface). The cards are the MCP Apps cards' own markup and
- * styles (cards.ts), so they look as they do in a client. Everything is on the page without
- * JavaScript; site.js only dims the later steps and brings them up in turn as the section comes
- * into view. The window is inert: it is a picture, not a form.
+ * plain window of our own (no product's interface), with three short steps beside the cards they
+ * explain. The cards are the MCP Apps cards' own markup and styles (cards.ts). The illustration's
+ * boxes are drawn, not inputs: it is a picture. Nothing consequential starts ticked; "you" tick the
+ * declaration and Get my quote, Confirm lights up, and the result follows. site.js plays that in
+ * order once the section is in view; without it (or with reduced motion) the last frame shows, with
+ * the ticks marked as yours. One grid: the window spans the left column, each step sits in the row
+ * of its card, and on a phone each step falls under its card.
  */
 function assistantSection(url: string, demoOrigin = 'https://brightwater.example'): Raw {
   const host = new URL(demoOrigin).host;
+  const tick = html`<span class="box" aria-hidden="true"></span>`;
+  const you = html`<span class="by-you">you</span>`;
   return html`<section id="assistant" data-reveal><h2>Inside the assistant</h2>
 <p class="lede">Add ${url}/mcp to any assistant that speaks MCP. Here, one built on Muse Spark asks for a quote. Usher does the rest, and the person decides.</p>
-<figure class="assistant" aria-label="Illustration: an assistant built on Muse Spark gets a car insurance quote through Usher">
+<figure class="assistant uc" aria-label="Illustration: an assistant built on Muse Spark gets a car insurance quote through Usher" inert data-sequence>
+<div class="assistant-window" aria-hidden="true"></div>
 <div class="assistant-bar"><span class="assistant-name">An assistant built on Muse Spark</span><span class="assistant-tag">Illustration</span></div>
-<div class="assistant-chat uc" inert data-sequence>
 <div class="step person"><p class="bubble">Get me a car insurance quote on Brightwater for my details.</p></div>
-<div class="step said">
+<div class="step said s-ticket">
 <div class="card ticket"><div class="ticket-main"><p class="label">Admit one agent</p><p class="title">Car insurance quote</p><p class="where">${host}/quote/driver</p><dl>
 <div><dt>Agent</dt><dd>key 7f3a…c21, signed</dd></div>
 <div><dt>Map</dt><dd>3 pages, every field by meaning</dd></div>
@@ -157,28 +171,24 @@ function assistantSection(url: string, demoOrigin = 'https://brightwater.example
 <div><dt>Valid</dt><dd>10 minutes, this site only</dd></div>
 </dl></div><div class="stub"><span class="label">No.</span><b>0042</b><span>session</span></div></div>
 </div>
-<div class="step said">
+<div class="explain e-ticket"><h3><span>1</span> The agent knocks</h3><p>Usher checks who it is, hands it the map and the house rules, and a pass that lasts ten minutes.</p></div>
+<div class="step said s-decision">
 <div class="card"><p class="label">Your decision</p><p class="title">Before Usher goes on</p><p class="where">${host}/quote/cover</p><p class="asking">Usher is asking you, not the agent</p>
-<div class="row"><label class="check"><input type="checkbox" checked tabindex="-1"><span class="verbatim">I confirm the information I have given is true and complete<span class="tag req">required</span></span></label></div>
-<div class="row"><span class="verbatim">Send me offers by email (optional)<span class="tag opt">optional</span></span><div class="yesno"><label><input type="radio" name="illustration-marketing" tabindex="-1"> Yes</label><label><input type="radio" name="illustration-marketing" checked tabindex="-1"> No</label></div></div>
-<div class="row"><label class="check"><input type="checkbox" checked tabindex="-1"><span>Yes, press <b>“Get my quote”</b> for me</span></label><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.</p></div>
-<button type="button" tabindex="-1">Confirm</button>
+<div class="row"><span class="check t1">${tick}<span class="verbatim">I confirm the information I have given is true and complete<span class="tag req">required</span></span>${you}</span></div>
+<div class="row"><span class="verbatim">Send me offers by email (optional)<span class="tag opt">optional</span></span><div class="yesno"><span class="radio"></span> Yes <span class="radio on"></span> No</div></div>
+<div class="row"><span class="check t2">${tick}<span>Yes, press <b>“Get my quote”</b> for me</span>${you}</span><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.</p></div>
+<span class="button confirm">Confirm</span>
 </div>
-<p class="caption">Usher is asking you, not the agent.</p>
 </div>
-<div class="step said">
+<div class="explain e-decision"><h3><span>2</span> You decide</h3><p>The site's own words, your tick. Usher never answers for you.</p></div>
+<div class="step said s-result">
 <div class="card"><p class="label">Usher</p><p class="title">Your quote</p><p class="where">${host}/quote/result</p><p class="outcome ok">Completed</p>
 <ul class="facts"><li class="verbatim">£308.70 a year</li><li class="verbatim">Quote reference BW-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
-<p class="note"><a href="#assistant" tabindex="-1">Open the page</a> · as the site shows it, word for word</p></div>
-<p class="caption">Every action by meaning, on the site's record. Your details never stored.</p>
+<p class="note"><span class="link">Open the page</span> · as the site shows it, word for word</p></div>
 </div>
-</div>
+<div class="explain e-result"><h3><span>3</span> Done, on the record</h3><p>The result as the site shows it. The site sees every action by meaning. Your details are never stored.</p></div>
 </figure>
-<ul class="assistant-notes small muted">
-<li>Shown: an agent on Muse Spark through the Meta Model API. Also works in Claude, ChatGPT, Cursor and any MCP client.</li>
-<li>Cards render where the client supports MCP Apps; plain text everywhere else.</li>
-<li>Hosted Usher acts only on sites that have joined. The local server acts anywhere, with your own key.</li>
-</ul>
+<p class="small muted assistant-note">Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.</p>
 </section>`;
 }
 
@@ -192,7 +202,7 @@ export function landingPage(o: LandingOptions): string {
 <p class="label">An open protocol for web forms</p>
 <h1>${first}. <em>${rest.join('. ')}</em></h1>
 <p class="lede">${SUBLINE}</p>
-<p class="actions"><a class="button" href="/sites/new">Get your keys</a><a class="button ghost" href="#start">Connect an agent</a></p>
+<p class="actions"><a class="button" href="/sites/new">Get your keys</a><a class="button ghost" href="#agents">Connect an agent</a></p>
 </div>
 <aside class="ticket" aria-label="An example of what an agent receives when it knocks">
 <div class="ticket-main">
@@ -224,6 +234,7 @@ ${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
 <p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
 ${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
 ${pickerButtons(o.forms, 'home')}
+<p class="small muted">Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites.</p>
 <p class="small muted">Run a site? <a href="/dashboard">Sign in</a> and map any page on it.</p>
 </section>` : ''}
 
@@ -234,14 +245,18 @@ ${pickerButtons(o.forms, 'home')}
 ${siteClaims()}
 <p><a class="button" href="/sites/new">Get your keys</a></p>
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
-<div class="card"><p class="label">For agents</p><h2>One call fills the form.</h2>
+<div class="card" id="agents"><p class="label">For agents</p><h2>One call fills the form.</h2>
 <p class="lede">No signup. Your agent's key is its identity.</p>
-${o.hosted ? html`<p><b>Assistants</b> (claude.ai, Claude Desktop, ChatGPT, Cursor): add this as a remote MCP server. Nothing to install.</p>
-<pre class="wrap">${o.url}/mcp</pre>
-<p><b>Frameworks and your own agents:</b> run it locally.</p>` : ''}
+${o.hosted
+  ? html`<pre class="wrap">${o.url}/mcp</pre>
+<p>Hosted Usher acts on sites that have joined.</p>
+<details class="local"><summary>Running your own agent or framework?</summary>
 <pre>${mcp}</pre>
-${o.hosted ? html`<p class="small muted">Hosted acts on sites that have joined Usher; local acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>` : ''}
-<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.${o.hosted ? html` <a href="#assistant">See it inside an assistant</a>.` : ''}</p>
+<p class="small muted">The local server acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>
+</details>
+<p><a href="#assistant">See it inside an assistant</a>.</p>`
+  : html`<pre>${mcp}</pre>
+<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p>`}
 ${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run <code>usher_fill</code> on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>
 
@@ -302,32 +317,64 @@ ${PICKER_STYLE}
 /* Sections settle into place as they come near (site.js). Content is always present and fully
    visible: only position moves, so pages without JavaScript and screenshots see everything. */
 /* Inside the assistant: a plain window of our own, always dark, holding the MCP Apps cards as a
-   client shows them (CARD_CSS). */
+   client shows them (CARD_CSS), with the steps beside them. One grid: the window (a frame behind
+   the left column) spans every row; each step shares its card's row. */
 ${CARD_CSS}
-.assistant { ${CARD_DARK} margin:22px 0 0; max-width:640px; background:var(--bg); border:1.5px solid var(--line); color:var(--ink); }
-.assistant-bar { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 18px; border-bottom:1.5px dashed var(--line); }
+#assistant { --ink-page:var(--ink); --muted-page:var(--muted); --accent-page:var(--accent); }
+.assistant { ${CARD_DARK} display:grid; grid-template-columns:minmax(0,600px) minmax(0,1fr); column-gap:44px; margin:22px 0 0; position:relative; font-size:15px; line-height:1.5; }
+.assistant-window { grid-column:1; grid-row:1 / 6; background:var(--bg); border:1.5px solid var(--line); }
+.assistant > .assistant-bar, .assistant > .step { grid-column:1; position:relative; color:var(--ink); }
+.assistant-bar { grid-row:1; display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 18px; border-bottom:1.5px dashed var(--line); }
 .assistant-name { font-family:var(--serif); font-size:17px; font-weight:700; }
 .assistant-tag { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
-.assistant-chat { display:grid; gap:18px; padding:20px 18px 22px; font-size:15px; line-height:1.5; }
-.assistant-chat .step { min-width:0; max-width:520px; }
-.assistant-chat .person { justify-self:end; max-width:80%; }
-.assistant-chat .bubble { margin:0; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; }
-.assistant-chat .ticket { transform:rotate(-1deg); }
-.assistant-chat .caption { margin:8px 2px 0; font-size:12.5px; color:var(--muted); font-style:italic; }
-.assistant-chat input[type=checkbox], .assistant-chat input[type=radio] { width:auto; margin:3px 0 0; padding:0; accent-color:var(--accent); }
-.assistant-chat .yesno input { margin:0; }
-.assistant-chat button { margin-top:12px; }
-.assistant-notes { margin:14px 0 0; padding-left:1.2em; max-width:640px; }
-.assistant-notes li { margin:2px 0; }
-/* The conversation plays in order once in view (site.js): later steps wait dimmed, never hidden,
-   so nothing is missing without JavaScript and no space sits empty. */
-.assistant-chat.waiting .step:not(:first-child) { opacity:.3; }
-.assistant-chat .step { transition:opacity 500ms ease-out; }
-.assistant-chat.play .step:nth-child(2) { transition-delay:700ms; }
-.assistant-chat.play .step:nth-child(3) { transition-delay:1600ms; }
-.assistant-chat.play .step:nth-child(4) { transition-delay:2500ms; }
-@media (prefers-reduced-motion: reduce) { .assistant-chat .step { transition:none; } .assistant-chat.waiting .step { opacity:1; } }
-@media (max-width:480px) { .assistant-chat { padding:16px 12px 18px; } .assistant-chat .person { max-width:92%; } .assistant-chat .ticket { transform:none; } }
+.assistant > .step { padding:9px 18px; min-width:0; }
+.assistant > .person { grid-row:2; justify-self:end; max-width:82%; padding-top:18px; }
+.s-ticket, .e-ticket { grid-row:3; } .s-decision, .e-decision { grid-row:4; } .s-result, .e-result { grid-row:5; }
+.s-result { padding-bottom:20px !important; }
+.assistant .bubble { margin:0; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; }
+/* The ticket at about two-thirds size, so the conversation fits in less height. */
+.assistant .ticket { zoom:.7; transform:rotate(-1deg); max-width:470px; }
+.assistant .explain { grid-column:2; align-self:center; color:var(--ink-page); max-width:34ch; }
+.assistant .explain h3 { font-family:var(--serif); font-size:21px; margin:0 0 4px; display:flex; gap:10px; align-items:baseline; color:var(--ink-page); }
+.assistant .explain h3 span { font-size:13px; font-weight:700; color:var(--accent-page); border:1.5px solid currentColor; border-radius:999px; width:24px; height:24px; display:inline-grid; place-items:center; flex:none; font-family:Inter,system-ui,sans-serif; }
+.assistant .explain p { margin:0; color:var(--muted-page); font-size:16px; }
+/* Drawn boxes: the illustration is a picture. */
+.assistant .check { display:flex; gap:10px; align-items:flex-start; }
+.assistant .box { flex:none; width:18px; height:18px; margin-top:3px; border:1.5px solid var(--muted); border-radius:3px; display:inline-grid; place-items:center; }
+.assistant .box::after { content:"✓"; font-size:13px; font-weight:800; line-height:1; color:var(--card); }
+.assistant .check .box { background:var(--accent); border-color:var(--accent); }
+.assistant .by-you { margin-left:auto; padding-left:8px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); white-space:nowrap; }
+.assistant .radio { display:inline-block; width:14px; height:14px; border:1.5px solid var(--muted); border-radius:50%; vertical-align:-2px; }
+.assistant .radio.on { border:4px solid var(--accent); }
+.assistant .yesno { align-items:center; gap:6px; }
+.assistant .confirm { display:inline-block; margin-top:12px; background:var(--rule); color:var(--card); font-weight:600; padding:10px 18px; border:0; }
+.assistant .link { text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:3px; }
+.assistant-note { max-width:600px; margin:14px 0 0; }
+details.local { margin:4px 0 14px; } details.local summary { cursor:pointer; font-weight:600; } details.local pre { margin-top:10px; }
+/* The sequence (site.js): until it plays, the cards after the request wait dimmed (never hidden),
+   both boxes are empty and Confirm is greyed; then the ticket, the decision card, your two ticks,
+   Confirm and the result come in turn. Without it, the last frame. */
+.assistant .step, .assistant .explain, .assistant .box, .assistant .by-you, .assistant .confirm { transition:opacity 450ms ease-out, background-color 250ms ease-out, border-color 250ms ease-out; }
+.assistant.waiting .s-ticket, .assistant.waiting .s-decision, .assistant.waiting .s-result, .assistant.waiting .explain { opacity:.3; }
+.assistant.waiting .check .box { background:transparent; border-color:var(--muted); }
+.assistant.waiting .box::after, .assistant.waiting .by-you { opacity:0; }
+.assistant.waiting .confirm { opacity:.45; }
+.assistant.play .s-ticket, .assistant.play .e-ticket { transition-delay:600ms; }
+.assistant.play .s-decision, .assistant.play .e-decision { transition-delay:1500ms; }
+.assistant.play .t1 .box, .assistant.play .t1 .box::after, .assistant.play .t1 .by-you { transition-delay:2700ms; }
+.assistant.play .t2 .box, .assistant.play .t2 .box::after, .assistant.play .t2 .by-you { transition-delay:3400ms; }
+.assistant.play .confirm { transition-delay:3900ms; }
+.assistant.play .s-result, .assistant.play .e-result { transition-delay:4700ms; }
+@media (prefers-reduced-motion: reduce) { .assistant * { transition:none !important; } }
+@media (max-width:900px) {
+  .assistant { grid-template-columns:minmax(0,1fr); }
+  .assistant-window { grid-row:1 / 9; }
+  .assistant > .explain { grid-column:1; position:relative; color:var(--ink); padding:0 18px 12px; max-width:none; }
+  .assistant .explain h3, .assistant .explain p { color:var(--ink); } .assistant .explain p { color:var(--muted); font-size:14.5px; }
+  .s-ticket { grid-row:3; } .e-ticket { grid-row:4; } .s-decision { grid-row:5; } .e-decision { grid-row:6; } .s-result { grid-row:7; } .e-result { grid-row:8; padding-bottom:20px; }
+  .s-result { padding-bottom:9px !important; }
+}
+@media (max-width:480px) { .assistant > .step { padding:8px 12px; } .assistant > .explain { padding:0 12px 12px; } .assistant > .person { max-width:92%; } .assistant .ticket { zoom:.85; transform:none; } }
 [data-reveal] { transition:transform 240ms ease-out; }
 html.reveal [data-reveal]:not(.shown) { transform:translateY(16px); }
 @media (prefers-reduced-motion: reduce) { [data-reveal] { transition:none; } html.reveal [data-reveal]:not(.shown) { transform:none; } }
