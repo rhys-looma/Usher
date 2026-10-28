@@ -59,8 +59,11 @@ export interface SessionEvent {
 
 /** How the agent proved its id when it knocked. */
 export interface SessionIdentity {
-  /** web-bot-auth: an HTTP Message Signature (RFC 9421); usher-signature: the signed knock body. */
-  method: 'web-bot-auth' | 'usher-signature';
+  /**
+   * web-bot-auth: an HTTP Message Signature (RFC 9421); usher-signature: the signed knock body;
+   * hosted: a key the registry minted for one hosted MCP connection, knocking through the registry.
+   */
+  method: 'web-bot-auth' | 'usher-signature' | 'hosted';
   /** Where the agent publishes its keys (Signature-Agent), when it said. */
   signature_agent?: string;
 }

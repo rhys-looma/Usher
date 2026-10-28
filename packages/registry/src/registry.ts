@@ -109,6 +109,11 @@ export interface RegistryOptions {
   publicDemo?: { origin: string; keepAgents?: string[] };
 }
 
+/** Why a hosted connection can't act on a site that hasn't joined, and what to use instead. */
+export function notJoinedMessage(origin: string): string {
+  return `Hosted Usher only acts where a site has said yes: ${origin} hasn't joined Usher. To use Usher on any site, run the local server with your own key: npx -y @usher-run/mcp`;
+}
+
 /** How long the public demo keeps sessions from other people's agents. */
 export const DEMO_SESSION_HOURS = 24;
 /** On the public demo, each agent confirms at most five quotes an hour, whatever the site's policy says. */
@@ -294,7 +299,7 @@ export class Registry {
   }
 
   /** A refused agent attempt, for the site's dashboard. Never anything about who the visitor is beyond the agent id. */
-  async recordBlocked(entry: { origin: string; path: string; reason: string; source: 'registry' | 'site'; agent?: string; action?: string }): Promise<void> {
+  async recordBlocked(entry: { origin: string; path: string; reason: string; source: 'registry' | 'site'; agent?: string; action?: string; hosted?: true }): Promise<void> {
     await this.storage.appendLog('blocked', { ts: this.now().toISOString(), ...entry });
   }
 
@@ -362,7 +367,8 @@ export class Registry {
   }
 
   /** The agent behind a request: its Web Bot Auth signature if it sent one, else the signed body. */
-  private async agentOf(request: unknown, via?: HttpSignatureCheck | null): Promise<AgentCheck> {
+  /** Checks the agent's signature, and remembers its key unless it is a hosted connection's (`remember` false). */
+  private async agentOf(request: unknown, via?: HttpSignatureCheck | null, remember = true): Promise<AgentCheck> {
     let check: AgentCheck;
     if (via) {
       if (!via.ok) return { ok: false, status: 401, error: via.error === 'unknown_key' ? 'unknown_agent' : 'bad_signature', message: `Web Bot Auth: ${via.message}` };
@@ -377,18 +383,29 @@ export class Registry {
       }
       check = { ok: true, agentId: body.agentId, jwk: body.jwk, identity: { method: 'usher-signature' } };
     }
-    if (!(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
+    if (remember && !(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
     return check;
   }
 
-  async knock(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
+  /** Sites a hosted connection may act on: those that have proved their origin, and the demo site. */
+  async joined(origin: string): Promise<boolean> {
+    return origin === this.options.publicDemo?.origin || Boolean((await this.storage.getSite(origin))?.claim);
+  }
+
+  /**
+   * A knock. `as.hosted`: the hosted MCP endpoint knocking in-process for one of its connections,
+   * signed with the key it minted for that connection. Never reachable over HTTP.
+   */
+  async knock(request: unknown, via?: HttpSignatureCheck | null, as?: { hosted: true }): Promise<Reply> {
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
     const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[] };
-    const check = await this.agentOf(request, via);
-    if (!check.ok) return error(check.status, check.error, check.message);
+    const checked = await this.agentOf(request, via, !as?.hosted);
+    if (!checked.ok) return error(checked.status, checked.error, checked.message);
+    const check = as?.hosted ? { ...checked, identity: { method: 'hosted' as const } } : checked;
 
     const page = new URL(knock.url);
+    if (as?.hosted && !(await this.joined(page.origin))) return error(403, 'not_joined', notJoinedMessage(page.origin));
     const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
@@ -397,12 +414,12 @@ export class Registry {
     const effective = effectiveRules(policy, map, page.pathname);
     if (this.options.publicDemo?.origin === page.origin) effective.rate_limits = [...effective.rate_limits, DEMO_SUBMIT_LIMIT];
     const refuse = async (status: number, code: string, message: string, action?: string) => {
-      await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }) });
+      await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }), ...(as?.hosted && { hosted: true as const }) });
       return error(status, code, message);
     };
     if (!effective.agent_lane) return refuse(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
-    const standing = agentStanding(policy, check.agentId);
-    if (standing !== 'allowed') return refuse(403, 'agent_blocked', `${page.origin} does not allow this agent.`);
+    const standing = agentStanding(policy, check.agentId, Boolean(as?.hosted));
+    if (standing !== 'allowed') return refuse(403, 'agent_blocked', as?.hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
     const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
     if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
@@ -444,6 +461,7 @@ export class Registry {
       confirm: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'confirm'),
       forbid: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'forbid'),
       ...(confirmed.length && { confirmed }),
+      ...(as?.hosted && { act: { sub: 'hosted' as const } }),
       cnf: { jwk: check.jwk },
     };
     return ok({
@@ -585,8 +603,8 @@ export class Registry {
   }
 
   /** A signed run report from the agent that owns the session. */
-  async reportRun(request: unknown, via?: HttpSignatureCheck | null): Promise<Reply> {
-    const check = await this.agentOf(request, via);
+  async reportRun(request: unknown, via?: HttpSignatureCheck | null, as?: { hosted: true }): Promise<Reply> {
+    const check = await this.agentOf(request, via, !as?.hosted);
     if (!check.ok) return error(check.status, check.error, check.message);
     const run = request as { session?: string; url?: string; outcome?: string; summary?: Record<string, unknown> };
     const session = typeof run.session === 'string' ? await this.storage.getSession(run.session) : undefined;
