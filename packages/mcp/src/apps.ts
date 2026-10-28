@@ -2,8 +2,10 @@
 // ChatGPT). One ui:// resource draws whichever card the result calls for:
 //   - usher_fill / usher_confirm paused: the decision card. The site's consent wording verbatim with a
 //     real checkbox each, optional opt-ins as yes/no, the submit named as the site names it, and one
-//     Confirm. Confirm hands the answers back to the model (ui/message, ui/update-model-context) for
-//     usher_confirm; the card never calls a tool itself, because ChatGPT doesn't let a card do that.
+//     Confirm. Where the host declares it can pass a card's tool calls to the server (serverTools),
+//     Confirm calls usher_confirm itself and shows the result. Elsewhere, and whenever unsure, it
+//     sends the person's own short confirmation ("Confirm: declaration yes, marketing no, get my
+//     quote yes") as their message, and the agent calls usher_confirm from it.
 //   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail, a link.
 //   - knock: the "Admit one agent" ticket, read-only.
 // The text result is unchanged and is what the model reads: nothing depends on the card rendering.
@@ -63,7 +65,7 @@ ${CARD_CSS}
 <main id="root" class="uc"><p class="note">Waiting for Usher…</p></main>
 <script>
 (function () {
-  var nextId = 1, waiting = {}, root = document.getElementById('root');
+  var nextId = 1, waiting = {}, root = document.getElementById('root'), caps = null;
   function send(msg) { window.parent.postMessage(msg, '*'); }
   function request(method, params) {
     var id = nextId++;
@@ -125,30 +127,48 @@ ${CARD_CSS}
         html += '<div class="row"><label>' + esc(q.label) + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
       }
     });
-    html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Your answers go back to your assistant, which passes them to Usher. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
+    html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Confirm sends your answers on. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
     root.innerHTML = html;
     // A button, not a form: sandboxed cards may not be allowed to submit forms.
     document.getElementById('go').addEventListener('click', function () {
-      var answers = {}, missing = [];
-      Array.prototype.forEach.call(document.querySelectorAll('[data-key]'), function (el) {
-        var key = el.getAttribute('data-key'), kind = el.getAttribute('data-kind');
-        if (kind === 'consent') answers[key] = el.checked;
-        else if (kind === 'yesno') { if (el.checked) answers[key] = el.value === 'yes'; }
-        else { if (el.value.trim()) answers[key] = el.value.trim(); else missing.push(key); }
+      var answers = {}, missing = [], parts = [];
+      (d.decisions || []).forEach(function (q) {
+        var els = document.querySelectorAll('[data-key="' + q.key + '"]'), value;
+        Array.prototype.forEach.call(els, function (el) {
+          var kind = el.getAttribute('data-kind');
+          if (kind === 'consent') value = el.checked;
+          else if (kind === 'yesno') { if (el.checked) value = el.value === 'yes'; }
+          else if (el.value.trim()) value = el.value.trim();
+        });
+        if (value === undefined) { missing.push(q.key); return; }
+        answers[q.key] = value;
+        parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
       if (missing.length) { msg.className = 'note warn'; msg.textContent = 'Please answer every question first.'; resize(); return; }
-      var payload = { usher_confirm: { id: d.id, answers: answers } };
-      var text = 'My answers to Usher\\'s questions, from the Usher card. Pass them to usher_confirm exactly as they are: ' + JSON.stringify(payload.usher_confirm);
+      // The person's own confirmation, in their words: what the agent passes to usher_confirm.
+      var phrase = 'Confirm: ' + parts.join(', ');
       document.getElementById('go').disabled = true;
-      request('ui/update-model-context', { content: [{ type: 'text', text: text }], structuredContent: payload }).catch(function () {});
-      // content is a list of blocks (the SDK's schema; the spec's prose shows one block).
-      request('ui/message', { role: 'user', content: [{ type: 'text', text: text }] }).then(function (r) {
-        if (r && r.isError) throw new Error('rejected');
-        msg.className = 'note'; msg.textContent = 'Sent to your assistant.'; resize();
-      }).catch(function () {
-        msg.className = 'note warn'; msg.textContent = 'Your assistant didn\\'t take the answers here. Tell it in the chat instead.'; document.getElementById('go').disabled = false; resize();
-      });
+      function say(cls, text) { msg.className = cls; msg.textContent = text; resize(); }
+      // Path 2, the default: the confirmation goes into the chat as the person's message, and the
+      // agent calls usher_confirm from it. Hosts without ui/message: the person sends it themselves.
+      function viaMessage() {
+        if (!(caps && caps.message)) return say('note', 'Send this to your assistant: ' + phrase);
+        request('ui/message', { role: 'user', content: [{ type: 'text', text: phrase }] }).then(function (r) {
+          if (r && r.isError) throw new Error('rejected');
+          say('note', 'Sent as your message: ' + phrase);
+        }).catch(function () { say('note warn', 'Send this to your assistant: ' + phrase); });
+      }
+      // Path 1: hosts that let a card call its server's tools (they declare serverTools) submit from
+      // here, the person's click being the authorisation, and the card shows the result.
+      if (caps && caps.serverTools) {
+        request('tools/call', { name: 'usher_confirm', arguments: { id: d.id, answers: answers, confirmation: phrase } }).then(function (result) {
+          if (!result || result.isError) throw new Error('refused');
+          var text = (result.content || []).filter(function (c) { return c.type === 'text'; }).map(function (c) { return c.text; }).join('\\n');
+          request('ui/update-model-context', { content: [{ type: 'text', text: 'The person confirmed in the Usher card (' + phrase + ') and Usher went on. Its result:\\n' + text }] }).catch(function () {});
+          render(result);
+        }).catch(viaMessage);
+      } else viaMessage();
     });
     bindLinks();
   }
@@ -197,6 +217,8 @@ ${CARD_CSS}
   }
 
   request('ui/initialize', { appInfo: { name: 'usher-card', version: '1' }, appCapabilities: {}, protocolVersion: '2026-01-26' }).then(function (r) {
+    // What the host declares it supports decides Confirm's path; nothing is guessed from its name.
+    caps = (r && r.hostCapabilities) || null;
     theme(r && r.hostContext);
     notify('ui/notifications/initialized', {});
     resize();
