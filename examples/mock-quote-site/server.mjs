@@ -200,6 +200,7 @@ function renderStep(key, values = {}, errors = []) {
 ${errorSummary}
 <form method="post" action="/quote/${key}" novalidate>
 ${fieldsHtml}
+${step.final ? '<p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.</p>' : ''}
 <div class="actions">${back}<button type="submit" class="primary">${continueLabel}</button></div>
 </form>`;
   return page(step.title, body);
@@ -253,6 +254,7 @@ function renderResult(session) {
   <p class="price">£${r.annual.toFixed(2)} <span>a year</span></p>
   <p>or ${r.instalments} monthly payments of £${r.monthly.toFixed(2)}</p>
   <p class="ref">Quote reference <strong>${esc(r.reference)}</strong></p>
+  <p class="valid">This quote is valid for 30 days, until ${esc(r.validUntil)}.</p>
 </div>
 <p class="note">This is a made-up price from a demo site. Nothing has been bought.</p>
 <p><a href="/quote/driver?restart=1">Start a new quote</a></p>`,
@@ -320,6 +322,7 @@ function price({ driver, vehicle, cover }) {
   annual = Math.round(Math.max(annual, 180) * 100) / 100;
   return {
     reference: `BW-${randomUUID().slice(0, 8).toUpperCase()}`,
+    validUntil: new Date(Date.now() + 30 * 86_400_000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
     annual,
     instalments: 10,
     monthly: Math.round(((annual * 1.08) / 10) * 100) / 100,
