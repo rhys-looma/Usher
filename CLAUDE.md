@@ -26,7 +26,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `spec/` | Map spec (`map.md`), JSON Schema (`map.schema.json`, draft 2020-12), vocabulary, example maps |
 | `packages/core/` | Extractor, locators, fingerprint, labels, map compiler (TypeScript) |
 | `packages/core/test/` | node:test suites; browser tests use Playwright (chromium) |
-| `examples/mock-quote-site/` | Fictional three-step quote form (Brightwater Motor), no dependencies |
+| `examples/mock-quote-site/` | Brightwater, a fictional insurer: a health insurance quote at `/health/*` (the headline example) and a car insurance quote at `/quote/*`, three steps each, layouts A/B/C; no dependencies |
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A, B and C) started on free ports |
 | `packages/registry/` | Registry: knock, maps, sessions, policy and rules, drift; HTTP, MCP, and server-rendered pages (`src/web/`: map viewer, dashboard); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
@@ -62,7 +62,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 
 ```sh
 npm install
-npm test             # installs chromium if needed, starts mock site (A and B) on free ports, runs tests
+npm test             # installs chromium if needed, starts mock site (A, B and C) on free ports, runs tests
 npm run typecheck
 npm run compile -- <url> [--out file] [--classify]   # compile one page with Muse Spark (+ Spark Open second opinion)
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
@@ -76,7 +76,7 @@ USHER_LIVE=1 npm test                   # also run the live model test
 Mock site on its own:
 
 ```sh
-cd examples/mock-quote-site && npm start      # port 4100, /__admin switches layout A/B
+cd examples/mock-quote-site && npm start      # port 4100, /__admin switches layout A/B/C
 VARIANT=b npm start                           # start in layout B
 ```
 

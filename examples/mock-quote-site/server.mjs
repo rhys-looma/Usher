@@ -1,5 +1,6 @@
-// Brightwater Motor: a fictional car insurance quote site for developing and demonstrating Usher.
-// Not a real insurer. No dependencies; needs Node 20+.
+// Brightwater: a fictional insurer with two quote journeys, for developing and demonstrating Usher:
+// private medical (health) insurance at /health/* and car insurance at /quote/*. Not a real insurer.
+// No dependencies; needs Node 20+.
 //
 //   node server.mjs            start on port 4100
 //   PORT=5000 node server.mjs  another port
@@ -34,19 +35,21 @@ const REGISTRY = process.env.USHER_REGISTRY_URL?.replace(/\/$/, '');
 const SITE_KEY = process.env.USHER_SITE_KEY;
 const SITE_ORIGIN = process.env.USHER_SITE_ORIGIN?.replace(/\/$/, '');
 const ADMIN_KEY = process.env.USHER_ADMIN_KEY;
-const usher = REGISTRY
-  ? (await import('../../packages/site-middleware/dist/index.js')).createUsherCheck({
-      registry: REGISTRY,
-      ...(process.env.USHER_REGISTRY_INTERNAL_URL && { internalUrl: process.env.USHER_REGISTRY_INTERNAL_URL }),
-      intent: 'quote.car_insurance',
-      origin: SITE_ORIGIN ?? ((req) => `http://${req.headers.host}`),
-      ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
-      // A local demo: agents' key directories may be served over http. Never on a public https site.
-      allowHttpDirectories: !SITE_ORIGIN?.startsWith('https://'),
-      requireSignature: process.env.USHER_REQUIRE_SIGNATURE === '1',
-    })
-  : null;
-const sessions = new Map(); // session id -> { driver, vehicle, cover, result }; the oldest go past MAX_SESSIONS
+const middleware = REGISTRY ? await import('../../packages/site-middleware/dist/index.js') : null;
+/** The server-side token check for one journey's intent, when Usher is on. */
+const usherCheck = (intent) =>
+  middleware?.createUsherCheck({
+    registry: REGISTRY,
+    ...(process.env.USHER_REGISTRY_INTERNAL_URL && { internalUrl: process.env.USHER_REGISTRY_INTERNAL_URL }),
+    intent,
+    origin: SITE_ORIGIN ?? ((req) => `http://${req.headers.host}`),
+    ...(process.env.USHER_SITE_KEY && { siteKey: process.env.USHER_SITE_KEY }),
+    // A local demo: agents' key directories may be served over http. Never on a public https site.
+    allowHttpDirectories: !SITE_ORIGIN?.startsWith('https://'),
+    requireSignature: process.env.USHER_REQUIRE_SIGNATURE === '1',
+  }) ?? null;
+// session id -> { driver, vehicle, cover, result, health: { about, cover, declaration, result } }; the oldest go past MAX_SESSIONS
+const sessions = new Map();
 const MAX_SESSIONS = 5000;
 
 // ---------------------------------------------------------------------------
@@ -113,6 +116,54 @@ const steps = {
   },
 };
 
+// Brightwater Health: a private medical insurance quick quote. Layout A already uses the controls
+// real quote forms use (a split date of birth, an address lookup, card radios, a text date), so
+// layout C shows it as A does; layout B renames and rewords it, as for car. No medical questions:
+// the insurer asks those after the quote, when it underwrites.
+const healthSteps = {
+  about: {
+    title: 'About you',
+    titleB: 'Your details',
+    next: 'cover',
+    fields: [
+      { name: 'title', label: 'Title', type: 'select', required: true, options: list('Mr', 'Mrs', 'Miss', 'Ms', 'Mx', 'Dr') },
+      { name: 'first_name', label: 'First name', type: 'text', required: true, autocomplete: 'given-name' },
+      { name: 'last_name', label: 'Last name', labelB: 'Surname', type: 'text', required: true, autocomplete: 'family-name' },
+      { name: 'dob', label: 'Date of birth', labelB: 'Your date of birth', type: 'splitdate', required: true },
+      { name: 'postcode', label: 'Postcode', labelB: 'Your postcode', type: 'text', required: true, pattern: '[A-Za-z]{1,2}[0-9][A-Za-z0-9]? ?[0-9][A-Za-z]{2}', autocomplete: 'postal-code' },
+      { name: 'address_line1', label: 'Please select an address', labelB: 'Choose your address', type: 'addresslookup', required: true },
+      { name: 'email', label: 'Email address', labelB: 'Email', type: 'email', required: true, autocomplete: 'email', orderB: 0 },
+      { name: 'phone', label: 'Phone number (optional)', type: 'tel', required: false, autocomplete: 'tel', orderB: 1 },
+      { name: 'covered', label: 'Who would you like to cover?', labelB: 'Who is the cover for?', type: 'radio', required: true, card: true, options: [{ value: 'just-me', label: 'Just me' }, { value: 'me-and-partner', label: 'Me and my partner' }, { value: 'family', label: 'My family' }] },
+      { name: 'smoker', label: 'Have you smoked or used nicotine products in the last 12 months?', labelB: 'Any smoking or nicotine in the last 12 months?', type: 'radio', required: true, card: true, options: yesNo },
+    ],
+  },
+  cover: {
+    title: 'Your cover',
+    titleB: 'Choose your cover',
+    back: 'about',
+    next: 'declaration',
+    fields: [
+      { name: 'cover_level', label: 'Level of cover', labelB: 'Cover level', type: 'select', required: true, options: list('Core', 'Standard', 'Comprehensive') },
+      { name: 'excess', label: 'Excess', labelB: 'Your excess', type: 'select', required: true, options: [0, 100, 250, 500, 1000].map((n) => ({ value: String(n), label: `£${n.toLocaleString('en-GB')}` })) },
+      { name: 'hospital_list', label: 'Hospital list', labelB: 'Which hospitals?', type: 'radio', required: true, card: true, options: [{ value: 'local', label: 'Local hospitals' }, { value: 'standard', label: 'Standard list' }, { value: 'extended', label: 'Extended list, including central London' }] },
+      { name: 'outpatient_limit', label: 'Outpatient limit', labelB: 'Outpatient cover', type: 'select', required: true, options: [{ value: 'none', label: 'No outpatient cover' }, ...[500, 1000, 1500].map((n) => ({ value: String(n), label: `Up to £${n.toLocaleString('en-GB')} a year` })), { value: 'unlimited', label: 'Unlimited' }] },
+      { name: 'start_date', label: 'When would you like cover to start? (DD/MM/YYYY)', labelB: 'Cover start date (DD/MM/YYYY)', type: 'text', required: true, pattern: '\\d{2}\\/\\d{2}\\/\\d{4}', textDate: true },
+      { name: 'payment', label: 'How would you like to pay?', labelB: 'Payment', type: 'radio', required: true, card: true, options: list('Monthly', 'Annually') },
+    ],
+  },
+  declaration: {
+    title: 'Declaration',
+    titleB: 'Check and confirm',
+    back: 'cover',
+    final: true,
+    intro: '<p class="declaration-text">This is a quick quote. We don\'t ask about your medical history on this form. If you go ahead, we ask you about it directly before your cover starts, when we underwrite your policy, and the price may change.</p>',
+    fields: [
+      { name: 'declaration', label: 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', labelB: 'I confirm my answers are true and complete, and that Brightwater will ask about my medical history after the quote', type: 'checkbox', required: true },
+    ],
+  },
+};
+
 // Variant "c" keeps layout A's names but uses the controls real quote forms use (seen on a real
 // insurer's journey): a date of birth split into day, month and year boxes; the address from a
 // postcode lookup that shows a list of addresses; mileage as bands; the year as a select; the cover
@@ -130,7 +181,7 @@ function layoutC(step, f) {
   if (CARDS.has(f.name)) return { ...f, card: true };
   return f;
 }
-const fieldsOf = (step) => (variant === 'c' ? step.fields.map((f) => layoutC(step, f)) : step.fields);
+const fieldsOf = (journey, step) => (variant === 'c' && journey.realControls ? step.fields.map((f) => layoutC(step, f)) : step.fields);
 
 /** The addresses on a postcode: a few houses in one street, numbered so "1" and "11" both appear. */
 function addressLookup(postcode) {
@@ -144,27 +195,52 @@ function addressLookup(postcode) {
 const nameFor = (field) => (variant === 'b' ? `bw_${field}_${hash(field).slice(0, 4)}` : field);
 const idFor = (field) => (variant === 'b' ? `fld-${hash(`id:${field}`).slice(0, 6)}` : field.replaceAll('_', '-'));
 const labelFor = (f) => (variant === 'b' && f.labelB ? f.labelB : f.label);
-const orderedFields = (step) =>
+const orderedFields = (journey, step) =>
   variant === 'b'
     ? [...step.fields].sort((x, y) => (x.orderB ?? 100) - (y.orderB ?? 100) || step.fields.indexOf(x) - step.fields.indexOf(y))
-    : fieldsOf(step);
+    : fieldsOf(journey, step);
+
+// The two journeys: where each lives, its intent (the token the final step needs) and its steps.
+const journeys = {
+  health: {
+    base: 'health',
+    product: 'Health insurance',
+    intent: 'quote.health_insurance',
+    steps: healthSteps,
+    realControls: false,
+    disclosure: 'By selecting Get my quote you agree that Brightwater may use these answers to work out your price. Medical history is not asked here: Brightwater asks you about it after the quote. This is a demo site: nothing is bought.',
+    check: usherCheck('quote.health_insurance'),
+    state: (session) => (session.health ??= {}),
+  },
+  quote: {
+    base: 'quote',
+    product: 'Car insurance',
+    intent: 'quote.car_insurance',
+    steps,
+    realControls: true,
+    lookup: true,
+    disclosure: 'By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.',
+    check: usherCheck('quote.car_insurance'),
+    state: (session) => session,
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
 
-function page(title, body) {
+function page(title, body, product = 'Health and car insurance') {
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} | Brightwater Motor</title>
+<title>${esc(title)} | Brightwater</title>
 <link rel="stylesheet" href="/static/styles.css">
 ${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}"${SITE_KEY ? ` data-usher-site-key="${SITE_KEY}"` : ''} defer></script>\n` : ''}</head>
 <body>
-<div class="demo-banner">Demo site for the Usher project. Brightwater Motor is fictional; this is not a real insurer.</div>
-<header class="site-header"><a href="/" class="brand">Brightwater Motor</a><span class="tag">Car insurance</span></header>
+<div class="demo-banner">Demo site for the Usher project. Brightwater is not a real insurer.</div>
+<header class="site-header"><a href="/" class="brand">Brightwater</a><span class="tag">${esc(product)}</span></header>
 <main>${body}</main>
 <script src="/static/quote.js" defer></script>
 </body>
@@ -193,7 +269,20 @@ function renderHelp() {
   );
 }
 
-function renderStep(key, values = {}, errors = []) {
+function renderHome() {
+  return page(
+    'Health and car insurance',
+    `<h1>Get a quote</h1>
+<p>Brightwater offers two products. Pick one to start a quote.</p>
+<ul class="products">
+<li><a href="/health/about"><strong>Health insurance</strong><span>Private medical insurance: a quick quote in three steps</span></a></li>
+<li><a href="/quote/driver"><strong>Car insurance</strong><span>A car insurance quote in three steps</span></a></li>
+</ul>`,
+  );
+}
+
+function renderStep(journey, key, values = {}, errors = []) {
+  const steps = journey.steps;
   const step = steps[key];
   const order = Object.keys(steps);
   const index = order.indexOf(key) + 1;
@@ -205,11 +294,11 @@ function renderStep(key, values = {}, errors = []) {
         .join('')}</ul></div>`
     : '';
 
-  const lookup = step.lookup
+  const lookup = journey.lookup && step.lookup
     ? `<div class="lookup"><button type="button" class="secondary" id="${variant === 'b' ? 'btn-reg' : 'find-vehicle'}" data-lookup="vehicle" data-fields="${['registration', 'make', 'model', 'year'].map(nameFor).join(' ')}">Find car</button><span class="lookup-status" aria-live="polite"></span></div>`
     : '';
 
-  const fieldsHtml = orderedFields(step)
+  const fieldsHtml = orderedFields(journey, step)
     .map((f) => {
       const html = renderField(f, values[f.name], errors.some((e) => e.name === f.name));
       // The vehicle lookup button sits straight after the registration field.
@@ -218,19 +307,20 @@ function renderStep(key, values = {}, errors = []) {
     .join('\n');
 
   const back = step.back
-    ? `<a class="back" href="/quote/${step.back}">Back</a>`
+    ? `<a class="back" href="/${journey.base}/${step.back}">Back</a>`
     : '';
 
   const body = `
 <p class="progress">Step ${index} of ${order.length}</p>
 <h1>${esc(variant === 'b' ? step.titleB : step.title)}</h1>
 ${errorSummary}
-<form method="post" action="/quote/${key}" novalidate>
+<form method="post" action="/${journey.base}/${key}" novalidate>
+${step.intro ?? ''}
 ${fieldsHtml}
-${step.final ? '<p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.</p>' : ''}
+${step.final ? `<p class="disclosure">${esc(journey.disclosure)}</p>` : ''}
 <div class="actions">${back}<button type="submit" class="primary">${continueLabel}</button></div>
 </form>`;
-  return page(step.title, body);
+  return page(step.title, body, journey.product);
 }
 
 function renderField(f, value, hasError) {
@@ -252,7 +342,7 @@ function renderField(f, value, hasError) {
     }
     case 'addresslookup':
       // The list of addresses appears only after "Find address" (quote.js); it isn't in the page before.
-      return `<div class="${cls}" id="${id}">${err}<div class="lookup"><button type="button" class="secondary" data-lookup="address" data-postcode="${nameFor('postcode')}">Find address</button><span class="lookup-status" aria-live="polite"></span></div><div class="lookup-results"></div></div>`;
+      return `<div class="${cls}" id="${id}">${err}<div class="lookup"><button type="button" class="secondary" data-lookup="address" data-postcode="${nameFor('postcode')}" data-select="${nameFor('address')}" data-label="${label}">Find address</button><span class="lookup-status" aria-live="polite"></span></div><div class="lookup-results"></div></div>`;
     case 'select':
       return `<div class="${cls}"${showIf}><label for="${id}">${label}</label>${err}<select id="${id}" name="${name}"${req}><option value="">Please select</option>${f.options
         .map((o) => `<option value="${esc(o.value)}"${o.value === v ? ' selected' : ''}>${esc(o.label)}</option>`)
@@ -282,6 +372,24 @@ function renderField(f, value, hasError) {
   }
 }
 
+function renderHealthResult(state) {
+  const r = state.result;
+  return page(
+    'Your quote',
+    `
+<h1>Your quote</h1>
+<div class="quote">
+  <p class="price">£${r.monthly.toFixed(2)} <span>a month</span></p>
+  <p>or £${r.annual.toFixed(2)} a year</p>
+  <p class="ref">Quote reference <strong>${esc(r.reference)}</strong></p>
+  <p class="valid">This quote is valid for 30 days, until ${esc(r.validUntil)}.</p>
+</div>
+<p class="note">This is a made-up price from a demo site. Nothing has been bought. Before cover starts, Brightwater would ask you about your medical history directly.</p>
+<p><a href="/health/about?restart=1">Start a new quote</a></p>`,
+    'Health insurance',
+  );
+}
+
 function renderResult(session) {
   const r = session.result;
   return page(
@@ -296,6 +404,7 @@ function renderResult(session) {
 </div>
 <p class="note">This is a made-up price from a demo site. Nothing has been bought.</p>
 <p><a href="/quote/driver?restart=1">Start a new quote</a></p>`,
+    'Car insurance',
   );
 }
 
@@ -305,7 +414,7 @@ function renderAdmin() {
     `
 <h1>Demo controls</h1>
 <p>Current form layout: <strong>${variant.toUpperCase()}</strong></p>
-<p>Layout B renames every field id and name, rewords some labels and moves fields, like a site redesign. Layout C uses the controls real quote forms use: a split date of birth, an address lookup with a list of results, mileage bands, a year select, a text date and radios styled as cards.</p>
+<p>Layout B renames every field id and name, rewords some labels and moves fields, like a site redesign, on both journeys. Layout C (car) uses the controls real quote forms use: a split date of birth, an address lookup with a list of results, mileage bands, a year select, a text date and radios styled as cards.</p>
 <form method="post" action="/__admin/variant" class="admin">
   ${ADMIN_KEY ? '<label>Admin key <input type="password" name="key" required></label>' : ''}
   <button name="variant" value="a" class="${variant === 'a' ? 'primary' : 'secondary'}">Use layout A</button>
@@ -320,17 +429,19 @@ function renderAdmin() {
 // ---------------------------------------------------------------------------
 
 // Reads a submitted form into canonical field names, whichever layout posted it.
-function readStep(key, params) {
+function readStep(journey, key, params) {
   const values = {};
-  for (const f of fieldsOf(steps[key])) {
-    let raw = params.get(nameFor(f.name)) ?? params.get(f.name);
-    // Layout C's own controls; the plain names (as layout A posts them) are accepted too.
-    if (f.type === 'splitdate' && params.get(`${f.name}_day`) !== null) {
-      const [d, m, y] = ['day', 'month', 'year'].map((p) => (params.get(`${f.name}_${p}`) ?? '').trim());
+  const posted = (name) => params.get(nameFor(name)) ?? params.get(name);
+  for (const f of fieldsOf(journey, journey.steps[key])) {
+    let raw = posted(f.name);
+    // Split dates and the address list; the plain names (as layout A's tests post them) are accepted too.
+    const part = (p) => params.get(`${nameFor(f.name)}_${p}`) ?? params.get(`${f.name}_${p}`);
+    if (f.type === 'splitdate' && part('day') !== null) {
+      const [d, m, y] = ['day', 'month', 'year'].map((p) => (part(p) ?? '').trim());
       raw = d && m && y ? `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
     }
-    if (f.type === 'addresslookup' && params.get('address') !== null) {
-      const found = (addressLookup(params.get('postcode') ?? '') ?? []).find((a) => a.id === params.get('address'));
+    if (f.type === 'addresslookup' && posted('address') !== null) {
+      const found = (addressLookup(posted('postcode') ?? '') ?? []).find((a) => a.id === posted('address'));
       raw = found ? found.line1 : '';
     }
     if (f.textDate && raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -343,14 +454,16 @@ function readStep(key, params) {
   return values;
 }
 
-function validate(key, values) {
+function validate(journey, key, values) {
   // Values read back (readStep) are layout A's, so layout A's rules check them.
-  return steps[key].fields.filter((f) => {
+  return journey.steps[key].fields.filter((f) => {
     if (!f.required) return false;
     if (f.showIf && values[f.showIf[0]] !== f.showIf[1]) return false;
     const v = values[f.name];
     if (v === undefined || v === '') return true;
     if (f.options && !f.options.some((o) => o.value === v)) return true;
+    // Dates shown as text or split are read back as YYYY-MM-DD.
+    if (f.textDate || f.type === 'splitdate') return !/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v));
     if (f.pattern && !new RegExp(`^(?:${f.pattern})$`).test(v)) return true;
     if (f.type === 'number' && (Number.isNaN(Number(v)) || (f.min !== undefined && Number(v) < f.min) || (f.max !== undefined && Number(v) > f.max))) return true;
     if (f.type === 'date' && Number.isNaN(Date.parse(v))) return true;
@@ -383,6 +496,24 @@ function price({ driver, vehicle, cover }) {
   };
 }
 
+function healthPrice({ about, cover }) {
+  const age = (Date.now() - Date.parse(about.dob)) / (365.25 * 864e5);
+  let monthly = 18 + Math.max(age - 18, 0) * 1.1;
+  if (about.smoker === 'yes') monthly *= 1.5;
+  monthly *= { 'just-me': 1, 'me-and-partner': 1.9, family: 2.6 }[about.covered] ?? 1;
+  monthly *= { core: 0.7, standard: 1, comprehensive: 1.45 }[cover.cover_level] ?? 1;
+  monthly *= { local: 0.9, standard: 1, extended: 1.2 }[cover.hospital_list] ?? 1;
+  monthly += { none: 0, 500: 6, 1000: 11, 1500: 15, unlimited: 24 }[cover.outpatient_limit] ?? 0;
+  monthly -= Number(cover.excess) * 0.012;
+  monthly = Math.round(Math.max(monthly, 14) * 100) / 100;
+  return {
+    reference: `BWH-${randomUUID().slice(0, 8).toUpperCase()}`,
+    validUntil: new Date(Date.now() + 30 * 86_400_000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    monthly,
+    annual: Math.round(monthly * 12 * 0.95 * 100) / 100,
+  };
+}
+
 const makes = [
   ['Ford', 'Fiesta'], ['Vauxhall', 'Corsa'], ['Volkswagen', 'Golf'], ['Toyota', 'Yaris'],
   ['Nissan', 'Qashqai'], ['Kia', 'Sportage'], ['BMW', '3 Series'], ['Audi', 'A3'],
@@ -407,40 +538,46 @@ const server = createServer(async (req, res) => {
     const session = getSession(req, res);
     const [, section, key] = url.pathname.split('/');
 
-    if (req.method === 'GET' && url.pathname === '/') return redirect(res, '/quote/driver');
+    if (req.method === 'GET' && url.pathname === '/') return html(res, renderHome());
 
     if (section === 'static' && req.method === 'GET') return serveStatic(res, key);
 
-    if (section === 'quote' && key === 'result' && req.method === 'GET') {
-      return session.result ? html(res, renderResult(session)) : redirect(res, '/quote/driver');
+    const journey = journeys[section];
+    if (journey && key === 'result' && req.method === 'GET') {
+      const state = journey.state(session);
+      const first = `/${journey.base}/${Object.keys(journey.steps)[0]}`;
+      if (!state.result) return redirect(res, first);
+      return html(res, journey.base === 'health' ? renderHealthResult(state) : renderResult(session));
     }
 
-    if (section === 'quote' && steps[key]) {
-      if (url.searchParams.has('restart')) Object.assign(session, { driver: undefined, vehicle: undefined, cover: undefined, result: undefined });
+    if (journey && journey.steps[key]) {
+      const { steps } = journey;
+      const state = journey.state(session);
+      if (url.searchParams.has('restart')) for (const k of [...Object.keys(steps), 'result']) state[k] = undefined;
       // Each step needs the previous ones done first.
       const order = Object.keys(steps);
-      const missing = order.slice(0, order.indexOf(key)).find((k) => !session[k]);
-      if (missing) return redirect(res, `/quote/${missing}`);
+      const missing = order.slice(0, order.indexOf(key)).find((k) => !state[k]);
+      if (missing) return redirect(res, `/${journey.base}/${missing}`);
 
-      if (req.method === 'GET') return html(res, renderStep(key, session[key] ?? {}));
+      if (req.method === 'GET') return html(res, renderStep(journey, key, state[key] ?? {}));
 
       if (req.method === 'POST') {
         const raw = await body(req);
         const params = new URLSearchParams(raw);
         // Requesting the quote is consequential: an agent needs a token from a knock (and, if it
         // signs its requests, a signature from the key the token was issued to).
-        if (steps[key].final && usher) {
-          const check = await usher.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
-          if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
+        if (steps[key].final && journey.check) {
+          const check = await journey.check.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
+          if (check.status === 'knock_required') return journey.check.reject(req, res, check, 'form.submit');
         }
-        const values = readStep(key, params);
-        const errors = validate(key, values);
-        if (errors.length) return html(res, renderStep(key, values, errors), 422);
-        session[key] = values;
-        if (!steps[key].final) return redirect(res, `/quote/${steps[key].next}`);
+        const values = readStep(journey, key, params);
+        const errors = validate(journey, key, values);
+        if (errors.length) return html(res, renderStep(journey, key, values, errors), 422);
+        state[key] = values;
+        if (!steps[key].final) return redirect(res, `/${journey.base}/${steps[key].next}`);
         // Consequential action: requesting a quote. Usher's server-side token check attaches here.
-        session.result = price(session);
-        return redirect(res, '/quote/result');
+        state.result = journey.base === 'health' ? healthPrice(state) : price(session);
+        return redirect(res, `/${journey.base}/result`);
       }
     }
 
@@ -455,12 +592,13 @@ const server = createServer(async (req, res) => {
 
     // The same consequential action as an API, so the demo can show an agent
     // skipping the page and calling the endpoint directly.
-    if (section === 'api' && key === 'quote' && req.method === 'POST') {
+    const api = { quote: journeys.quote, 'health-quote': journeys.health }[key];
+    if (section === 'api' && api && req.method === 'POST') {
       // The API is for software, so every call needs a token when Usher is on.
       const raw = await body(req);
-      if (usher) {
-        const check = await usher.check(req, { always: true, action: 'form.submit', body: new TextEncoder().encode(raw) });
-        if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit');
+      if (api.check) {
+        const check = await api.check.check(req, { always: true, action: 'form.submit', body: new TextEncoder().encode(raw) });
+        if (check.status === 'knock_required') return api.check.reject(req, res, check, 'form.submit');
       }
       let input;
       try {
@@ -470,12 +608,12 @@ const server = createServer(async (req, res) => {
       }
       const all = {};
       const errors = [];
-      for (const k of Object.keys(steps)) {
-        all[k] = readStep(k, new URLSearchParams(Object.entries(input?.[k] ?? {}).map(([a, b]) => [a, String(b)])));
-        errors.push(...validate(k, all[k]).map((f) => `${k}.${f.name}`));
+      for (const k of Object.keys(api.steps)) {
+        all[k] = readStep(api, k, new URLSearchParams(Object.entries(input?.[k] ?? {}).map(([a, b]) => [a, String(b)])));
+        errors.push(...validate(api, k, all[k]).map((f) => `${k}.${f.name}`));
       }
       if (errors.length) return json(res, { error: 'invalid', fields: errors }, 422);
-      return json(res, price(all));
+      return json(res, api.base === 'health' ? healthPrice(all) : price(all));
     }
 
     // The site's claim to its origin: the registry checks this file holds the site key.
@@ -504,7 +642,7 @@ const server = createServer(async (req, res) => {
       }
     }
 
-    html(res, page('Not found', '<h1>Page not found</h1><p><a href="/">Start a quote</a></p>'), 404);
+    html(res, page('Not found', '<h1>Page not found</h1><p><a href="/">Get a quote</a></p>'), 404);
   } catch (err) {
     console.error(err);
     if (!res.headersSent) html(res, page('Error', '<h1>Something went wrong</h1>'), 500);
@@ -512,7 +650,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, process.env.HOST ?? '::', () => {
-  console.log(`Brightwater Motor (demo) on port ${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
+  console.log(`Brightwater (demo) on port ${PORT}  layout ${variant.toUpperCase()}  controls at /__admin`);
 });
 
 // ---------------------------------------------------------------------------

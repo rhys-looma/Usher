@@ -100,3 +100,10 @@ button.secondary { background: #fff; color: var(--brand); border: 1px solid var(
 .card-input:focus-visible + .choice.card { outline: 2px solid #0b6e4f; }
 .split .parts { display: flex; gap: 8px; } .split .parts input { width: 5em; } .split .parts input[autocomplete=bday-year] { width: 7em; }
 .lookup-results select { margin-top: 8px; }
+
+.products { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 12px; }
+.products a { display: block; padding: 16px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); text-decoration: none; }
+.products a:hover { border-color: var(--brand); }
+.products strong { display: block; font-size: 18px; color: var(--brand); }
+.products span { color: var(--muted); }
+.declaration-text { padding: 12px 16px; background: var(--bg); border-left: 4px solid var(--brand); border-radius: 4px; }
