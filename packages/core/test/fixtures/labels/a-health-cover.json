@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T15:58:33.130Z",
+  "recorded_at": "2026-10-28T20:51:13.281Z",
   "layout": "a",
   "step": "health-cover",
   "attempts": [
     {
-      "request_sha256": "9859443d188e8c583371578601670a980b74fbe60d57a2e50c27f5638dd7006b",
-      "content": "{\"advance_action_id\": \"e8\", \"elements\": [{\"id\": \"e1\", \"key\": \"cover.level\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"cover.excess\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"cover.hospital_list\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"cover.outpatient_limit\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"policy.start_date\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"policy.payment_frequency\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.health_insurance\", \"purpose\": \"Health insurance quote: cover options\"}}",
+      "request_sha256": "92c257496fcb60d013c6499fd548e1c2633f874010779bb956584f78f7eea77f",
+      "content": "{\"advance_action_id\": \"e8\", \"elements\": [{\"id\": \"e1\", \"key\": \"cover.level\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"cover.excess\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"cover.hospital_list\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"cover.outpatient_limit\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"policy.start_date\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"policy.payment_frequency\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.health_insurance\", \"purpose\": \"Health insurance: choose your cover options\"}}",
       "usage": {
-        "prompt_tokens": 4594,
-        "completion_tokens": 1015,
-        "total_tokens": 5609,
+        "prompt_tokens": 4941,
+        "completion_tokens": 1084,
+        "total_tokens": 6025,
         "cached_tokens": 0
       },
-      "latency_ms": 4360
+      "latency_ms": 4246
     }
   ]
 }

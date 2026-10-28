@@ -4,13 +4,13 @@
   "path": "/protection/direct/pagesSq/quoteInputPage.xhtml",
   "fingerprint": {
     "algo": "usher-fp-1",
-    "digest": "sha256:6ea6abae66a868622d8d6c1391f264fb37a967cb52e1e27e2f3f8f0643438bd3",
+    "digest": "sha256:deb8e5f6c9ec27484fa57a80b357ab340675c326281947e6ae5958b2c6527c31",
     "signature": [
       "d75f65e82680",
       "d7c2fa60559c",
       "b040dc05bee3",
-      "5e7f8fd863fa",
       "d2d78bde2483",
+      "2406d09c32b3",
       "c674cf76c0fd",
       "a3d9a1ad095c",
       "d7209125bdd9",
@@ -46,7 +46,7 @@
     ]
   },
   "form": {
-    "purpose": "Life and critical illness insurance quote - personal details",
+    "purpose": "Life and critical illness insurance quote: personal details",
     "intent": "quote.life_insurance"
   },
   "groups": [
@@ -74,8 +74,8 @@
   "fields": [
     {
       "id": "e4",
-      "key": "custom.cover_purpose",
-      "label": "Your cover",
+      "key": "cover.purpose",
+      "label": "Which cover type would you like?",
       "control": "radio",
       "required": false,
       "risk": "safe",
@@ -107,7 +107,7 @@
     {
       "id": "e5",
       "key": "cover.who",
-      "label": "Which cover type would you like?",
+      "label": "Who would you like to cover?",
       "control": "radio",
       "required": false,
       "risk": "safe",
@@ -138,7 +138,7 @@
     },
     {
       "id": "e9",
-      "key": "custom.critical_illness_cover",
+      "key": "cover.critical_illness",
       "label": "Do you want to add critical illness cover?",
       "control": "radio",
       "required": false,
@@ -396,7 +396,7 @@
   "actions": [
     {
       "id": "e1",
-      "key": "custom.resume_application",
+      "key": "custom.resume_quote",
       "label": "Pick up where you left off.",
       "kind": "link",
       "risk": "safe",
@@ -575,7 +575,7 @@
     },
     {
       "id": "e30",
-      "key": "custom.life_insurance_plan_info",
+      "key": "custom.life_insurance_plan",
       "label": "Life Insurance Plan",
       "kind": "link",
       "risk": "safe",
@@ -593,7 +593,7 @@
     },
     {
       "id": "e31",
-      "key": "custom.security_provider",
+      "key": "custom.security_badge",
       "label": "secured by sectigo",
       "kind": "link",
       "risk": "safe",
@@ -631,7 +631,7 @@
   "provenance": {
     "source": "compiled",
     "compiler": "muse-spark-1.3",
-    "created_at": "2026-10-28T20:30:39.456Z",
+    "created_at": "2026-10-28T21:02:59.155Z",
     "verified": false
   }
 }

@@ -1,6 +1,6 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T16:14:43.262Z",
+  "recorded_at": "2026-10-28T20:53:03.729Z",
   "choices": [
     {
       "intent": "contact.message",
@@ -8,33 +8,33 @@
       "reason": "sends contact message",
       "attempts": [
         {
-          "request_sha256": "6bf09608a9b834ad771883bccf2da0da81b250a7e06fda332d8551282e2ee0ad",
+          "request_sha256": "26579da8bd9f966b9268f2c611277cb5302c8a16fb089a8a0f7c6b49b776f9bb",
           "content": "{\"form\":\"F2\",\"reason\":\"sends contact message\"}",
           "usage": {
-            "prompt_tokens": 321,
-            "completion_tokens": 386,
-            "total_tokens": 707,
+            "prompt_tokens": 319,
+            "completion_tokens": 492,
+            "total_tokens": 811,
             "cached_tokens": 0
           },
-          "latency_ms": 2174
+          "latency_ms": 2664
         }
       ]
     },
     {
       "intent": "contact.callback",
       "chosen": "callback",
-      "reason": "Requests a callback",
+      "reason": "Request a callback form",
       "attempts": [
         {
-          "request_sha256": "75998616f72fd33b3410d711a657c3f1e868feea17870ad5100ccaef4c41a0ff",
-          "content": "{\"form\":\"F1\",\"reason\":\"Requests a callback\"}",
+          "request_sha256": "2ab7051e00abfb07ac26774dd072e3c2f19352de8150dc316f21dab4bc51313b",
+          "content": "{\"form\":\"F1\",\"reason\":\"Request a callback form\"}",
           "usage": {
-            "prompt_tokens": 321,
-            "completion_tokens": 418,
-            "total_tokens": 739,
+            "prompt_tokens": 319,
+            "completion_tokens": 475,
+            "total_tokens": 794,
             "cached_tokens": 0
           },
-          "latency_ms": 2408
+          "latency_ms": 2242
         }
       ]
     },
@@ -44,51 +44,51 @@
       "reason": "Matches search query intent",
       "attempts": [
         {
-          "request_sha256": "1304c67125d60641f8c66b0027e1a27c47cc88f9e1b55af6baf825a2d317b2c6",
+          "request_sha256": "ddf5de9ad88a93ef2f390353b9394792ba787935497bae8e153cb73ea54924fd",
           "content": "{\"form\":\"F0\",\"reason\":\"Matches search query intent\"}",
           "usage": {
-            "prompt_tokens": 359,
-            "completion_tokens": 676,
-            "total_tokens": 1035,
+            "prompt_tokens": 357,
+            "completion_tokens": 635,
+            "total_tokens": 992,
             "cached_tokens": 0
           },
-          "latency_ms": 2703
+          "latency_ms": 2979
         }
       ]
     },
     {
       "intent": "newsletter.signup",
       "chosen": "newsletter",
-      "reason": "newsletter subscribe form",
+      "reason": "Newsletter signup email form",
       "attempts": [
         {
-          "request_sha256": "8c9dab4d8435ae700a72c64bf44ade35b521129800946a47ecbc2c3df4bc60ac",
-          "content": "{\"form\":\"F3\",\"reason\":\"newsletter subscribe form\"}",
+          "request_sha256": "6e55715acd20385680515f04336f93584cbc1b91f6efcd05ddb7f5b239d9fcbd",
+          "content": "{\"form\":\"F3\",\"reason\":\"Newsletter signup email form\"}",
           "usage": {
-            "prompt_tokens": 366,
-            "completion_tokens": 438,
-            "total_tokens": 804,
+            "prompt_tokens": 364,
+            "completion_tokens": 436,
+            "total_tokens": 800,
             "cached_tokens": 0
           },
-          "latency_ms": 3092
+          "latency_ms": 2404
         }
       ]
     },
     {
       "intent": null,
       "chosen": "message",
-      "reason": "main contact message form",
+      "reason": "main help contact form",
       "attempts": [
         {
-          "request_sha256": "b3d226b7fb8cd1b69d439c86f2faad6f71c63dac055b29f71c17623954aae339",
-          "content": "{\"form\": \"F2\", \"reason\": \"main contact message form\"}",
+          "request_sha256": "f724da149429b476c805a9bfe0b09716c1d0dd46be7b1de44ea486d229d5f586",
+          "content": "{\"form\":\"F2\",\"reason\":\"main help contact form\"}",
           "usage": {
-            "prompt_tokens": 335,
-            "completion_tokens": 696,
-            "total_tokens": 1031,
-            "cached_tokens": 0
+            "prompt_tokens": 333,
+            "completion_tokens": 707,
+            "total_tokens": 1040,
+            "cached_tokens": 113
           },
-          "latency_ms": 3727
+          "latency_ms": 3279
         }
       ]
     }

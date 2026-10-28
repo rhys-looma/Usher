@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T16:52:31.256Z",
+  "recorded_at": "2026-10-28T20:55:53.250Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "e206566884eafe52616b49e25e027ca92597f7a526077938c2f73d9bc33355a9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email entry is reversible contact data with no external effect until the form is submitted.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible data entry with no external commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail with no legal or financial effect.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible data entry with no effect outside the session.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible data entry with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal detail; not a government ID and creates no commitment by itself.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address component with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address detail with no commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection from list is reversible demographic data for underwriting.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection is reversible demographic choice with no external effect.\"},{\"id\":\"e11\",\"risk\":\"needs_user\",\"reason\":\"Declaration of claims history is a material fact for insurance with legal duty of disclosure; requires user's own knowledge and misrepresentation can void cover.\"},{\"id\":\"e12\",\"risk\":\"needs_user\",\"reason\":\"Date of the claim is a specific detail of that material declaration requiring accurate user recall and affects underwriting validity.\"},{\"id\":\"e13\",\"risk\":\"needs_user\",\"reason\":\"Type of claim is a specific detail of that material declaration requiring user judgement and affects quote validity.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Next button moves to the next step of the multi-step driver-details flow; reversible navigation with no final quote or external commitment yet.\"}]}",
+      "request_sha256": "781f237109af8e48246fe8000c77a49803d320ec359568b28a1869b61ccab0f9",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email field is reversible data entry for contact; no external effect or commitment until submitted.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact data entry with no effect outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is a reversible demographic choice with no legal or financial commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal data for quote rating; no commitment until form is submitted.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address data with no external effect on its own.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address data with no external effect on its own.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Main occupation selection is reversible quote-rating data with no legal/financial commitment.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection is reversible quote-rating data with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history Yes/No is reversible factual input for quote calculation; no declaration or commitment on its own.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of the claim is reversible detail for the quote, no external effect until submitted.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible detail for the quote with no commitment on its own.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' only navigates to the next step of the quote flow; it does not request the quote or create a commitment.\"}]}",
       "usage": {
-        "prompt_tokens": 859,
-        "completion_tokens": 5767,
-        "total_tokens": 6626,
+        "prompt_tokens": 860,
+        "completion_tokens": 3729,
+        "total_tokens": 4589,
         "cached_tokens": 384
       },
-      "latency_ms": 19860
+      "latency_ms": 12546
     }
   ]
 }

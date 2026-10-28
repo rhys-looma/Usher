@@ -4,8 +4,9 @@
 // and a past smoker. Rebuilt as markup at its own address, each extracts exactly as the real page
 // did; Muse Spark's map of each (replayed from a recording) is schema-valid and gives every field its
 // meaning: the split date of birth as one key, smoking as the person's to answer, "See your quote"
-// as the consequential submit. Life cover's own questions and the second person have no vocabulary
-// key yet (custom.*), and smoking here has three answers, not yes or no.
+// as the consequential submit, life cover's questions by cover.*, the second person by partner.*.
+// Each question that has a heading inside its own fieldset is named by that heading, not the one
+// before it. Smoking here has three answers, not yes or no.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,8 +52,8 @@ test('Muse Spark\'s map of it: every field by meaning, smoking the person\'s to 
   const submit = map.actions.find((a) => a.key === 'form.submit');
   assert.deepEqual([submit?.label, submit?.risk], ['See your quote', 'consequential']);
   assert.ok(map.actions.some((a) => a.key === 'lookup.address' && a.label === 'Find my address'));
-  // Life cover's own questions: no vocabulary key for them yet.
-  for (const label of ['Your cover', 'Do you want to add critical illness cover?']) assert.match(map.fields.find((f) => f.label === label)?.key ?? '', /^custom\./, label);
+  // Life cover's own questions, each by its own heading.
+  assert.deepEqual(['Which cover type would you like?', 'Who would you like to cover?', 'Do you want to add critical illness cover?'].map((label) => map.fields.find((f) => f.label === label)?.key), ['cover.purpose', 'cover.who', 'cover.critical_illness']);
   // The hidden marketing preferences behind "Show" are not in the map.
   assert.ok(!map.fields.some((f) => f.control === 'checkbox'));
 });
@@ -98,10 +99,13 @@ for (const [state, { file }] of Object.entries(STATES)) {
     assert.deepEqual(map.fields.filter((f) => f.key === 'person.dob').map((f) => f.part), ['day', 'month', 'year']);
     // Smoking and when a past smoker stopped: the person's to answer, for both people.
     for (const n of ['id_smokerStatusRadio_', 'id_exsmokerStatusRadio_', 'id_smokerStatusRadio_0']) assert.equal(byName(n)?.risk, 'needs_user', n);
-    // The second person: no vocabulary key for them yet.
-    for (const n of ['id_forename_0', 'id_surname_0', 'id_emailAddress_0']) assert.match(byName(n)?.key ?? '', /^custom\./, n);
-    // The product's term and the amounts: no vocabulary key either.
-    for (const n of [state === 'family' ? 'id_termList' : 'id_mortgage_termList', state === 'family' ? 'id_sum_assured_family' : 'id_sum_assured_mortgage', 'id_ci_sum_assured']) assert.match(byName(n)?.key ?? '', /^custom\./, n);
+    // The second person by partner.*, their date of birth one key in three parts.
+    for (const [name, key] of [['id_forename_0', 'partner.first_name'], ['id_surname_0', 'partner.last_name'], ['id_emailAddress_0', 'partner.email'], ['id_FF_phoneNumber_0', 'partner.phone'], ['id_smokerStatusRadio_0', 'partner.smoker'], ['id_consent_life2_address', 'partner.address.same'], ['id_postcode_screen_10_currentAddress', 'partner.address.postcode']] as const) assert.equal(byName(name)?.key, key, name);
+    assert.deepEqual(map.fields.filter((f) => f.key === 'partner.dob').map((f) => f.part), ['day', 'month', 'year']);
+    assert.equal(byName('id_exsmokerStatusRadio_')?.key, 'person.smoker_stopped');
+    // Life cover by cover.*, in both products.
+    for (const [name, key] of [['id_quoteCoverRadios', 'cover.purpose'], ['id_quoteLivesRadio', 'cover.who'], ['id_quoteCoverPolicyRadios', 'cover.joint'], ['id_ctiticalIllnesRadio', 'cover.critical_illness'], ['id_CI_quoteCoverAmountRadios', 'cover.critical_illness_amount'], [state === 'family' ? 'id_termList' : 'id_mortgage_termList', 'cover.term']] as const) assert.equal(byName(name)?.key, key, name);
+    assert.equal(byName('id_quoteLivesRadio')?.label, 'Who would you like to cover?', 'named by the heading inside its fieldset');
     // Both address lookups, and the one way forward.
     assert.deepEqual(map.actions.filter((a) => a.key === 'lookup.address').map((a) => a.label), ['Find my address', 'Find their address']);
     assert.deepEqual(map.actions.filter((a) => a.key === 'form.submit').map((a) => [a.label, a.risk]), [['See your quote', 'consequential']]);
