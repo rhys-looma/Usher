@@ -39,6 +39,36 @@ export interface Decision {
   options?: string[];
   /** What is assumed when no answer is given (optional consents: false). */
   default?: boolean;
+  /** The decision's name in the person's own confirmation ("declaration", "get my quote"). */
+  short: string;
+}
+
+/** A decision's name in a confirmation the person sends: the action's own words, or the key's last part. */
+export function shortName(key: string, label: string, kind: DecisionKind): string {
+  return kind === 'submit' ? label.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim() : (key.split('.').pop() ?? key).replace(/_/g, ' ');
+}
+
+/** "Confirm: declaration yes, marketing no, get my quote yes, postcode \"WR14 1AA\"". */
+export function confirmationPhrase(decisions: Decision[]): string {
+  return `Confirm: ${decisions.map((d) => (d.kind === 'missing_value' ? `${d.short} "…"` : `${d.short} yes/no`)).join(', ')}`;
+}
+
+/** Reads the person's confirmation into answers by key; undefined for any decision it doesn't settle. */
+export function parseConfirmation(text: string, decisions: Decision[]): Record<string, Answer | undefined> {
+  const lower = text.toLowerCase();
+  const out: Record<string, Answer | undefined> = {};
+  for (const d of decisions) {
+    const name = d.short.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (d.kind === 'missing_value') {
+      // The value keeps the person's own case.
+      const m = new RegExp(`${name}\\s*[:=]?\\s*"([^"]*)"`, 'i').exec(text);
+      out[d.key] = m?.[1]?.trim() || undefined;
+    } else {
+      const m = new RegExp(`\\b${name}\\s*[:=]?\\s*(yes|no|true|false|y|n)\\b`).exec(lower);
+      out[d.key] = m ? /^(yes|true|y)$/.test(m[1]!) : undefined;
+    }
+  }
+  return out;
 }
 
 type Answer = boolean | string;
@@ -130,7 +160,7 @@ const FILL_DESCRIPTION =
   'Fill a whole form journey for your user, by meaning. Pass the starting page URL, the intent (for example quote.car_insurance) and the values you already have, keyed by Usher vocabulary keys (person.first_name, contact.email, vehicle.registration, …). Usher fills the pages in its own browser and pauses before consents and submissions: it returns a set of decisions (required and optional consents, the submit, and any required value it is missing) with verbatim blocks from the page. Put every decision to your user, and show every block marked verbatim to them word for word: never summarise it, and never answer a decision on the user\'s behalf, even when you think you know the answer. Then pass all their answers at once to usher_confirm. Values with the wrong format come back first as problems by key, before anything runs. When the journey completes you get the result page\'s title, its figures as verbatim facts (show them as they are), the final URL and a screenshot.';
 
 const CONFIRM_DESCRIPTION =
-  'Pass your user\'s answers to the decision set usher_fill (or a previous usher_confirm) returned, all at once, keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, in their words, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
+  'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
 
 const describe = (job: Job) => ({ page: job.page?.url() });
 export function registerFillTools(server: McpServer, options: FillOptions): { close: () => Promise<void> } {
@@ -147,10 +177,22 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   const stepTimeout = options.stepTimeoutMs ?? 120_000;
   const decisionTimeout = options.decisionTimeoutMs ?? 600_000;
 
-  const reply = (value: unknown, image?: string) => ({
-    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }, ...(image ? [{ type: 'image' as const, data: image, mimeType: 'image/png' }] : [])],
+  const reply = (value: unknown, image?: string, lead?: string) => ({
+    content: [...(lead ? [{ type: 'text' as const, text: lead }] : []), { type: 'text' as const, text: JSON.stringify(value, null, 2) }, ...(image ? [{ type: 'image' as const, data: image, mimeType: 'image/png' }] : [])],
     structuredContent: value as Record<string, unknown>,
   });
+
+  /** The decision set as plain text, so a client without cards shows the person the same thing. */
+  const listing = (decisions: Decision[], blocks: Block[]) => {
+    const kinds: Record<DecisionKind, string> = { required_consent: 'Required', optional_consent: 'Optional', submit: 'Action', missing_value: 'Needed' };
+    const lines = decisions.map((d, i) => {
+      const own = blocks.filter((b) => b.source.key === d.key && b.verbatim);
+      const wording = own.find((b) => b.kind === 'consent')?.text ?? d.label;
+      const extra = own.filter((b) => b.kind !== 'consent' || b.text !== wording).map((b) => `\n   ${b.kind === 'disclosure' ? 'The site says' : 'Terms'}${b.source.url ? ` (${b.source.url})` : ''}: “${b.text}”`).join('');
+      return `${i + 1}. ${kinds[d.kind]}: ${d.kind === 'submit' ? `press “${wording}”` : `“${wording}”`}${extra}`;
+    });
+    return `Usher is asking the person, not the agent. Show them each item below word for word, in quotation marks, and ask for their answer; never answer for them.\n\n${lines.join('\n')}\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. A reply in this form works: ${confirmationPhrase(decisions)}.`;
+  };
   const failure = (text: string) => ({ isError: true, content: [{ type: 'text' as const, text }] });
 
   /** A screenshot of the page with every value masked. */
@@ -185,15 +227,20 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     for (;;) {
       if (job.pending) {
         const { decisions, blocks } = job.pending;
-        return reply({
+        return reply(
+          {
           status: 'needs_decision',
           id: job.id,
           instructions: 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. Never answer for them.',
           decisions,
           blocks,
+          confirmation_form: confirmationPhrase(decisions),
           actions_so_far: job.actions.length,
           elapsed_ms: Math.round(performance.now() - job.started),
-        });
+          },
+          undefined,
+          listing(decisions, blocks),
+        );
       }
       const woke = await Promise.race([ended, job.wait.then(() => 'changed' as const), timeout]);
       if (woke === 'timeout') {
@@ -242,17 +289,20 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       const page = input.steps[0] ?? plan.start;
       const options = input.options?.items.map((o) => o.label);
       if (input.risk === 'needs_user') {
-        out.push(input.control === 'checkbox' ? { key: input.key, label: input.label, kind: input.required ? 'required_consent' : 'optional_consent', page, control: 'checkbox', ...(!input.required && { default: false }) } : { key: input.key, label: input.label, kind: 'missing_value', page, control: input.control, ...(options && { options }) });
+        const kind: DecisionKind = input.control === 'checkbox' ? (input.required ? 'required_consent' : 'optional_consent') : 'missing_value';
+        out.push(input.control === 'checkbox' ? { key: input.key, label: input.label, kind, page, control: 'checkbox', ...(!input.required && { default: false }), short: shortName(input.key, input.label, kind) } : { key: input.key, label: input.label, kind, page, control: input.control, ...(options && { options }), short: shortName(input.key, input.label, kind) });
       } else if (input.required && !input.shown_if && values[input.key] === undefined) {
-        out.push({ key: input.key, label: input.label, kind: 'missing_value', page, control: input.control, ...(options && { options }) });
+        out.push({ key: input.key, label: input.label, kind: 'missing_value', page, control: input.control, ...(options && { options }), short: shortName(input.key, input.label, 'missing_value') });
       }
     }
-    for (const c of plan.consequential) if (c.risk === 'consequential') out.push({ key: c.key, label: c.label, kind: 'submit', page: c.path });
+    for (const c of plan.consequential) if (c.risk === 'consequential') out.push({ key: c.key, label: c.label, kind: 'submit', page: c.path, short: shortName(c.key, c.label, 'submit') });
     return out;
   }
 
   const meta = options.toolMeta ? { _meta: options.toolMeta } : {};
-  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema }, ...meta }, async (args) => {
+  // Honest annotations: filling moves a site's journey on (it presses Continue), and usher_confirm
+  // submits for the person, so neither is read-only; neither deletes anything.
+  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema }, annotations: { title: 'Fill a form with Usher', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, ...meta }, async (args) => {
     const odd = Object.entries(args.values).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
     if (odd.length) return failure(`Values must be text, numbers or true/false: ${odd.join(', ')}.`);
     if (!limiter.allow('fill')) return failure('Too many fills this hour; try again later.');
@@ -320,6 +370,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       ...(f.control && { control: f.control }),
       ...(f.options && kind === 'missing_value' && { options: f.options.items.map((o) => o.label) }),
       ...(kind === 'optional_consent' && { default: false }),
+      short: shortName(f.key, f.label, kind),
     });
 
     const user: UserChannel = {
@@ -327,7 +378,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         const here: Decision[] = [
           ...d.userOnly.map((f) => decisionFor(f, kindOf(f), d.path)),
           ...d.confirmFields.map((f) => decisionFor(f, 'optional_consent', d.path)),
-          ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path }] : []),
+          ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path, short: shortName(d.advance.key, d.advance.label, 'submit') }] : []),
           ...d.missing.map((f) => decisionFor(f, 'missing_value', d.path)),
         ];
         // The page's own words for each: consent wording (and linked terms), the text by the submit.
@@ -410,15 +461,20 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       inputSchema: {
         id: z.string(),
         answers: z.record(z.string(), z.any()).optional().describe('The user\'s answer to each decision, by its key: true or false for consents and the submit, the value for a missing value.'),
+        confirmation: z.string().optional().describe('The person\'s reply, word for word (for example "Confirm: declaration yes, marketing no, get my quote yes"). Usher reads the answers from it.'),
         answer: z.any().optional().describe('Older clients: the answer when only one decision is pending.'),
       },
+      // It submits on the person's behalf: clients that ask before such actions should ask.
+      annotations: { title: 'Submit with the person\'s answers', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       ...meta,
     },
     async (args) => {
       const job = jobs.get(args.id);
       const pending = job?.pending;
       if (!job || !pending) return failure(`Nothing is waiting under ${args.id}.`);
-      const given: Record<string, unknown> = { ...(args.answers ?? {}) };
+      // The person's own words first; answers by key, where the agent gave them, take precedence.
+      const read = args.confirmation ? parseConfirmation(args.confirmation, pending.decisions) : {};
+      const given: Record<string, unknown> = { ...Object.fromEntries(Object.entries(read).filter(([, v]) => v !== undefined)), ...(args.answers ?? {}) };
       if (args.answer !== undefined && pending.decisions.length === 1 && given[pending.decisions[0]!.key] === undefined) given[pending.decisions[0]!.key] = args.answer;
       const yes = (v: unknown) => v === true || (typeof v === 'string' && /^(true|yes|y|agree|agreed|ok|confirm(ed)?)$/i.test(v.trim()));
       const no = (v: unknown) => v === false || (typeof v === 'string' && /^(false|no|n|decline(d)?|disagree)$/i.test(v.trim()));
@@ -445,6 +501,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       title: 'Abandon a fill',
       description: 'Your user said no, or changed their mind: abandon the fill usher_fill started. Nothing more is entered or submitted.',
       inputSchema: { id: z.string() },
+      annotations: { title: 'Abandon a fill', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => {
       const job = jobs.get(args.id);
