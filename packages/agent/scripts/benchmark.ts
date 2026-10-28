@@ -143,6 +143,7 @@ try {
             });
             row.runs.push(run);
             row.live.push(live);
+            if (run.outcome !== 'completed') console.log(`  run ${i + 1}${live ? ' (live)' : ''} ${run.outcome}: ${run.reason ?? 'no reason given'}`);
             if (run.outcome !== 'completed' && /no recorded|not in the compiler log/i.test(run.reason ?? '')) {
               row.note = `no recorded ${agent.model} response for this page; run with --live once to record it`;
               break;
