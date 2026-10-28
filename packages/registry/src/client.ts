@@ -86,6 +86,11 @@ export class RegistryClient {
     return this.call('POST', '/maps/lookup', { origin, path, fingerprint });
   }
 
+  /** A site and a task in a person's words, to a journey on a joined site. */
+  resolve(site: string, task?: string): Promise<Resolved> {
+    return this.call('GET', `/resolve?site=${encodeURIComponent(site)}${task ? `&task=${encodeURIComponent(task)}` : ''}`);
+  }
+
   getPlan(url: string): Promise<UsherPlan> {
     return this.call('GET', `/plans?url=${encodeURIComponent(url)}`);
   }
@@ -102,6 +107,12 @@ export class RegistryClient {
     return this.call('POST', '/runs', await this.sign(report));
   }
 }
+
+/** What GET /resolve returns (registry.ts Resolved, kept here so the client stays light). */
+export type Resolved =
+  | { status: 'resolved'; url: string; intent: string; site: { name: string; origin: string } }
+  | { status: 'needs_details'; message: string; choices: { site: string; task: string; url: string; intent: string }[] }
+  | { status: 'not_joined'; message: string };
 
 export interface KnockResponse {
   usher: '0.1';
