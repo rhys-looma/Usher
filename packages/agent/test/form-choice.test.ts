@@ -85,3 +85,18 @@ test('the model chooses the callback form by intent; the next agent finds its ma
   const filled = session.events.filter((e) => e.source === 'site' && e.action === 'fill').map((e) => e.key);
   assert.ok(filled.includes('contact.phone'), 'the page logged the run against the callback map');
 });
+
+test('a button the model calls a purchase is the way forward, and the user\'s to press: a dry run fills and stops before it', async () => {
+  const purchase: ChatFn = async (request) => {
+    const result = await scripted(request);
+    return { ...result, content: result.content.replace('"key":"form.submit","risk":"consequential"', '"key":"form.purchase","risk":"needs_user"') };
+  };
+  const run = (dryRun: boolean) => runAgent({ browser, url: `${site.url}/help`, profile, intent: 'contact.callback', registry: { close: async () => undefined } as never, noUsher: true, dryRun, user: scriptedUser(profile), fallback: { chat: purchase, model: 'muse-spark-1.3', logDir: null } });
+  const dry = await run(true);
+  assert.equal(dry.outcome, 'completed', dry.reason);
+  assert.match(dry.reason ?? '', /dry run: stopped before/);
+  assert.equal(dry.pages[0]!.filled, 3);
+  const real = await run(false);
+  assert.equal(real.outcome, 'stopped');
+  assert.match(real.reason ?? '', /is for the user to do/);
+});

@@ -165,7 +165,9 @@ export interface RunResult {
   errors?: PageError[];
 }
 
-const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next'];
+// The way forward on a page, in order. A purchase is the user's to make (needs_user), so a run
+// reaching one stops there; a dry run stops before it as before any other.
+const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next', 'form.purchase'];
 
 /** Ends a run early on purpose (the outcome and reason are already set). */
 class StopRun extends Error {}
@@ -599,15 +601,15 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         reason = `No way forward on ${path}.`;
         break;
       }
-      if (ruleFor(advance) === 'forbid') {
-        outcome = 'stopped';
-        reason = `"${advance.label}" is for the user to do.`;
-        break;
-      }
       if (options.dryRun) {
         // Filled and checked; the way forward is left alone.
         pages.push({ path, match: knock?.match.kind ?? (found ? 'exact' : 'none'), map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: ms(t), filled, handed_off: handedOff });
         reason = `dry run: stopped before "${advance.label}"`;
+        break;
+      }
+      if (ruleFor(advance) === 'forbid') {
+        outcome = 'stopped';
+        reason = `"${advance.label}" is for the user to do.`;
         break;
       }
       if (ruleFor(advance) === 'confirm' && !knock) {
