@@ -63,7 +63,8 @@ window.addEventListener('message', function (e) {
   var m = e.data;
   if (!m || m.jsonrpc !== '2.0') return;
   window.msgs.push(m);
-  if (m.method === 'ui/initialize') f.contentWindow.postMessage({ jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2026-01-26', hostInfo: { name: 'harness', version: '0' }, hostCapabilities: {}, hostContext: { theme: 'light' } } }, '*');
+  if (m.method === 'ui/initialize') f.contentWindow.postMessage({ jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2026-01-26', hostInfo: { name: 'harness', version: '0' }, hostCapabilities: window.caps || {}, hostContext: { theme: 'light' } } }, '*');
+  else if (m.method === 'tools/call') window.callTool(m.params).then(function (r) { f.contentWindow.postMessage({ jsonrpc: '2.0', id: m.id, result: r }, '*'); });
   else if (m.method === 'ui/notifications/initialized') window.ready = true;
   else if (m.method === 'ui/notifications/size-changed') f.style.height = m.params.height + 'px';
   else if (m.id != null && m.method) f.contentWindow.postMessage({ jsonrpc: '2.0', id: m.id, result: {} }, '*');
@@ -71,10 +72,12 @@ window.addEventListener('message', function (e) {
 window.show = function (r) { f.contentWindow.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: r }, '*'); };
 </script></body></html>`;
 
-/** The card in a harness host, showing one tool result. */
-async function render(html: string, result: unknown): Promise<Page> {
+/** The card in a harness host, showing one tool result. `caps`: what the host declares; `client` passes the card's tool calls to the server. */
+async function render(html: string, result: unknown, host: { caps?: object; client?: Client } = {}): Promise<Page> {
   const page = await (await browser.newContext({ viewport: { width: 560, height: 900 } })).newPage();
+  if (host.client) await page.exposeFunction('callTool', (params: { name: string; arguments: Record<string, unknown> }) => host.client!.callTool(params));
   await page.setContent(HOST);
+  await page.evaluate((caps) => ((window as unknown as { caps: object }).caps = caps), host.caps ?? {});
   await page.evaluate((h) => ((document.getElementById('v') as HTMLIFrameElement).srcdoc = h), html);
   await page.waitForFunction('window.ready === true');
   await page.evaluate((r) => (window as unknown as { show: (r: unknown) => void }).show(r), result);
@@ -109,17 +112,26 @@ test('Claude gets the dedicated origin for this server: sha256 of its URL, 32 he
   assert.match(domain!, /^[0-9a-f]{32}\.claudemcpcontent\.com$/);
 });
 
-test('decision card → answers back to the model → usher_confirm → result card; ticket from a knock', async () => {
+type Msg = { method?: string; params?: { name?: string; arguments?: { answers?: Record<string, unknown>; confirmation?: string }; content?: { text: string }[] } };
+const sent = async (page: Page) => (await page.evaluate('window.msgs')) as Msg[];
+
+test('a host that can\'t take a card\'s tool calls: Confirm sends the person\'s own short confirmation, and the agent submits from it', async () => {
   const client = await connect();
   const html = ((await client.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
   const filled = await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values } });
   assert.equal((filled.structuredContent as { status: string }).status, 'needs_decision');
+  // The text result lists every decision with its exact wording, for clients with no cards.
+  const lead = (filled.content as { type: string; text: string }[])[0]!.text;
+  assert.match(lead, /Usher is asking the person, not the agent/);
+  assert.match(lead, /1\. Required: “I confirm the information I have given is true and complete”/);
+  assert.match(lead, /2\. Optional: “Send me offers by email \(optional\)”/);
+  assert.match(lead, /3\. Action: press “Get my quote”\n   The site says \(.*\/quote\/cover\): “By selecting Get my quote you agree/);
+  assert.match(lead, /Confirm: declaration yes\/no, marketing yes\/no, get my quote yes\/no/);
 
-  const decision = await render(html, filled);
+  const decision = await render(html, filled, { caps: { message: { text: {} } } });
   const card = decision.frameLocator('#v');
   assert.equal(await card.locator('text=Usher is asking you, not the agent').count(), 1);
   assert.equal(await card.locator('text=I confirm the information I have given is true and complete').count(), 1, 'the site\'s wording, verbatim');
-  assert.equal(await card.locator('text=Get my quote').count() >= 1, true);
   assert.match((await card.locator('.where').textContent()) ?? '', /\/quote\/cover$/);
   assert.equal(await card.locator('input[type=checkbox]').count(), 2, 'the declaration and the submit');
   assert.equal(await card.locator('input[type=radio]').count(), 2, 'marketing as yes/no');
@@ -127,18 +139,14 @@ test('decision card → answers back to the model → usher_confirm → result c
   await card.locator('input[data-key="consent.declaration"]').check();
   await card.locator('input[data-key="form.submit"]').check();
   await card.locator('button#go').click();
-  await card.locator('text=Sent to your assistant.').waitFor();
-  const msgs = (await decision.evaluate('window.msgs')) as { method?: string; params?: { content?: { text?: string } | { text: string }[]; structuredContent?: { usher_confirm: { id: string; answers: Record<string, unknown> } } } }[];
+  await card.locator('text=Sent as your message: Confirm: declaration yes, marketing no, get my quote yes').waitFor();
+  const msgs = await sent(decision);
+  assert.ok(!msgs.some((m) => m.method === 'tools/call'), 'no tool call from the card');
   const message = msgs.find((m) => m.method === 'ui/message')!;
-  const context = msgs.find((m) => m.method === 'ui/update-model-context')!;
-  assert.ok(message && context, 'answers handed back to the model; no tools/call from the card');
-  assert.ok(!msgs.some((m) => m.method === 'tools/call'));
-  const { id, answers } = context.params!.structuredContent!.usher_confirm;
-  assert.deepEqual(answers, { 'consent.declaration': true, 'consent.marketing': false, 'form.submit': true });
-  assert.match((message.params!.content as { text: string }[])[0]!.text, /usher_confirm/);
+  assert.deepEqual(message.params!.content, [{ type: 'text', text: 'Confirm: declaration yes, marketing no, get my quote yes' }], 'the person\'s words, nothing else');
 
-  // The model passes them on, as the card asked.
-  const done = await client.callTool({ name: 'usher_confirm', arguments: { id, answers } });
+  // The agent passes the person's reply on, word for word.
+  const done = await client.callTool({ name: 'usher_confirm', arguments: { id: (filled.structuredContent as { id: string }).id, confirmation: message.params!.content![0]!.text } });
   assert.equal((done.structuredContent as { status: string }).status, 'completed');
   const result = await render(html, done);
   const rc = result.frameLocator('#v');
@@ -155,4 +163,29 @@ test('decision card → answers back to the model → usher_confirm → result c
   assert.match((await tc.locator('dl').textContent()) ?? '', /Agenthosted [\w-]{4}…[\w-]{3}, signed[\s\S]*\/quote\/driver: 13 fields by meaning[\s\S]*Validuntil/);
   assert.equal(await tc.locator(`text=${(knock.structuredContent as { token: string }).token.slice(0, 20)}`).count(), 0, 'never the token itself');
   await shot(ticket, 'ticket.png');
+});
+
+test('a host that passes a card\'s tool calls on (serverTools): Confirm calls usher_confirm and shows the result', async () => {
+  const client = await connect();
+  const html = ((await client.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
+  const filled = await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values } });
+  const page = await render(html, filled, { caps: { serverTools: {}, message: { text: {} } }, client });
+  const card = page.frameLocator('#v');
+  await card.locator('input[data-key="consent.declaration"]').check();
+  await card.locator('input[data-key="form.submit"]').check();
+  await card.locator('button#go').click();
+  await card.locator('h1:text("Your quote")').waitFor();
+  const msgs = await sent(page);
+  const call = msgs.find((m) => m.method === 'tools/call')!;
+  assert.equal(call.params!.name, 'usher_confirm');
+  assert.deepEqual(call.params!.arguments!.answers, { 'consent.declaration': true, 'consent.marketing': false, 'form.submit': true });
+  assert.equal(call.params!.arguments!.confirmation, 'Confirm: declaration yes, marketing no, get my quote yes');
+  assert.ok(!msgs.some((m) => m.method === 'ui/message'), 'no message needed');
+  assert.ok(msgs.some((m) => m.method === 'ui/update-model-context'), 'the agent is told what happened');
+});
+
+test('usher_confirm says what it does: it submits on the person\'s behalf', async () => {
+  const tools = (await (await connect()).listTools()).tools;
+  assert.deepEqual(tools.find((t) => t.name === 'usher_confirm')!.annotations, { title: 'Submit with the person\'s answers', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
+  assert.equal(tools.find((t) => t.name === 'usher_fill')!.annotations?.readOnlyHint, false);
 });

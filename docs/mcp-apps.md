@@ -22,11 +22,14 @@ These screenshots are from the test harness ([`packages/mcp/test/apps.test.ts`](
   - `ui/initialize`, then `ui/notifications/initialized`;
   - it receives `ui/notifications/tool-result`;
   - it sends `ui/notifications/size-changed` as its height changes, and follows the host's light or dark theme.
-- **Answers go back to the model, never to a tool.** On Confirm, the decision card:
-  - sends `ui/update-model-context` with the answers as structured content: `{ usher_confirm: { id, answers } }`;
-  - sends `ui/message` (role user) with the same answers as text, asking the model to pass them to `usher_confirm` as they are.
+- **Confirm takes one of two paths, chosen by what the host declares in `ui/initialize`, never by its name.** It falls back to the message path when unsure.
+  - **Tool path:** for hosts that declare `hostCapabilities.serverTools`, so they pass a card's tool calls to the server. Confirm calls `usher_confirm` with the answers and the person's confirmation, then shows the result card. It also tells the agent what happened with `ui/update-model-context`. The person's click on Confirm is the authorisation.
+  - **Message path:** for everything else, including any host whose answer is unclear and any tool call that fails. Confirm composes the person's own short confirmation from their ticks, for example "Confirm: declaration yes, marketing no, get my quote yes", and sends it with `ui/message` as their message in the chat. The agent then calls `usher_confirm` with it as `confirmation`, word for word, and Usher reads the answers from it. A host that doesn't declare `message`, or turns it down, gets the text shown on the card for the person to send.
 
-  The card never calls a tool itself. ChatGPT doesn't let a card call tools, so this one path works everywhere.
+  MCP Apps has no "draft a message for the person to send" request. `ui/message` is the nearest: the host adds it as the person's message, and may ask them first.
+- **The card was changed after ChatGPT rejected its first answers.** Those were a block of JSON with an instruction to the model, which ChatGPT treated as the card's words, not the person's authorisation. The message is now only the person's confirmation.
+- **The same information without cards.** The text result of a paused fill starts with a plain listing: each decision with its exact wording in quotation marks, the site's text beside the submit, and the form of reply ("Confirm: declaration yes/no, marketing yes/no, get my quote yes/no"). The structured result carries the decisions with a `short` name each, and `confirmation_form`.
+- **Annotations:** `usher_confirm` is `readOnlyHint: false`, `openWorldHint: true` ("Submit with the person's answers"), so clients that ask before actions that change things outside the chat do ask. `usher_fill` is not read-only either: it presses Continue on the way.
 - **Links** in the cards (to the result page, or to the terms a consent links to) go through `ui/open-link`, so the host decides how to open them.
 - **What the card shows:** the site's own words and the user's own result. It never shows the pass (the token) or a value the user didn't supply.
 
@@ -54,7 +57,7 @@ Turn on developer mode and create a connector for `https://usher.run/mcp` with n
 
 ## Per-client notes and quirks
 
-- **ChatGPT: no tool calls from the card.** Every card hands its answers back to the model instead (above), in every client.
+- **ChatGPT: no tool calls from the card,** and it rejected answers sent as card-written text. The message path above sends only the person's own confirmation.
 - **Claude: a domain is required** for a stable origin. It's computed from the server URL, not signed by a key, so it only applies to the hosted URL. A local stdio server can't have one.
 - **`ui/message` content.** The spec's prose example shows `content` as a single block. The SDK's schema (`@modelcontextprotocol/ext-apps` 1.7.5) requires an array, and its `AppBridge` rejects a single block. The card sends an array.
 - **No form submission.** Hosts sandbox the card, and a sandbox without `allow-forms` drops form submits silently. Confirm is a plain button.
@@ -67,4 +70,19 @@ Turn on developer mode and create a connector for `https://usher.run/mcp` with n
   - The decision card's Confirm sends `ui/update-model-context` and `ui/message` with `{ consent.declaration: true, consent.marketing: false, form.submit: true }`, and sends no `tools/call`.
   - Those answers complete the quote through `usher_confirm`, and the result card shows £… a year, the reference and the validity line word for word.
 - **The official host bridge** (`AppBridge` from `@modelcontextprotocol/ext-apps` 1.7.5, in a page). The card's handshake is accepted, the tool result renders, and both `ui/update-model-context` and `ui/message` are accepted, after the array fix above.
-- **Claude Desktop and ChatGPT:** not yet. Neither client is signed in where these tests ran. See the report for the steps to run.
+- **Both Confirm paths in the harness.**
+  - **Message path:** a host declaring only `message` gets "Confirm: declaration yes, marketing no, get my quote yes" and no tool call. `usher_confirm` with that text as `confirmation` completes the quote.
+  - **Tool path:** a host declaring `serverTools` gets one `tools/call` to `usher_confirm`, with the answers and the confirmation. The result card follows, and no message is needed.
+
+## Which path each client took
+
+| Client | Declares `serverTools` | Confirm took |
+| --- | --- | --- |
+| Claude Desktop | not yet tested | not yet tested |
+| ChatGPT (developer mode) | not yet tested | the earlier build's message was rejected; the message path is the fix, not yet retested |
+
+To fill this in, run a Brightwater quote in each client and press Confirm.
+- **Tool path:** the card turns into the result card itself.
+- **Message path:** your confirmation appears as your message, and the assistant then calls `usher_confirm`.
+
+The registry's session log shows which way it went. On the tool path, the confirmed knock follows the card's click with no message turn.

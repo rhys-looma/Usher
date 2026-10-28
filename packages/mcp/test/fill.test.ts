@@ -188,3 +188,16 @@ test('a page with no map: the model reads it, and the reply says so', async () =
   assert.equal(last.status, 'completed');
   assert.deepEqual(last.used_model, ['/quote/driver', '/quote/vehicle', '/quote/cover']);
 });
+
+test('the person\'s own confirmation reads into answers by key; anything it doesn\'t settle is left unanswered', async () => {
+  const { parseConfirmation, confirmationPhrase } = await import('../src/fill.ts');
+  const decisions = [
+    { key: 'consent.declaration', label: 'I confirm…', kind: 'required_consent' as const, page: '/quote/cover', short: 'declaration' },
+    { key: 'consent.marketing', label: 'Send me offers by email (optional)', kind: 'optional_consent' as const, page: '/quote/cover', short: 'marketing' },
+    { key: 'form.submit', label: 'Get my quote', kind: 'submit' as const, page: '/quote/cover', short: 'get my quote' },
+    { key: 'address.postcode', label: 'Postcode', kind: 'missing_value' as const, page: '/quote/driver', short: 'postcode' },
+  ];
+  assert.equal(confirmationPhrase(decisions), 'Confirm: declaration yes/no, marketing yes/no, get my quote yes/no, postcode "…"');
+  assert.deepEqual(parseConfirmation('Confirm: Declaration yes, marketing no, get my quote YES, postcode "WR14 1AA"', decisions), { 'consent.declaration': true, 'consent.marketing': false, 'form.submit': true, 'address.postcode': 'WR14 1AA' });
+  assert.deepEqual(parseConfirmation('declaration yes', decisions), { 'consent.declaration': true, 'consent.marketing': undefined, 'form.submit': undefined, 'address.postcode': undefined });
+});
