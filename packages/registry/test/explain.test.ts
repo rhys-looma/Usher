@@ -54,7 +54,7 @@ test('the dashboard shows explanations, regenerated on demand, cached when nothi
   let calls = 0;
   const replay = replayAny([spark]);
   const counting: ChatFn = async (r) => (calls++, replay(r));
-  const running = await startRegistry({ storage: await testStorage(dir), explainer: { chat: counting, model: spark.model }, web: { allowPrivate: true } });
+  const running = await startRegistry({ storage: await testStorage(dir), explainer: { chat: counting, model: spark.model }, web: { allowPrivate: true }, now: () => new Date('2026-10-27T12:00:00Z') });
   try {
     for (const m of all) await running.registry.addMap(m);
     for (const s of sessions()) await running.registry.storage.putSession(s);
