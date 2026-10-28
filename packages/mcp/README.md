@@ -15,6 +15,8 @@ npx @usher-run/mcp --check     # knocks on the Brightwater demo form and prints 
 
 `--check` prints your knock's session id and a link to the demo site's live dashboard, [usher.run/demo/dashboard](https://usher.run/demo/dashboard): the site's view of your agent, read-only and open to anyone. Run `usher_fill` on the demo quote and your agent's session appears there within seconds, every step by meaning and never the values.
 
+**No install at all:** assistants such as claude.ai, Claude Desktop, ChatGPT and Cursor can add `https://usher.run/mcp` as a remote MCP server instead. It has the same tools, less `submit_map`. Hosted Usher acts on sites that have joined Usher; this package acts on any site, with your own key. See [docs/hosted-mcp.md](https://github.com/rhys-looma/Usher/blob/main/docs/hosted-mcp.md).
+
 ## Add it to your agent
 
 ### Claude Desktop

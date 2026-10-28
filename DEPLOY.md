@@ -290,6 +290,7 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `TRUSTED_PROXY_HOPS` | 2 by default | Proxies in front whose forwarded headers are trusted: CloudFront and the ALB. The client is the `X-Forwarded-For` entry this many from the right. The scheme is `CloudFront-Forwarded-Proto`, else `X-Forwarded-Proto`. Use 1 for an ALB alone; 0 trusts nothing forwarded (the default outside production). |
 | `MODEL_API_KEY` | for compiles, rules, explanations | Meta Model API key (Muse Spark). |
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
+| `USHER_HOSTED_MCP` | on | Hosted MCP at `/mcp` (docs/hosted-mcp.md): `usher_fill` for assistants, on joined sites only, in the registry's Chromium. `off` turns it off. |
 | `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
 | `USHER_ACCEPT_MAPS` | on | Maps agents submit are stored private to their agent, and served to every agent once a second agent or the keeper verifies them (docs/security.md). `0` refuses submissions. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |
