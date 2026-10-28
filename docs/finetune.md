@@ -1,9 +1,9 @@
-# A small labeller: no training first, fine-tuning later
+# A small labeller: no training first, fine-tuning ready to run
 
 Muse Spark labels whole forms well, but most of what it does per element is routine: "First name" is `person.first_name`, and "Get my quote" is `form.submit` and consequential. A small open-weights model could do that part cheaply, beside a self-hosted registry. There are two ways to get it there:
 
 - **No training** (built, and measured below): code proposes the candidate keys for each element (the short list), and the nearest labelled examples from other sites go into the prompt (retrieval few-shot). This works with Muse Spark Open as it is.
-- **Fine-tuning** (future work): a LoRA-tuned Muse Glimmer on Muse Spark's own labels. The dataset export, the eval and the run plan are ready; **no training has been run**, and there are too few examples yet.
+- **Fine-tuning** (ready to run): a LoRA-tuned Muse Glimmer on Muse Spark's labels and site owners' corrections. The export, the training script (Modal, one H100), the serving app (vLLM) and the student's place in the compiler are built and tested. The pipeline has passed a dry run on CPU; **no GPU training has been run yet**. See [Running it](#running-it).
 
 ## The no-training path
 
@@ -126,15 +126,34 @@ On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7
 
 A tuned Muse Glimmer would need to match Spark Open with the short list (on the rebuilt set, about 61% of keys exact and 67% equivalent, with no risk under-called) to earn its place.
 
-## Future work: tuning Muse Glimmer with LoRA
+## Running it
+
+Everything is in `deploy/finetune/` and behind `npm run finetune:*`:
+
+| Command | What it does | Cost |
+| --- | --- | --- |
+| `npm run finetune:export -- [--since …] [--corrections corrections.jsonl] [--publish]` | The dataset (below). Owners' corrections outrank model labels. `--publish` writes the counts to `reports/learning.json`, which `/learning` shows | Free |
+| `npm run finetune:train -- --dry-run` | One training step on 10 examples, on CPU, with a tiny stand-in model (`hf-internal-testing/tiny-random-LlamaForCausalLM`): proves the chat format, completion-only loss and the adapter save. Needs Python with `deploy/finetune/requirements.txt` (`FINETUNE_PYTHON` points at it) | Free |
+| `npm run finetune:train -- --confirm-spend` | The real run on one Modal H100: fetches `meta-models/Muse-Glimmer-30B` into the `usher-finetune` volume once, trains, saves the adapter beside it | Paid: Modal GPU time |
+| `npm run finetune:status` | Modal apps, and the latest run in the volume | Free |
+| `npm run finetune:serve` | Deploys vLLM with the base and the latest adapter (`deploy/finetune/serve.py`), an OpenAI-compatible endpoint behind a key (Modal secret `usher-student`). Scales to zero | Paid while serving |
+| `npm run finetune:stop` | Stops both apps | – |
+
+The dry run passed on 28 October with torch 2.15, transformers 5.21, peft 0.21 and trl 1.16 (pinned in `requirements.txt`, and the Modal image installs the same): one step, loss 10.4 on the random stand-in, adapter files written. Examples are about 1,000 tokens with the vocabulary in the system prompt, so sequences are 2,048: truncation cuts from the end, which is the answer.
+
+**Using the student.** Set `USHER_STUDENT_MODEL=usher-labeller`, `USHER_STUDENT_URL` (from `finetune:serve`) and `USHER_STUDENT_KEY`. The compiler's classifier step then asks the student about each element, with exactly the prompt and input it was trained on (`packages/core/src/compile/student.ts`, which the export also uses), in place of Muse Spark Open's whole-form opinion. As with Spark Open, the stricter risk is kept, so the student can only make a map more careful. `npm run compile -- <url> --classify` and the registry's map viewer use it when the flag is set. **It is off in production**, and should stay off until `npm run finetune:eval -- --model usher-labeller --provider student` beats Spark Open with the short list on the held-out set.
+
+No Fireworks key was available on 28 October, so the Fireworks route below is described, not configured.
+
+## Tuning Muse Glimmer with LoRA
 
 The task is narrow (one JSON object of two fields out) and the prompt is fixed, so a low-rank adapter on the attention projections is enough. A reasonable first run:
 
 - **LoRA:** rank 16, alpha 32, dropout 0.05, on the q, k, v and o projections.
-- **Training:** 3 epochs, learning rate 1e-4 with a short warmup, sequence length 1,024. The system prompt with the vocabulary is about 2,600 characters; an element is a few hundred more.
+- **Training:** 3 epochs, learning rate 1e-4 with a 10-step warmup, sequence length 2,048. The system prompt with the vocabulary is about 3,000 characters; an element is a few hundred more, about 1,000 tokens in all.
 - **Loss on the assistant turn only**, so the model learns the answer, not the prompt.
 - **Base model:** [`meta-models/Muse-Glimmer-30B`](https://huggingface.co/meta-models/Muse-Glimmer-30B), checked on Hugging Face on 27 October: Apache-2.0, not gated, `transformers`, image-text-to-text, about 29.8 billion parameters, last updated 22 October. Meta also publishes GGUF and ExecuTorch builds and an `-assistant` variant; tune the base.
-- **Data:** 131 unique examples today, 103 train and 28 eval (see [How many examples there are](#how-many-examples-there-are)). That is too few: the plan starts when the log holds a few thousand.
+- **Data:** 212 unique examples on 28 October (168 train, 44 eval, from 19 forms), up from 131 the day before (see [How many examples there are](#how-many-examples-there-are)). That is still too few: the paid run should wait until the log holds a few thousand, with owners' corrections among them.
 
 ### On Fireworks
 

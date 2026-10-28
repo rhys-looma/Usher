@@ -73,7 +73,8 @@ export function walkthroughCard(input: { origin: string; refusal: string | null;
   return html`<div class="card"><h2>Map my site</h2>
 <p>Usher walks your journey in its own browser with test answers, tries every option to see what each one shows, labels every page with Muse Spark (three runs where it matters), and shows you each page with what it found. Nothing is published until you say so.</p>
 ${last ? html`<p class="small">Last run ${when(last.started_at)}: <b>${last.status}</b>${last.reason ? html` (${last.reason})` : ''}, ${last.pages.length} page${last.pages.length === 1 ? '' : 's'}. <a href="/dashboard/walkthrough">See it</a>.</p>` : ''}
-${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p><p class="small muted">${input.refusal}</p>` : html`<p><a class="button" href="/dashboard/walkthrough/new">Map my site</a></p>`}</div>`;
+${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p><p class="small muted">${input.refusal}</p>` : html`<p><a class="button" href="/dashboard/walkthrough/new">Map my site</a></p>`}
+<p class="small muted">Your corrections teach the mapper: <a href="/dashboard/learning">see how</a>.</p></div>`;
 }
 
 /** The start form: the first page, the test answers, whether the last button may be pressed. */

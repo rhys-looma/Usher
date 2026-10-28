@@ -12,6 +12,7 @@ import { appendLog, redactRequest } from './log.ts';
 import { compilerModel, costUsd, parseJsonContent, type ChatFn, type ChatMessage, type ChatRequest, type Usage } from './model.ts';
 import { compactExtraction, labelsSchema, retryPrompt, systemPrompt, userPrompt } from './prompt.ts';
 import { classifierRequest, classifyRisks, reconcile, type RiskFlag } from './classify.ts';
+import { classifyWithStudent } from './student.ts';
 import { chooseForm, chooseRequest, type FormChoice } from './choose.ts';
 import { examplesForForm, type ExampleIndex } from './retrieval.ts';
 import { vote, type ElementAgreement } from './vote.ts';
@@ -40,7 +41,8 @@ export interface CompileOptions {
   leadsTo?: string;
   now?: () => Date;
   /** A second opinion on risk from an open-weights model; the stricter risk is kept. */
-  classifier?: { chat: ChatFn; model: string; examples?: ExampleIndex };
+  /** A second opinion on risk: Muse Spark Open on the whole form, or the student per element. */
+  classifier?: { chat: ChatFn; model: string; examples?: ExampleIndex; student?: boolean };
   /** Retrieval few-shot: labelled examples to show the model, nearest to each element. */
   examples?: ExampleIndex;
   /**
@@ -254,7 +256,10 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
     const labelled = validation.labels.elements;
     const els = form.elements.filter((e) => labelled.some((l) => l.id === e.id));
     try {
-      const c = await classifyRisks(options.classifier.chat, options.classifier.model, validation.labels.form.purpose, els, options.classifier.examples);
+      // The student labels one element at a time with its training prompt; Spark Open the whole form.
+      const c = options.classifier.student
+        ? await classifyWithStudent(options.classifier.chat, options.classifier.model, { purpose: validation.labels.form.purpose, title }, els)
+        : await classifyRisks(options.classifier.chat, options.classifier.model, validation.labels.form.purpose, els, options.classifier.examples);
       const { risks, flags, agreement } = reconcile(
         labelled.map((l) => ({ id: l.id, key: l.key, label: els.find((e) => e.id === l.id)!.label, risk: l.risk })),
         c.opinions,
@@ -262,7 +267,7 @@ export async function compilePage(page: Page, options: CompileOptions): Promise<
       validation.labels.elements = labelled.map((l) => ({ ...l, risk: risks.get(l.id)! }));
       classifier = { model: c.model, agreement, flags, usage: c.usage, cost_usd: c.cost_usd, latency_ms: c.latency_ms };
       if (logDir) {
-        await appendLog(logDir, { ts: now().toISOString(), model: c.model, url: scan.url, fingerprint: fp.digest, task: 'classify', request: classifierRequest(c.model, validation.labels.form.purpose, els, options.classifier.examples), opinions: c.opinions, usage: c.usage, latency_ms: c.latency_ms, cost_usd: c.cost_usd, agreement, flags }, now());
+        await appendLog(logDir, { ts: now().toISOString(), model: c.model, url: scan.url, fingerprint: fp.digest, task: 'classify', ...(!options.classifier.student && { request: classifierRequest(c.model, validation.labels.form.purpose, els, options.classifier.examples) }), opinions: c.opinions, usage: c.usage, latency_ms: c.latency_ms, cost_usd: c.cost_usd, agreement, flags }, now());
       }
     } catch (err) {
       classifier = { model: options.classifier.model, error: err instanceof Error ? err.message : String(err) };

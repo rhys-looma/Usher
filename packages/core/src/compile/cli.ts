@@ -11,6 +11,7 @@ import { parseArgs } from 'node:util';
 import { CompileError, compileUrl, summary } from './compile.ts';
 import { loadDotEnv } from './env.ts';
 import { compilerModel, modelApi, openModel } from './model.ts';
+import { studentModel } from './student.ts';
 import { ExampleIndex } from './retrieval.ts';
 
 const { values, positionals } = parseArgs({
@@ -24,6 +25,7 @@ if (!url) {
 }
 
 loadDotEnv();
+const student = studentModel();
 const examples = values.examples ? await ExampleIndex.fromFile(values.examples) : undefined;
 try {
   const result = await compileUrl(url, {
@@ -34,8 +36,8 @@ try {
     ...(values.form !== undefined && { formIndex: Number(values.form) }),
     ...(values.path !== undefined && { path: values.path }),
     ...(values.vote && { vote: true }),
-    // A second opinion on risk from Muse Spark Open on Baseten.
-    ...(values.classify && { classifier: { chat: modelApi({ provider: 'baseten' }), model: openModel(), ...(examples && { examples }) } }),
+    // A second opinion on risk: the tuned student when USHER_STUDENT_MODEL is set, else Muse Spark Open.
+    ...(values.classify && { classifier: student ? { chat: modelApi({ provider: 'student' }), model: student, student: true } : { chat: modelApi({ provider: 'baseten' }), model: openModel(), ...(examples && { examples }) } }),
   });
   const json = `${JSON.stringify(result.map, null, 2)}\n`;
   if (values.out) await writeFile(values.out, json);
