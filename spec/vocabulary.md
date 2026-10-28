@@ -8,7 +8,7 @@ When nothing here fits, use `custom.<slug>` (for example `custom.how_did_you_hea
 
 Values by key are written one way everywhere, whatever the site shows; the agent translates when it fills.
 
-- **Dates** are YYYY-MM-DD: `person.dob`, `person.claims.date`, `vehicle.purchase_date`, `policy.start_date`, `search.date_from`, `search.date_to`, `booking.date`. A site may ask for one as a date picker, as text in its own format (DD/MM/YYYY and the like), or split into day, month and year boxes (fields with a `part`, see [map.md](map.md)): the value is the same.
+- **Dates** are YYYY-MM-DD: `person.dob`, `partner.dob`, `person.claims.date`, `vehicle.purchase_date`, `policy.start_date`, `search.date_from`, `search.date_to`, `booking.date`. A site may ask for one as a date picker, as text in its own format (DD/MM/YYYY and the like), or split into day, month and year boxes (fields with a `part`, see [map.md](map.md)): the value is the same.
 - **Yes or no** answers may be given as `yes`/`no`, `true`/`false` or `y`/`n`; **numbers** as digits, without currency, separators or units.
 
 ## Defaults
@@ -38,6 +38,7 @@ Each key has a default risk and sensitivity. A map may make a field **stricter**
 | `person.claims.type` | Type of a claim | safe |
 | `person.convictions.has_any` | Any motoring convictions in a period | safe |
 | `person.smoker` | Smoked or used nicotine in a recent period | needs_user |
+| `person.smoker_stopped` | When a past smoker stopped | needs_user |
 
 ## Contact and address
 
@@ -91,6 +92,36 @@ A health insurance quote asks who is covered and how much cover, then the cover'
 | `cover.excess` | Excess on a health policy | safe |
 | `cover.hospital_list` | Which hospitals the cover includes | safe |
 | `cover.outpatient_limit` | Limit on outpatient cover | safe |
+
+## Life cover
+
+A life insurance quote asks what the cover is for, how much and for how long, whether to add critical illness cover, and who it covers (`cover.who`).
+
+| Key | Meaning | Default risk |
+| --- | --- | --- |
+| `cover.purpose` | What life cover is for: family protection, mortgage protection… | safe |
+| `cover.amount` | Amount of life cover: the sum paid out | safe |
+| `cover.term` | How long the cover lasts, in years | safe |
+| `cover.inflation_linked` | Cover that rises with inflation | safe |
+| `cover.joint` | One joint policy for two people, or a policy each | safe |
+| `cover.critical_illness` | Critical illness cover added | safe |
+| `cover.critical_illness_amount` | Amount of critical illness cover | safe |
+
+## Second person
+
+A joint application's second person (a partner, a spouse): the same details the form asks of the first, by these keys rather than `person.*` and `contact.*`.
+
+| Key | Meaning | Default risk |
+| --- | --- | --- |
+| `partner.first_name` | Second person's first name | safe |
+| `partner.last_name` | Second person's surname or family name | safe |
+| `partner.dob` | Second person's date of birth | safe |
+| `partner.smoker` | Whether the second person has smoked or used nicotine recently | needs_user |
+| `partner.smoker_stopped` | When the second person stopped smoking | needs_user |
+| `partner.email` | Second person's email address | safe |
+| `partner.phone` | Second person's phone number | safe |
+| `partner.address.same` | The second person lives at the same address | safe |
+| `partner.address.postcode` | Second person's postcode | safe |
 
 ## Health
 

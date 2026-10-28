@@ -135,6 +135,13 @@
       "sensitive": false
     },
     {
+      "key": "person.smoker_stopped",
+      "meaning": "When a past smoker stopped",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
       "key": "contact.email",
       "meaning": "Email address",
       "kind": "field",
@@ -361,6 +368,118 @@
     {
       "key": "cover.outpatient_limit",
       "meaning": "Limit on outpatient cover",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.purpose",
+      "meaning": "What life cover is for: family protection, mortgage protection…",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.amount",
+      "meaning": "Amount of life cover: the sum paid out",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.term",
+      "meaning": "How long the cover lasts, in years",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.inflation_linked",
+      "meaning": "Cover that rises with inflation",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.joint",
+      "meaning": "One joint policy for two people, or a policy each",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.critical_illness",
+      "meaning": "Critical illness cover added",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.critical_illness_amount",
+      "meaning": "Amount of critical illness cover",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.first_name",
+      "meaning": "Second person's first name",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.last_name",
+      "meaning": "Second person's surname or family name",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.dob",
+      "meaning": "Second person's date of birth",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.smoker",
+      "meaning": "Whether the second person has smoked or used nicotine recently",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "partner.smoker_stopped",
+      "meaning": "When the second person stopped smoking",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
+      "key": "partner.email",
+      "meaning": "Second person's email address",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.phone",
+      "meaning": "Second person's phone number",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.address.same",
+      "meaning": "The second person lives at the same address",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "partner.address.postcode",
+      "meaning": "Second person's postcode",
       "kind": "field",
       "default_risk": "safe",
       "sensitive": false
@@ -620,6 +739,7 @@
   ],
   "dates": [
     "person.dob",
+    "partner.dob",
     "person.claims.date",
     "vehicle.purchase_date",
     "policy.start_date",

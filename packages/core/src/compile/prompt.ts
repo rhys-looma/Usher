@@ -32,6 +32,7 @@ A map describes one state of one web form: what each field and action means, and
 - nav.next and form.submit are the form's own way forward. A link that leads away from the form, to another page or service, is neither.
 - Only when none of the candidates fits, use custom.<slug> (lowercase letters, digits and underscores, e.g. custom.how_did_you_hear). An element with no candidates usually needs one.
 - Field keys go on fields and action keys on actions. Each field gets its own key.
+- A form that asks the same questions again for a second person ("Me and someone else", a joint policy, "they" and "their") labels that person's fields with partner.* keys, the first person's with person.*, contact.* and address.*.
 
 ## Risk
 - safe: reversible, no effect outside the session (typing in a field, moving to the next step). Agents act freely.
