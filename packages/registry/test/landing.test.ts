@@ -144,12 +144,12 @@ test('what your customer sees and the rails underneath: a native card on one sid
   const steps = [...section.matchAll(/<li data-step="(\d)"><h3><span class="n">\d<\/span> ([^<]+)<\/h3><p>([^<]+)<\/p>(?:<p class="note">([^<]+)<\/p>)?<p class="sees"><b>Usher sees:<\/b> ([^<]+)<\/p><\/li>/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]]);
   const plain = (s?: string) => s?.replace(/&#39;/g, "'");
   assert.deepEqual(steps.map((s) => s.map(plain)), [
-    ['1', 'Knock', 'The agent identifies itself; the site opens for this one session.', undefined, 'agent identity, site, intent, expiry.'],
-    ['2', 'Map, not values', "Usher hands the agent the form's structure and the site's rules.", undefined, 'field names and types. Never what anyone types.'],
-    ['3', 'The safe fields are filled', 'Name, date of birth, postcode, cover level: seconds.', undefined, 'which fields were filled. Not the values.'],
-    ['4', 'The questions that are yours', "Smoker, the declaration: shown to you in the insurer's exact words, unticked, with Usher asking you, not the agent.", "Medical questions are yours unless the insurer decides otherwise: Usher fills one only where the site allows it, with your own answer, which you confirm.", 'that each was shown to you, and your yes or no.'],
-    ['5', 'Submit with the token', 'The site checks it on its own server. No token, no quote.', undefined, 'that the quote was asked for, with a valid token.'],
-    ['6', 'On the record', "The site's dashboard shows the session: which agent, which fields, what was shown and confirmed.", undefined, 'the session. Never the answers.'],
+    ['1', 'Knock', "Your customer's agent says who it is before it touches your form, and your site opens for that one session.", undefined, 'the agent, your site, what it came to do, when its pass expires.'],
+    ['2', 'Map, not values', "Usher gives the agent your form's structure and your rules, so it fills by meaning, not by guessing.", undefined, 'field names and types. Never what anyone types.'],
+    ['3', "The fields you're happy to hand over", 'Name, date of birth, postcode, cover level: the ones you let agents fill are done in seconds.', undefined, 'which fields were filled. Not the values.'],
+    ['4', 'The questions you keep for people', 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', "that each was shown, and your customer's yes or no."],
+    ['5', 'Nothing without a pass', "Your server checks the agent's token before it quotes. No token, no quote.", undefined, 'that a quote was asked for, with a valid token.'],
+    ['6', 'On your record', 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', undefined, 'the session. Never the answers.'],
   ]);
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
