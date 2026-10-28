@@ -129,6 +129,13 @@ export interface JoinedSite {
 /** Words a site's name often ends with, left out when matching what a person calls it. */
 const NAME_SUFFIXES = /\b(motor|motors|insurance|insurers|direct|bank|group|uk|ltd|limited|plc|online)\b/g;
 const plainName = (s: string) => s.toLowerCase().replace(NAME_SUFFIXES, ' ').replace(/[^a-z0-9]+/g, '');
+/** What people call a product, in the words its intent uses: "PMI" and "medical" are health, "motor" is car. */
+const TASK_WORDS: [RegExp, string][] = [
+  [/\bpmi\b/gi, 'private medical health insurance'],
+  [/\bmedical\b/gi, 'medical health'],
+  [/\b(motor|vehicle|auto)\b/gi, '$1 car'],
+];
+const taskWords = (task: string) => words(TASK_WORDS.reduce((t, [from, to]) => t.replace(from, to), task));
 
 /** A site's own name for itself, from its home page: og:site_name, application-name, or the end of the title. */
 export function siteNameFrom(html: string): string | null {
@@ -487,7 +494,7 @@ export class Registry {
     const choice = (j: JoinedSite['journeys'][number]) => ({ site: found.name, task: j.label, url: `${found.origin}${j.start}`, intent: j.intent });
     const resolved = (j: JoinedSite['journeys'][number]): Resolved => ({ status: 'resolved', url: `${found.origin}${j.start}`, intent: j.intent, site: { name: found.name, origin: found.origin } });
     if (!task?.trim()) return found.journeys.length === 1 ? resolved(found.journeys[0]!) : { status: 'needs_details', message: `${found.name} offers more than one journey: say which.`, choices: found.journeys.map(choice) };
-    const want = words(task);
+    const want = taskWords(task);
     const scored = found.journeys
       .map((j) => {
         const have = words(`${j.label} ${j.title} ${j.intent.replace(/[._]/g, ' ')}`);
