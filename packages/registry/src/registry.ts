@@ -30,6 +30,8 @@ import {
   agentStanding,
   composePlan,
   effectiveRules,
+  intentLabel,
+  words,
   WINDOW_MS,
   ReplayCache,
   fetchKeyDirectory,
@@ -44,6 +46,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { publicFetch } from '@usher/core/public-fetch';
 import { DEFAULT_THRESHOLD, findMatch, type MatchKind, type MatchResult } from './match.ts';
 import { RateLimiter } from './rate-limit.ts';
+import type { Resolved } from './client.ts';
 import { RulesError, compileRules } from './rules.ts';
 import { explainFacts, factsHash, formFacts, type Explanation } from './explain.ts';
 import type { MapRecord, Session, SessionEvent, SessionIdentity, Site, Storage } from './storage.ts';
@@ -112,6 +115,28 @@ export interface RegistryOptions {
 /** Why a hosted connection can't act on a site that hasn't joined, and what to use instead. */
 export function notJoinedMessage(origin: string): string {
   return `Hosted Usher only acts where a site has said yes: ${origin} hasn't joined Usher. To use Usher on any site, run the local server with your own key: npx -y @usher-run/mcp`;
+}
+
+/** A site that has joined, as agents are told about it: its name, origin and journeys. */
+export interface JoinedSite {
+  name: string;
+  origin: string;
+  demo: boolean;
+  journeys: { start: string; intent: string; label: string; title: string }[];
+}
+
+
+/** Words a site's name often ends with, left out when matching what a person calls it. */
+const NAME_SUFFIXES = /\b(motor|motors|insurance|insurers|direct|bank|group|uk|ltd|limited|plc|online)\b/g;
+const plainName = (s: string) => s.toLowerCase().replace(NAME_SUFFIXES, ' ').replace(/[^a-z0-9]+/g, '');
+
+/** A site's own name for itself, from its home page: og:site_name, application-name, or the end of the title. */
+export function siteNameFrom(html: string): string | null {
+  const meta = (name: string) => new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]*content=["']([^"']+)["']`, 'i').exec(html)?.[1] ?? new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${name}["']`, 'i').exec(html)?.[1];
+  const title = /<title[^>]*>([^<]+)<\/title>/i.exec(html)?.[1];
+  const tail = title?.split(/\s[|·–—-]\s/).pop()?.trim();
+  const name = meta('og:site_name') ?? meta('application-name') ?? tail;
+  return name ? name.replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim().slice(0, 80) || null : null;
 }
 
 /** How long the public demo keeps sessions from other people's agents. */
@@ -385,6 +410,93 @@ export class Registry {
     }
     if (remember && !(await this.storage.agentKey(check.agentId))) await this.storage.putAgentKey(check.agentId, check.jwk);
     return check;
+  }
+
+  /** A site's display name: from its own home page once (cached), else its host. */
+  async siteName(origin: string): Promise<string> {
+    const cached = await this.storage.getCached<{ name: string }>('site-name', origin);
+    if (cached) return cached.name;
+    let name: string | null = null;
+    try {
+      const get = this.options.claims?.allowPrivate ? fetch : publicFetch;
+      // The home page, following up to three redirects that stay on the site.
+      let url = `${origin}/`;
+      for (let hops = 0; hops < 4; hops++) {
+        const res = await get(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
+        const next = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+        if (next && new URL(next, url).origin === origin) {
+          url = new URL(next, url).href;
+          continue;
+        }
+        if (res.ok) name = siteNameFrom((await res.text()).slice(0, 200_000));
+        break;
+      }
+    } catch {
+      name = null;
+    }
+    const resolved = name ?? new URL(origin).host;
+    if (name) await this.storage.putCached('site-name', origin, { name, at: this.now().toISOString() });
+    return resolved;
+  }
+
+  /** The journeys on a site: each start (a mapped path no other step leads to) and its intent. */
+  async journeys(origin: string): Promise<JoinedSite['journeys']> {
+    const maps = await this.currentMaps(origin);
+    const reached = new Set([...maps.values()].flatMap((m) => m.actions.map((a) => a.leads_to).filter((p): p is string => Boolean(p))));
+    const out: JoinedSite['journeys'] = [];
+    for (const [path, map] of maps) {
+      if (reached.has(path) || !map.form.intent) continue;
+      out.push({ start: path, intent: map.form.intent, label: intentLabel(map.form.intent), title: map.form.purpose.replace(/:.*$/, '').trim() });
+    }
+    return out.sort((a, b) => a.start.localeCompare(b.start));
+  }
+
+  /** Every site a hosted connection may act on, with its name and journeys. */
+  async joinedSites(): Promise<JoinedSite[]> {
+    const origins = new Set((await this.storage.listSites()).filter((s) => s.claim).map((s) => s.origin));
+    if (this.options.publicDemo) origins.add(this.options.publicDemo.origin);
+    const out: JoinedSite[] = [];
+    for (const origin of origins) out.push({ name: await this.siteName(origin), origin, demo: origin === this.options.publicDemo?.origin, journeys: await this.journeys(origin) });
+    return out.filter((s) => s.journeys.length).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * A site and a task in a person's words, to a journey. The site by display name (with or without
+   * words like "Motor"), host, or any URL on it; the task against each journey's intent and title,
+   * by words in common, as the compiler's short list does. More than one plausible journey: the
+   * choices, never a guess.
+   */
+  async resolveTask(site: string, task?: string): Promise<Resolved> {
+    const joined = await this.joinedSites();
+    const said = site.trim();
+    let origin: string | null = null;
+    try {
+      origin = new URL(/^[a-z]+:\/\//i.test(said) ? said : `https://${said}`).origin;
+      if (!/\./.test(new URL(origin).hostname) && !/^localhost$/i.test(new URL(origin).hostname)) origin = null;
+    } catch {
+      origin = null;
+    }
+    const host = (o: string) => new URL(o).host.replace(/^www\./, '');
+    const found =
+      joined.find((j) => origin && (j.origin === origin || host(j.origin) === host(origin))) ??
+      joined.find((j) => plainName(j.name) === plainName(said) || j.name.toLowerCase() === said.toLowerCase() || host(j.origin).split('.')[0] === plainName(said));
+    if (!found) {
+      const named = joined.map((j) => `${j.name} (${host(j.origin)})`).join(', ');
+      return { status: 'not_joined', message: origin ? notJoinedMessage(origin) : `Hosted Usher only acts where a site has said yes, and "${said}" isn't one of the sites that have joined${named ? ` (${named})` : ''}. To use Usher on any site, run the local server with your own key: npx -y @usher-run/mcp` };
+    }
+    const choice = (j: JoinedSite['journeys'][number]) => ({ site: found.name, task: j.label, url: `${found.origin}${j.start}`, intent: j.intent });
+    const resolved = (j: JoinedSite['journeys'][number]): Resolved => ({ status: 'resolved', url: `${found.origin}${j.start}`, intent: j.intent, site: { name: found.name, origin: found.origin } });
+    if (!task?.trim()) return found.journeys.length === 1 ? resolved(found.journeys[0]!) : { status: 'needs_details', message: `${found.name} offers more than one journey: say which.`, choices: found.journeys.map(choice) };
+    const want = words(task);
+    const scored = found.journeys
+      .map((j) => {
+        const have = words(`${j.label} ${j.title} ${j.intent.replace(/[._]/g, ' ')}`);
+        return { j, score: [...want].filter((w) => have.has(w)).length };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (scored.length === 1 || (scored.length > 1 && scored[0]!.score > scored[1]!.score)) return resolved(scored[0]!.j);
+    return { status: 'needs_details', message: scored.length ? `More than one journey on ${found.name} fits "${task}": say which.` : `Nothing on ${found.name} matches "${task}". It offers: ${found.journeys.map((j) => j.label).join(', ')}.`, choices: (scored.length ? scored.map((x) => x.j) : found.journeys).map(choice) };
   }
 
   /** Sites a hosted connection may act on: those that have proved their origin, and the demo site. */

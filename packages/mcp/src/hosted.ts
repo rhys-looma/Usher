@@ -14,7 +14,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { Browser } from 'playwright';
 import { publicHost } from '@usher/core/public-fetch';
 import { generateAgentIdentity, signRequest, type AgentIdentity, type Fingerprint, type UsherMap, type UsherPlan } from '@usher/core';
-import { RegistryError, knockRequest, notJoinedMessage, RateLimiter, type KnockInput, type KnockResponse, type Registry, type Reply, type RunReport } from '@usher/registry';
+import { RegistryError, knockRequest, notJoinedMessage, RateLimiter, type JoinedSite, type KnockInput, type KnockResponse, type Registry, type Reply, type RunReport } from '@usher/registry';
 import { registerRegistryTools, type RegistryTools } from '../../registry/src/mcp.ts';
 import type { FallbackModel, RegistryTransport } from '../../agent/src/index.ts';
 import { CARD_META, registerCards } from './apps.ts';
@@ -109,6 +109,17 @@ const jsonRpcError = (res: ServerResponse, status: number, message: string, head
   res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message }, id: null }));
 };
 
+/** One line per joined site: "- Brightwater Motor (its host): demo car insurance quote." */
+export function siteList(joined: JoinedSite[]): string {
+  return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}.`).join('\n');
+}
+
+export function hostedInstructions(listed: string): string {
+  return `Hosted Usher fills forms for the person on sites that have joined Usher:
+${listed || '- (none yet)'}
+When the person asks for something on one of these, call usher_fill with the site and the task as they said them and their details word for word. usher_fill pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that. Show them its decisions word for word, never answer for them, and pass their reply to usher_confirm. For sites not listed, the person can run Usher locally with their own key: npx -y @usher-run/mcp`;
+}
+
 export function hostedMcp(options: HostedOptions): HostedMcp {
   const limits = { ...HOSTED_LIMITS, ...options.limits };
   const { registry } = options;
@@ -132,7 +143,15 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
   }, 60_000);
   sweep.unref();
 
-  function connect(client: string): Promise<StreamableHTTPServerTransport> {
+  // The sites a connection is told about, from the registry, refreshed every minute as sites join.
+  let directory: { at: number; text: Promise<string> } | undefined;
+  const sites = () => {
+    if (!directory || Date.now() - directory.at > 60_000) directory = { at: Date.now(), text: registry.joinedSites().then(siteList, () => '') };
+    return directory.text;
+  };
+
+  async function connect(client: string): Promise<StreamableHTTPServerTransport> {
+    const listed = await sites();
     // The connection's key: minted when a tool first needs it, never written anywhere.
     let identity: Promise<AgentIdentity> | undefined;
     const mint = () => (identity ??= generateAgentIdentity().then((g) => g.identity));
@@ -140,7 +159,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     const server = new McpServer(
       { name: 'usher', version: options.version },
       {
-        instructions: `Hosted Usher: fill forms for your user on sites that have joined Usher${registry.publicDemo ? ` (try the demo quote at ${registry.publicDemo.origin}/quote/driver)` : ''}. usher_fill does the whole journey and stops for your user at each decision; answer with usher_confirm or usher_cancel. Other sites: the local server, npx -y @usher-run/mcp.`,
+        instructions: hostedInstructions(listed),
       },
     );
     registerRegistryTools(server, tools, { knockMeta: CARD_META });
@@ -152,6 +171,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       knock: tools.knock,
       lookup: (url, fingerprint) => tools.lookup(new URL(url).origin, new URL(url).pathname, fingerprint),
       getPlan: (url) => tools.getPlan(url).catch(() => null),
+      resolve: (site, task) => registry.resolveTask(site, task),
       submitMap: async () => ({ digest: '', stored: false }),
       reportRun: tools.reportRun,
       logEvents: async (eventsUrl, token, events) => {

@@ -34,6 +34,7 @@ The normative shape is [`plan.schema.json`](plan.schema.json).
 | `steps` | In order: each step's map digest, purpose, the action that moves on (`advance`) and where it leads |
 | `inputs` | One per semantic key across the journey: label, control, whether it is required (on any step, when its `shown_if` holds), risk, constraints and options (first 20, total, truncated) as in the maps, and which steps ask for it |
 | `consequential` | Actions on the way that need the user's confirmation or are theirs alone |
+| `lookups` | Lookup actions on the way (`lookup.vehicle`, `lookup.address`). An agent runs one before filling the fields it fills (make, model and year from a registration; address lines from a postcode), and fills those only if the lookup left them empty. So those fields are optional in the user's data when the lookup's own input (`vehicle.registration`, `address.postcode`) is given |
 | `complete` | `true` when the chain reaches a page with no form (the journey's result); `false` when it stops at a step whose way forward isn't known yet |
 | `stops_at` | Where an incomplete chain stops |
 

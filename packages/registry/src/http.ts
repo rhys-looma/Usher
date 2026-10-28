@@ -201,6 +201,12 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         return send(res, await registry.knock(body, via));
       }
       if (route === 'GET /plans') return send(res, await registry.getPlan(url.searchParams.get('url')));
+      // A site and a task in a person's words, to a journey on a joined site.
+      if (route === 'GET /resolve') {
+        const site = url.searchParams.get('site');
+        if (!site) return send(res, { status: 400, body: { error: 'invalid_request', message: 'Expected ?site= (and ?task=).' } });
+        return send(res, { status: 200, body: await registry.resolveTask(site.slice(0, 300), url.searchParams.get('task')?.slice(0, 300) ?? undefined) });
+      }
       if (route === 'POST /maps/lookup') return send(res, await registry.lookupPage(await readJson(req), req.headers.authorization));
       if (route === 'POST /maps') {
         const { body, via } = await signed();

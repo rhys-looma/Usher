@@ -10,6 +10,7 @@
 import type { Browser, Locator, Page } from 'playwright';
 import {
   FLOOR,
+  LOOKUP_FILLS,
   preflight,
   validationErrorsScript,
   type FieldSpec,
@@ -228,6 +229,75 @@ function conditionHolds(field: MapField, profile: Profile): boolean {
   }
 }
 
+/** Whether a field holds anything: a boolean read in the page, never the value itself. */
+async function isFilled(page: Page, field: MapField): Promise<boolean> {
+  const target = await locate(page, field);
+  if (!target) return false;
+  return target
+    .first()
+    .evaluate((el) => (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? el.checked : 'value' in el && (el as HTMLInputElement).value !== ''))
+    .catch(() => false);
+}
+
+/**
+ * Runs the page's lookups (LOOKUP_FILLS) for which the profile has the input: fills the input,
+ * presses the lookup and waits for the page to settle. An address lookup that shows a list of
+ * results gets the entry matching address.line1. Returns the keys now filled, which the agent then
+ * leaves alone (the lookup's input among them).
+ */
+async function runLookups(page: Page, map: UsherMap, profile: Profile, ruleFor: (el: MapField | MapAction) => ActionRule, acted: (action: 'fill' | 'press', key: string) => void): Promise<Set<string>> {
+  const done = new Set<string>();
+  for (const action of map.actions.filter((a) => LOOKUP_FILLS[a.key] && ruleFor(a) === 'allow')) {
+    const spec = LOOKUP_FILLS[action.key]!;
+    const input = map.fields.find((f) => f.key === spec.input);
+    const value = profile[spec.input];
+    if (!input || value === undefined || ruleFor(input) !== 'allow') continue;
+    if (!(await fillField(page, input, value))) continue;
+    done.add(spec.input);
+    acted('fill', spec.input);
+    const button = await locate(page, action);
+    if (!button) continue;
+    // Selects and radio groups showing before the press: a list of results is one that wasn't.
+    const before = await page.evaluate(() => Array.from(document.querySelectorAll('select, input[type=radio]')).filter((e) => (e as HTMLElement).offsetParent !== null).length);
+    await button.first().click();
+    acted('press', action.key);
+    // Settled when the lookup has filled something, or shown a list of results (up to 3 s).
+    const fills = map.fields.filter((x) => spec.fills.includes(x.key));
+    const lists = () => page.evaluate(() => Array.from(document.querySelectorAll('select, input[type=radio]')).filter((e) => (e as HTMLElement).offsetParent !== null).length);
+    for (const end = Date.now() + 3000; Date.now() < end; await page.waitForTimeout(100)) {
+      if ((await lists()) > before) break;
+      if ((await Promise.all(fills.map((f) => isFilled(page, f)))).some(Boolean)) break;
+    }
+    const line1 = typeof profile['address.line1'] === 'string' ? (profile['address.line1'] as string) : '';
+    if (action.key === 'lookup.address' && line1 && (await lists()) > before) await pickResult(page, line1);
+    for (const f of map.fields.filter((x) => spec.fills.includes(x.key))) if (await isFilled(page, f)) done.add(f.key);
+  }
+  return done;
+}
+
+/** In a lookup's list of results, the entry whose text matches the first address line. */
+async function pickResult(page: Page, line1: string): Promise<void> {
+  const want = line1.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  // A select: the option whose text starts with (or contains) the line; a radio: the one whose label does.
+  for (const select of await page.locator('select:visible').all()) {
+    const labels = await select.locator('option').allTextContents();
+    const index = labels.findIndex((l) => l.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().includes(want));
+    if (index >= 0) {
+      await select.selectOption({ index });
+      await page.waitForTimeout(300);
+      return;
+    }
+  }
+  for (const radio of await page.locator('input[type=radio]:visible').all()) {
+    const label = ((await radio.evaluate((el) => (el as HTMLInputElement).labels?.[0]?.textContent ?? '')) || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (label.includes(want)) {
+      await radio.check();
+      await page.waitForTimeout(300);
+      return;
+    }
+  }
+}
+
 export async function fillField(page: Page, field: MapField, value: string | boolean): Promise<boolean> {
   const target = await locate(page, field);
   if (!target) throw new Error(`Could not find ${field.key} ("${field.label}") on the page.`);
@@ -432,6 +502,9 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         break;
       }
       const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
+      // Lookups first: the registration (or postcode) the person gave, then the site's own lookup.
+      // What it fills is left as the site filled it, and isn't asked for.
+      const lookedUp = options.dryRun ? new Set<string>() : await runLookups(page, map, profile, ruleFor, (action, key) => emit({ type: 'action', path, action, key }));
       if (options.user.review) {
         const holds = map.fields.filter((f) => conditionHolds(f, profile));
         const reviewed = await options.user.review(
@@ -440,7 +513,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
             userOnly: holds.filter((f) => ruleFor(f) === 'forbid'),
             confirmFields: holds.filter((f) => ruleFor(f) === 'confirm'),
             ...(advance && ruleFor(advance) === 'confirm' && !options.dryRun && { advance }),
-            missing: holds.filter((f) => f.required && ruleFor(f) === 'allow' && f.risk !== 'needs_user' && profile[f.key] === undefined),
+            missing: holds.filter((f) => f.required && ruleFor(f) === 'allow' && f.risk !== 'needs_user' && profile[f.key] === undefined && !lookedUp.has(f.key)),
           },
           page,
         );
@@ -458,7 +531,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         if (button && (await button.isVisible())) await button.click().catch(() => undefined);
       }
       for (const field of map.fields) {
-        if (!conditionHolds(field, profile)) continue;
+        if (!conditionHolds(field, profile) || lookedUp.has(field.key)) continue;
         if (ruleFor(field) === 'forbid') {
           if (knock) await page.evaluate((key) => window.usher.handoff(key), field.key);
           await options.user.handoff(field, page);

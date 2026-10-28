@@ -40,6 +40,8 @@ export interface UsherPlan {
   inputs: PlanInput[];
   /** Actions on the way that need the user's confirmation or are theirs alone. */
   consequential: { path: string; key: string; label: string; risk: Risk }[];
+  /** Lookup actions on the way: run before filling the fields they fill (LOOKUP_FILLS). */
+  lookups?: { path: string; key: string; label: string }[];
   /** Whether the chain reaches a page with no form (the end), rather than an unmapped step. */
   complete: boolean;
   /** Where the chain stopped, when it is not complete. */
@@ -47,6 +49,31 @@ export interface UsherPlan {
 }
 
 const ADVANCE = ['form.submit', 'search.submit', 'nav.next'];
+
+/**
+ * What each lookup takes and what it fills: an agent with the input runs the lookup first and
+ * fills the rest only where the lookup left them empty, so the rest is optional in the user's data.
+ */
+export const LOOKUP_FILLS: Record<string, { input: string; fills: string[] }> = {
+  'lookup.vehicle': { input: 'vehicle.registration', fills: ['vehicle.make', 'vehicle.model', 'vehicle.year', 'vehicle.fuel', 'vehicle.transmission', 'vehicle.engine_size', 'vehicle.body_type'] },
+  'lookup.address': { input: 'address.postcode', fills: ['address.line1', 'address.line2', 'address.town', 'address.county'] },
+};
+
+/** Keys a lookup on this plan will fill, given the user's data (the lookup's input is there). */
+export function lookupFilled(plan: Pick<UsherPlan, 'lookups'>, has: (key: string) => boolean): Set<string> {
+  const out = new Set<string>();
+  for (const l of plan.lookups ?? []) {
+    const spec = LOOKUP_FILLS[l.key];
+    if (spec && has(spec.input)) for (const k of spec.fills) out.add(k);
+  }
+  return out;
+}
+
+/** An intent in words: "quote.car_insurance" is "car insurance quote". */
+export function intentLabel(intent: string): string {
+  const [head, ...rest] = intent.split('.');
+  return [...rest.map((r) => r.replace(/_/g, ' ')), head!.replace(/_/g, ' ')].join(' ').trim();
+}
 
 function advanceOf(map: UsherMap) {
   return map.actions.find((a) => a.leads_to && ADVANCE.includes(a.key)) ?? map.actions.find((a) => a.leads_to) ?? map.actions.find((a) => ADVANCE.includes(a.key)) ?? null;
@@ -63,6 +90,7 @@ export function composePlan(start: string, maps: Map<string, UsherMap>): UsherPl
   const steps: PlanStep[] = [];
   const inputs = new Map<string, PlanInput>();
   const consequential: UsherPlan['consequential'] = [];
+  const lookups: NonNullable<UsherPlan['lookups']> = [];
   const seen = new Set<string>();
   let path: string | null = start;
   let complete = false;
@@ -98,11 +126,12 @@ export function composePlan(start: string, maps: Map<string, UsherMap>): UsherPl
       });
     }
     for (const a of map.actions) if (a.risk !== 'safe' && a.key !== 'ui.dismiss') consequential.push({ path, key: a.key, label: a.label, risk: a.risk });
+    for (const a of map.actions) if (a.key.startsWith('lookup.')) lookups.push({ path, key: a.key, label: a.label });
     if (!advance?.leads_to) {
       stops = path;
       break;
     }
     path = advance.leads_to;
   }
-  return { usher_plan: '0.1', origin: first.origin, intent: first.form.intent ?? null, start, steps, inputs: [...inputs.values()], consequential, complete, stops_at: complete ? null : stops };
+  return { usher_plan: '0.1', origin: first.origin, intent: first.form.intent ?? null, start, steps, inputs: [...inputs.values()], consequential, ...(lookups.length && { lookups }), complete, stops_at: complete ? null : stops };
 }

@@ -239,6 +239,16 @@ When the request also carries a Web Bot Auth signature (section 2), the check ve
 
 An agent that fills a journey for its user (Usher's `usher_fill` tool) stops before the steps that are the user's to decide. It asks them together, with the page's own words, and the user answers them all at once. This section is the shape of those tool results, so other implementations can return the same thing.
 
+### Starting from words
+
+A person names a site and a task and gives their details in their own words. An agent can start a journey from that:
+- **Site and task:** the registry matches `site` against joined sites by display name (with or without words like "Motor"), host, or any URL on the site. It matches `task` against each journey's intent and title by the words they share (`GET <registry>/resolve?site=…&task=…`).
+  - One journey fits: its first page and intent.
+  - More than one: `{ "status": "needs_details", "message", "choices": [{ "site", "task", "url", "intent" }] }`. It never guesses.
+  - A site that hasn't joined: `not_joined`, with the reason.
+- **Details:** the agent maps the person's text to values by the plan's keys. One model call, with a strict schema built from the plan: options as enums, dates as YYYY-MM-DD. The model sees keys, labels and options, never the page. Keyed `values` win, key by key. The result goes through the same checks as keyed values.
+- **Lookups:** the plan's lookups (`lookup.vehicle`, `lookup.address`, see [plan.md](plan.md)) run before the fields they fill, so those fields are optional in the details.
+
 ### Decision sets
 
 Before filling a page, the agent collects every decision on it, and with a [plan](plan.md) every decision across the rest of the journey. It returns them as one set:
