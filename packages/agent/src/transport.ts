@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { AgentIdentity, Fingerprint, UsherMap, UsherPlan } from '@usher/core';
-import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type RunReport } from '@usher/registry';
+import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type Resolved, type RunReport } from '@usher/registry';
 
 export interface RegistryTransport {
   /** hosted: the registry in-process, for a hosted MCP connection. */
@@ -15,6 +15,8 @@ export interface RegistryTransport {
   knock(input: KnockInput): Promise<KnockResponse>;
   /** The map for a page by its fingerprint, for sites without a knock lane. */
   lookup(url: string, fingerprint: Fingerprint): Promise<{ match: KnockResponse['match']; map: UsherMap | null }>;
+  /** A site and a task in a person's words, to a journey on a joined site. */
+  resolve?(site: string, task?: string): Promise<Resolved>;
   /** The plan for a journey from this page, or null if the registry has none. */
   getPlan(url: string): Promise<UsherPlan | null>;
   submitMap(map: UsherMap): Promise<{ digest: string; stored: boolean }>;
@@ -32,6 +34,7 @@ export async function httpTransport(registryUrl: string, keyFile?: string): Prom
     identity,
     knock: (input) => client.knock(input),
     getPlan: (url) => client.getPlan(url).catch(() => null),
+    resolve: (site, task) => client.resolve(site, task),
     lookup: (url, fingerprint) => {
       const u = new URL(url);
       return client.lookup(u.origin, u.pathname, fingerprint);
