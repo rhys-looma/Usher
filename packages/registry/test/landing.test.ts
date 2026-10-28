@@ -37,7 +37,7 @@ test('front page: the sentence, the six steps, the viewer box, both quickstarts,
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', 'Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', '<p class="ticket-title">Health insurance quote</p>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', 'Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
@@ -78,7 +78,7 @@ test('front page: a failed "try it" is explained on the page', async () => {
   assert.equal(res.status, 422);
   const text = await res.text();
   assert.match(text, /class="card error">The viewer only opens public websites\./);
-  assert.match(text, /<h2>What happens in between<\/h2>/, 'still the front page');
+  assert.match(text, /<h2>What your customer sees, and the rails underneath<\/h2>/, 'still the front page');
 });
 
 test('interest: people are stored, agents must knock, mistakes are explained, the list is for the admin only', async () => {
@@ -129,11 +129,17 @@ test('numbers: a half-marked accuracy run is never shown; the latest complete on
   assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.9%', '51 of 69', '98.6%', '68 of 69']);
 });
 
-test('what happens in between: six steps in reading order, each with what Usher sees, readable with no JavaScript', async () => {
+test('what your customer sees and the rails underneath: a native card on one side, six steps with what Usher sees on the other, readable with no JavaScript', async () => {
   const text = await (await fetch(`${registry.url}/`)).text();
   const section = /<section class="between" id="how"[\s\S]*?<\/section>/.exec(text)?.[0] ?? '';
-  // The message, then the steps, then the result: the middle of the story, in the page's own order.
-  assert.ok(section.indexOf('class="seq-ask"') < section.indexOf('<ol class="seq-steps">') && section.indexOf('</ol>') < section.indexOf('class="seq-result'));
+  // The customer's side first (message, decision card, quote), then the rails, then what Usher keeps.
+  const at = (s: string) => section.indexOf(s);
+  assert.ok(at('class="step person"') < at('class="step said s-decision"') && at('s-decision') < at('class="step said s-result"') && at('s-result') < at('<ol class="seq-steps">') && at('</ol>') < at('id="keeps"'));
+  // The customer's side is Brightwater's, with no Usher in sight but the reader's annotation on the decision card.
+  const customer = /<figure class="assistant uc"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
+  assert.doesNotMatch(customer.replace(/<p class="callout">[\s\S]*?<\/p>/, ''), /Usher/);
+  assert.match(customer, /<p class="callout"><b>Only with Usher<\/b> Your customer decides, in your words\./);
+  assert.match(customer, /<div class="card decision"><p class="label">Brightwater<\/p>/);
   const steps = [...section.matchAll(/<li data-step="(\d)"><h3><span class="n">\d<\/span> ([^<]+)<\/h3><p>([^<]+)<\/p>(?:<p class="note">([^<]+)<\/p>)?<p class="sees"><b>Usher sees:<\/b> ([^<]+)<\/p><\/li>/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]]);
   const plain = (s?: string) => s?.replace(/&#39;/g, "'");
   assert.deepEqual(steps.map((s) => s.map(plain)), [
@@ -146,16 +152,16 @@ test('what happens in between: six steps in reading order, each with what Usher 
   ]);
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
-  assert.match(section, /<figure class="seq chat" data-steps/);
+  assert.match(section, /<div class="views seq" data-steps>/);
+  assert.match(section, /What your customer sees <span>A native Brightwater experience<\/span>[\s\S]*Under the hood <span>The Usher rails, for you<\/span>/);
   // Brightwater's app runs on Usher; the form is on Brightwater's own site.
   assert.match(section, /<ol class="route"[^>]*><li>Your assistant<\/li><li>Brightwater(&#39;|')s app<\/li><li class="usher"><span>Usher<\/span><\/li><li>Brightwater(&#39;|')s site<\/li><\/ol>/);
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
   assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.22;/, 'faded only once site.js plays the sequence');
-  // A generic chat, no product's interface.
-  const figure = /<figure class="seq chat"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
-  assert.doesNotMatch(figure, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
+  // A generic assistant, no product's interface.
+  assert.doesNotMatch(customer + (/<div class="hood">[\s\S]*?<\/ol>/.exec(section)?.[0] ?? ''), /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
 });
 
 test('what Usher keeps: the same three lines on the page, in /privacy and in docs/security.md', async () => {

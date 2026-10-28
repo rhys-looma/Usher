@@ -159,33 +159,27 @@ test('opening /mcp in a browser explains what it is', async () => {
   assert.match(await res.text(), /remote MCP server[\s\S]*npx -y @usher-run\/mcp/);
 });
 
-test('the front page shows it inside an assistant: the cards\' own markup beside three steps, nothing consequential pre-ticked', async () => {
+test('the front page shows what the customer sees (Brightwater, natively) beside the Usher rails, the decision card picked out, nothing consequential pre-ticked', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
-  const section = /<section id="assistant"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
-  assert.ok(section.includes('<h2>Inside the assistant</h2>'));
-  assert.ok(section.includes(`Add ${registry.url}/mcp to any assistant that speaks MCP. Here, one built on Muse Spark asks for a quote. Usher does the rest, and the person decides.`));
-  assert.ok(section.includes('An assistant built on Muse Spark') && section.includes('>Illustration<'));
-  assert.match(section, /<figure class="assistant uc"[^>]* inert data-sequence>/);
-  // The cards, each with the step that explains it, in order.
-  const order = [...section.matchAll(/class="(step person|step said s-ticket|explain e-ticket|step said s-decision|explain e-decision|step said s-result|explain e-result)"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['step person', 'step said s-ticket', 'explain e-ticket', 'step said s-decision', 'explain e-decision', 'step said s-result', 'explain e-result']);
-  for (const text of ['<span>1</span> The agent knocks', 'Usher checks who it is, hands it the map and the house rules, and a pass that lasts ten minutes.', '<span>2</span> You decide', 'The site\'s own words, your tick. Usher never answers for you.', '<span>3</span> Done, on the record', 'The result as the site shows it. The site sees every action by meaning. Your details are never stored.']) assert.ok(section.includes(text), text);
-  // The health quote: the smoker answer put back to confirm, the declaration verbatim, then the price.
-  for (const text of ['Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', 'Health insurance quote', '/health/about', 'Admit one agent', '3 pages, every field by meaning', 'Ask the person before submitting. Five quotes an hour.', '10 minutes, this site only', 'Have you smoked or used nicotine products in the last 12 months?', 'You said: <b>No</b>', 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', '“Get my quote”', '>Confirm</span>', 'Usher is asking you, not the agent', 'a month', 'Quote reference', 'This quote is valid for']) assert.ok(section.includes(text), text);
-  // A generic assistant: no third party's product or logo in the illustration itself.
-  const figure = /<figure class="assistant uc"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
-  assert.doesNotMatch(figure, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|Meta AI|<img|<svg/);
-  for (const cls of ['class="card ticket"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"']) assert.ok(section.includes(cls), cls);
-  // Drawn boxes, not inputs, and no duplicate captions.
-  assert.doesNotMatch(section, /<input|<button|class="caption"/);
-  assert.equal((section.match(/Usher is asking you, not the agent/g) ?? []).length, 1, 'the badge only');
-  assert.ok(section.includes('Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.'));
-  assert.doesNotMatch(section, /<li>Shown|Meta AI|Muse Code|Muse agent/);
-  assert.ok(home.indexOf('id="assistant"') > home.indexOf('id="how"'), 'after what happens in between');
-  // The sequence starts with both boxes empty and Confirm greyed (site.js adds "waiting").
-  assert.match(home, /\.assistant\.waiting \.check \.box \{ background:transparent;/);
-  assert.match(home, /\.assistant\.waiting \.confirm \{ opacity:\.45; \}/);
-  assert.match((await (await fetch(`${registry.url}/site.js`)).text()), /data-sequence/);
+  const section = /<section class="between" id="how"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
+  assert.ok(section.includes(`Add ${registry.url}/mcp to any assistant that speaks MCP.`));
+  assert.match(section, /<div class="view" id="assistant">/, 'the old #assistant links still land here');
+  const figure = /<figure class="assistant uc"[^>]* inert>[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
+  assert.ok(figure, 'a drawn, inert illustration');
+  // The customer's side, in order: their message, the assistant working, the card, the quote.
+  const order = [...figure.matchAll(/class="(step person|step said s-working|step said s-decision|step said s-result)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, ['step person', 'step said s-working', 'step said s-decision', 'step said s-result']);
+  for (const text of ['Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', 'Brightwater app connected', 'Getting your quote from Brightwater', 'Before we get your quote', 'Brightwater is asking you, not your assistant', 'Have you smoked or used nicotine products in the last 12 months?', 'You said: <b>No</b>', 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', '“Get my quote”', '>Confirm</span>', 'a month', 'Quote reference', 'This quote is valid for']) assert.ok(figure.includes(text), text);
+  for (const cls of ['class="card decision"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"', 'class="callout"']) assert.ok(figure.includes(cls), cls);
+  // Native: Brightwater's, with Usher named only in the reader's annotation on the decision card.
+  assert.doesNotMatch(figure.replace(/<p class="callout">[\s\S]*?<\/p>/, ''), /Usher/);
+  // Drawn boxes, not inputs; no third party's product or logo.
+  assert.doesNotMatch(figure, /<input|<button|Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|Meta AI|<img|<svg/);
+  // Before it plays: boxes empty, Confirm greyed, the card waiting (site.js marks the steps reached).
+  assert.match(home, /\.seq\.seq-on:not\(\.r4\) \.check \.box \{ background:transparent;/);
+  assert.match(home, /\.seq\.seq-on:not\(\.r5\) \.confirm \{ opacity:\.45; \}/);
+  assert.match(home, /\.seq\.seq-on\.r4:not\(\.r5\) \.card\.decision \{ animation:glow/);
+  assert.match(await (await fetch(`${registry.url}/site.js`)).text(), /seq\.classList\.toggle\('r' \+ k/);
 });
 
 test('For agents leads with the hosted URL; the local server is one click away; the hero buttons go where they say', async () => {

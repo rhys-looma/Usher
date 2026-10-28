@@ -153,56 +153,6 @@ export interface LandingOptions {
   hosted?: boolean;
 }
 
-/**
- * "Inside the assistant": an illustrated conversation with an assistant built on Muse Spark, in a
- * plain window of our own (no product's interface), with three short steps beside the cards they
- * explain. The cards are the MCP Apps cards' own markup and styles (cards.ts). The illustration's
- * boxes are drawn, not inputs: it is a picture. Nothing consequential starts ticked; "you" tick the
- * declaration and Get my quote, Confirm lights up, and the result follows. site.js plays that in
- * order once the section is in view; without it (or with reduced motion) the last frame shows, with
- * the ticks marked as yours. One grid: the window spans the left column, each step sits in the row
- * of its card, and on a phone each step falls under its card.
- */
-function assistantSection(url: string): Raw {
-  // Brightwater's own site, by name: the demo is hosted beside Usher, but a real site isn't.
-  const host = "Brightwater's site · ";
-  const tick = html`<span class="box" aria-hidden="true"></span>`;
-  const you = html`<span class="by-you">you</span>`;
-  return html`<section id="assistant" data-reveal><h2>Inside the assistant</h2>
-<p class="lede">Add ${url}/mcp to any assistant that speaks MCP. Here, one built on Muse Spark asks for a quote. Usher does the rest, and the person decides.</p>
-<figure class="assistant uc" aria-label="Illustration: an assistant built on Muse Spark gets a health insurance quote through Usher" inert data-sequence>
-<div class="assistant-window" aria-hidden="true"></div>
-<div class="assistant-bar"><span class="assistant-name">An assistant built on Muse Spark</span><span class="assistant-tag">Illustration</span></div>
-<div class="step person"><p class="bubble">${EXAMPLE}</p></div>
-<div class="step said s-ticket">
-<div class="card ticket"><div class="ticket-main"><p class="label">Admit one agent</p><p class="title">Health insurance quote</p><p class="where">${host}/health/about</p><dl>
-<div><dt>Agent</dt><dd>key 7f3a…c21, signed</dd></div>
-<div><dt>Map</dt><dd>3 pages, every field by meaning</dd></div>
-<div><dt>House rules</dt><dd>Ask the person before submitting. Five quotes an hour.</dd></div>
-<div><dt>Valid</dt><dd>10 minutes, this site only</dd></div>
-</dl></div><div class="stub"><span class="label">No.</span><b>0042</b><span>session</span></div></div>
-</div>
-<div class="explain e-ticket"><h3><span>1</span> The agent knocks</h3><p>Usher checks who it is, hands it the map and the house rules, and a pass that lasts ten minutes.</p></div>
-<div class="step said s-decision">
-<div class="card"><p class="label">Your decision</p><p class="title">Before Usher goes on</p><p class="where">${host}/health/declaration</p><p class="asking">Usher is asking you, not the agent</p>
-<div class="row"><span class="verbatim">Have you smoked or used nicotine products in the last 12 months?<span class="tag req">confirm</span></span><p class="said">You said: <b>No</b></p><div class="t1"><div class="yesno"><span class="radio on"></span> That's right <span class="radio"></span> Not right${you}</div></div></div>
-<div class="row"><span class="check t2">${tick}<span class="verbatim">I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote<span class="tag req">required</span></span>${you}</span></div>
-<div class="row"><span class="check t3">${tick}<span>Yes, press <b>“Get my quote”</b> for me</span>${you}</span><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. Medical history is not asked here: Brightwater asks you about it after the quote. This is a demo site: nothing is bought.</p></div>
-<span class="button confirm">Confirm</span>
-</div>
-</div>
-<div class="explain e-decision"><h3><span>2</span> You decide</h3><p>The site's own words, your tick. Usher never answers for you. Your medical history isn't asked: the insurer asks you after the quote.</p></div>
-<div class="step said s-result">
-<div class="card"><p class="label">Usher</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
-<ul class="facts"><li class="verbatim">£66.91 a month</li><li class="verbatim">Quote reference BWH-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
-<p class="note"><span class="link">Open the page</span> · as the site shows it, word for word</p></div>
-</div>
-<div class="explain e-result"><h3><span>3</span> Done, on the record</h3><p>The result as the site shows it. The site sees every action by meaning. Your details are never stored.</p></div>
-</figure>
-<p class="small muted assistant-note">Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.</p>
-</section>`;
-}
-
 /** The six steps between the person's message and their quote, and what Usher sees at each. */
 const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
   { title: 'Knock', what: 'The agent identifies itself; the site opens for this one session.', sees: 'agent identity, site, intent, expiry.' },
@@ -214,36 +164,61 @@ const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
 ];
 
 /**
- * "What happens in between": the six steps between the person's message (an assistant window) and
- * the quote (the result card), each with what Usher sees, then what Usher keeps. All of it is in the
- * page in reading order; site.js plays the steps once in view (each in turn, a thin line between
- * them), rests on the last frame with all six shown, and lets a step be picked or the whole replayed.
- * With reduced motion, or without JavaScript, all six show at once.
+ * What your customer sees, and the rails underneath: one section, two panes playing in step. On the
+ * left, a native Brightwater experience in the customer's assistant, with no Usher in sight (a plain window of our own, no product's interface, with
+ * the MCP Apps cards' own markup from cards.ts, drawn rather than live): their message, a line saying
+ * it's working,
+ * the decision card they tick (in Brightwater's name), the quote. On the right, what happens underneath: Brightwater's app
+ * runs on Usher's rails, and the six steps stream in, each with what Usher sees. As Usher knocks the
+ * assistant says it's working; at the questions that are the person's the card arrives and they tick it; the quote lands
+ * with the last step. What Usher keeps sits under both. Everything is in the page in reading order;
+ * site.js only plays it (reached steps as r1…r6 on the container), and without it, or with reduced
+ * motion, the last frame shows.
  */
-function betweenSection(): Raw {
+function howSection(url: string, hosted: boolean): Raw {
+  // Brightwater's own site, by name: the demo is hosted beside Usher, but a real site isn't.
+  const host = "Brightwater's site · ";
+  const tick = html`<span class="box" aria-hidden="true"></span>`;
+  const you = html`<span class="by-you">you</span>`;
   return html`<section class="between" id="how" data-reveal>
-<h2>What happens in between</h2>
-<p class="lede">Your assistant uses Brightwater's own app. Underneath, the app runs on Usher: the infrastructure between assistants and a site's forms. From your message to your quote, what Usher sees at each step is underneath it.</p>
-<div class="between-grid">
-<figure class="seq chat" data-steps aria-label="What happens between your message and your quote, in a chat with an assistant">
-<div class="chat-bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span><span class="chat-title">Your assistant</span><span class="chat-chip"><span class="dot"></span>Brightwater app connected</span></div>
-<div class="chat-body">
-<div class="seq-ask msg you"><p class="label">You, to your assistant</p><p class="bubble">${EXAMPLE}</p></div>
-<div class="msg bot"><span class="avatar" aria-hidden="true"></span><div class="bot-col">
+<h2>What your customer sees, and the rails underneath</h2>
+<p class="lede">In their assistant, your customer gets Brightwater: your app, your words, your quote, with no Usher in sight. Underneath, it runs on Usher's rails, the infrastructure between assistants and your forms. Both sides, at the same moment.</p>
+<div class="views seq" data-steps>
+<div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>A native Brightwater experience</span></h3>
+<figure class="assistant uc" aria-label="Illustration: a customer gets a health insurance quote from Brightwater's app in their assistant" inert>
+<div class="assistant-window" aria-hidden="true"></div>
+<div class="assistant-bar"><span class="assistant-name">Your assistant</span><span class="assistant-tag">Brightwater app connected</span></div>
+<div class="step person"><p class="bubble">${EXAMPLE}</p></div>
+<div class="step said s-working"><p class="working"><span class="spinner" aria-hidden="true"></span>Getting your quote from Brightwater…</p></div>
+<div class="step said s-decision">
+<p class="callout"><b>Only with Usher</b> Your customer decides, in your words. Their assistant can't answer for them.</p>
+<div class="card decision"><p class="label">Brightwater</p><p class="title">Before we get your quote</p><p class="where">${host}/health/declaration</p><p class="asking">Brightwater is asking you, not your assistant</p>
+<div class="row"><span class="verbatim">Have you smoked or used nicotine products in the last 12 months?<span class="tag req">confirm</span></span><p class="said">You said: <b>No</b></p><div class="t1"><div class="yesno"><span class="radio on"></span> That's right <span class="radio"></span> Not right${you}</div></div></div>
+<div class="row"><span class="check t2">${tick}<span class="verbatim">I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote<span class="tag req">required</span></span>${you}</span></div>
+<div class="row"><span class="check t3">${tick}<span>Yes, press <b>“Get my quote”</b> for me</span>${you}</span><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. Medical history is not asked here: Brightwater asks you about it after the quote. This is a demo site: nothing is bought.</p></div>
+<span class="button confirm">Confirm</span>
+</div>
+</div>
+<div class="step said s-result">
+<div class="card"><p class="label">Brightwater</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
+<ul class="facts"><li class="verbatim">£66.91 a month</li><li class="verbatim">Quote reference BWH-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
+<p class="note"><span class="link">Open the page</span> · as the site shows it, word for word</p></div>
+</div>
+</figure>
+</div>
+<div class="view"><h3 class="view-label">Under the hood <span>The Usher rails, for you</span></h3>
+<div class="hood">
 <p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater<span class="runs-on">runs on Usher</span></p>
 <ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>Brightwater's site</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
   )}</ol>
-</div></div>
-<div class="typing msg bot" aria-hidden="true"><span class="avatar"></span><span class="dots"><i></i><i></i><i></i></span></div>
-<div class="seq-result msg bot uc"><span class="avatar" aria-hidden="true"></span><div class="bot-col"><p class="reply">Here's your quote from Brightwater, as the site shows it:</p><div class="card"><p class="label">The site's own result</p><p class="title">Your quote</p><ul class="facts"><li>£66.91 a month</li><li>Quote reference BWH-3F9A2C71</li><li>Valid for 30 days</li></ul></div></div></div>
-</div>
-<div class="chat-input" aria-hidden="true"><span>Message your assistant</span><span class="send"></span></div>
 <p class="seq-controls"><button type="button" class="seq-replay" hidden>Replay</button></p>
-</figure>
-<div class="keeps" id="keeps"><h3>${KEEPS_HEADING}</h3><ul>${KEEPS.map((line) => html`<li>${line}</li>`)}</ul></div>
 </div>
+</div>
+</div>
+<div class="keeps" id="keeps"><h3>${KEEPS_HEADING}</h3><ul>${KEEPS.map((line) => html`<li>${line}</li>`)}</ul></div>
+${hosted ? html`<p class="small muted assistant-note">Add ${url}/mcp to any assistant that speaks MCP. Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.</p>` : ''}
 </section>`;
 }
 
@@ -281,9 +256,8 @@ export function landingPage(o: LandingOptions): string {
 </aside>
 </section>
 
-${betweenSection()}
+${howSection(o.url, Boolean(o.hosted))}
 
-${o.hosted ? assistantSection(o.url) : ''}
 
 ${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
 <p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
@@ -377,69 +351,7 @@ section { margin:0 0 56px; }
 ${PICKER_STYLE}
 /* Sections settle into place as they come near (site.js). Content is always present and fully
    visible: only position moves, so pages without JavaScript and screenshots see everything. */
-/* Inside the assistant: a plain window of our own, always dark, holding the MCP Apps cards as a
-   client shows them (CARD_CSS), with the steps beside them. One grid: the window (a frame behind
-   the left column) spans every row; each step shares its card's row. */
 ${CARD_CSS}
-#assistant { --ink-page:var(--ink); --muted-page:var(--muted); --accent-page:var(--accent); }
-.assistant { ${CARD_DARK} display:grid; grid-template-columns:minmax(0,600px) minmax(0,1fr); column-gap:44px; margin:22px 0 0; position:relative; font-size:15px; line-height:1.5; }
-.assistant-window { grid-column:1; grid-row:1 / 6; background:var(--bg); border:1.5px solid var(--line); }
-.assistant > .assistant-bar, .assistant > .step { grid-column:1; position:relative; color:var(--ink); }
-.assistant-bar { grid-row:1; display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 18px; border-bottom:1.5px dashed var(--line); }
-.assistant-name { font-family:var(--serif); font-size:17px; font-weight:700; }
-.assistant-tag { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
-.assistant > .step { padding:9px 18px; min-width:0; }
-.assistant > .person { grid-row:2; justify-self:end; max-width:82%; padding-top:18px; }
-.s-ticket, .e-ticket { grid-row:3; } .s-decision, .e-decision { grid-row:4; } .s-result, .e-result { grid-row:5; }
-.s-result { padding-bottom:20px !important; }
-.assistant .bubble { margin:0; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; }
-/* The ticket at about two-thirds size, so the conversation fits in less height. */
-.assistant .ticket { zoom:.7; transform:rotate(-1deg); max-width:470px; }
-.assistant .explain { grid-column:2; align-self:center; color:var(--ink-page); max-width:34ch; }
-.assistant .explain h3 { font-family:var(--serif); font-size:21px; margin:0 0 4px; display:flex; gap:10px; align-items:baseline; color:var(--ink-page); }
-.assistant .explain h3 span { font-size:13px; font-weight:700; color:var(--accent-page); border:1.5px solid currentColor; border-radius:999px; width:24px; height:24px; display:inline-grid; place-items:center; flex:none; font-family:Inter,system-ui,sans-serif; }
-.assistant .explain p { margin:0; color:var(--muted-page); font-size:16px; }
-/* Drawn boxes: the illustration is a picture. */
-.assistant .check { display:flex; gap:10px; align-items:flex-start; }
-.assistant .box { flex:none; width:18px; height:18px; margin-top:3px; border:1.5px solid var(--muted); border-radius:3px; display:inline-grid; place-items:center; }
-.assistant .box::after { content:"✓"; font-size:13px; font-weight:800; line-height:1; color:var(--card); }
-.assistant .check .box { background:var(--accent); border-color:var(--accent); }
-.assistant .by-you { margin-left:auto; padding-left:8px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); white-space:nowrap; }
-.assistant .radio { display:inline-block; width:14px; height:14px; border:1.5px solid var(--muted); border-radius:50%; vertical-align:-2px; }
-.assistant .radio.on { border:4px solid var(--accent); }
-.assistant .yesno { align-items:center; gap:6px; }
-.assistant .confirm { display:inline-block; margin-top:12px; background:var(--rule); color:var(--card); font-weight:600; padding:10px 18px; border:0; }
-.assistant .link { text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:3px; }
-.assistant-note { max-width:600px; margin:14px 0 0; }
-details.local { margin:4px 0 14px; } details.local summary { cursor:pointer; font-weight:600; } details.local pre { margin-top:10px; }
-/* The sequence (site.js): until it plays, the cards after the request wait dimmed (never hidden),
-   both boxes are empty and Confirm is greyed; then the ticket, the decision card, your two ticks,
-   Confirm and the result come in turn. Without it, the last frame. */
-.assistant .step, .assistant .explain, .assistant .box, .assistant .by-you, .assistant .confirm { transition:opacity 450ms ease-out, background-color 250ms ease-out, border-color 250ms ease-out; }
-.assistant.waiting .s-ticket, .assistant.waiting .s-decision, .assistant.waiting .s-result, .assistant.waiting .explain { opacity:.3; }
-.assistant.waiting .check .box { background:transparent; border-color:var(--muted); }
-.assistant.waiting .box::after, .assistant.waiting .by-you { opacity:0; }
-.assistant.waiting .radio.on { border-width:1.5px; }
-.assistant .radio { transition:border-width 250ms ease-out; }
-.assistant .yesno .by-you { margin-left:auto; }
-.assistant.waiting .confirm { opacity:.45; }
-.assistant.play .s-ticket, .assistant.play .e-ticket { transition-delay:600ms; }
-.assistant.play .s-decision, .assistant.play .e-decision { transition-delay:1500ms; }
-.assistant.play .t1 .radio, .assistant.play .t1 .by-you { transition-delay:2700ms; }
-.assistant.play .t2 .box, .assistant.play .t2 .box::after, .assistant.play .t2 .by-you { transition-delay:3300ms; }
-.assistant.play .t3 .box, .assistant.play .t3 .box::after, .assistant.play .t3 .by-you { transition-delay:3900ms; }
-.assistant.play .confirm { transition-delay:4400ms; }
-.assistant.play .s-result, .assistant.play .e-result { transition-delay:5200ms; }
-@media (prefers-reduced-motion: reduce) { .assistant * { transition:none !important; } }
-@media (max-width:900px) {
-  .assistant { grid-template-columns:minmax(0,1fr); }
-  .assistant-window { grid-row:1 / 9; }
-  .assistant > .explain { grid-column:1; position:relative; color:var(--ink); padding:0 18px 12px; max-width:none; }
-  .assistant .explain h3, .assistant .explain p { color:var(--ink); } .assistant .explain p { color:var(--muted); font-size:14.5px; }
-  .s-ticket { grid-row:3; } .e-ticket { grid-row:4; } .s-decision { grid-row:5; } .e-decision { grid-row:6; } .s-result { grid-row:7; } .e-result { grid-row:8; padding-bottom:20px; }
-  .s-result { padding-bottom:9px !important; }
-}
-@media (max-width:480px) { .assistant > .step { padding:8px 12px; } .assistant > .explain { padding:0 12px 12px; } .assistant > .person { max-width:92%; } .assistant .ticket { zoom:.85; transform:none; } }
 [data-reveal] { transition:transform 240ms ease-out; }
 html.reveal [data-reveal]:not(.shown) { transform:translateY(16px); }
 @media (prefers-reduced-motion: reduce) { [data-reveal] { transition:none; } html.reveal [data-reveal]:not(.shown) { transform:none; } }
@@ -466,102 +378,108 @@ main { padding-top:0; }
 .hero-ask { margin:0 0 28px; max-width:46ch; }
 .hero-ask .label { margin:0 0 6px; }
 .bubble { margin:0; padding:12px 16px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; font-size:16px; line-height:1.5; }
-/* What happens in between: a chat with an assistant (no product's interface), always dark like the
-   illustration below it. Your message, the assistant's "Using Usher" panel with the six steps
-   streaming in (a pulsing marker, then a tick, the line filling down to the step), a typing
-   indicator, and the quote as its reply. Everything is in the page in reading order; site.js
-   (seq-on) only animates it, and without it, or with reduced motion, the last frame shows. */
-.between .lede { max-width:60ch; }
-.between-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:32px; align-items:start; margin-top:22px; }
-.chat { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
-.chat-bar { display:flex; align-items:center; gap:14px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--card); }
-.lights { display:flex; gap:6px; } .lights i { width:10px; height:10px; border-radius:50%; background:var(--line); display:block; }
-.chat-title { font-weight:600; font-size:14px; }
-.chat-chip { margin-left:auto; display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--safe); background:var(--safe-bg); padding:3px 10px; border-radius:999px; }
-.chat-chip .dot { width:7px; height:7px; border-radius:50%; background:var(--safe); animation:breathe 2.4s ease-in-out infinite; }
-.chat-body { padding:22px 20px 8px; display:flex; flex-direction:column; gap:18px; }
-.msg.you { align-self:flex-end; max-width:86%; }
-.msg.you .label { text-align:right; margin:0 0 6px; color:var(--muted); }
-.msg.you .bubble { background:var(--accent); color:#12132c; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
-.msg.bot { display:grid; grid-template-columns:30px minmax(0,1fr); gap:12px; align-items:start; }
-.avatar { width:30px; height:30px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), #5ab0ff, var(--accent)); display:block; }
-.tool-head { margin:4px 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
+/* What your customer sees, and the rails underneath: two panes side by side, always dark like an
+   assistant, playing in step (site.js marks the steps reached as r1…r6 on .views). */
+.between .lede { max-width:64ch; }
+.views { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:28px; align-items:start; margin-top:22px; }
+.view-label { font-family:var(--serif); font-size:20px; margin:0 0 10px; }
+.view-label span { display:block; font-family:Inter,system-ui,sans-serif; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); margin-top:2px; }
+/* The customer's side: a plain assistant window of our own (no product's interface). */
+.assistant { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; overflow:hidden; font-size:15px; line-height:1.5; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
+.assistant-window { display:none; }
+.assistant-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--card); }
+.assistant-name { font-weight:600; font-size:14px; }
+.assistant-tag { font-size:12px; font-weight:600; color:var(--safe); background:var(--safe-bg); padding:3px 10px; border-radius:999px; }
+.assistant > .step { padding:9px 18px; min-width:0; }
+.assistant > .person { display:flex; justify-content:flex-end; padding-top:18px; }
+.assistant .bubble { margin:0; max-width:88%; padding:10px 14px; background:var(--accent); color:#12132c; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
+.assistant .working { margin:0; font-size:14px; color:var(--muted); display:flex; align-items:center; gap:9px; }
+.spinner, .tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; flex:none; }
+.s-result { padding-bottom:20px !important; }
+.assistant .card { border-radius:12px; }
+/* Drawn boxes: the illustration is a picture. */
+.assistant .check { display:flex; gap:10px; align-items:flex-start; }
+.assistant .box { flex:none; width:18px; height:18px; margin-top:3px; border:1.5px solid var(--muted); border-radius:3px; display:inline-grid; place-items:center; }
+.assistant .box::after { content:"✓"; font-size:13px; font-weight:800; line-height:1; color:var(--card); }
+.assistant .check .box { background:var(--accent); border-color:var(--accent); }
+.assistant .by-you { margin-left:auto; padding-left:8px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); white-space:nowrap; }
+.assistant .radio { display:inline-block; width:14px; height:14px; border:1.5px solid var(--muted); border-radius:50%; vertical-align:-2px; }
+.assistant .radio.on { border:4px solid var(--accent); }
+.assistant .yesno { align-items:center; gap:6px; }
+.assistant .yesno .by-you { margin-left:auto; }
+.assistant .confirm { display:inline-block; margin-top:12px; background:var(--rule); color:var(--card); font-weight:600; padding:10px 18px; border:0; border-radius:8px; }
+.assistant .link { text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:3px; }
+.assistant-note { max-width:760px; margin:14px 0 0; }
+details.local { margin:4px 0 14px; } details.local summary { cursor:pointer; font-weight:600; } details.local pre { margin-top:10px; }
+/* The rails: Brightwater's app on Usher, the route, the six steps. */
+.hood { ${CARD_DARK} background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; padding:16px 18px 10px; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
+.tool-head { margin:0 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
+.seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); }
 .runs-on { margin-left:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 8px; }
-/* The route: assistant, the site's app, Usher, the site's form; a pulse runs along it while the
-   steps play. */
-ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; font-size:12.5px; position:relative; }
+ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; font-size:12.5px; }
 .route li { display:flex; align-items:center; color:var(--muted); }
 .route li + li::before { content:""; width:26px; height:2px; margin:0 6px; background:linear-gradient(90deg, var(--line) 0 40%, var(--accent) 40% 60%, var(--line) 60% 100%) 0 0 / 300% 100%; }
 .seq.seq-on:not(.ended) .route li + li::before { animation:flow 1.2s linear infinite; }
 .route li.usher span { color:#12132c; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(197,163,255,.18); }
-@keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
-.tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; }
-.seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); border-right-color:var(--safe); }
-ol.seq-steps { list-style:none; margin:0; padding:6px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
-.seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px dotted var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out, background-color 300ms; }
+ol.seq-steps { list-style:none; margin:0; padding:4px 14px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+.seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px dotted var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out; }
 .seq-steps li:first-child { border-top:0; }
-/* The line between the markers, filling down as the steps complete. */
 .seq-steps li::before { content:""; position:absolute; left:12px; top:38px; bottom:-14px; width:2px; background:var(--line); }
-.seq-steps li:last-child::before { display:none; }
 .seq-steps li::after { content:""; position:absolute; left:12px; top:38px; width:2px; height:0; background:var(--accent); transition:height 700ms ease-out; }
-.seq-steps li:last-child::after { display:none; }
+.seq-steps li:last-child::before, .seq-steps li:last-child::after { display:none; }
 .seq-steps li.done::after, .seq:not(.seq-on) .seq-steps li::after { height:calc(100% - 24px); }
-.seq-steps h3 { font-family:var(--serif); font-size:18px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
+.seq-steps h3 { font-family:var(--serif); font-size:17.5px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
 .seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:700 12.5px Inter,system-ui,sans-serif; color:var(--accent); background:var(--bg); border:1.5px solid var(--accent); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
 button.n { cursor:pointer; }
 button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-.seq-steps p { margin:0 0 6px; font-size:14.5px; color:var(--ink); }
+.seq-steps p { margin:0 0 6px; font-size:14px; color:var(--ink); }
 .seq-steps .note { font-weight:600; color:var(--user); }
 .seq-steps .sees { display:inline-block; margin:2px 0 0; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px 11px 3px 10px; }
 .seq-steps .sees b { color:var(--safe); font-weight:700; }
 .seq-steps li.done .n, .seq:not(.seq-on) .seq-steps .n { background:var(--accent); color:#12132c; }
-.seq .typing.msg { display:none; }
-.typing .dots { justify-self:start; }
-.dots { display:inline-flex; gap:5px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; }
-.dots i { width:7px; height:7px; border-radius:50%; background:var(--muted); display:block; animation:bounce 1.1s infinite ease-in-out; }
-.dots i:nth-child(2) { animation-delay:.15s; } .dots i:nth-child(3) { animation-delay:.3s; }
-.seq-result .reply { margin:4px 0 10px; font-size:15px; }
-.seq-result .card { border-radius:12px; max-width:360px; }
-.seq-result .facts li:first-child { font-family:var(--serif); }
-.chat-input { display:flex; align-items:center; gap:10px; margin:10px 16px 16px; padding:11px 12px 11px 16px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:14px; background:var(--card); }
-.chat-input .send { margin-left:auto; width:28px; height:28px; border-radius:50%; background:var(--line); position:relative; }
-.chat-input .send::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; border-left:2px solid var(--bg); border-top:2px solid var(--bg); transform:translate(-50%,-30%) rotate(45deg); }
-.seq-controls { margin:0 16px 14px; }
+.seq-controls { margin:10px 0 4px; }
 .seq-replay[hidden] { display:none; }
 .seq-replay { font:inherit; font-size:13px; font-weight:600; background:none; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 14px; cursor:pointer; }
-/* Playing (site.js adds seq-on): steps not reached wait faded and lowered; the step in play rises in,
-   its marker pulses and its title shimmers; then the assistant types, and the quote arrives. */
+/* Playing: on the rails, steps not reached wait faded and lowered, the one in play pulses and
+   shimmers. On the customer's side, in step: working while Usher knocks and fills; the card at the
+   questions that are theirs, ticked one by one; Confirm at the submit; the quote with the record. */
 .seq.seq-on .seq-steps li { opacity:.22; transform:translateY(6px); }
 .seq.seq-on .seq-steps li.on, .seq.seq-on .seq-steps li.done { opacity:1; transform:none; }
 .seq.seq-on .seq-steps li.on .n { animation:pulse 1.2s ease-out infinite; }
 .seq.seq-on .seq-steps li.on h3 { background:linear-gradient(90deg, var(--ink) 0%, var(--accent) 50%, var(--ink) 100%) 0 0 / 200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:shimmer 1.6s linear infinite; }
-.seq.seq-on .tool-icon { animation:spin .9s linear infinite; }
+.seq.seq-on .tool-icon, .seq.seq-on:not(.r4) .spinner { animation:spin .9s linear infinite; }
 .seq.seq-on.ended .tool-icon { animation:none; }
-.seq.seq-on.typing-now .typing.msg { display:grid; }
-.seq.seq-on .seq-result { opacity:0; transform:translateY(10px); max-height:0; overflow:hidden; transition:opacity 500ms ease-out, transform 500ms ease-out, max-height 600ms ease-out; }
-.seq.seq-on.ended .seq-result { opacity:1; transform:none; max-height:420px; }
+.assistant .step, .assistant .box, .assistant .by-you, .assistant .confirm, .assistant .radio { transition:opacity 450ms ease-out, transform 450ms ease-out, background-color 250ms ease-out, border-color 250ms ease-out, border-width 250ms ease-out; }
+.seq.seq-on:not(.r1) .s-working, .seq.seq-on:not(.r4) .s-decision, .seq.seq-on:not(.ended) .s-result { opacity:.15; transform:translateY(8px); }
+.seq.seq-on:not(.r4) .check .box { background:transparent; border-color:var(--muted); }
+.seq.seq-on:not(.r4) .box::after, .seq.seq-on:not(.r4) .by-you { opacity:0; }
+.seq.seq-on:not(.r4) .radio.on { border-width:1.5px; }
+.seq.r4 .t1 .radio, .seq.r4 .t1 .by-you { transition-delay:500ms; }
+.seq.r4 .t2 .box, .seq.r4 .t2 .box::after, .seq.r4 .t2 .by-you { transition-delay:1000ms; }
+.seq.r4 .t3 .box, .seq.r4 .t3 .box::after, .seq.r4 .t3 .by-you { transition-delay:1500ms; }
+.seq.seq-on:not(.r5) .confirm { opacity:.45; }
+/* The decision card, the one thing no other way of filling forms gives: picked out with an
+   annotation for the reader (outside the app's own card) and a glow that lights up when the rails
+   reach the questions that are the customer's. */
+.assistant .callout { margin:8px 0 10px; font-size:13px; color:var(--ink); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
+.assistant .callout b { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#12132c; background:var(--accent); padding:2px 9px; border-radius:999px; }
+.assistant .card.decision { border:2px solid var(--accent); box-shadow:0 0 0 5px rgba(197,163,255,.14), 0 18px 40px -18px rgba(197,163,255,.45); }
+.seq.seq-on.r4:not(.r5) .card.decision { animation:glow 1.6s ease-in-out infinite; }
+.seq-steps li[data-step="4"] { background:linear-gradient(90deg, rgba(197,163,255,.10), transparent 70%); margin:0 -14px; padding-left:54px; padding-right:14px; }
+.seq-steps li[data-step="4"] .n { left:14px; }
+.seq-steps li[data-step="4"]::before, .seq-steps li[data-step="4"]::after { left:26px; }
+@keyframes glow { 50% { box-shadow:0 0 0 9px rgba(197,163,255,.24), 0 18px 48px -14px rgba(197,163,255,.6); } }
 @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(197,163,255,.6); } 100% { box-shadow:0 0 0 12px rgba(197,163,255,0); } }
 @keyframes shimmer { to { background-position:-200% 0; } }
 @keyframes spin { to { transform:rotate(360deg); } }
-@keyframes bounce { 0%, 80%, 100% { transform:translateY(0); opacity:.5; } 40% { transform:translateY(-4px); opacity:1; } }
-@keyframes breathe { 50% { opacity:.35; } }
-.keeps { margin:0; padding:20px 22px; border:1.5px solid var(--rule); background:var(--card); position:sticky; top:24px; }
+@keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
+.keeps { margin:28px 0 0; padding:20px 22px; border:1.5px solid var(--rule); background:var(--card); max-width:760px; }
 .keeps h3 { font-family:var(--serif); font-size:22px; margin:0 0 10px; }
 .keeps ul { margin:0; padding-left:20px; }
 .keeps li { margin:8px 0; }
-@media (prefers-reduced-motion: reduce) { .seq *, .seq *::after { transition:none !important; animation:none !important; } }
-@media (max-width:900px) {
-  .between-grid { grid-template-columns:minmax(0,1fr); }
-  .keeps { position:static; }
-}
-@media (max-width:480px) {
-  .chat-body { padding:16px 12px 6px; }
-  .msg.bot { grid-template-columns:minmax(0,1fr); }
-  .msg.bot > .avatar, .typing .avatar { display:none; }
-  ol.seq-steps { padding:4px 12px; }
-  .msg.you { max-width:94%; }
-  .chat-input { margin:8px 12px 12px; }
-}
+@media (prefers-reduced-motion: reduce) { .seq *, .seq *::before, .seq *::after { transition:none !important; animation:none !important; } }
+@media (max-width:900px) { .views { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:480px) { .assistant > .step { padding:8px 12px; } .hood { padding:14px 12px 8px; } ol.seq-steps { padding:4px 10px; } }
 .grid.three { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
 .grid.two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); align-items:start; }
 .grid:not(.two):not(.three) { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
