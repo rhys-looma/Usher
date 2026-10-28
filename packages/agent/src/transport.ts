@@ -8,7 +8,8 @@ import type { AgentIdentity, Fingerprint, UsherMap, UsherPlan } from '@usher/cor
 import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type RunReport } from '@usher/registry';
 
 export interface RegistryTransport {
-  readonly kind: 'http' | 'mcp';
+  /** hosted: the registry in-process, for a hosted MCP connection. */
+  readonly kind: 'http' | 'mcp' | 'hosted';
   /** The agent's key, for signing its browser's requests to sites (Web Bot Auth). */
   readonly identity?: AgentIdentity;
   knock(input: KnockInput): Promise<KnockResponse>;
