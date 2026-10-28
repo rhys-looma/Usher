@@ -89,5 +89,6 @@ button.secondary { background: #fff; color: var(--brand); border: 1px solid var(
 .price span { font-size: 16px; font-weight: 400; color: var(--muted); }
 .ref { color: var(--muted); }
 .note { color: var(--muted); font-size: 14px; }
+.disclosure, .valid { color: var(--muted); font-size: 14px; }
 .admin { display: flex; gap: 12px; }
 .admin button.primary { margin-left: 0; }

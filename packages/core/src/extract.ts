@@ -400,11 +400,13 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
 
   /**
    * Controls that browse or filter what a page shows, rather than fill or submit the form: they are
-   * left out of maps. Links listed as results (inside any list where three or more items hold
+   * left out of maps. So are links inside labels, which belong to the label's wording. Links listed as results (inside any list where three or more items hold
    * links: search results, article lists, and the sub-links within one result; pagination sits in
    * nav and is kept), tabs, and carousel controls.
    */
   function outOfScope(el: Element, control: string): boolean {
+    // A link inside a label (the terms a consent box refers to) is part of that label.
+    if (control === 'link' && el.closest('label')) return true;
     if (control === 'link' && !el.closest('nav')) {
       for (let item = el.closest('li, [role="listitem"]'); item; item = item.parentElement?.closest('li, [role="listitem"]') ?? null) {
         const list = item.parentElement;

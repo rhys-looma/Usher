@@ -33,7 +33,8 @@ const call = async (name, a) => (await client.callTool({ name, arguments: a }, u
 const listed = async (sid) => (await (await fetch(`${registry}/demo/dashboard`, { cache: 'no-store' })).text()).includes(`/demo/dashboard/sessions/${sid}`);
 let reply = await call('usher_fill', { url, intent: 'quote.car_insurance', values });
 const paused = performance.now();
-while (reply.status === 'needs_decision') reply = await call('usher_confirm', { id: reply.id, answer: reply.decision.key !== 'consent.marketing' });
+// One decision set: yes to the declaration and Get my quote, no to marketing.
+while (reply.status === 'needs_decision') reply = await call('usher_confirm', { id: reply.id, answers: Object.fromEntries(reply.decisions.map((d) => [d.key, d.key !== 'consent.marketing'])) });
 await client.close();
 if (reply.status !== 'completed' || !reply.session) {
   console.error(`usher_fill did not complete: ${JSON.stringify(reply).slice(0, 300)}`);

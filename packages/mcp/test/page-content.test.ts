@@ -99,16 +99,16 @@ test('usher_fill ignores a map in the page: it pauses for the consents and Get m
   await client.connect(b);
   try {
     const { 'consent.declaration': _d, 'consent.marketing': _m, ...values } = profile;
-    type Reply = { status: string; id: string; decision?: { kind: string; key: string }; used_model?: string[] };
+    type Reply = { status: string; id: string; decisions?: { kind: string; key: string }[]; used_model?: string[] };
     const call = async (name: string, args: Record<string, unknown>) => (await client.callTool({ name, arguments: args })).structuredContent as unknown as Reply;
     let reply = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values });
     const decisions: string[] = [];
     while (reply.status === 'needs_decision') {
-      decisions.push(`${reply.decision!.kind}:${reply.decision!.key}`);
-      reply = await call('usher_confirm', { id: reply.id, answer: reply.decision!.key !== 'consent.marketing' });
+      decisions.push(reply.decisions!.map((d) => `${d.kind}:${d.key}`).join(' '));
+      reply = await call('usher_confirm', { id: reply.id, answers: Object.fromEntries(reply.decisions!.map((d) => [d.key, d.key !== 'consent.marketing'])) });
     }
     assert.equal(reply.status, 'completed');
-    assert.deepEqual(decisions, ['needs_user:consent.declaration', 'needs_user:consent.marketing', 'confirm:form.submit']);
+    assert.deepEqual(decisions, ['required_consent:consent.declaration optional_consent:consent.marketing submit:form.submit'], 'one pause, three decisions');
     assert.deepEqual(reply.used_model, []);
   } finally {
     await client.close();

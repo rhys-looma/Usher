@@ -50,9 +50,9 @@ FILL = f"""Get a car insurance quote at {START} for this driver. The data is fic
 {json.dumps(PROFILE, indent=2)}
 Use the usher_fill tool: url {START}, intent "quote.car_insurance", and the data above as values
 (same keys), leaving out consent.declaration and consent.marketing. You don't need the browser.
-usher_fill pauses for each decision and returns an id. Answer with usher_confirm (id, answer): the
-person has agreed to the declaration (true), does not want marketing (false), and has confirmed you
-may press "Get my quote" (true). You are done when it returns status "completed": report the
+usher_fill pauses once with a set of decisions and an id. Answer them all with usher_confirm (id,
+answers by key): the person has agreed to the declaration (true), does not want marketing (false),
+and has confirmed you may press "Get my quote" (true). You are done when it returns status "completed": report the
 outcome and the session id."""
 
 

@@ -19,6 +19,8 @@ export interface RegistryTransport {
   getPlan(url: string): Promise<UsherPlan | null>;
   submitMap(map: UsherMap): Promise<{ digest: string; stored: boolean }>;
   reportRun(report: RunReport): Promise<{ recorded: boolean }>;
+  /** Adds events to a session's log with its token (what the agent put to its user). */
+  logEvents?(eventsUrl: string, token: string, events: unknown[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -36,6 +38,9 @@ export async function httpTransport(registryUrl: string, keyFile?: string): Prom
     },
     submitMap: (map) => client.submitMap(map),
     reportRun: (report) => client.reportRun(report),
+    logEvents: async (eventsUrl, token, events) => {
+      await fetch(eventsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Usher ${token}` }, body: JSON.stringify({ events }) });
+    },
     close: async () => undefined,
   };
 }

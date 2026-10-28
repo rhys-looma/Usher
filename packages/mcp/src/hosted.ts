@@ -151,6 +151,10 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       getPlan: (url) => tools.getPlan(url).catch(() => null),
       submitMap: async () => ({ digest: '', stored: false }),
       reportRun: tools.reportRun,
+      logEvents: async (eventsUrl, token, events) => {
+        const sid = /\/sessions\/(s_[A-Za-z0-9_-]+)\/events$/.exec(new URL(eventsUrl).pathname)?.[1];
+        if (sid) await registry.appendEvents(sid, `Usher ${token}`, { events });
+      },
       close: async () => undefined,
     });
     const fill = registerFillTools(server, {

@@ -45,9 +45,28 @@ export interface Correction {
   expected?: string;
 }
 
+/** What a page will ask of the user, gathered before anything on it is filled. */
+export interface PageDecisions {
+  path: string;
+  /** Fields that are the user's alone (needs_user, or forbidden to agents), whose conditions hold. */
+  userOnly: MapField[];
+  /** Fields the site's rules say need the user's confirmation before the agent fills them. */
+  confirmFields: MapField[];
+  /** The way forward, when it needs the user's confirmation. */
+  advance?: MapAction;
+  /** Required fields the agent would fill but has no value for. */
+  missing: MapField[];
+}
+
 export interface UserChannel {
   /** Asks the user for a corrected value; null if they have none. Without it, problems fail the run. */
   correct?(problem: Correction): Promise<string | boolean | null>;
+  /**
+   * Shown each page's decisions before it is filled, so they can be asked together. With it, a
+   * missing required value is a question for the user rather than a pre-flight failure. Returns
+   * values to add to the profile, or a reason to stop.
+   */
+  review?(decisions: PageDecisions, page: Page): Promise<{ profile?: Profile; stop?: string } | void>;
   /** Asks the user to confirm an action (or a field) the site's rules say needs them. */
   confirm(element: MapAction | MapField, page: Page): Promise<boolean>;
   /** Hands a needs_user field to the user, who completes it in the browser. */
@@ -92,6 +111,8 @@ export interface AgentOptions {
   viewport?: { width: number; height: number };
   /** Called with the page before the run starts (the demo streams it). */
   onPage?: (page: Page) => Promise<void> | void;
+  /** Called with the last page before the browser context closes (to read the result). */
+  onFinish?: (page: Page, outcome: RunResult['outcome']) => Promise<void> | void;
   /** Progress as it happens: pages, knocks and model calls, with running usage and cost. */
   onEvent?: (event: AgentEvent) => void;
 }
@@ -145,7 +166,7 @@ const ZERO: Usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, c
 const ms = (start: number) => Math.round(performance.now() - start);
 
 /** The Playwright locator for a map element: the first of its locators that finds exactly one. */
-async function locate(page: Page, el: MapField | MapAction): Promise<Locator | null> {
+export async function locate(page: Page, el: MapField | MapAction): Promise<Locator | null> {
   for (const loc of el.locators) {
     const attr = (name: string) => page.locator(`[${name}=${JSON.stringify(loc.value)}]`);
     const candidate =
@@ -207,7 +228,7 @@ function conditionHolds(field: MapField, profile: Profile): boolean {
   }
 }
 
-async function fillField(page: Page, field: MapField, value: string | boolean): Promise<boolean> {
+export async function fillField(page: Page, field: MapField, value: string | boolean): Promise<boolean> {
   const target = await locate(page, field);
   if (!target) throw new Error(`Could not find ${field.key} ("${field.label}") on the page.`);
   switch (field.control) {
@@ -267,6 +288,9 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   const check = async (fields: FieldSpec[]): Promise<boolean> => {
     if (options.preflight === false) return true;
     let result = preflight(fields, profile);
+    // A missing value is a question for the user at the page's review, not a failure.
+    if (options.user.review && !result.ok && result.problems.every((p) => p.problem === 'missing')) result = { ...result, ok: true, problems: [] };
+    else if (options.user.review && !result.ok) result = { ...result, problems: result.problems.filter((p) => p.problem !== 'missing') };
     if (!result.ok && options.user.correct) {
       for (const p of result.problems) {
         const value = await options.user.correct(p);
@@ -407,6 +431,26 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         reason = `Some answers need correcting for ${path}: ${problems!.map((p) => p.key).join(', ')}.`;
         break;
       }
+      const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
+      if (options.user.review) {
+        const holds = map.fields.filter((f) => conditionHolds(f, profile));
+        const reviewed = await options.user.review(
+          {
+            path,
+            userOnly: holds.filter((f) => ruleFor(f) === 'forbid'),
+            confirmFields: holds.filter((f) => ruleFor(f) === 'confirm'),
+            ...(advance && ruleFor(advance) === 'confirm' && !options.dryRun && { advance }),
+            missing: holds.filter((f) => f.required && ruleFor(f) === 'allow' && f.risk !== 'needs_user' && profile[f.key] === undefined),
+          },
+          page,
+        );
+        if (reviewed?.stop) {
+          outcome = 'stopped';
+          reason = reviewed.stop;
+          break;
+        }
+        if (reviewed?.profile) profile = { ...profile, ...reviewed.profile };
+      }
       // Cookie banners first, with the least consent on offer.
       const banner = leastConsent(map.actions);
       if (banner) {
@@ -435,7 +479,6 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       }
 
       emit({ type: 'filled', path, filled });
-      const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => ADVANCE_KEYS.includes(a.key));
       if (!advance) {
         outcome = 'stopped';
         reason = `No way forward on ${path}.`;
@@ -538,6 +581,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   }
 
   const finalUrl = page.url();
+  await Promise.resolve(options.onFinish?.(page, outcome)).catch(() => undefined);
   await context.close();
   const sum = (k: 'knock_ms' | 'model_ms' | 'fill_ms') => pages.reduce((s, p) => s + p[k], 0);
   const result: RunResult = {
