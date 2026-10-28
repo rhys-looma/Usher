@@ -1,9 +1,10 @@
-// npm run compile -- <url> [--out file] [--form n] [--path pattern] [--intent i] [--classify] [--open] [--examples train.jsonl]
+// npm run compile -- <url> [--out file] [--form n] [--path pattern] [--intent i] [--classify] [--open] [--examples train.jsonl] [--vote]
 //
 // Compiles the form on a page into an Usher map with Muse Spark, prints the map (or writes it
 // to --out) and a one-line cost and latency summary. --open labels with Muse Spark Open instead;
 // --examples adds retrieval few-shot to Spark Open's prompts (the labeller with --open, and the
-// classifier), from a file in the fine-tuning export's format.
+// classifier), from a file in the fine-tuning export's format. --vote labels in vote mode (up to three
+// runs, contested elements only, majority per element); one run is the default.
 
 import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
@@ -14,7 +15,7 @@ import { ExampleIndex } from './retrieval.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { out: { type: 'string' }, form: { type: 'string' }, path: { type: 'string' }, intent: { type: 'string' }, classify: { type: 'boolean', default: false }, open: { type: 'boolean', default: false }, examples: { type: 'string' } },
+  options: { out: { type: 'string' }, form: { type: 'string' }, path: { type: 'string' }, intent: { type: 'string' }, classify: { type: 'boolean', default: false }, vote: { type: 'boolean', default: false }, open: { type: 'boolean', default: false }, examples: { type: 'string' } },
 });
 const url = positionals[0];
 if (!url) {
@@ -32,6 +33,7 @@ try {
     ...(values.intent !== undefined && { intent: values.intent }),
     ...(values.form !== undefined && { formIndex: Number(values.form) }),
     ...(values.path !== undefined && { path: values.path }),
+    ...(values.vote && { vote: true }),
     // A second opinion on risk from Muse Spark Open on Baseten.
     ...(values.classify && { classifier: { chat: modelApi({ provider: 'baseten' }), model: openModel(), ...(examples && { examples }) } }),
   });

@@ -41,6 +41,8 @@ const { values } = parseArgs({
     budget: { type: 'string', default: '0.5' },
     classify: { type: 'boolean', default: false },
     mock: { type: 'boolean', default: true },
+    // The eval labels in vote mode; --single for one run, as the CLI does.
+    single: { type: 'boolean', default: false },
   },
 });
 loadDotEnv();
@@ -194,6 +196,7 @@ for (const form of wanted) {
     const result = await compilePage(page, {
       chat: layered([fromLog.chat], live, used),
       model: compilerModel(),
+      ...(!values.single && { vote: true }),
       ...(liveOpen && { classifier: { chat: liveOpen, model: openModel() } }),
     });
     results.push(summarise(form, result, await locatorsResolve(page, result.map), used.source, rows));
