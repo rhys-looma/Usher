@@ -225,14 +225,15 @@ function betweenSection(): Raw {
   const host = 'brightwater.usher.run';
   return html`<section class="between" id="how" data-reveal>
 <h2>What happens in between</h2>
-<p class="lede">From your message to your quote. What Usher sees at each step is underneath it.</p>
+<p class="lede">Your assistant uses Brightwater's own app. Underneath, the app runs on Usher: the infrastructure between assistants and a site's forms. From your message to your quote, what Usher sees at each step is underneath it.</p>
 <div class="between-grid">
 <figure class="seq chat" data-steps aria-label="What happens between your message and your quote, in a chat with an assistant">
-<div class="chat-bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span><span class="chat-title">Your assistant</span><span class="chat-chip"><span class="dot"></span>Usher connected</span></div>
+<div class="chat-bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span><span class="chat-title">Your assistant</span><span class="chat-chip"><span class="dot"></span>Brightwater app connected</span></div>
 <div class="chat-body">
 <div class="seq-ask msg you"><p class="label">You, to your assistant</p><p class="bubble">${EXAMPLE}</p></div>
 <div class="msg bot"><span class="avatar" aria-hidden="true"></span><div class="bot-col">
-<p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Usher on ${host}</p>
+<p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater<span class="runs-on">runs on Usher</span></p>
+<ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>${host}</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
   )}</ol>
@@ -487,6 +488,15 @@ main { padding-top:0; }
 .msg.bot { display:grid; grid-template-columns:30px minmax(0,1fr); gap:12px; align-items:start; }
 .avatar { width:30px; height:30px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), #5ab0ff, var(--accent)); display:block; }
 .tool-head { margin:4px 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
+.runs-on { margin-left:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 8px; }
+/* The route: assistant, the site's app, Usher, the site's form; a pulse runs along it while the
+   steps play. */
+ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; font-size:12.5px; position:relative; }
+.route li { display:flex; align-items:center; color:var(--muted); }
+.route li + li::before { content:""; width:26px; height:2px; margin:0 6px; background:linear-gradient(90deg, var(--line) 0 40%, var(--accent) 40% 60%, var(--line) 60% 100%) 0 0 / 300% 100%; }
+.seq.seq-on:not(.ended) .route li + li::before { animation:flow 1.2s linear infinite; }
+.route li.usher span { color:#12132c; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(197,163,255,.18); }
+@keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
 .tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; }
 .seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); border-right-color:var(--safe); }
 ol.seq-steps { list-style:none; margin:0; padding:6px 16px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
