@@ -34,8 +34,16 @@ for (const l of ['b', 'c'] as const) {
   }
 }
 
+// The chat editor's answer, scripted by the test that uses it; the requests it got, to check.
+let editAnswer: object = { changes: [], rules: null, unclear: null };
+const editRequests: string[] = [];
+
 /** Labels by label text from the seed maps; anything unknown is a custom key, safe. */
 const labeller: ChatFn = async (request) => {
+  if (String(request.messages[0]!.content).startsWith('You help a website owner')) {
+    editRequests.push(JSON.stringify(request.messages));
+    return { content: JSON.stringify(editAnswer), usage: { prompt_tokens: 500, completion_tokens: 80, total_tokens: 580, cached_tokens: 0 }, latency_ms: 1, response: {} };
+  }
   const user = request.messages.find((m) => m.role === 'user')!;
   const text = typeof user.content === 'string' ? user.content : user.content.map((c) => ('text' in c ? c.text : '')).join('');
   const extraction = JSON.parse(text.slice(text.indexOf('Extraction:\n') + 12)) as { page: { path: string }; elements: { id: string; kind: string; label: string; candidates: string[] }[] };
@@ -331,4 +339,47 @@ test('the operator walks the public demo site only, and anyone can watch at /dem
   } finally {
     await demo.close();
   }
+});
+
+test('the chat editor: a sentence becomes proposed changes, checked, applied only when the owner accepts', async () => {
+  await runOnce('/health/about', { values: SECRET });
+  const login = await fetch(`${running.url}/dashboard/login`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ origin: keys.origin, secret: keys.secret_key }) });
+  const cookie = login.headers.get('set-cookie')!.split(';')[0]!;
+  const post = (path: string, form: Record<string, string>) => fetch(`${running.url}${path}`, { method: 'POST', redirect: 'manual', headers: { Cookie: cookie }, body: new URLSearchParams(form) });
+  const view = async () => (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text();
+  const field = (key: string) => (walk.get(site.url) as Promise<WalkthroughRun>).then((r) => r.pages[0]!.map.fields.find((f) => f.key === key));
+
+  assert.match(await view(), /Change it in words/);
+  const first = (await field('person.first_name'))!;
+  editAnswer = {
+    changes: [
+      { path: '/health/about', id: first.id, key: 'custom.forename', risk: null, label: null, why: 'the owner calls it the forename' },
+      { path: '/health/about', id: 'e999', key: 'person.title', risk: null, label: null, why: 'invented' },
+      { path: '/health/about', id: first.id, key: 'Not A Key', risk: null, label: null, why: 'bad' },
+    ],
+    rules: 'Only customers answer the medical questions.',
+    unclear: null,
+  };
+  assert.equal((await post('/dashboard/walkthrough/edit', { text: 'Call first name the forename, and only customers answer medical questions' })).status, 303);
+  const proposed = await view();
+  assert.match(proposed, /Make these changes/);
+  assert.match(proposed, /custom\.forename/);
+  assert.match(proposed, /sounds like a site rule/);
+  assert.match(proposed, /isn&#39;t in the walkthrough|isn't in the walkthrough/);
+  assert.match(proposed, /Not A Key is not a key/);
+  assert.equal((await field('person.first_name'))?.id, first.id, 'nothing changes before the owner accepts');
+  // The model saw structure and the owner's words, never a typed value.
+  for (const value of Object.values(SECRET)) assert.ok(!editRequests.join('').includes(value), value);
+
+  const id = /name="id" value="(e_[0-9a-f]+)"/.exec(proposed)![1]!;
+  assert.equal((await post('/dashboard/walkthrough/edit/apply', { id })).status, 303);
+  assert.equal((await field('custom.forename'))?.id, first.id);
+  assert.match(await everythingKept(), /"owner_verified":true/);
+  assert.equal((await post('/dashboard/walkthrough/edit/apply', { id })).status, 409, 'a proposal applies once');
+
+  editAnswer = { changes: [], rules: null, unclear: 'Which page do you mean?' };
+  await post('/dashboard/walkthrough/edit', { text: 'fix it' });
+  assert.match(await view(), /Which page do you mean\?/);
+  assert.equal((await post('/dashboard/walkthrough/edit/discard', {})).status, 303);
+  assert.doesNotMatch(await view(), /Which page do you mean/);
 });

@@ -20,7 +20,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Browser, Page } from 'playwright';
-import { compilePage, composePlan, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
+import { compilePage, composePlan, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
 import type { Registry } from './registry.ts';
@@ -75,6 +75,52 @@ export interface WalkthroughRun {
 }
 
 export type WalkthroughEvent = { type: 'log'; text: string } | { type: 'frame'; data: string } | { type: 'done'; status: WalkthroughStatus; reason?: string };
+
+/** A chat edit, proposed and waiting for the owner. */
+export interface EditProposal {
+  id: string;
+  /** The run it is for: a new run makes it stale. */
+  run: string;
+  text: string;
+  changes: { path: string; id: string; element: string; before: { key: string; risk: string; label: string }; key?: string; risk?: string; label?: string; why: string }[];
+  /** What the model or the checks would not do, in words. */
+  refused: string[];
+  /** A site rule in the request, for the rules page rather than the map. */
+  rules: string | null;
+  /** What the model could not work out. */
+  unclear: string | null;
+  done?: boolean;
+}
+
+export const EDIT_SYSTEM = `You help a website owner correct Usher's proposed map of their form. Usher maps each form element to a semantic key (dotted lowercase words, such as person.first_name, person.smoker, consent.marketing, or custom.<snake_case> when nothing fits) and a risk: safe (an assistant may fill it freely), consequential (it has an effect the person should know about; the person confirms), needs_user (the person must answer it themselves).
+You get the proposal, page by page, as elements with an id, label, control, key and risk, and one request from the owner in plain words. Return the changes that request asks for, each naming the page path and element id exactly as given, with the new key, risk or label (null for anything that stays the same) and a short reason. Change only what the owner asked about; if the request covers every page ("everywhere", "on every page"), include each matching element. Never invent ids.
+If part of the request is a rule about who may answer or what agents may do on the site, not a correction to a label (for example "only my customers answer medical questions", "agents may never tick marketing consent"), put it in rules, in one sentence, and change nothing for it. If you cannot tell what the owner means, say what is unclear in unclear and return no changes.`;
+
+export const EDIT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['changes', 'rules', 'unclear'],
+  properties: {
+    changes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['path', 'id', 'key', 'risk', 'label', 'why'],
+        properties: {
+          path: { type: 'string' },
+          id: { type: 'string' },
+          key: { type: ['string', 'null'] },
+          risk: { type: ['string', 'null'], enum: ['safe', 'consequential', 'needs_user', null] },
+          label: { type: ['string', 'null'] },
+          why: { type: 'string' },
+        },
+      },
+    },
+    rules: { type: ['string', 'null'] },
+    unclear: { type: ['string', 'null'] },
+  },
+};
 
 export interface WalkthroughOptions {
   registry: Registry;
@@ -230,6 +276,84 @@ export class Walkthroughs {
       await appendLog(this.o.logDir, entry, this.now()).catch(() => undefined);
     }
     return null;
+  }
+
+  /**
+   * The chat editor: the owner says what to change in words ("the smoker question is the person's
+   * own on every page"), Muse Spark proposes changes to the elements by id, and code checks each one
+   * the way a row correction is checked. Nothing changes until the owner accepts; accepted changes
+   * go through correct(), so each is logged as an owner-verified label. The model sees structure
+   * only (ids, labels, controls, keys, risks) and the owner's sentence, never a value.
+   */
+  async proposeEdits(origin: string, text: string): Promise<EditProposal | string> {
+    const run = await this.storage.getCached<WalkthroughRun>('walkthrough', origin);
+    if (!run?.pages.length || run.status === 'running') return 'There is no finished walkthrough to change yet.';
+    const words = text.trim().slice(0, 1000);
+    if (!words) return 'Say what to change.';
+    if (!this.o.compiler) return 'This registry has no model to read the request with.';
+    const spent = await this.o.spend.today();
+    if (spent + 0.05 > this.o.spend.cap) return `Today's model budget ($${this.o.spend.cap}) is spent; it resets at midnight UTC.`;
+    const pages = run.pages.map((p) => ({ path: p.path, title: p.title, elements: [...p.map.fields, ...p.map.actions].map((e) => ({ id: e.id, label: e.label, control: 'control' in e ? e.control : e.kind, key: e.key, risk: e.risk })) }));
+    const result = await this.o.compiler.chat({
+      model: this.o.compiler.model,
+      temperature: 0,
+      messages: [
+        { role: 'system', content: EDIT_SYSTEM },
+        { role: 'user', content: `The proposal:\n${JSON.stringify(pages)}\n\nThe owner says: ${words}` },
+      ],
+      response_format: { type: 'json_schema', json_schema: { name: 'usher_edits', strict: true, schema: EDIT_SCHEMA } },
+    });
+    const answer = parseJsonContent(result.content) as { changes?: { path: string; id: string; key: string | null; risk: string | null; label: string | null; why: string }[]; rules?: string | null; unclear?: string | null };
+    const changes: EditProposal['changes'] = [];
+    const refused: string[] = [];
+    for (const c of answer.changes ?? []) {
+      const page = run.pages.find((p) => p.path === c.path);
+      const el = page && [...page.map.fields, ...page.map.actions].find((e) => e.id === c.id);
+      if (!page || !el) {
+        refused.push(`an element that isn't in the walkthrough (${c.path} ${c.id})`);
+        continue;
+      }
+      const change = { ...(c.key && c.key !== el.key && { key: c.key }), ...(c.risk && c.risk !== el.risk && { risk: c.risk }), ...(c.label && c.label !== el.label && { label: c.label.slice(0, 200) }) };
+      if (!Object.keys(change).length) continue;
+      if (change.key && !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(change.key)) {
+        refused.push(`"${el.label}": ${change.key} is not a key`);
+        continue;
+      }
+      if (change.risk && !['safe', 'consequential', 'needs_user'].includes(change.risk)) {
+        refused.push(`"${el.label}": ${change.risk} is not a risk`);
+        continue;
+      }
+      changes.push({ path: c.path, id: c.id, element: el.label || el.key, before: { key: el.key, risk: el.risk, label: el.label }, ...change, why: String(c.why ?? '').slice(0, 300) });
+    }
+    const proposal: EditProposal = { id: `e_${randomUUID().replace(/-/g, '').slice(0, 12)}`, run: run.id, text: words, changes, refused, rules: answer.rules?.trim() || null, unclear: answer.unclear?.trim() || null };
+    await this.storage.putCached('walkthrough-edit', origin, proposal);
+    return proposal;
+  }
+
+  /** The proposal as it waits for the owner, if it is for the current run. */
+  async pendingEdits(origin: string): Promise<EditProposal | null> {
+    const [proposal, run] = await Promise.all([this.storage.getCached<EditProposal>('walkthrough-edit', origin), this.storage.getCached<WalkthroughRun>('walkthrough', origin)]);
+    return proposal && run && proposal.run === run.id && !proposal.done ? proposal : null;
+  }
+
+  /** The owner accepts: each change applied as a correction. Returns what could not be applied. */
+  async applyEdits(origin: string, id: string): Promise<{ applied: number; failed: string[] } | string> {
+    const proposal = await this.pendingEdits(origin);
+    if (!proposal || proposal.id !== id) return 'That change is no longer waiting: start again from the walkthrough.';
+    let applied = 0;
+    const failed: string[] = [];
+    for (const c of proposal.changes) {
+      const failure = await this.correct(origin, c.path, c.id, { ...(c.key && { key: c.key }), ...(c.risk && { risk: c.risk }), ...(c.label && { label: c.label }) });
+      if (failure) failed.push(`"${c.element}": ${failure}`);
+      else applied++;
+    }
+    await this.storage.putCached('walkthrough-edit', origin, { ...proposal, done: true });
+    return { applied, failed };
+  }
+
+  async discardEdits(origin: string): Promise<void> {
+    const proposal = await this.pendingEdits(origin);
+    if (proposal) await this.storage.putCached('walkthrough-edit', origin, { ...proposal, done: true });
   }
 
   // ---------------------------------------------------------------------------------------------
