@@ -1,18 +1,18 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:53:11.327Z",
+  "recorded_at": "2026-10-28T21:24:56.135Z",
   "text": "Agents can fill in quotes, but a human confirms the submit. Max five an hour.",
   "attempts": [
     {
-      "request_sha256": "102fb903eb7c2ad51988b37f31ef045111a3cc3f041fdaf117205c759042865b",
-      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"hosted_agents\": null, \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Agents may fill in quotes but require human confirmation to submit, limited to five submissions per hour per agent.\"}",
+      "request_sha256": "7b7160d1694e8b22fbbe9401f60548de2dc7b91cc18359a87e1c6cef0e3a1c7b",
+      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"hosted_agents\": null, \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Agents may fill in quote forms but require human confirmation to submit, limited to five submits per hour per agent.\"}",
       "usage": {
-        "prompt_tokens": 1984,
-        "completion_tokens": 1877,
-        "total_tokens": 3861,
+        "prompt_tokens": 2021,
+        "completion_tokens": 1889,
+        "total_tokens": 3910,
         "cached_tokens": 0
       },
-      "latency_ms": 7330
+      "latency_ms": 9178
     }
   ]
 }

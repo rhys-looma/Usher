@@ -1,18 +1,18 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:53:27.435Z",
+  "recorded_at": "2026-10-28T21:25:14.347Z",
   "text": "Agents can fill in quotes, but no hosted agents, and a person confirms the submit.",
   "attempts": [
     {
-      "request_sha256": "df1abc090e34fd4ddea1d884a588974a21adb39662d9e9279fa204d8553d429b",
-      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"hosted_agents\": \"block\", \"rate_limits\": [], \"retention_days\": null, \"summary\": \"Agents may fill in quote forms but hosted agents are blocked and submitting requires a person's confirmation.\"}",
+      "request_sha256": "eb800c572e0293eeae7fd02ca19594859a87867bf83d4ceba6c78da467a492f7",
+      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"hosted_agents\": \"block\", \"rate_limits\": [], \"retention_days\": null, \"summary\": \"Agents may fill in quotes, but hosted agents are blocked and a person must confirm submission.\"}",
       "usage": {
-        "prompt_tokens": 1984,
-        "completion_tokens": 1138,
-        "total_tokens": 3122,
-        "cached_tokens": 1905
+        "prompt_tokens": 2021,
+        "completion_tokens": 1326,
+        "total_tokens": 3347,
+        "cached_tokens": 0
       },
-      "latency_ms": 5267
+      "latency_ms": 5030
     }
   ]
 }

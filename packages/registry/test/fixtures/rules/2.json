@@ -1,18 +1,18 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:53:16.249Z",
+  "recorded_at": "2026-10-28T21:25:01.366Z",
   "text": "AI assistants are welcome to complete our quote form for people. Before an assistant requests the actual quote, the person it is acting for has to approve it. No more than 5 quote requests per hour.",
   "attempts": [
     {
-      "request_sha256": "cf387880edc03d73fc395c10ef46be68f5173d4522740356bd73daf4be229e48",
-      "content": "{\"actions\": [{\"key\": \"form.submit\", \"path\": null, \"rule\": \"confirm\"}], \"agent_lane\": true, \"allowed_agents\": null, \"blocked_agents\": [], \"forms_without_agents\": [], \"hosted_agents\": null, \"rate_limits\": [{\"action\": \"form.submit\", \"max\": 5, \"path\": null, \"per\": \"agent\", \"window\": \"hour\"}], \"retention_days\": null, \"summary\": \"Agents may complete quote forms but must get the user's approval before requesting the actual quote, limited to 5 quote requests per hour.\"}",
+      "request_sha256": "c2bf5dd1c782e495b095dc4e81d5e8ac488312e0aaecaca47c7e064a2fbb48b7",
+      "content": "{\"actions\":[{\"key\":\"form.submit\",\"path\":null,\"rule\":\"confirm\"}],\"agent_lane\":true,\"allowed_agents\":null,\"blocked_agents\":[],\"forms_without_agents\":[],\"hosted_agents\":null,\"rate_limits\":[{\"action\":\"form.submit\",\"max\":5,\"path\":null,\"per\":\"agent\",\"window\":\"hour\"}],\"retention_days\":null,\"summary\":\"AI assistants may complete quote forms but must get the person's approval before requesting the actual quote, limited to 5 quote requests per hour.\"}",
       "usage": {
-        "prompt_tokens": 2007,
-        "completion_tokens": 1249,
-        "total_tokens": 3256,
+        "prompt_tokens": 2044,
+        "completion_tokens": 1132,
+        "total_tokens": 3176,
         "cached_tokens": 0
       },
-      "latency_ms": 4917
+      "latency_ms": 5227
     }
   ]
 }

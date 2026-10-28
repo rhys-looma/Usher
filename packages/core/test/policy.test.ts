@@ -66,3 +66,28 @@ test('agents: allow lists and block lists', () => {
   assert.equal(agentStanding({ ...example, agents: { allow: ['good'] } }, 'other'), 'not_allowed');
   assert.equal(agentStanding({ ...example, agents: { allow: ['good'] } }, 'good'), 'allowed');
 });
+
+test('the site decides: medical answers and smoking may be permitted ("confirm"), never a consent, a password or an action', () => {
+  const health: UsherMap = {
+    ...cover,
+    path: '/health/questions',
+    fields: [
+      { ...cover.fields[0]!, id: 'e1', key: 'health.condition', label: 'Any medical conditions?', control: 'text', risk: 'needs_user', sensitive: true },
+      { ...cover.fields[0]!, id: 'e2', key: 'person.smoker', label: 'Do you smoke?', control: 'radio', risk: 'needs_user' },
+    ],
+    actions: cover.actions,
+  };
+  // By default: the person's alone.
+  assert.equal(effectiveRules(undefined, health, '/health/questions').actions['health.condition'], 'forbid');
+  // The site permits it: entered as the person said it, confirmed by them ("allow" counts as "confirm").
+  for (const rule of ['confirm', 'allow'] as const) {
+    const permitted: UsherPolicy = { ...example, default: { actions: { 'health.condition': rule, 'person.smoker': rule } }, forms: [] };
+    const actions = effectiveRules(permitted, health, '/health/questions').actions;
+    assert.deepEqual([actions['health.condition'], actions['person.smoker']], ['confirm', 'confirm'], rule);
+    assert.deepEqual(looserRules(permitted, [health]), [], `${rule} passes the validator`);
+  }
+  // Consents, credentials, payment details and actions stay where they are.
+  const tooFar: UsherPolicy = { ...example, default: { actions: { 'consent.declaration': 'confirm', 'account.password': 'confirm', 'payment.card_number': 'confirm', 'form.submit': 'allow' } }, forms: [] };
+  assert.deepEqual(looserRules(tooFar, [cover]).map((i) => i.path).sort(), ['default.actions.account.password', 'default.actions.consent.declaration', 'default.actions.form.submit', 'default.actions.payment.card_number']);
+  assert.equal(effectiveRules(tooFar, cover, '/quote/cover').actions['consent.declaration'], 'forbid');
+});

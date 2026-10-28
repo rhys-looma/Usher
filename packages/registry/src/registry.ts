@@ -1028,8 +1028,18 @@ export class Registry {
     } catch {
       return error(400, 'invalid_request', 'Expected ?url= with the first page of the journey.');
     }
-    const plan = composePlan(page.pathname, await this.currentMaps(page.origin));
-    return plan ? ok(plan) : error(404, 'not_found', `No map for ${page.origin}${page.pathname} yet: knock, or read the page.`);
+    const maps = await this.currentMaps(page.origin);
+    const plan = composePlan(page.pathname, maps);
+    if (!plan) return error(404, 'not_found', `No map for ${page.origin}${page.pathname} yet: knock, or read the page.`);
+    // Each input the person alone answers carries the site's rule for it, so an agent knows before
+    // it knocks whether the site permits it to enter the person's own answer.
+    const policy = await this.policy(page.origin);
+    for (const input of plan.inputs) {
+      if (input.risk !== 'needs_user') continue;
+      const rule = input.steps.map((path) => effectiveRules(policy, maps.get(path) ?? null, path).actions[input.key]).find((r) => r !== undefined);
+      if (rule) input.rule = rule;
+    }
+    return ok(plan);
   }
 
   /** For /healthz: is storage reachable? */
