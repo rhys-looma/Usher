@@ -3,6 +3,8 @@
 // semantic key. Agent C, with its own key, can't see them until verified: it builds its own, agrees
 // and completes, which verifies them. Agent B (Muse Spark Open, its own key, over MCP) runs on them,
 // faster. In layout B the site script reports drift and Agent B re-reads the pages with Spark Open.
+// Brightwater Health completes in every layout: the smoker answer entered as the person gave it,
+// the address from the site's lookup list, no medical question anywhere.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,8 +24,14 @@ import { testStorage } from '../../registry/test/storage-helper.ts';
 
 const profile = JSON.parse(await readFile(new URL('../profiles/test-driver.json', import.meta.url), 'utf8')) as Profile;
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
+const health = JSON.parse(await readFile(new URL('../profiles/test-health.json', import.meta.url), 'utf8')) as Profile;
+const HEALTH = ['health-about', 'health-cover', 'health-declaration'] as const;
 const recorded = (set: 'labels' | 'labels-open') =>
-  Promise.all((set === 'labels' ? (['a', 'b', 'c'] as const) : (['a', 'b'] as const)).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, set))));
+  Promise.all([
+    ...(set === 'labels' ? (['a', 'b', 'c'] as const) : (['a', 'b'] as const)).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s, set))),
+    // Brightwater Health: layout C is layout A, so A's recordings answer it.
+    ...(['a', 'b'] as const).flatMap((l) => HEALTH.map((s) => readFixture(l, s, set))),
+  ]);
 // Recorded responses, replayed with the latency they had when recorded.
 const spark = { chat: replayAny(await recorded('labels'), { simulateLatency: true }), model: 'muse-spark-1.3', logDir: null };
 // Replayed under the model id the fixtures were recorded with (see OPEN_MODEL).
@@ -221,5 +229,26 @@ test('live: Agent A on Muse Spark builds the maps, Agent B on Muse Spark Open ru
     await liveSite.stop();
     await fresh.close();
     await rm(live, { recursive: true });
+  }
+});
+
+test('Brightwater Health in layouts A, B and C: the smoker answer as the person gave it, the address from the lookup, the quote', async () => {
+  for (const layout of ['a', 'b', 'c'] as const) {
+    await site.setLayout(layout);
+    try {
+      const transport = await httpTransport(registry.url, join(dir, `agent-health-${layout}.json`));
+      const actions: string[] = [];
+      const user = scriptedUser(health);
+      const run = await runAgent({ browser, url: `${site.url}/health/about`, profile: health, intent: 'quote.health_insurance', registry: transport, user, fallback: spark, onEvent: (e) => e.type === 'action' && actions.push(`${e.action}:${e.key}`) });
+      await transport.close();
+      runs[`Agent A, Spark, health ${layout.toUpperCase()}`] = run;
+      assert.equal(run.outcome, 'completed', `${layout}: ${run.reason}`);
+      assert.match(run.final_url, /\/health\/result$/);
+      for (const a of ['fill:person.dob', 'press:lookup.address', 'fill:cover.who', 'handoff:person.smoker', 'fill:cover.level', 'fill:cover.excess', 'fill:policy.start_date', 'handoff:consent.declaration']) assert.ok(actions.includes(a), `${layout}: ${a} in ${actions.join(' ')}`);
+      assert.ok(!actions.some((a) => a.includes('health.')), 'no medical question');
+      assert.deepEqual(user.confirmations, ['form.submit'], 'asked before Get my quote');
+    } finally {
+      await site.setLayout('a');
+    }
   }
 });
