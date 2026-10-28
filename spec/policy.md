@@ -51,7 +51,7 @@ Every element in a map has a risk, which sets a floor on its rule:
 | `consequential` | `confirm` |
 | `needs_user` | `forbid` |
 
-A policy can raise a rule above its floor (`allow` < `confirm` < `forbid`) but never lower it. A validator refuses a policy that tries, for every map the registry holds for the forms it matches, and for keys with no map yet against the key's default risk in the vocabulary. When rules are applied, the floor wins anyway.
+A policy can raise a rule above its floor (`allow` < `confirm` < `forbid`) but never lower it, with one exception that is the site's to make. A field that is the person's to answer may be permitted with `confirm` when it is what they say about their health (`health.*`) or whether they smoke (`person.smoker`, `partner.smoker` and their `*_stopped`): an agent then enters the person's own answer, as they gave it, and puts it back to them before anything is submitted. `allow` on such a field counts as `confirm`. Consents, passwords, card and bank details, and every action keep their floor. A validator refuses a policy that tries, for every map the registry holds for the forms it matches, and for keys with no map yet against the key's default risk in the vocabulary. When rules are applied, the floor wins anyway.
 
 ## How it is enforced
 

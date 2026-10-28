@@ -2,6 +2,7 @@
 // journey needs as semantic keys (required, constraints, options), so an agent can check a whole
 // journey's data before it starts and ask its user for anything missing.
 
+import type { ActionRule } from './policy.ts';
 import type { Options } from './extract.ts';
 import type { MapConstraints, MapField, UsherMap } from './map.ts';
 import type { Risk } from './vocabulary.ts';
@@ -24,6 +25,12 @@ export interface PlanInput {
   required: boolean;
   risk: Risk;
   sensitive?: boolean;
+  /**
+   * The site's rule for it, when the registry knows the site's policy: for a needs_user input,
+   * "confirm" means the site permits an agent to enter the person's own answer, put back to them
+   * before anything is submitted; anything else, or none, means it is the person's alone.
+   */
+  rule?: ActionRule;
   constraints?: MapConstraints;
   options?: Options;
   shown_if?: MapField['shown_if'];

@@ -43,7 +43,7 @@ Then lock consequential endpoints on your server with [`@usher/site-middleware`]
 
 > Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.
 
-Usher fills the safe fields, asks the person to confirm the smoker answer and the declaration in the insurer's own words, and never fills medical questions. Brightwater's car insurance quote works the same way.
+Usher fills the safe fields, asks the person to confirm the smoker answer and the declaration in the insurer's own words, and leaves medical questions to the person unless the site allows them. Brightwater's car insurance quote works the same way.
 
 **In a framework or your own agent,** run it locally. It acts on any site, with your own key. Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
@@ -118,7 +118,7 @@ The model labels each field by meaning; the code locates it and fills it from th
 | Fields shown only after an answer (`shown_if`) | Filled when their condition holds | 26 Oct |
 | Lookup (`lookup.vehicle`, `lookup.address`) | Run first from the registration or postcode; what it fills is left as it filled it; a list of results gets the entry for the first address line | 28 Oct |
 | An answer that is the person's alone but not sensitive (`person.smoker`) | Entered only as they said it, and shown back to them on the decision card with the submit: if it isn't right, nothing is submitted | 28 Oct |
-| Medical questions (`health.*`, sensitive) | Never: Usher leaves them to the person, and stops on a page that requires one | 28 Oct |
+| Medical questions (`health.*`, sensitive) | The site decides. By default they're left to the person, and Usher stops on a page that requires one. Where the site's rules allow them (`confirm`), from what the person said, put back to them on the decision card | 28 Oct (site rules 29 Oct) |
 | Combobox, custom dropdown | Not yet: none of the real journeys checked so far needed one | |
 
 ## Benchmark

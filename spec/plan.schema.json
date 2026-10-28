@@ -49,6 +49,7 @@
           "required": { "type": "boolean" },
           "risk": { "$ref": "#/$defs/risk" },
           "sensitive": { "type": "boolean" },
+          "rule": { "enum": ["allow", "confirm", "forbid"] },
           "constraints": { "type": "object" },
           "options": {
             "type": "object",

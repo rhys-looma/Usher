@@ -6,5 +6,5 @@ export const KEEPS_HEADING = 'What Usher keeps';
 export const KEEPS = [
   'Nothing you type is stored. Usher fills the form and forgets it.',
   'Maps describe forms, not answers. The site\'s log holds field names and your decisions, never the values.',
-  'Medical questions are never filled by Usher. The insurer asks you those.',
+  'Medical questions are filled only if the site allows it, and only with your own answer, which you confirm.',
 ] as const;

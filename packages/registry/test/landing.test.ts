@@ -147,7 +147,7 @@ test('what your customer sees and the rails underneath: a native card on one sid
     ['1', 'Knock', 'The agent identifies itself; the site opens for this one session.', undefined, 'agent identity, site, intent, expiry.'],
     ['2', 'Map, not values', "Usher hands the agent the form's structure and the site's rules.", undefined, 'field names and types. Never what anyone types.'],
     ['3', 'The safe fields are filled', 'Name, date of birth, postcode, cover level: seconds.', undefined, 'which fields were filled. Not the values.'],
-    ['4', 'The questions that are yours', "Smoker, the declaration: shown to you in the insurer's exact words, unticked, with Usher asking you, not the agent.", "Medical history is never Usher's to fill: the insurer asks you that directly, after the quote.", 'that each was shown to you, and your yes or no.'],
+    ['4', 'The questions that are yours', "Smoker, the declaration: shown to you in the insurer's exact words, unticked, with Usher asking you, not the agent.", "Medical questions are yours unless the insurer decides otherwise: Usher fills one only where the site allows it, with your own answer, which you confirm.", 'that each was shown to you, and your yes or no.'],
     ['5', 'Submit with the token', 'The site checks it on its own server. No token, no quote.', undefined, 'that the quote was asked for, with a valid token.'],
     ['6', 'On the record', "The site's dashboard shows the session: which agent, which fields, what was shown and confirmed.", undefined, 'the session. Never the answers.'],
   ]);

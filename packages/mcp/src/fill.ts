@@ -33,8 +33,11 @@ import { mapDetails } from './details.ts';
  */
 export type DecisionKind = 'required_consent' | 'optional_consent' | 'submit' | 'missing_value' | 'confirm_value';
 
-/** Keys an agent never fills or asks for (health.*): the person answers them on the site. */
+/** Keys an agent fills only where the site permits it (health.*); otherwise the person answers them on the site. */
 const SENSITIVE = new Set(vocabulary.entries.filter((e) => e.sensitive).map((e) => e.key));
+
+/** The site permits an agent to enter the person's own answer to this input (its rule, from the plan). */
+const permitted = (input: { risk: string; rule?: string }) => input.risk === 'needs_user' && (input.rule === 'confirm' || input.rule === 'allow');
 
 /** One thing the user decides, with the page's own label for it. */
 export interface Decision {
@@ -106,6 +109,8 @@ interface Job {
   outcome?: { title: string; facts: Block[]; image?: string };
   /** confirm_value answers as the person gave them: entered as said, confirmed before the submit. */
   proposed: Map<string, string>;
+  /** Keys the person alone answers that the site permits an agent to enter (health.*, by its rules). */
+  permitted: Set<string>;
   /** The last knock: where the session log takes the record of what was shown. */
   knock?: KnockResponse;
   transport?: RegistryTransport;
@@ -171,7 +176,7 @@ async function launchChromium(): Promise<Browser> {
 }
 
 const FILL_DESCRIPTION =
-  'Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a health insurance quote from Brightwater. I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" becomes usher_fill({ site: "Brightwater", task: "health insurance quote", details: "I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" }). Answers that are the person\'s alone, such as whether they smoke, come back on the decision set for them to confirm; medical questions are never filled. With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
+  'Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a health insurance quote from Brightwater. I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" becomes usher_fill({ site: "Brightwater", task: "health insurance quote", details: "I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" }). Answers that are the person\'s alone, such as whether they smoke, come back on the decision set for them to confirm; medical questions only where the site allows it, and the person confirms the answer. With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
 
 const CONFIRM_DESCRIPTION =
   'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
@@ -306,8 +311,9 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     for (const input of plan.inputs) {
       const page = input.steps[0] ?? plan.start;
       const options = input.options?.items.map((o) => o.label);
-      // Medical questions are never asked or filled by Usher: the person answers them on the site.
-      if (input.sensitive || SENSITIVE.has(input.key)) continue;
+      // Medical questions are the person's alone, answered on the site, unless the site permits an
+      // agent to enter the person's own answer.
+      if ((input.sensitive || SENSITIVE.has(input.key)) && !permitted(input)) continue;
       const said = values[input.key];
       if (input.risk === 'needs_user' && input.control !== 'checkbox' && said !== undefined) {
         const items = input.options?.items;
@@ -407,6 +413,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       shown: new Set(),
       planned: plan ? plannedDecisions(plan, values) : [],
       proposed: new Map(),
+      permitted: new Set(plan?.inputs.filter(permitted).map((i) => i.key)),
       ...(fromDetails.length && { fromDetails }),
       pauses: 0,
       started: performance.now(),
@@ -455,9 +462,10 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
 
     const user: UserChannel = {
       async review(d: PageDecisions, page: Page) {
-        // A required medical question stops the fill: only the person can answer it, on the site.
+        // A required medical question the site hasn't permitted an agent to enter stops the fill: the
+        // person answers it on the site.
         const medical = d.userOnly.filter((f) => SENSITIVE.has(f.key));
-        if (medical.some((f) => f.required)) return { stop: `This page asks medical questions only the person can answer (${medical.map((f) => `"${f.label}"`).join(', ')}). Usher never fills those: the person finishes on the site.` };
+        if (medical.some((f) => f.required)) return { stop: `This page asks medical questions (${medical.map((f) => `"${f.label}"`).join(', ')}) that this site leaves to the person: they finish on the site.` };
         // An answer the person gave that is theirs alone (whether they smoke) is entered as they said
         // it, and put back to them with the submit, on the same card: if it isn't right, nothing is
         // submitted.
@@ -466,7 +474,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         const here: Decision[] = [
           ...confirmNow,
           ...d.userOnly.filter((f) => !SENSITIVE.has(f.key) && !toConfirm(f.key)).map((f) => decisionFor(f, kindOf(f), d.path)),
-          ...d.confirmFields.map((f) => decisionFor(f, 'optional_consent', d.path)),
+          // A field the site permits is the person's own answer, not a yes or no to filling it.
+          ...d.confirmFields.filter((f) => !job.permitted.has(f.key)).map((f) => decisionFor(f, 'optional_consent', d.path)),
           ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path, short: shortName(d.advance.key, d.advance.label, 'submit') }] : []),
           ...d.missing.map((f) => decisionFor(f, 'missing_value', d.path)),
         ];
@@ -489,10 +498,13 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           const stop = await ask([...toAsk, ...later], [...blocks.filter((b) => !b.source.key || keys.has(b.source.key)), ...laterBlocks.filter((b) => b.kind !== 'disclosure')], d.path);
           if (stop) return { stop };
         }
-        const profile = Object.fromEntries(d.missing.filter((f) => job.answers.has(f.key)).map((f) => [f.key, job.answers.get(f.key)!])) as Profile;
+        const answered = [...d.missing, ...d.confirmFields.filter((f) => job.permitted.has(f.key))].filter((f) => typeof job.answers.get(f.key) === 'string');
+        const profile = Object.fromEntries(answered.map((f) => [f.key, job.answers.get(f.key)!])) as Profile;
         return { profile };
       },
       async confirm(element: MapAction | MapField) {
+        // A permitted field is entered as the person said it, and put back to them with the submit.
+        if (job.permitted.has(element.key)) return true;
         return job.answers.get(element.key) === true;
       },
       async handoff(field: MapField, page: Page) {
@@ -510,7 +522,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       if (event.type === 'action') job.actions.push({ page: event.path, action: event.action, key: event.key });
     };
     // needs_user keys are never taken from values: only the user's answer at the pause fills them.
-    const profile = Object.fromEntries(Object.entries(values).filter(([k]) => !job.planned.some((q) => q.key === k && q.kind !== 'missing_value'))) as Profile;
+    // A field the site permits stays in: the agent enters it as said, and it is confirmed with the submit.
+    const profile = Object.fromEntries(Object.entries(values).filter(([k]) => job.permitted.has(k) || !job.planned.some((q) => q.key === k && q.kind !== 'missing_value'))) as Profile;
     job.run = (async (): Promise<RunResult> => {
       try {
         return await runAgent({

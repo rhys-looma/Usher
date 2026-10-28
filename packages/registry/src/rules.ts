@@ -86,7 +86,7 @@ ${actionKeys}
 
 ## Rules
 - Use the semantic keys above. "Submitting a quote", "getting a price" and "requesting a quote" all mean form.submit; "paying" or "buying" means form.purchase.
-- A rule can make an action stricter than its risk but never looser: consequential actions need at least "confirm", needs_user ones are "forbid". Do not output rules for keys the owner did not mention; their risk already applies.
+- A rule can make an action stricter than its risk but never looser: consequential actions need at least "confirm", needs_user actions are "forbid". A needs_user field (health.* and the like) is "forbid" unless the owner says agents may fill it: then "confirm", and the person still confirms each answer. Do not output rules for keys the owner did not mention; their risk already applies.
 - "Agents can fill in forms" needs no action rules: filling safe fields is allowed by default.
 - Do not invent rules the owner did not state.`;
 }

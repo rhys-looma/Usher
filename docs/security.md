@@ -8,9 +8,9 @@ Three parties are involved. The **site** runs a script tag and a server-side che
 
 - Nothing you type is stored. Usher fills the form and forgets it.
 - Maps describe forms, not answers. The site's log holds field names and your decisions, never the values.
-- Medical questions are never filled by Usher. The insurer asks you those.
+- Medical questions are filled only if the site allows it, and only with your own answer, which you confirm.
 
-The front page and the privacy notice say the same, word for word. In code: `usher_fill` holds the person's values in the fill's own job only, and drops the job when the fill completes, is cancelled or times out. `packages/mcp/test/forget.test.ts` runs a completed, a cancelled and a timed-out fill and finds none of the values in any file the registry writes, in what the process prints, or in any Postgres table. Medical questions have their own vocabulary keys (`health.*`, sensitive): an agent never fills them, a plan never carries their values, and `usher_fill` stops on a page that requires one, leaving it to the person.
+The front page and the privacy notice say the same, word for word. In code: `usher_fill` holds the person's values in the fill's own job only, and drops the job when the fill completes, is cancelled or times out. `packages/mcp/test/forget.test.ts` runs a completed, a cancelled and a timed-out fill and finds none of the values in any file the registry writes, in what the process prints, or in any Postgres table. Medical questions have their own vocabulary keys (`health.*`, sensitive), and the site decides. By default they are the person's alone: an agent never fills them, and `usher_fill` stops on a page that requires one, leaving it to the person. A site's rules may permit them (`"health.condition": "confirm"`; see spec/policy.md): then `usher_fill` reads the person's own answer from what they said, enters it as they said it, and puts it back to them on the decision card before anything is submitted; if they say it isn't right, nothing is submitted. A plan never carries their values. `packages/mcp/test/permitted.test.ts` checks both.
 
 ## What could go wrong, and what stops it
 

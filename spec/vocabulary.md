@@ -125,7 +125,7 @@ A joint application's second person (a partner, a spouse): the same details the 
 
 ## Health
 
-Medical questions: conditions, medication, history, a GP's details. They exist so a map can say what a field is and an agent knows to leave it alone: an agent never fills them, and they never appear in a plan's values, a map or a log. The person answers them, on the site, usually after the quote when the insurer underwrites.
+Medical questions: conditions, medication, history, a GP's details. They exist so a map can say what a field is, and the site decides who answers it. By default the person does, on the site: an agent leaves them alone. A site's rules may permit an agent to enter the person's own answer (`confirm`, see [policy.md](policy.md)), which is then put back to the person before anything is submitted. They never appear in a plan's values, a map or a log.
 
 | Key | Meaning | Default risk |
 | --- | --- | --- |
