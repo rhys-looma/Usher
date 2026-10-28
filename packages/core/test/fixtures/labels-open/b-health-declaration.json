@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open-1026",
+  "recorded_at": "2026-10-28T16:23:44.216Z",
+  "layout": "b",
+  "step": "health-declaration",
+  "attempts": [
+    {
+      "request_sha256": "32817848d44bc7f421f41b240dbbdeae2bc54fb8f0e2485ad7f9d03f89c04230",
+      "content": "{\"form\":{\"purpose\":\"Health insurance quote declaration confirmation\",\"intent\":\"quote.health\"},\"elements\":[{\"id\":\"e1\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e3\"}",
+      "usage": {
+        "prompt_tokens": 3311,
+        "completion_tokens": 761,
+        "total_tokens": 4072,
+        "cached_tokens": 2560
+      },
+      "latency_ms": 6199
+    }
+  ]
+}

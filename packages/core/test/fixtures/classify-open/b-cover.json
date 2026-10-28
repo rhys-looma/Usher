@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T11:23:41.618Z",
+  "recorded_at": "2026-10-28T16:52:38.941Z",
   "layout": "b",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "a0fdebac5add88e810e541f8442029ccde403d01b03d8c7997ffd758754b907a",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Selecting a desired cover start date is a reversible quote input with no external effect until submitted.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Choosing level of cover is a reversible configuration option for the quote calculation.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting voluntary excess amount is a reversible pricing parameter with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Selecting years of no-claims discount is reversible informational input used only to calculate the quote.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Choosing Annually vs Monthly payment frequency is a reversible quote preference, not entering payment details or committing to pay.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires the user's own attestation and judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Opt-in consent to receive marketing offers by email requires the user's personal judgement about marketing.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is reversible navigation with no effect outside the session.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submitting the form requests an insurance quote, an action with external processing the person should know about.\"}]}",
+      "request_sha256": "49388b3e6d88c926d2e2d6b6c8fc1a5e607fa807e9f52304aad9c3ddb7593d31",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Date selection for quote start is reversible input with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Choosing level of cover is a reversible quote parameter.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Selecting voluntary excess is a reversible option for quote calculation.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Selecting years of no-claims discount is reversible informational input.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Choosing Annually vs Monthly is a payment preference for the quote, not entering payment details or committing to pay.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Declaration that information is true and complete is a legal attestation requiring user's own judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Opt-in to offers by email is consent to marketing which requires user judgement.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is reversible navigation with no persistent effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submitting requests a personalized insurance quote, an external action the user should be aware of.\"}]}",
       "usage": {
         "prompt_tokens": 730,
-        "completion_tokens": 1529,
-        "total_tokens": 2259,
-        "cached_tokens": 640
+        "completion_tokens": 1285,
+        "total_tokens": 2015,
+        "cached_tokens": 384
       },
-      "latency_ms": 4724
+      "latency_ms": 3914
     }
   ]
 }

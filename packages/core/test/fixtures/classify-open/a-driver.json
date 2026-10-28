@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T11:23:04.603Z",
+  "recorded_at": "2026-10-28T16:52:01.405Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
       "request_sha256": "4b1a8f7883a35c31e1f0cf25ef600ae6677785b830f34dd277b6cc6585b3db14",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible data entry for quote personalization with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name entry is reversible personal data input with no commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth is standard quote rating data, reversible input with no legal or financial commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address is contact data for quote delivery, reversible input, not a marketing consent.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact data with no external effect.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode is reversible location data for rating, no commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Address line is reversible location data for rating, no commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection is reversible rating factor with no external effect.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection is reversible rating factor with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history yes/no is reversible factual disclosure for underwriting, no commitment.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is reversible detail supporting claims history, no commitment.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible detail supporting claims history, no commitment.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step of quote flow, reversible with no quote request or external commitment yet.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible and stays within the quote session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name entry is reversible and has no effect outside the session.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth is standard quote data entry, reversible with no commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address entry alone does not send or commit to anything.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact detail with no external action.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible location data for quoting.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Address line entry is reversible and has no standalone consequence.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection is reversible quote information.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status choice is reversible and has no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history question is factual data entry for the quote, reversible.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is conditional detail entry, reversible with no commitment.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible detail for underwriting.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step of quote, not a final submission or purchase.\"}]}",
       "usage": {
         "prompt_tokens": 861,
-        "completion_tokens": 1775,
-        "total_tokens": 2636,
-        "cached_tokens": 768
+        "completion_tokens": 1064,
+        "total_tokens": 1925,
+        "cached_tokens": 256
       },
-      "latency_ms": 5865
+      "latency_ms": 3818
     }
   ]
 }
