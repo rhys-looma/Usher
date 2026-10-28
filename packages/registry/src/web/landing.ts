@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { FAVICON, LOOMA_FOOTER, THEME, esc, html, siteClaims, type Raw } from './html.ts';
 import type { PickerForm } from './picker.ts';
 import { PICKER_STYLE, pickerButtons } from './viewer.ts';
+import { CARD_CSS, CARD_DARK } from './cards.ts';
 
 const ROOT = new URL('../../../../', import.meta.url);
 
@@ -129,6 +130,56 @@ export interface LandingOptions {
   demo?: boolean;
   /** Offer hosted MCP (/mcp) to assistants, beside the local server for frameworks. */
   hosted?: boolean;
+  /** The demo site's origin, for the assistant illustration's addresses. */
+  demoOrigin?: string;
+}
+
+/**
+ * "Inside the assistant": an illustrated conversation with an assistant built on Muse Spark, in a
+ * plain window of our own (no product's interface). The cards are the MCP Apps cards' own markup and
+ * styles (cards.ts), so they look as they do in a client. Everything is on the page without
+ * JavaScript; site.js only dims the later steps and brings them up in turn as the section comes
+ * into view. The window is inert: it is a picture, not a form.
+ */
+function assistantSection(url: string, demoOrigin = 'https://brightwater.example'): Raw {
+  const host = new URL(demoOrigin).host;
+  return html`<section id="assistant" data-reveal><h2>Inside the assistant</h2>
+<p class="lede">Add ${url}/mcp to any assistant that speaks MCP. Here, one built on Muse Spark asks for a quote. Usher does the rest, and the person decides.</p>
+<figure class="assistant" aria-label="Illustration: an assistant built on Muse Spark gets a car insurance quote through Usher">
+<div class="assistant-bar"><span class="assistant-name">An assistant built on Muse Spark</span><span class="assistant-tag">Illustration</span></div>
+<div class="assistant-chat uc" inert data-sequence>
+<div class="step person"><p class="bubble">Get me a car insurance quote on Brightwater for my details.</p></div>
+<div class="step said">
+<div class="card ticket"><div class="ticket-main"><p class="label">Admit one agent</p><p class="title">Car insurance quote</p><p class="where">${host}/quote/driver</p><dl>
+<div><dt>Agent</dt><dd>key 7f3a…c21, signed</dd></div>
+<div><dt>Map</dt><dd>3 pages, every field by meaning</dd></div>
+<div><dt>House rules</dt><dd>Ask the person before submitting. Five quotes an hour.</dd></div>
+<div><dt>Valid</dt><dd>10 minutes, this site only</dd></div>
+</dl></div><div class="stub"><span class="label">No.</span><b>0042</b><span>session</span></div></div>
+</div>
+<div class="step said">
+<div class="card"><p class="label">Your decision</p><p class="title">Before Usher goes on</p><p class="where">${host}/quote/cover</p><p class="asking">Usher is asking you, not the agent</p>
+<div class="row"><label class="check"><input type="checkbox" checked tabindex="-1"><span class="verbatim">I confirm the information I have given is true and complete<span class="tag req">required</span></span></label></div>
+<div class="row"><span class="verbatim">Send me offers by email (optional)<span class="tag opt">optional</span></span><div class="yesno"><label><input type="radio" name="illustration-marketing" tabindex="-1"> Yes</label><label><input type="radio" name="illustration-marketing" checked tabindex="-1"> No</label></div></div>
+<div class="row"><label class="check"><input type="checkbox" checked tabindex="-1"><span>Yes, press <b>“Get my quote”</b> for me</span></label><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. This is a demo site: nothing is bought.</p></div>
+<button type="button" tabindex="-1">Confirm</button>
+</div>
+<p class="caption">Usher is asking you, not the agent.</p>
+</div>
+<div class="step said">
+<div class="card"><p class="label">Usher</p><p class="title">Your quote</p><p class="where">${host}/quote/result</p><p class="outcome ok">Completed</p>
+<ul class="facts"><li class="verbatim">£308.70 a year</li><li class="verbatim">Quote reference BW-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
+<p class="note"><a href="#assistant" tabindex="-1">Open the page</a> · as the site shows it, word for word</p></div>
+<p class="caption">Every action by meaning, on the site's record. Your details never stored.</p>
+</div>
+</div>
+</figure>
+<ul class="assistant-notes small muted">
+<li>Shown: an agent on Muse Spark through the Meta Model API. Also works in Claude, ChatGPT, Cursor and any MCP client.</li>
+<li>Cards render where the client supports MCP Apps; plain text everywhere else.</li>
+<li>Hosted Usher acts only on sites that have joined. The local server acts anywhere, with your own key.</li>
+</ul>
+</section>`;
 }
 
 export function landingPage(o: LandingOptions): string {
@@ -167,6 +218,8 @@ export function landingPage(o: LandingOptions): string {
 </ol>
 </section>
 
+${o.hosted ? assistantSection(o.url, o.demoOrigin) : ''}
+
 ${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
 <p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
 ${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
@@ -188,7 +241,7 @@ ${o.hosted ? html`<p><b>Assistants</b> (claude.ai, Claude Desktop, ChatGPT, Curs
 <p><b>Frameworks and your own agents:</b> run it locally.</p>` : ''}
 <pre>${mcp}</pre>
 ${o.hosted ? html`<p class="small muted">Hosted acts on sites that have joined Usher; local acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>` : ''}
-<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p>
+<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.${o.hosted ? html` <a href="#assistant">See it inside an assistant</a>.` : ''}</p>
 ${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run <code>usher_fill</code> on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>
 
@@ -248,6 +301,33 @@ section { margin:0 0 56px; }
 ${PICKER_STYLE}
 /* Sections settle into place as they come near (site.js). Content is always present and fully
    visible: only position moves, so pages without JavaScript and screenshots see everything. */
+/* Inside the assistant: a plain window of our own, always dark, holding the MCP Apps cards as a
+   client shows them (CARD_CSS). */
+${CARD_CSS}
+.assistant { ${CARD_DARK} margin:22px 0 0; max-width:640px; background:var(--bg); border:1.5px solid var(--line); color:var(--ink); }
+.assistant-bar { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 18px; border-bottom:1.5px dashed var(--line); }
+.assistant-name { font-family:var(--serif); font-size:17px; font-weight:700; }
+.assistant-tag { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.assistant-chat { display:grid; gap:18px; padding:20px 18px 22px; font-size:15px; line-height:1.5; }
+.assistant-chat .step { min-width:0; max-width:520px; }
+.assistant-chat .person { justify-self:end; max-width:80%; }
+.assistant-chat .bubble { margin:0; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px 14px 3px 14px; }
+.assistant-chat .ticket { transform:rotate(-1deg); }
+.assistant-chat .caption { margin:8px 2px 0; font-size:12.5px; color:var(--muted); font-style:italic; }
+.assistant-chat input[type=checkbox], .assistant-chat input[type=radio] { width:auto; margin:3px 0 0; padding:0; accent-color:var(--accent); }
+.assistant-chat .yesno input { margin:0; }
+.assistant-chat button { margin-top:12px; }
+.assistant-notes { margin:14px 0 0; padding-left:1.2em; max-width:640px; }
+.assistant-notes li { margin:2px 0; }
+/* The conversation plays in order once in view (site.js): later steps wait dimmed, never hidden,
+   so nothing is missing without JavaScript and no space sits empty. */
+.assistant-chat.waiting .step:not(:first-child) { opacity:.3; }
+.assistant-chat .step { transition:opacity 500ms ease-out; }
+.assistant-chat.play .step:nth-child(2) { transition-delay:700ms; }
+.assistant-chat.play .step:nth-child(3) { transition-delay:1600ms; }
+.assistant-chat.play .step:nth-child(4) { transition-delay:2500ms; }
+@media (prefers-reduced-motion: reduce) { .assistant-chat .step { transition:none; } .assistant-chat.waiting .step { opacity:1; } }
+@media (max-width:480px) { .assistant-chat { padding:16px 12px 18px; } .assistant-chat .person { max-width:92%; } .assistant-chat .ticket { transform:none; } }
 [data-reveal] { transition:transform 240ms ease-out; }
 html.reveal [data-reveal]:not(.shown) { transform:translateY(16px); }
 @media (prefers-reduced-motion: reduce) { [data-reveal] { transition:none; } html.reveal [data-reveal]:not(.shown) { transform:none; } }

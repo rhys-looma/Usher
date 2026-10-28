@@ -1,9 +1,22 @@
 // The front page's only script of its own, served at /site.js (the page's policy allows scripts from
-// this origin only). Sections settle into place as they come within a screen of view; nothing is
-// ever hidden, so the page reads the same without JavaScript and in screenshots.
+// this origin only). Sections settle into place as they come within a screen of view, and the
+// assistant illustration plays in order; nothing is ever hidden, so the page reads the same without
+// JavaScript and in screenshots.
 
 export const SITE_JS = `(() => {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // The assistant illustration plays its steps in order once it is in view; until then the later
+  // steps wait dimmed, never hidden.
+  for (const chat of document.querySelectorAll('[data-sequence]')) {
+    chat.classList.add('waiting');
+    const play = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      chat.classList.add('play');
+      chat.classList.remove('waiting');
+      play.disconnect();
+    }, { threshold: 0.35 });
+    play.observe(chat);
+  }
   const sections = [...document.querySelectorAll('[data-reveal]')];
   // Within one screen below the fold: already in place, never moved.
   const near = (el) => el.getBoundingClientRect().top < innerHeight * 2;
