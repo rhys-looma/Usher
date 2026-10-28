@@ -1,7 +1,9 @@
 // A normal prompt is enough: through the hosted server, as a client would call it, the site and the
 // task in the person's words and their details as prose reach the same decision set as the keyed
 // prompt, with every value filled and make, model and year from the site's own lookup, in both of
-// Brightwater's layouts. The details are read by Muse Spark, replayed from a recording.
+// Brightwater's car layouts; and for Brightwater Health, with the smoker answer put back to the
+// person and the declaration word for word. The details are read by Muse Spark, replayed from a
+// recording.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,14 +22,15 @@ import { registerSite } from '../../registry/test/sites.ts';
 import { testStorage } from '../../registry/test/storage-helper.ts';
 import { detailsSchema, detailInputs, mapDetails } from '../src/details.ts';
 import { hostedMcp } from '../src/hosted.ts';
-import { NATURAL } from './natural.ts';
+import { NATURAL, NATURAL_HEALTH } from './natural.ts';
 
 const profile = JSON.parse(await readFile(new URL('../../agent/profiles/test-driver.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
 const { _comment: _, 'consent.declaration': _d, 'consent.marketing': _m, ...values } = profile;
 const details = JSON.parse(await readFile(new URL('./fixtures/details/natural.json', import.meta.url), 'utf8')) as LabelFixture;
+const healthDetails = JSON.parse(await readFile(new URL('./fixtures/details/natural-health.json', import.meta.url), 'utf8')) as LabelFixture;
 // Layout B's pages have no map in this registry: the model reads them, from recordings.
 const labels = await Promise.all((['a', 'b'] as const).flatMap((l) => (['driver', 'vehicle', 'cover'] as const).map((s) => readFixture(l, s))));
-const chat = replayAny([details, ...labels]);
+const chat = replayAny([details, healthDetails, ...labels]);
 
 let dir: string;
 let registry: RunningRegistry;
@@ -71,7 +74,7 @@ const decisionSet = (r: Reply) => r.decisions!.map((d) => `${d.kind}:${d.key}:${
 
 test('the server says which sites it acts on, and that it pauses for the person by default', async () => {
   const instructions = (await connect()).getInstructions() ?? '';
-  assert.ok(instructions.includes(`- Brightwater Motor (${new URL(site.url).host}): car insurance quote.`), instructions);
+  assert.ok(instructions.includes(`- Brightwater (${new URL(site.url).host}): health insurance quote, car insurance quote.`), instructions);
   assert.match(instructions, /pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that/);
 });
 
@@ -127,4 +130,42 @@ test('without a model, details are refused, pointing at values', async () => {
   const result = await (await connect(bare)).callTool({ name: 'usher_fill', arguments: { site: 'Brightwater', task: 'car insurance quote', details: NATURAL } });
   assert.equal(result.isError, true);
   assert.match((result.content as { text: string }[])[0]!.text, /needs Muse Spark on this server \(MODEL_API_KEY\)\. Pass them by Usher key in values instead\./);
+});
+
+test('Brightwater Health: the plain prompt and the keyed one reach the same decision set; the smoker answer comes back to confirm, the declaration word for word', async () => {
+  const health = JSON.parse(await readFile(new URL('../../agent/profiles/test-health.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
+  const { _comment: _c, 'consent.declaration': _d2, ...keyed } = health;
+  const plain = await fill(await connect(), { site: 'Brightwater', task: 'health insurance quote', details: NATURAL_HEALTH });
+  assert.equal(plain.reply.status, 'needs_decision', JSON.stringify(plain.reply).slice(0, 400));
+  const byKey = await fill(await connect(), { site: 'Brightwater', task: 'PMI', values: keyed });
+  assert.equal(byKey.reply.status, 'needs_decision', JSON.stringify(byKey.reply).slice(0, 400));
+  assert.deepEqual(decisionSet(plain.reply), decisionSet(byKey.reply));
+  // One card: the smoker answer as they said it, the declaration as the site words it, then the submit.
+  assert.deepEqual(plain.reply.decisions!.map((d) => `${d.kind}:${d.key}`), ['confirm_value:person.smoker', 'required_consent:consent.declaration', 'submit:form.submit']);
+  assert.equal((plain.reply.decisions![0] as { value?: string }).value, 'No');
+  const blocks = (plain.result.structuredContent as { blocks: { kind: string; text: string; verbatim: boolean; source: { key?: string } }[] }).blocks;
+  const declaration = blocks.find((b) => b.source.key === 'consent.declaration' && b.kind === 'consent');
+  assert.deepEqual([declaration?.verbatim, declaration?.text], [true, 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote']);
+  assert.ok(blocks.some((b) => b.kind === 'disclosure' && b.verbatim && /Medical history is not asked here/.test(b.text)), 'the text by Get my quote, verbatim');
+  assert.match(String((plain.result.content as { text: string }[])[0]!.text), /Confirm: “Have you smoked or used nicotine products in the last 12 months\?” They said: “No”\. Is that right\?/);
+  // No medical question anywhere in the journey, and nothing read for one.
+  assert.ok(!plain.reply.read_from_details!.some((k) => k.startsWith('health.')));
+  // Through to the quote.
+  const done = (await (open.at(-2)!).callTool({ name: 'usher_confirm', arguments: { id: plain.reply.id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } })).structuredContent as Reply & { result?: { facts: string[] } };
+  assert.equal(done.status, 'completed', done.reason);
+  assert.ok(done.result!.facts.some((f) => /a month/.test(f)), done.result!.facts.join(' | '));
+  const taken = done.actions!.map((a) => `${a.action}:${a.key}`);
+  assert.ok(taken.includes('press:lookup.address'), 'the address from the site\'s own lookup');
+  assert.ok(taken.includes('handoff:person.smoker'), 'the smoker answer entered as theirs');
+  console.log(`  health, plain prompt: decision set in ${plain.ms} ms; keyed: ${byKey.ms} ms`);
+});
+
+test('Brightwater Health: a smoker answer the person says isn\'t right stops the fill before anything is submitted', async () => {
+  const client = await connect();
+  const { reply } = await fill(client, { site: 'Brightwater', task: 'medical insurance', details: NATURAL_HEALTH });
+  assert.equal(reply.status, 'needs_decision');
+  const done = (await client.callTool({ name: 'usher_confirm', arguments: { id: reply.id, confirmation: 'Confirm: smoker no, declaration yes, get my quote yes' } })).structuredContent as Reply;
+  assert.equal(done.status, 'stopped');
+  assert.match(done.reason!, /isn't their answer to "Have you smoked/);
+  assert.ok(!done.actions!.some((a) => a.key === 'form.submit'), 'nothing submitted');
 });

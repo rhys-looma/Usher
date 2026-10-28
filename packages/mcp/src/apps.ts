@@ -123,6 +123,10 @@ ${CARD_CSS}
       } else if (q.kind === 'submit') {
         var said = own.filter(function (b) { return b.kind === 'disclosure'; }).map(function (b) { return '<p class="disclosure">' + esc(b.text) + '</p>'; }).join('');
         html += '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span>Yes, press <b>“' + esc(q.label) + '”</b> for me</span></label>' + said + '</div>';
+      } else if (q.kind === 'confirm_value') {
+        // Theirs alone: what they said, put back to them, nothing chosen until they choose.
+        html += '<div class="row"><span class="verbatim">' + esc(q.label) + '<span class="tag req">confirm</span></span><p class="said">You said: <b>' + esc(q.value || '') + '</b></p>'
+          + '<div class="yesno"><label><input type="radio" name="' + name + '" value="yes" data-key="' + esc(q.key) + '" data-kind="yesno"> That&#39;s right</label><label><input type="radio" name="' + name + '" value="no" data-key="' + esc(q.key) + '" data-kind="yesno"> Not right</label></div></div>';
       } else {
         html += '<div class="row"><label>' + esc(q.label) + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
       }

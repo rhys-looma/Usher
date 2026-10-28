@@ -102,7 +102,7 @@ test('the tools are offered alongside knock, and their descriptions carry the be
   assert.match(fill, /pauses for the person at every consent and before anything is submitted/);
   assert.match(fill, /word for word/);
   assert.match(fill, /never answer them yourself/);
-  assert.match(fill, /usher_fill\(\{ site: "Brightwater", task: "car insurance quote", details: /, 'one example, in the person\'s words');
+  assert.match(fill, /usher_fill\(\{ site: "Brightwater", task: "health insurance quote", details: /, 'one example, in the person\'s words');
   assert.match(tools.find((t) => t.name === 'usher_confirm')!.description!, /never decide for them/);
 });
 

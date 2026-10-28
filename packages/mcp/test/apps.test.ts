@@ -189,3 +189,32 @@ test('usher_confirm says what it does: it submits on the person\'s behalf', asyn
   assert.deepEqual(tools.find((t) => t.name === 'usher_confirm')!.annotations, { title: 'Submit with the person\'s answers', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
   assert.equal(tools.find((t) => t.name === 'usher_fill')!.annotations?.readOnlyHint, false);
 });
+
+test('Brightwater Health\'s card: the smoker answer as the person said it, nothing chosen for them; the declaration word for word', async () => {
+  const health = JSON.parse(await readFile(new URL('../../agent/profiles/test-health.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
+  const { _comment: _h, 'consent.declaration': _hd, ...keyed } = health;
+  const client = await connect();
+  const html = ((await client.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
+  const filled = await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/health/about`, intent: 'quote.health_insurance', values: keyed } });
+  assert.equal((filled.structuredContent as { status: string }).status, 'needs_decision');
+  const decision = await render(html, filled, { caps: { message: { text: {} } } });
+  const card = decision.frameLocator('#v');
+  assert.equal(await card.locator('text=Have you smoked or used nicotine products in the last 12 months?').count(), 1);
+  assert.match((await card.locator('.said').textContent()) ?? '', /You said: No/);
+  assert.equal(await card.locator('input[data-key="person.smoker"]:checked').count(), 0, 'nothing chosen for them');
+  assert.equal(await card.locator('text=I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote').count(), 1);
+  await shot(decision, 'decision-card-health.png');
+  // Unanswered, Confirm asks again; answered, it sends the person's own words.
+  await card.locator('input[data-key="consent.declaration"]').check();
+  await card.locator('input[data-key="form.submit"]').check();
+  await card.locator('button#go').click();
+  await card.locator('text=Please answer every question first.').waitFor();
+  await card.locator('input[data-key="person.smoker"][value="yes"]').check();
+  await card.locator('button#go').click();
+  await card.locator('text=Sent as your message: Confirm: smoker yes, declaration yes, get my quote yes').waitFor();
+  const done = await client.callTool({ name: 'usher_confirm', arguments: { id: (filled.structuredContent as { id: string }).id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } });
+  assert.equal((done.structuredContent as { status: string }).status, 'completed');
+  const result = await render(html, done);
+  assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month[\s\S]*Quote reference BWH-/);
+  await shot(result, 'result-card-health.png');
+});
