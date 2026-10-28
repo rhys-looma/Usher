@@ -1,0 +1,17 @@
+{
+  "model": "muse-spark-1.3",
+  "recorded_at": "2026-10-28T20:30:39.456Z",
+  "attempts": [
+    {
+      "request_sha256": "92bddbc1fbaa8b88b3924b638ee50b8f189b5ab2c82cef7a35830b03af8dd5a2",
+      "content": "{\"advance_action_id\": \"e26\", \"elements\": [{\"id\": \"e1\", \"key\": \"custom.resume_application\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"custom.policy_conditions\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"custom.policy_summary\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"custom.cover_purpose\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"cover.who\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"custom.critical_illness_policy_summary\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"custom.critical_illness_policy_conditions\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"custom.critical_illness_policy_conditions_pdf\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"custom.critical_illness_cover\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"person.first_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"person.last_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e12\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e13\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e14\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e15\", \"key\": \"person.smoker\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e16\", \"key\": \"contact.email\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e17\", \"key\": \"contact.phone\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e18\", \"key\": \"address.postcode\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e19\", \"key\": \"lookup.address\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e21\", \"key\": \"ui.expand\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e26\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}, {\"id\": \"e27\", \"key\": \"ui.expand\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e30\", \"key\": \"custom.life_insurance_plan_info\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e31\", \"key\": \"custom.security_provider\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e32\", \"key\": \"ui.expand\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.life_insurance\", \"purpose\": \"Life and critical illness insurance quote - personal details\"}}",
+      "usage": {
+        "prompt_tokens": 6083,
+        "completion_tokens": 4525,
+        "total_tokens": 10608,
+        "cached_tokens": 0
+      },
+      "latency_ms": 17191
+    }
+  ]
+}
