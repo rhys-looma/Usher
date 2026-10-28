@@ -20,6 +20,7 @@ import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
 import type { TestValues, Walkthroughs } from '../walkthrough.ts';
+import { Learning, learningPage, teachingPage } from './learning.ts';
 import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, walkthroughPage } from './walkthrough.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
@@ -129,6 +130,7 @@ function redirect(res: ServerResponse, location: string): void {
 
 export class Web {
   readonly viewer: Viewer;
+  private readonly learning: Learning;
   private dashboard?: Dashboard;
   private readonly started = new Date();
 
@@ -137,6 +139,7 @@ export class Web {
     private readonly options: WebOptions,
   ) {
     this.viewer = new Viewer({ ...options, storage: registry.storage });
+    this.learning = new Learning(registry.storage);
   }
 
   /** Explanations come from the registry unless the caller supplies its own. */
@@ -200,6 +203,7 @@ export class Web {
     // Usher's own claim to its origin, like any site's.
     if (route === 'GET /privacy') return sendHtml(res, 200, privacyPage({ url: this.registry.url, ...(this.options.contact && { contact: this.options.contact }) })), true;
     if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
+    if (route === 'GET /learning') return sendHtml(res, 200, learningPage(await this.learning.counters())), true;
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
@@ -500,6 +504,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
       return sendHtml(res, 200, await board.overview(origin, html`${welcome}${card}`)), true;
     }
+    if (route === 'GET /dashboard/learning') return sendHtml(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
     if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {
       if (route === 'GET /dashboard/walkthrough/new') return sendHtml(res, 200, startForm(origin)), true;
       if (route === 'POST /dashboard/walkthrough') {

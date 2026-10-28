@@ -1,5 +1,5 @@
 // Chat clients for OpenAI-compatible model APIs, using fetch (LU-19, LU-30): the Meta Model API
-// (Muse Spark) and Baseten (Muse Spark Open). The compiler and the agent take any ChatFn, so the
+// (Muse Spark), Baseten (Muse Spark Open) and the student, our own tuned labeller (student.ts). The compiler and the agent take any ChatFn, so the
 // model is swappable.
 //
 // API keys are read from the environment (MODEL_API_KEY, BASETEN_API_KEY) and never logged or stored.
@@ -15,7 +15,7 @@ export const OPEN_MODEL = 'meta-models/muse-spark-open-1026';
 export const OPEN_MODEL_PUBLIC = 'meta-models/muse-spark-open';
 
 export interface Provider {
-  name: 'meta' | 'baseten';
+  name: 'meta' | 'baseten' | 'student';
   url: string;
   keyEnv: string;
   defaultModel: string;
@@ -28,6 +28,9 @@ export const PROVIDERS: Record<Provider['name'], Provider> = {
   // Baseten's docs: every Model API supports structured outputs except Muse Spark Open, which
   // offers JSON mode. So the schema goes in the prompt and JSON mode is asked for.
   baseten: { name: 'baseten', url: 'https://inference.baseten.co/v1/chat/completions', keyEnv: 'BASETEN_API_KEY', defaultModel: OPEN_MODEL, structuredOutput: false },
+  // vLLM on Modal (deploy/finetune/serve.py): its address is USHER_STUDENT_URL, read when used.
+  // vLLM takes response_format json_schema (guided decoding).
+  student: { name: 'student', url: '', keyEnv: 'USHER_STUDENT_KEY', defaultModel: 'usher-labeller', structuredOutput: true },
 };
 
 export type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
@@ -138,12 +141,19 @@ export interface ModelApiOptions {
   fetch?: typeof fetch;
 }
 
+/** The student's chat endpoint from USHER_STUDENT_URL (its base or the full path). */
+function studentUrl(): string {
+  const base = process.env.USHER_STUDENT_URL?.trim().replace(/\/$/, '');
+  if (!base) throw new Error('USHER_STUDENT_URL is not set: the tuned labeller has no endpoint (npm run finetune:serve prints it).');
+  return base.endsWith('/chat/completions') ? base : `${base}/v1/chat/completions`;
+}
+
 export function modelApi(options: ModelApiOptions = {}): ChatFn {
   const provider = PROVIDERS[options.provider ?? 'meta'];
   const apiKey = options.apiKey ?? process.env[provider.keyEnv];
   if (!apiKey) throw new Error(`${provider.keyEnv} is not set. Put it in .env at the repository root or export it; it is read from the environment only.`);
   const doFetch = options.fetch ?? fetch;
-  const url = options.url ?? provider.url;
+  const url = options.url ?? (provider.name === 'student' ? studentUrl() : provider.url);
 
   return async (request) => {
     if (/-contributor\b/.test(request.model)) throw new Error(`Refusing model "${request.model}": contributor variants allow Meta to train on our content.`);

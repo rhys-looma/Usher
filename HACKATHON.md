@@ -22,8 +22,23 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | Reference agent's fallback when a page has no map: labels the page, then acts on it | Muse Spark `muse-spark-1.3`. In use. |
 | Keeper triage: is a changed form's change cosmetic or real, and did anything consequential change? Cheap, so only real changes reach Muse Spark | Muse Spark Open on Baseten. In use: $0.004 to $0.005 per changed form; unchanged forms cost nothing. |
 | Second, independent agent using the registry (and its fallback when a page has no map) | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`; JSON mode, schema in the prompt). In use. |
+| Map my site: label each page of an owner's walkthrough, with a masked screenshot, in vote mode | Muse Spark `muse-spark-1.3` (image input checked first). In use. |
+| A small labeller tuned on Muse Spark's and owners' labels, as a second opinion on risk | Muse Glimmer (`meta-models/Muse-Glimmer-30B`, open weights) with LoRA. Built and dry-run; not trained yet, off in production (`USHER_STUDENT_MODEL`). |
 
 This table is updated as the build progresses.
+
+## The learning loop
+
+Usher gets better at reading forms from the people who run them (the registry's `/learning` page shows it live):
+
+1. **Muse Spark labels a page** into a map, asking up to three times where it is unsure (vote mode).
+2. **Agents use the map**: structure only, never values.
+3. **The site's owner checks it** in a walkthrough of their own form ("Map my site") and corrects what it got wrong.
+4. **Each correction is an owner-verified label**, kept with the element's structure. In the training set it outranks any number of model runs.
+5. **Muse Glimmer is tuned on that set with LoRA** (`deploy/finetune/`: Modal H100 training with TRL, vLLM serving), to label one element at a time cheaply.
+6. **The tuned student gives a second opinion on risk.** Where it and Muse Spark disagree, the stricter answer is kept, so the student can make maps more careful but never less.
+
+Status on 29 October: steps 1 to 4 are live; step 5 has passed a dry run (one training step on CPU with a tiny stand-in model, adapter saved) and waits for a GPU run; step 6 is built and tested, behind a flag that is off in production. Details in [docs/finetune.md](docs/finetune.md).
 
 ## Build log
 

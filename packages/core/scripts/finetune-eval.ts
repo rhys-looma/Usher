@@ -71,7 +71,7 @@ if (values.predictions) {
   predictions = evalSet.map((ex) => ({ id: ex.id, key: commonest(ex.input.control ?? ex.input.kind, 'key'), risk: commonest(ex.input.control ?? ex.input.kind, 'risk') }));
   source = 'baseline: commonest key and risk per control in train';
 } else if (values.model) {
-  const chat = modelApi({ provider: values.provider as 'meta' | 'baseten' });
+  const chat = modelApi({ provider: values.provider as 'meta' | 'baseten' | 'student' });
   const useShortlist = !values['no-shortlist'];
   const system = await systemPrompt({ shortlist: useShortlist, retrieval: values.retrieval });
   const index = values.retrieval ? new ExampleIndex(train.map((t) => ({ label: t.input.label, kind: t.input.kind, control: t.input.control, key: t.output.key, risk: t.output.risk }))) : null;
@@ -115,7 +115,7 @@ if (values.predictions) {
   );
   source = `${values.model} (${values.provider}), live, ${useShortlist ? 'with the short list' : 'no short list'}${values.retrieval ? ', with retrieval' : ''}`;
 } else {
-  console.error('Give --predictions <file>, --model <id> [--provider baseten], or --baseline.');
+  console.error('Give --predictions <file>, --model <id> [--provider baseten|student], or --baseline.');
   process.exit(1);
 }
 if (values.save) await writeFile(values.save, predictions.map((p) => `${JSON.stringify(p)}\n`).join(''));

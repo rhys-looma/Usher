@@ -1,0 +1,7 @@
+# The versions the CPU dry run passed with on 28 October 2026. The Modal image installs the same.
+torch==2.15.0
+transformers==5.21.0
+peft==0.21.2
+trl==1.16.0
+datasets==5.1.0
+accelerate==1.15.0

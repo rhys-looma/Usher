@@ -25,7 +25,7 @@ export interface ViewerOptions {
   chat?: ChatFn;
   model?: string;
   /** A second opinion on risk (Muse Spark Open); disagreements keep the stricter risk and are shown. */
-  classifier?: { chat: ChatFn; model: string };
+  classifier?: { chat: ChatFn; model: string; student?: boolean };
   /** Allow localhost and private networks (for local demos). */
   allowPrivate?: boolean;
   /** The forms anyone can pick (picker.ts). */
