@@ -547,5 +547,14 @@
       "default_risk": "safe",
       "sensitive": false
     }
+  ],
+  "dates": [
+    "person.dob",
+    "person.claims.date",
+    "vehicle.purchase_date",
+    "policy.start_date",
+    "search.date_from",
+    "search.date_to",
+    "booking.date"
   ]
 }

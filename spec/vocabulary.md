@@ -4,6 +4,13 @@ Semantic keys say what a field or action *means*, independent of how a site labe
 
 When nothing here fits, use `custom.<slug>` (for example `custom.how_did_you_hear`). Custom keys that recur across sites get promoted into this list.
 
+## Values
+
+Values by key are written one way everywhere, whatever the site shows; the agent translates when it fills.
+
+- **Dates** are YYYY-MM-DD: `person.dob`, `person.claims.date`, `vehicle.purchase_date`, `policy.start_date`, `search.date_from`, `search.date_to`, `booking.date`. A site may ask for one as a date picker, as text in its own format (DD/MM/YYYY and the like), or split into day, month and year boxes (fields with a `part`, see [map.md](map.md)): the value is the same.
+- **Yes or no** answers may be given as `yes`/`no`, `true`/`false` or `y`/`n`; **numbers** as digits, without currency, separators or units.
+
 ## Defaults
 
 Each key has a default risk and sensitivity. A map may make a field **stricter** than its default (for example, a `safe` key marked `consequential` on one site) but never looser. Keys marked sensitive are always `needs_user` and never appear in a plan's filled values.

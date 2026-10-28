@@ -20,6 +20,8 @@ export interface VocabularyEntry {
 export interface Vocabulary {
   usher_vocabulary: string;
   entries: VocabularyEntry[];
+  /** Keys whose values are dates, written YYYY-MM-DD whatever the site shows. */
+  dates?: string[];
 }
 
 export const vocabulary = vocabularyJson as Vocabulary;
@@ -32,6 +34,7 @@ export function parseVocabularyMarkdown(markdown: string): Vocabulary {
   const version = /^# .*draft (\d+\.\d+)/m.exec(markdown)?.[1];
   if (!version) throw new Error('vocabulary.md: no "draft x.y" version in the title');
   const entries: VocabularyEntry[] = [];
+  const dates: string[] = [];
   let section = '';
   for (const line of markdown.split('\n')) {
     const heading = /^## (.+)$/.exec(line);
@@ -39,6 +42,7 @@ export function parseVocabularyMarkdown(markdown: string): Vocabulary {
       section = heading[1]!.trim();
       continue;
     }
+    if (section === 'Values' && /^- \*\*Dates\*\*/.test(line)) dates.push(...[...line.split(':')[1]!.split('. ')[0]!.matchAll(/`([a-z][a-z0-9_.]*)`/g)].map((m) => m[1]!));
     const cells = /^\|(.+)\|\s*$/.exec(line)?.[1]!.split('|').map((c) => c.trim());
     if (!cells || cells.length !== 3 || !cells[0]!.startsWith('`')) continue;
     const [keysCell, meaning, riskCell] = cells as [string, string, string];
@@ -50,5 +54,5 @@ export function parseVocabularyMarkdown(markdown: string): Vocabulary {
       entries.push({ key, meaning, kind: section === 'Actions' ? 'action' : 'field', default_risk: risk, sensitive: flags.includes('sensitive') });
     }
   }
-  return { usher_vocabulary: version, entries };
+  return { usher_vocabulary: version, entries, ...(dates.length && { dates }) };
 }
