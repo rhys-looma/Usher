@@ -1,0 +1,637 @@
+{
+  "usher": "0.1",
+  "origin": "https://www.direct.aviva.co.uk",
+  "path": "/protection/direct/pagesSq/quoteInputPage.xhtml",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:6ea6abae66a868622d8d6c1391f264fb37a967cb52e1e27e2f3f8f0643438bd3",
+    "signature": [
+      "d75f65e82680",
+      "d7c2fa60559c",
+      "b040dc05bee3",
+      "5e7f8fd863fa",
+      "d2d78bde2483",
+      "c674cf76c0fd",
+      "a3d9a1ad095c",
+      "d7209125bdd9",
+      "94fadf003415",
+      "e749bc571bf9",
+      "dcb17f36fbab",
+      "96cd2d3dc651",
+      "0efcaa836eb2",
+      "65c0345bb60f",
+      "8cec630c082c",
+      "da565628fafd",
+      "2161be168147",
+      "7dd01d127a2b",
+      "4e493dd6277b",
+      "4e493dd6277b",
+      "23ba9239ccf9",
+      "e29878a9c68d",
+      "ccd2b20f4b07",
+      "e85243a174c1",
+      "a19e28ea49ae",
+      "3a3bccbd5404",
+      "e6419a97f4c3",
+      "b0129e5cf8c3",
+      "f447d4d63264",
+      "c7f48f621aa2",
+      "994d36b2ef3e",
+      "bf91b65aa0da",
+      "0a8baafde6a9",
+      "8b5647bf991e",
+      "bc996413d9a3",
+      "0a8baafde6a9",
+      "0a8baafde6a9"
+    ]
+  },
+  "form": {
+    "purpose": "Life and critical illness insurance quote - personal details",
+    "intent": "quote.life_insurance"
+  },
+  "groups": [
+    {
+      "id": "g1",
+      "label": "First name"
+    },
+    {
+      "id": "g2",
+      "label": "Last name"
+    },
+    {
+      "id": "g3",
+      "label": "Date of birth"
+    },
+    {
+      "id": "g4",
+      "label": "Email"
+    },
+    {
+      "id": "g5",
+      "label": "Mobile or phone number (optional)"
+    }
+  ],
+  "fields": [
+    {
+      "id": "e4",
+      "key": "custom.cover_purpose",
+      "label": "Your cover",
+      "control": "radio",
+      "required": false,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "Family protection",
+            "label": "Family protection"
+          },
+          {
+            "value": "Mortgage protection",
+            "label": "Mortgage protection"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "name",
+          "value": "id_quoteCoverRadios"
+        },
+        {
+          "by": "css",
+          "value": "body > form > fieldset:nth-of-type(1)"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "key": "cover.who",
+      "label": "Which cover type would you like?",
+      "control": "radio",
+      "required": false,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "1",
+            "label": "Me"
+          },
+          {
+            "value": "2",
+            "label": "Me and someone else"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "name",
+          "value": "id_quoteLivesRadio"
+        },
+        {
+          "by": "css",
+          "value": "body > form > fieldset:nth-of-type(2)"
+        }
+      ]
+    },
+    {
+      "id": "e9",
+      "key": "custom.critical_illness_cover",
+      "label": "Do you want to add critical illness cover?",
+      "control": "radio",
+      "required": false,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "Yes",
+            "label": "Yes"
+          },
+          {
+            "value": "No",
+            "label": "No"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "name",
+          "value": "id_ctiticalIllnesRadio"
+        },
+        {
+          "by": "css",
+          "value": "body > form > fieldset:nth-of-type(3)"
+        }
+      ]
+    },
+    {
+      "id": "e10",
+      "key": "person.first_name",
+      "label": "If you have more than one first name, use a hyphen between them. For example, ‘Sarah-Jane’. You don’t need to tell us your middle names.",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 30
+      },
+      "group": "g1",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_forename_"
+        },
+        {
+          "by": "name",
+          "value": "id_forename_"
+        }
+      ]
+    },
+    {
+      "id": "e11",
+      "key": "person.last_name",
+      "label": "Last name",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 30
+      },
+      "group": "g2",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_surname_"
+        },
+        {
+          "by": "name",
+          "value": "id_surname_"
+        }
+      ]
+    },
+    {
+      "id": "e12",
+      "key": "person.dob",
+      "label": "Date of Birth Day DD",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 2
+      },
+      "group": "g3",
+      "part": "day",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF104_dateOfBirthDay_"
+        },
+        {
+          "by": "name",
+          "value": "id_FF104_dateOfBirthDay_"
+        },
+        {
+          "by": "label",
+          "value": "Date of Birth Day DD"
+        }
+      ]
+    },
+    {
+      "id": "e13",
+      "key": "person.dob",
+      "label": "Date of Birth Month M M",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 2
+      },
+      "group": "g3",
+      "part": "month",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF104_dateOfBirthMonth_"
+        },
+        {
+          "by": "name",
+          "value": "id_FF104_dateOfBirthMonth_"
+        },
+        {
+          "by": "label",
+          "value": "Date of Birth Month M M"
+        }
+      ]
+    },
+    {
+      "id": "e14",
+      "key": "person.dob",
+      "label": "Date of Birth Year YYYY",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 4
+      },
+      "group": "g3",
+      "part": "year",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF104_dateOfBirthYear_"
+        },
+        {
+          "by": "name",
+          "value": "id_FF104_dateOfBirthYear_"
+        },
+        {
+          "by": "label",
+          "value": "Date of Birth Year YYYY"
+        }
+      ]
+    },
+    {
+      "id": "e15",
+      "key": "person.smoker",
+      "label": "Smoking, vaping, tobacco and nicotine use",
+      "control": "radio",
+      "required": false,
+      "risk": "needs_user",
+      "options": {
+        "items": [
+          {
+            "value": "1",
+            "label": "I've never smoked"
+          },
+          {
+            "value": "2",
+            "label": "Regularly, occasionally or socially"
+          },
+          {
+            "value": "8",
+            "label": "I have in the past"
+          }
+        ],
+        "total": 3,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "name",
+          "value": "id_smokerStatusRadio_"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Smoking, vaping, tobacco and nicotine use"
+        }
+      ]
+    },
+    {
+      "id": "e16",
+      "key": "contact.email",
+      "label": "Please give us your preferred email address. We’ll use this to send you your quote and we may use this to contact you to progress your application.",
+      "control": "email",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "format": "email"
+      },
+      "group": "g4",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_emailAddress_"
+        },
+        {
+          "by": "name",
+          "value": "id_emailAddress_"
+        }
+      ]
+    },
+    {
+      "id": "e17",
+      "key": "contact.phone",
+      "label": "Please give us your preferred phone number. We may use this to contact you to progress your quote or application.",
+      "control": "tel",
+      "required": false,
+      "risk": "safe",
+      "constraints": {
+        "max_length": 20
+      },
+      "group": "g5",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF_phoneNumber_"
+        },
+        {
+          "by": "name",
+          "value": "id_FF_phoneNumber_"
+        }
+      ]
+    },
+    {
+      "id": "e18",
+      "key": "address.postcode",
+      "label": "If you’re moving home, use your current address. You can change this after you have moved.",
+      "control": "text",
+      "required": false,
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_postcode_screen__currentAddress"
+        },
+        {
+          "by": "name",
+          "value": "id_postcode_screen__currentAddress"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e1",
+      "key": "custom.resume_application",
+      "label": "Pick up where you left off.",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Pick up where you left off."
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(1)"
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "key": "custom.policy_conditions",
+      "label": "Life Insurance Plan Policy Conditions",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Life Insurance Plan Policy Conditions"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(2)"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "custom.policy_summary",
+      "label": "Life Insurance Plan Policy Summary",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Life Insurance Plan Policy Summary"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(3)"
+        }
+      ]
+    },
+    {
+      "id": "e6",
+      "key": "custom.critical_illness_policy_summary",
+      "label": "Critical Illness Plan Policy Summary",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Critical Illness Plan Policy Summary"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(4)"
+        }
+      ]
+    },
+    {
+      "id": "e7",
+      "key": "custom.critical_illness_policy_conditions",
+      "label": "Critical Illness Plan Policy Conditions",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Critical Illness Plan Policy Conditions"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(5)"
+        }
+      ]
+    },
+    {
+      "id": "e8",
+      "key": "custom.critical_illness_policy_conditions_pdf",
+      "label": "Download Critical Illness Plan Policy Conditions PDF",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Download Critical Illness Plan Policy Conditions PDF"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(6)"
+        }
+      ]
+    },
+    {
+      "id": "e19",
+      "key": "lookup.address",
+      "label": "Find my address",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF159_findAddress__currentAddress_nojs"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(7)"
+        }
+      ]
+    },
+    {
+      "id": "e21",
+      "key": "ui.expand",
+      "label": "If you do not want to hear from us, please tell us below Show",
+      "kind": "button",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "If you do not want to hear from us, please tell us below Show"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"button\"]"
+        }
+      ]
+    },
+    {
+      "id": "e26",
+      "key": "form.submit",
+      "label": "See your quote",
+      "kind": "link",
+      "risk": "consequential",
+      "locators": [
+        {
+          "by": "id",
+          "value": "id_FF811_continue_nojs"
+        },
+        {
+          "by": "role",
+          "value": "link",
+          "name": "See your quote"
+        }
+      ]
+    },
+    {
+      "id": "e27",
+      "key": "ui.expand",
+      "label": "here opens in a dialog",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "here opens in a dialog"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(10)"
+        }
+      ]
+    },
+    {
+      "id": "e30",
+      "key": "custom.life_insurance_plan_info",
+      "label": "Life Insurance Plan",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Life Insurance Plan"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(13)"
+        }
+      ]
+    },
+    {
+      "id": "e31",
+      "key": "custom.security_provider",
+      "label": "secured by sectigo",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "secured by sectigo"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(14)"
+        }
+      ]
+    },
+    {
+      "id": "e32",
+      "key": "ui.expand",
+      "label": "More information on our security",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "More information on our security"
+        },
+        {
+          "by": "css",
+          "value": "body > form > a:nth-of-type(15)"
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-28T20:30:39.456Z",
+    "verified": false
+  }
+}
