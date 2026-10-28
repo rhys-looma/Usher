@@ -10,3 +10,6 @@ data/finetune/
 backups/
 deploy/ecs/config.env
 private/
+
+# The live demo runner's stills
+demo-out/

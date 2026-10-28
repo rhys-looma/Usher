@@ -22,7 +22,8 @@ Also here, in `scripts/`:
 
 | Command | What |
 | --- | --- |
-| `npm run demo [-- scene] [--now] [--once]` | The video's six scenes at `/demo` on a local registry (it prints the address; local only, `USHER_DEMO=1`). Scenes: `locked`, `says-yes`, `race`, `rules-hold`, `site-sees`, `stays-fresh`, or `all`. |
+| `npm run demo -- <scene\|all> [--once]` | The final script's eight scenes against production (`scripts/live/demo.ts`): 1 fill, 2 ticket, 3 race, 4 signup, 5 rules-hold, 6 site-sees, 7 govuk, 8 diagram. Each resets the demo site, opens its windows (dark, large type) and prints its numbers. |
+| `npm run demo:local [-- scene] [--now] [--once]` | The first video's six scenes at `/demo` on a local registry (it prints the address; local only, `USHER_DEMO=1`). Scenes: `locked`, `says-yes`, `race`, `rules-hold`, `site-sees`, `stays-fresh`, or `all`. |
 | `npm run benchmark [-- --runs 5] [--live]` | The same journeys with no Usher, with maps, and with a plan: [reports/benchmark.md](../../reports/benchmark.md). In a fresh clone the httpbin journey is left out until one `--live` run (about $0.03) records its responses. |
 | `npm run demo:drift` | A form changes; the keeper rebuilds; agents are fast again: [reports/drift-demo.md](../../reports/drift-demo.md). |
 | `npm run e2e:remote` | The end-to-end check against a running registry and demo site (Docker compose). |

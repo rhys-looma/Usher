@@ -67,11 +67,13 @@ npm test
 
 `npm test` builds everything, installs Chromium for Playwright, and runs the suite offline from recorded model responses.
 
-**The demo**, as in the video: six scenes on a local registry and the demo site. It prints the address of the stage (`/demo` on the registry); open it and press 1 to 6, or 0 for all of them.
+**The demo**, scene by scene against the live registry and demo site: each scene resets the demo site, opens its windows and prints the numbers it shows. Scenes 1 to 8, or `all`; `--once` closes the windows when done.
 
 ```bash
-npm run demo
+npm run demo -- 3
 ```
+
+`npm run demo:local` is the first video's six scenes on a local registry and demo site, at `/demo` on the registry.
 
 **Each piece by hand.** Set two addresses first: `REGISTRY_PUBLIC_URL`, where the registry will be reached (it listens on port 4200), and `SITE_URL`, the demo site (port 4100). Then start the registry with demo maps (it prints the demo site's keys), the demo site, and the agent:
 

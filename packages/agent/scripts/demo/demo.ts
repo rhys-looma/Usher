@@ -1,9 +1,10 @@
-// The demo runner: the video's sequence, scene by scene, on the mock site.
+// The local demo stage: the first video's sequence, scene by scene, on a local mock site
+// (npm run demo is the live runner against production: scripts/live/demo.ts).
 //
-//   npm run demo                 serve /demo on the registry (it prints the address); run scenes from the page (keys 1-6, 0 for all)
-//   npm run demo -- race         run one scene (or several, or all) once the page is open
-//   npm run demo -- race --now   don't wait for the page
-//   npm run demo -- all --once   run, print the numbers and exit
+//   npm run demo:local                 serve /demo on the registry (it prints the address); run scenes from the page (keys 1-6, 0 for all)
+//   npm run demo:local -- race         run one scene (or several, or all) once the page is open
+//   npm run demo:local -- race --now   don't wait for the page
+//   npm run demo:local -- all --once   run, print the numbers and exit
 //
 // Every scene resets the registry and the site first, so each runs on its own. Model calls are
 // replayed from recordings at the latency they had live, except the session explanation, which
@@ -41,7 +42,7 @@ const { values, positionals } = parseArgs({
   options: { now: { type: 'boolean', default: false }, once: { type: 'boolean', default: false }, 'registry-port': { type: 'string', default: '4200' }, 'site-port': { type: 'string', default: '4100' } },
 });
 if (process.env.USHER_DEMO !== '1') {
-  console.error('The demo is off unless USHER_DEMO=1. Run it with: npm run demo');
+  console.error('The demo is off unless USHER_DEMO=1. Run it with: npm run demo:local');
   process.exit(1);
 }
 const requested = positionals.flatMap((p) => (p === 'all' ? SCENES.map((s) => s.id) : [p]));
