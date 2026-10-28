@@ -126,6 +126,9 @@ export interface JoinedSite {
 }
 
 
+/** How long a site's own name for itself is kept before its home page is read again. */
+const SITE_NAME_TTL_MS = 86_400_000;
+
 /** Words a site's name often ends with, left out when matching what a person calls it. */
 const NAME_SUFFIXES = /\b(motor|motors|insurance|insurers|direct|bank|group|uk|ltd|limited|plc|online)\b/g;
 const plainName = (s: string) => s.toLowerCase().replace(NAME_SUFFIXES, ' ').replace(/[^a-z0-9]+/g, '');
@@ -425,9 +428,10 @@ export class Registry {
   }
 
   /** A site's display name: from its own home page once (cached), else its host. */
-  async siteName(origin: string): Promise<string> {
-    const cached = await this.storage.getCached<{ name: string }>('site-name', origin);
-    if (cached) return cached.name;
+  async siteName(origin: string, options: { fresh?: boolean } = {}): Promise<string> {
+    // Kept a day: a site that renames itself is called by its new name by tomorrow at the latest.
+    const cached = options.fresh ? null : await this.storage.getCached<{ name: string; at?: string }>('site-name', origin);
+    if (cached && cached.at && this.now().getTime() - Date.parse(cached.at) < SITE_NAME_TTL_MS) return cached.name;
     let name: string | null = null;
     try {
       const get = this.options.claims?.allowPrivate ? fetch : publicFetch;

@@ -82,3 +82,11 @@ test('two plausible journeys: the choices, never a guess; a task that says which
   assert.equal(nothing.status, 'needs_details');
   assert.match((nothing as { message: string }).message, /Nothing on Brightwater matches "book a flight"\. It offers: /);
 });
+
+test('a site\'s name is read again after a day, or at once when asked', async () => {
+  await registry.registry.storage.putCached('site-name', site.url, { name: 'Brightwater Motor', at: new Date(Date.now() - 2 * 86_400_000).toISOString() });
+  assert.equal(await registry.registry.siteName(site.url), 'Brightwater', 'a day-old name is read again');
+  await registry.registry.storage.putCached('site-name', site.url, { name: 'Old Name', at: new Date().toISOString() });
+  assert.equal(await registry.registry.siteName(site.url), 'Old Name', 'a fresh one is kept');
+  assert.equal(await registry.registry.siteName(site.url, { fresh: true }), 'Brightwater');
+});
