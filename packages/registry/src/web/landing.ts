@@ -482,14 +482,16 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .seq-result { grid-column:2; justify-self:end; width:min(100%,360px); }
 .seq-result .facts li:first-child { font-family:var(--serif); }
 .seq-controls { grid-column:1 / -1; margin:0; }
+.seq-replay[hidden] { display:none; }
 .seq-replay { font:inherit; font-size:14px; font-weight:600; background:none; color:var(--ink); border:1.5px solid var(--rule); padding:6px 14px; cursor:pointer; }
-/* While the steps play (site.js adds seq-on): steps not reached yet wait dimmed, never hidden; the
-   one in play is marked; the line fills to it. */
-.seq.seq-on li { opacity:.38; }
-.seq.seq-on li.done { opacity:1; }
-.seq.seq-on li.on { opacity:1; background:var(--card); box-shadow:inset 0 3px 0 var(--accent); }
-.seq.seq-on .seq-result { opacity:.38; transition:opacity 400ms ease-out; }
-.seq.seq-on.ended .seq-result { opacity:1; }
+/* While the steps play (site.js adds seq-on): every step's text stays at full contrast; the step
+   in play is highlighted, steps reached get a filled number, the line fills to the step, and the
+   result's card is drawn dashed until the last step. */
+.seq.seq-on li.on { background:var(--card); box-shadow:inset 0 3px 0 var(--accent); }
+.seq-steps .n { transition:background-color 300ms ease-out, color 300ms ease-out; }
+.seq.seq-on li.done .n, .seq.seq-on li.on .n, .seq:not(.seq-on) .n { background:var(--accent); color:var(--card); border-color:var(--accent); }
+.seq.seq-on .seq-result .card { border-style:dashed; }
+.seq.seq-on.ended .seq-result .card { border-style:solid; }
 .keeps { margin:28px 0 0; padding:18px 22px; border:1.5px solid var(--rule); background:var(--card); max-width:760px; }
 .keeps h3 { font-family:var(--serif); font-size:21px; margin:0 0 8px; }
 .keeps ul { margin:0; padding-left:20px; }

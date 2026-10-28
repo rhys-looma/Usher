@@ -150,7 +150,8 @@ test('what happens in between: six steps in reading order, each with what Usher 
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
-  assert.match(text, /\.seq\.seq-on li \{ opacity:\.38; \}/, 'dimmed only once site.js marks the sequence');
+  assert.match(text, /\.seq\.seq-on li\.on \{ background:var\(--card\);/, 'emphasis only once site.js marks the sequence');
+  assert.doesNotMatch(text.split('.seq.seq-on')[1]?.split('</style>')[0] ?? '', /opacity:/, 'never dimmed: every step at full contrast');
 });
 
 test('what Usher keeps: the same three lines on the page, in /privacy and in docs/security.md', async () => {
