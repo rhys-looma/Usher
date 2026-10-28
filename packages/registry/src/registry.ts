@@ -287,8 +287,13 @@ export class Registry {
     return (await this.storage.mapsForOrigin(origin)).filter((r) => visibleTo(r, agent));
   }
 
-  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift', agent?: string): Promise<MatchResult> {
-    const result = findMatch(fingerprint, path, await this.mapsFor(origin, agent), this.threshold);
+  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift', agent?: string, intent?: string): Promise<MatchResult> {
+    // A site with more than one journey (a health quote and a car quote): a knock that says what it
+    // came to do is matched only against that journey's maps, so a page can never get another
+    // product's map (and a token for the wrong intent).
+    const all = await this.mapsFor(origin, agent);
+    const forIntent = intent ? all.filter((r) => r.map.form.intent === intent) : [];
+    const result = findMatch(fingerprint, path, forIntent.length ? forIntent : all, this.threshold);
     await this.storage.appendLog('matches', {
       ts: this.now().toISOString(),
       via,
@@ -525,7 +530,7 @@ export class Registry {
 
     const page = new URL(knock.url);
     if (as?.hosted && !(await this.joined(page.origin))) return error(403, 'not_joined', notJoinedMessage(page.origin));
-    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId);
+    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId, knock.intent);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
@@ -607,7 +612,8 @@ export class Registry {
     const token = /^Usher\s+(\S+)$/.exec(authorization ?? '')?.[1];
     const claims = token ? await verifyToken(token, { keys: await this.keySet(), issuers: [this.url], now: Math.floor(this.now().getTime() / 1000) }) : null;
     const agent = claims?.ok && claims.claims.origin === b.origin ? claims.claims.sub : undefined;
-    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup', agent);
+    const intent = claims?.ok && claims.claims.origin === b.origin ? claims.claims.intent : undefined;
+    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup', agent, intent);
     const map = match.record?.map ?? null;
     return ok({ match: this.summary(match), map, rules: knockRules(effectiveRules(await this.policy(b.origin), map, b.path)) });
   }

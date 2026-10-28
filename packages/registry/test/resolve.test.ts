@@ -52,7 +52,7 @@ test('by name (with or without Motor, any case), host or a URL on the site', asy
 test('health insurance, medical insurance and PMI are the health quote; car insurance is still the car quote', async () => {
   const health = { status: 'resolved', url: `${site.url}/health/about`, intent: 'quote.health_insurance', site: { name: 'Brightwater', origin: site.url } };
   for (const task of ['health insurance quote', 'medical insurance', 'PMI', 'private medical insurance', 'a PMI quote', 'health cover']) assert.deepEqual(await resolve('Brightwater', task), health, task);
-  assert.equal((await resolve('Brightwater', 'car insurance')).intent, 'quote.car_insurance');
+  assert.equal((await resolve('Brightwater', 'car insurance') as { intent?: string }).intent, 'quote.car_insurance');
 });
 
 test('a site that hasn\'t joined: the answer hosted Usher gives today, pointing at the local server', async () => {

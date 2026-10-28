@@ -242,7 +242,7 @@ test('Brightwater Health in layouts A, B and C: the smoker answer as the person 
       const run = await runAgent({ browser, url: `${site.url}/health/about`, profile: health, intent: 'quote.health_insurance', registry: transport, user, fallback: spark, onEvent: (e) => e.type === 'action' && actions.push(`${e.action}:${e.key}`) });
       await transport.close();
       runs[`Agent A, Spark, health ${layout.toUpperCase()}`] = run;
-      assert.equal(run.outcome, 'completed', `${layout}: ${run.reason}`);
+      assert.equal(run.outcome, 'completed', `${layout}: ${run.reason} ${JSON.stringify(run.pages)} ${run.final_url}`);
       assert.match(run.final_url, /\/health\/result$/);
       for (const a of ['fill:person.dob', 'press:lookup.address', 'fill:cover.who', 'handoff:person.smoker', 'fill:cover.level', 'fill:cover.excess', 'fill:policy.start_date', 'handoff:consent.declaration']) assert.ok(actions.includes(a), `${layout}: ${a} in ${actions.join(' ')}`);
       assert.ok(!actions.some((a) => a.includes('health.')), 'no medical question');

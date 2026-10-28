@@ -131,7 +131,7 @@ Cloudflare verifies the same signatures for its [signed agents](https://develope
 The registry then:
 
 1. verifies the signed request;
-2. finds the map, among the maps for the page's origin: an **exact** match on `fingerprint.digest`; otherwise the **near** match with the highest signature similarity at or above the registry's threshold (0.3 by default), preferring the same path; otherwise the best-scoring map for the same **path** (also used when the knock has no fingerprint). Every lookup and its scores are logged;
+2. finds the map, among the maps for the page's origin (only those for the knock's `intent`, when the origin has any: a site with two journeys never serves one journey's map for the other's page): an **exact** match on `fingerprint.digest`; otherwise the **near** match with the highest signature similarity at or above the registry's threshold (0.3 by default) on the same path, or on another path only at 0.6 or more (the same form moved, not a neighbour that looks alike); otherwise the best-scoring map for the same **path** (also used when the knock has no fingerprint). Every lookup and its scores are logged;
 3. applies the site's rules for the form. If the site does not allow agents, it answers `403 {"error":"agents_not_allowed"}`;
 4. creates a session (or continues `session`) and records the knock in its log;
 5. signs a token.
