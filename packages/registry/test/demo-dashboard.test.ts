@@ -120,3 +120,15 @@ test('the front page links it; a registry with no demo site has neither', async 
   assert.ok(!(await get('/', bare)).text.includes('/demo/dashboard'));
   assert.equal((await get('/demo/dashboard', bare)).status, 404);
 });
+
+test('on the demo, each agent confirms at most five quotes an hour, whatever the site\'s rules say', async () => {
+  // The site's own rules carry the same limit: it still counts once, so five get through, not two.
+  await registry.registry.storage.putPolicy({ policy: { usher_policy: '0.1', origin: site.url, default: { rate_limits: [{ action: 'form.submit', per: 'agent', max: 5, window: 'hour' }] } }, confirmed_at: new Date().toISOString() });
+  const cover = { url: `${site.url}/quote/cover`, intent: 'quote.car_insurance', confirmed: ['form.submit'] };
+  const agent = new RegistryClient(registry.url, (await generateAgentIdentity()).identity);
+  for (let i = 0; i < 5; i++) await agent.knock(cover);
+  await assert.rejects(agent.knock(cover), (e: { status: number; message: string }) => e.status === 429 && /At most 5 form\.submit per agent per hour/.test(e.message));
+  await agent.knock({ url: cover.url, intent: cover.intent }); // filling in is still fine
+  await new RegistryClient(registry.url, (await generateAgentIdentity()).identity).knock(cover); // another agent has its own five
+  assert.match((await get('/demo/dashboard')).text, /at most 5 confirmed quotes \(<code>form\.submit<\/code>\) an hour/);
+});

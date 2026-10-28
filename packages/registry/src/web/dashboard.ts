@@ -5,7 +5,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
-import { claimInstructions, visibleTo, type Registry } from '../registry.ts';
+import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session } from '../storage.ts';
 import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
 
@@ -206,7 +206,7 @@ ${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/expl
           ? html`${policy.text ? html`<p><b>Your rules:</b> “${policy.text}”</p>` : ''}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p>${policySummary(policy.policy, records.map((r) => r.map))}
 <details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details>`
           : html`<p class="muted">No rules yet: agents may use your forms, and each element's risk decides what needs the user (consequential actions need their confirmation; declarations and payments are theirs alone).</p>`
-      }</div>
+      }${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}</div>
 ${
         demo
           ? html`${demo.preview ?? ''}<form class="card" method="post" action="/demo/dashboard/rules" id="sandbox">
