@@ -9,7 +9,7 @@ Usher is an entry in the **Meta Global AI Developer Hackathon** (Startups track,
 
 **Everything in this repository.** No code, specifications or data here existed before the hackathon. The repository started empty apart from the licence file, and the commit history is the record of the work.
 
-Looma has an existing consumer app that automates car insurance quote journeys. **None of its code, plans or insurer data is in this repository, and none of it appears in the demo.** Usher is a new, general-purpose system; insurance is used only as an example of a hard, multi-step form.
+Looma has an existing consumer app that automates car insurance quote journeys. **None of its code, plans or insurer data is in this repository, and none of it appears in the demo.** Usher is a new, general-purpose system; insurance is used only as an example of a hard, multi-step form. The demo's headline example is a private medical insurance quick quote on Brightwater, a fictional insurer we wrote for the demo; its car insurance quote is the second example. Neither asks medical questions, and Usher never fills them.
 
 ## Meta models used
 
@@ -48,3 +48,4 @@ This table is updated as the build progresses.
 | 27 Oct | Drift rebuilds and the keeper: Spark Open triage, Muse Spark recompile, map versions (LU-42, LU-51) |
 | 27 Oct | Plans across steps with get_plan; pre-flight validation and structured errors for agents (LU-40) |
 | 27 Oct | Benchmark harness: raw pages vs maps vs plans, both agents, mock site and a public form (LU-41) |
+| 28 Oct | Brightwater Health: a private medical insurance quick quote (layouts A and B) seeded as the headline example; `person.smoker` confirmed on the decision card, `health.*` never filled; front page "What happens in between" and "What Usher keeps"; a test that a fill leaves no value behind |

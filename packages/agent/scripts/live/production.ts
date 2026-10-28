@@ -14,6 +14,8 @@ const manifest = JSON.parse(await readFile(new URL('packages/mcp/package.json', 
 export const REGISTRY = (process.env.USHER_REGISTRY_URL ?? manifest.usher.defaultRegistry).replace(/\/$/, '');
 export const SITE = new URL(process.env.BRIGHTWATER_URL ?? manifest.usher.demoForm).origin;
 export const DRIVER = `${SITE}/quote/driver`;
+/** Brightwater Health's first page: the headline example. */
+export const HEALTH = `${SITE}/health/about`;
 export const PATHS = ['/quote/driver', '/quote/vehicle', '/quote/cover'] as const;
 
 let adminKey: string | undefined;

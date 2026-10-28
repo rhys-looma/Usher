@@ -1,6 +1,6 @@
 # Hosted MCP: Usher in your assistant, nothing to install
 
-`https://usher.run/mcp` is Usher's MCP server, hosted. Add the URL to your assistant as a remote MCP server (a "custom connector") and ask it to fill a form on a site that has joined Usher. Try it on the demo quote site: *"Get me a car insurance quote on brightwater.usher.run"*. Then watch your session appear on the [demo site's dashboard](https://usher.run/demo/dashboard).
+`https://usher.run/mcp` is Usher's MCP server, hosted. Add the URL to your assistant as a remote MCP server (a "custom connector") and ask it to fill a form on a site that has joined Usher. Try it on the demo site, Brightwater, which offers a health insurance quote and a car insurance quote: *"Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess."* Or the car quote: *"Get me a car insurance quote on brightwater.usher.run"*. Then watch your session appear on the [demo site's dashboard](https://usher.run/demo/dashboard).
 
 It has the same tools as the local server ([`@usher-run/mcp`](../packages/mcp/)): `usher_fill`, `usher_confirm` and `usher_cancel` to fill a whole journey, plus `knock`, `get_map`, `get_plan` and `report_run`. The only one it leaves out is `submit_map`.
 
@@ -25,7 +25,7 @@ Both use the same connectors, so adding it once covers both.
 1. Open **Settings → Connectors**. In newer versions this is **Customize → Connectors**.
 2. Choose **Add custom connector**.
 3. Name it `Usher` and set the URL to `https://usher.run/mcp`. Leave Advanced settings empty: there is no sign-in.
-4. In a chat, turn Usher on from the tools menu and ask for a quote on brightwater.usher.run.
+4. In a chat, turn Usher on from the tools menu and ask for a health insurance quote from Brightwater.
 
 Claude connects to the server from Anthropic's cloud, not from your computer. On Team and Enterprise plans an owner adds the connector under **Organization settings → Connectors**, and members connect to it.
 

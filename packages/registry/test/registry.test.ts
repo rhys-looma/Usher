@@ -102,7 +102,7 @@ test('every lookup is logged with each candidate\'s score', async () => {
   const last = log.at(-1)!;
   assert.equal(last.via, 'knock');
   assert.equal(last.threshold, 0.3);
-  assert.equal(last.scores.length, 3, 'one score per map for the origin');
+  assert.equal(last.scores.length, 6, 'one score per map for the origin: both journeys');
 });
 
 test('bad signatures, stale requests and unknown agents are refused', async () => {
@@ -289,7 +289,7 @@ test('storage survives a restart: keys, maps and sessions', async () => {
   const again = await startRegistry({ storage: await testStorage(dir) });
   try {
     assert.deepEqual(await (await fetch(`${again.url}/.well-known/usher-keys.json`)).json(), keys);
-    assert.equal((await again.registry.storage.mapsForOrigin(site)).length, 3);
+    assert.equal((await again.registry.storage.mapsForOrigin(site)).length, 6, 'both journeys\' maps');
   } finally {
     await again.close();
   }

@@ -129,6 +129,13 @@ export interface JoinedSite {
 /** Words a site's name often ends with, left out when matching what a person calls it. */
 const NAME_SUFFIXES = /\b(motor|motors|insurance|insurers|direct|bank|group|uk|ltd|limited|plc|online)\b/g;
 const plainName = (s: string) => s.toLowerCase().replace(NAME_SUFFIXES, ' ').replace(/[^a-z0-9]+/g, '');
+/** What people call a product, in the words its intent uses: "PMI" and "medical" are health, "motor" is car. */
+const TASK_WORDS: [RegExp, string][] = [
+  [/\bpmi\b/gi, 'private medical health insurance'],
+  [/\bmedical\b/gi, 'medical health'],
+  [/\b(motor|vehicle|auto)\b/gi, '$1 car'],
+];
+const taskWords = (task: string) => words(TASK_WORDS.reduce((t, [from, to]) => t.replace(from, to), task));
 
 /** A site's own name for itself, from its home page: og:site_name, application-name, or the end of the title. */
 export function siteNameFrom(html: string): string | null {
@@ -280,8 +287,13 @@ export class Registry {
     return (await this.storage.mapsForOrigin(origin)).filter((r) => visibleTo(r, agent));
   }
 
-  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift', agent?: string): Promise<MatchResult> {
-    const result = findMatch(fingerprint, path, await this.mapsFor(origin, agent), this.threshold);
+  async lookup(origin: string, path: string, fingerprint: Fingerprint | undefined, via: 'knock' | 'lookup' | 'drift', agent?: string, intent?: string): Promise<MatchResult> {
+    // A site with more than one journey (a health quote and a car quote): a knock that says what it
+    // came to do is matched only against that journey's maps, so a page can never get another
+    // product's map (and a token for the wrong intent).
+    const all = await this.mapsFor(origin, agent);
+    const forIntent = intent ? all.filter((r) => r.map.form.intent === intent) : [];
+    const result = findMatch(fingerprint, path, forIntent.length ? forIntent : all, this.threshold);
     await this.storage.appendLog('matches', {
       ts: this.now().toISOString(),
       via,
@@ -487,7 +499,7 @@ export class Registry {
     const choice = (j: JoinedSite['journeys'][number]) => ({ site: found.name, task: j.label, url: `${found.origin}${j.start}`, intent: j.intent });
     const resolved = (j: JoinedSite['journeys'][number]): Resolved => ({ status: 'resolved', url: `${found.origin}${j.start}`, intent: j.intent, site: { name: found.name, origin: found.origin } });
     if (!task?.trim()) return found.journeys.length === 1 ? resolved(found.journeys[0]!) : { status: 'needs_details', message: `${found.name} offers more than one journey: say which.`, choices: found.journeys.map(choice) };
-    const want = words(task);
+    const want = taskWords(task);
     const scored = found.journeys
       .map((j) => {
         const have = words(`${j.label} ${j.title} ${j.intent.replace(/[._]/g, ' ')}`);
@@ -518,7 +530,7 @@ export class Registry {
 
     const page = new URL(knock.url);
     if (as?.hosted && !(await this.joined(page.origin))) return error(403, 'not_joined', notJoinedMessage(page.origin));
-    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId);
+    const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId, knock.intent);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
@@ -600,7 +612,8 @@ export class Registry {
     const token = /^Usher\s+(\S+)$/.exec(authorization ?? '')?.[1];
     const claims = token ? await verifyToken(token, { keys: await this.keySet(), issuers: [this.url], now: Math.floor(this.now().getTime() / 1000) }) : null;
     const agent = claims?.ok && claims.claims.origin === b.origin ? claims.claims.sub : undefined;
-    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup', agent);
+    const intent = claims?.ok && claims.claims.origin === b.origin ? claims.claims.intent : undefined;
+    const match = await this.lookup(b.origin, b.path, b.fingerprint as Fingerprint, 'lookup', agent, intent);
     const map = match.record?.map ?? null;
     return ok({ match: this.summary(match), map, rules: knockRules(effectiveRules(await this.policy(b.origin), map, b.path)) });
   }

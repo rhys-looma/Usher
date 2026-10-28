@@ -333,7 +333,15 @@ export async function fillField(page: Page, field: MapField, value: string | boo
       const chosen = `[value=${JSON.stringify(option(value))}]`;
       const isRadio = (await target.first().evaluate((n) => n.tagName)) === 'INPUT';
       const radio = (isRadio ? page.locator(`input[type=radio][name=${JSON.stringify(await target.first().getAttribute('name'))}]${chosen}`) : target.locator(`input[type=radio]${chosen}`)).first();
-      await radio.check({ timeout: 3000 }).catch(() => undefined);
+      // A radio a person can see is checked; one hidden behind its label (a card: transparent,
+      // tiny or invisible) is chosen through the label straight away, rather than after check()
+      // has waited out its timeout on a click the label intercepts.
+      const behindLabel = await radio.evaluate((el) => {
+        const style = getComputedStyle(el);
+        const box = el.getBoundingClientRect();
+        return style.opacity === '0' || style.visibility === 'hidden' || box.width < 2 || box.height < 2;
+      }).catch(() => true);
+      if (!behindLabel) await radio.check({ timeout: 3000 }).catch(() => undefined);
       if (!(await radio.isChecked().catch(() => false))) {
         // Radios styled as cards: the input is hidden and the site listens on its label.
         const id = await radio.getAttribute('id');

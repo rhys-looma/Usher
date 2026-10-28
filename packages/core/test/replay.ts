@@ -2,7 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { requestHash, type ChatFn, type Usage } from '../src/index.ts';
-import type { Layout, Step } from './helpers.ts';
+import type { AnyStep, Layout } from './helpers.ts';
 
 export interface RecordedAttempt {
   /** Hash of the request without the screenshot; a change means the prompt changed. */
@@ -16,18 +16,18 @@ export interface LabelFixture {
   model: string;
   recorded_at: string;
   layout: Layout;
-  step: Step;
+  step: AnyStep;
   attempts: RecordedAttempt[];
 }
 
 /** Recorded sets: Muse Spark on the Meta Model API, and Muse Spark Open on Baseten. */
 export type FixtureSet = 'labels' | 'labels-open';
 
-export function fixtureUrl(layout: Layout, step: Step, set: FixtureSet = 'labels'): URL {
+export function fixtureUrl(layout: Layout, step: AnyStep, set: FixtureSet = 'labels'): URL {
   return new URL(`./fixtures/${set}/${layout}-${step}.json`, import.meta.url);
 }
 
-export async function readFixture(layout: Layout, step: Step, set: FixtureSet = 'labels'): Promise<LabelFixture> {
+export async function readFixture(layout: Layout, step: AnyStep, set: FixtureSet = 'labels'): Promise<LabelFixture> {
   return JSON.parse(await readFile(fixtureUrl(layout, step, set), 'utf8'));
 }
 

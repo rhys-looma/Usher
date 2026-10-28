@@ -39,7 +39,11 @@ Then lock consequential endpoints on your server with [`@usher/site-middleware`]
 
 ## Quickstart: an agent
 
-**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo quote site; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md).
+**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo site, Brightwater; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md), and the ways to connect are compared in [docs/integrations.md](docs/integrations.md). Then ask in plain words:
+
+> Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.
+
+Usher fills the safe fields, asks the person to confirm the smoker answer and the declaration in the insurer's own words, and never fills medical questions. Brightwater's car insurance quote works the same way.
 
 **In a framework or your own agent,** run it locally. It acts on any site, with your own key. Add one MCP server entry: [`@usher-run/mcp`](packages/mcp/) on npm. It gives the agent `knock`, `get_map`, `get_plan`, `submit_map` and `report_run`, signed with its own key, which is created at `~/.usher/agent-key.json` on first use:
 
@@ -86,6 +90,7 @@ USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --pre
 ```
 
 ```bash
+npm run agent -- "$SITE_URL/health/about" --profile packages/agent/profiles/test-health.json --mcp --auto-confirm
 npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
 ```
 
@@ -112,6 +117,8 @@ The model labels each field by meaning; the code locates it and fills it from th
 | Checkbox | Ticked or not; consents only from the person's own answer | 26 Oct |
 | Fields shown only after an answer (`shown_if`) | Filled when their condition holds | 26 Oct |
 | Lookup (`lookup.vehicle`, `lookup.address`) | Run first from the registration or postcode; what it fills is left as it filled it; a list of results gets the entry for the first address line | 28 Oct |
+| An answer that is the person's alone but not sensitive (`person.smoker`) | Entered only as they said it, and shown back to them on the decision card with the submit: if it isn't right, nothing is submitted | 28 Oct |
+| Medical questions (`health.*`, sensitive) | Never: Usher leaves them to the person, and stops on a page that requires one | 28 Oct |
 | Combobox, custom dropdown | Not yet: none of the real journeys checked so far needed one | |
 
 ## Benchmark
@@ -120,10 +127,11 @@ The same journeys three ways, five runs each, with model latency replayed from r
 
 | Journey | Without Usher (reads every page) | With maps (knock or lookup) | With a plan, then maps |
 | --- | --- | --- | --- |
-| Demo quote site, 3 steps | 14.22 s · $0.031 (Muse Spark) / 14.01 s · $0.026 (Spark Open) | 2.68 s / 2.71 s · $0 | 2.69 s / 2.69 s · $0 |
-| httpbin.org/forms/post, 1 page | 11.12 s · $0.011 / 9.56 s · $0.013 | 2.53 s / 2.58 s · $0 | 2.54 s / 2.58 s · $0 |
+| Brightwater Health, 3 steps (demo site) | 17.09 s · $0.030 (Muse Spark) / 62.82 s · $0.024 (Spark Open) | 3.07 s / 3.07 s · $0 | 3.05 s / 3.06 s · $0 |
+| Brightwater car quote, 3 steps (demo site) | 17.42 s · $0.036 / 24.12 s · $0.024 | 2.88 s / 2.90 s · $0 | 2.89 s / 2.92 s · $0 |
+| httpbin.org/forms/post, 1 page | 11.22 s · $0.012 / 7.77 s · $0.008 | 2.53 s / 2.57 s · $0 | 2.53 s / 2.55 s · $0 |
 
-With a map, an agent spends no model tokens on the form at all. The map is built once, by the registry's keeper or by agents, and kept fresh by the keeper. An agent's map serves only that agent until it is verified: a second, independent agent builds the same map and completes the form, or the keeper rebuilds the form and gets the same result. Then it serves every agent.
+Spark Open's times are its recorded calls, made on 28 October while Baseten was slow (up to a minute a page). With a map, an agent spends no model tokens on the form at all. The map is built once, by the registry's keeper or by agents, and kept fresh by the keeper. An agent's map serves only that agent until it is verified: a second, independent agent builds the same map and completes the form, or the keeper rebuilds the form and gets the same result. Then it serves every agent.
 
 ## Documents
 
@@ -145,7 +153,7 @@ With a map, an agent spends no model tokens on the form at all. The map is built
 | [`packages/site-script/`](packages/site-script/) | The one-tag site script |
 | [`packages/site-middleware/`](packages/site-middleware/) | The server-side check |
 | [`packages/agent/`](packages/agent/) | A reference agent, the benchmark and the demo runner |
-| [`examples/mock-quote-site/`](examples/mock-quote-site/) | A fictional multi-step quote form, for development and the demo |
+| [`examples/mock-quote-site/`](examples/mock-quote-site/) | Brightwater, a fictional insurer: a health insurance quote and a car insurance quote, each three steps, for development and the demo |
 
 ## Open by design
 

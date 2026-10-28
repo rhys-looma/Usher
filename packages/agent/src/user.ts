@@ -3,7 +3,7 @@
 import { createInterface } from 'node:readline/promises';
 import type { Page } from 'playwright';
 import type { MapAction, MapField } from '@usher/core';
-import type { Correction, Profile, UserChannel } from './agent.ts';
+import { fillField, type Correction, type Profile, type UserChannel } from './agent.ts';
 
 /** Asks in the terminal. needs_user fields are completed by the user in the (headed) browser. */
 export function terminalUser(): UserChannel {
@@ -47,7 +47,13 @@ export function scriptedUser(profile: Profile, options: { confirm?: boolean } = 
     },
     async handoff(field: MapField, page: Page) {
       handoffs.push(field.key);
-      if (field.control === 'checkbox' && profile[field.key] === true) await page.getByLabel(field.label, { exact: true }).check();
+      // The person's own answer, as a person would give it: a consent ticked, a choice such as
+      // whether they smoke. Never a sensitive key (health.*): those stay with the person.
+      const answer = profile[field.key];
+      if (field.sensitive || answer === undefined) return;
+      if (field.control === 'checkbox') {
+        if (answer === true) await page.getByLabel(field.label, { exact: true }).check();
+      } else await fillField(page, field, answer);
     },
   };
 }

@@ -9,6 +9,8 @@ export type MatchKind = 'exact' | 'near' | 'path' | 'none';
 
 /** Default similarity needed for a near match. Tune from the match log. */
 export const DEFAULT_THRESHOLD = 0.3;
+/** A near match on another path: the same form at a new address, not a neighbour that looks alike. */
+export const CROSS_PATH_THRESHOLD = 0.6;
 
 export interface Scored {
   digest: string;
@@ -42,7 +44,10 @@ export function findMatch(
 
   const exact = live && ranked.find((r) => r.digest === live.digest);
   if (exact) return { kind: 'exact', score: 1, record: exact.record, scores };
-  const near = ranked.find((r) => live && r.score >= threshold);
+  // Above the threshold, a map for this path comes first. One for another path must be much closer
+  // (the same form moved): a site with two journeys has pages alike enough to pass the threshold for
+  // each other (Brightwater's health "About you" and car "About you" score 0.35).
+  const near = ranked.find((r) => live && r.score >= threshold && r.path === path) ?? ranked.find((r) => live && r.score >= Math.max(threshold, CROSS_PATH_THRESHOLD));
   if (near) return { kind: 'near', score: near.score, record: near.record, scores };
   const samePath = ranked.find((r) => r.path === path);
   if (samePath) return { kind: 'path', score: samePath.score, record: samePath.record, scores };

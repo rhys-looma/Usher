@@ -14,8 +14,19 @@ export interface MappedDetails {
   latency_ms: number;
 }
 
-/** The inputs the person's details can give: everything but what is the user's alone to answer. */
-export const detailInputs = (plan: UsherPlan): PlanInput[] => plan.inputs.filter((i) => i.risk !== 'needs_user');
+/**
+ * The inputs the person's details can give: everything but consents and sensitive keys. A
+ * needs_user answer that isn't sensitive (whether they smoke) is read from what they said, and
+ * put back to them to confirm before anything is submitted.
+ */
+export function detailInputs(plan: UsherPlan): PlanInput[] {
+  const inputs = plan.inputs.filter((i) => i.risk !== 'needs_user' || (!i.sensitive && i.control !== 'checkbox'));
+  // An address the site finds from the postcode is chosen from its list by the first line, which
+  // isn't on the page until the lookup runs: read it too.
+  const line1 = plan.lookups?.find((l) => l.key === 'lookup.address' && !inputs.some((i) => i.key === 'address.line1'));
+  if (line1) inputs.push({ key: 'address.line1', label: 'First line of address', control: 'text', required: false, risk: 'safe', steps: [line1.path] });
+  return inputs;
+}
 
 const isDate = (i: PlanInput) => i.control === 'date' || i.constraints?.format === 'date';
 
@@ -44,7 +55,7 @@ ${lines.join('\n')}
 ## Rules
 - Give a value only for what the person actually says. Anything they don't say is null; never guess or invent.
 - For a key with options, give the option's value (left of "="), choosing the one that means what they said ("£250 excess" is 250; "paying monthly" is the monthly option; "no claims" is no).
-- Dates as YYYY-MM-DD ("born 2 April 1988" is 1988-04-02). Numbers as digits without units or separators ("8,000 miles a year" is 8000).
+- Dates as YYYY-MM-DD ("born 9 March 1975" is 1975-03-09). Numbers as digits without units or separators ("8,000 miles a year" is 8000).
 - Names, addresses and registrations as written, without changing their case or spacing beyond trimming.`;
 }
 

@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T11:23:31.449Z",
+  "recorded_at": "2026-10-28T16:52:31.256Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "781f237109af8e48246fe8000c77a49803d320ec359568b28a1869b61ccab0f9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email is standard contact data entry for the quote; reversible with no external effect until quote is requested.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number is just contact info; reversible data entry with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is a reversible personal detail with no effect outside the session.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is basic personal data; reversible and expected for driver details.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is basic personal data; reversible and expected for driver details.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth is required for insurance rating; reversible data entry, not a legal declaration or ID submission itself.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode is address data for rating; reversible entry with no commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street is address data for rating; reversible entry with no commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Main occupation is a rating factor; choosing from list is reversible with no external effect.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status is a rating factor; radio selection is reversible.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history question is factual underwriting info; Yes/No selection is reversible and does not itself commit legally.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is detail of prior claim; reversible date entry with no external effect.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim is detail of prior claim; reversible selection with no external effect.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' only navigates to next step of quote flow; reversible and does not finalize or request the quote.\"}]}",
+      "request_sha256": "e206566884eafe52616b49e25e027ca92597f7a526077938c2f73d9bc33355a9",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email entry is reversible contact data with no external effect until the form is submitted.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number entry is reversible data entry with no external commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail with no legal or financial effect.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible data entry with no effect outside the session.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible data entry with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal detail; not a government ID and creates no commitment by itself.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address component with no external effect.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address detail with no commitment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection from list is reversible demographic data for underwriting.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection is reversible demographic choice with no external effect.\"},{\"id\":\"e11\",\"risk\":\"needs_user\",\"reason\":\"Declaration of claims history is a material fact for insurance with legal duty of disclosure; requires user's own knowledge and misrepresentation can void cover.\"},{\"id\":\"e12\",\"risk\":\"needs_user\",\"reason\":\"Date of the claim is a specific detail of that material declaration requiring accurate user recall and affects underwriting validity.\"},{\"id\":\"e13\",\"risk\":\"needs_user\",\"reason\":\"Type of claim is a specific detail of that material declaration requiring user judgement and affects quote validity.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Next button moves to the next step of the multi-step driver-details flow; reversible navigation with no final quote or external commitment yet.\"}]}",
       "usage": {
-        "prompt_tokens": 860,
-        "completion_tokens": 4200,
-        "total_tokens": 5060,
-        "cached_tokens": 768
+        "prompt_tokens": 859,
+        "completion_tokens": 5767,
+        "total_tokens": 6626,
+        "cached_tokens": 384
       },
-      "latency_ms": 13512
+      "latency_ms": 19860
     }
   ]
 }

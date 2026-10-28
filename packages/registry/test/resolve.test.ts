@@ -1,7 +1,8 @@
 // A site and a task in a person's words, to a journey: the site by display name (from its own home
 // page, with or without "Motor"), host or any URL on it; the task by words in common with each
-// journey's intent and title; more than one plausible journey comes back as choices, never a guess;
-// a site that hasn't joined gets the same answer as hosted Usher gives today.
+// journey's intent and title ("PMI" and "medical" mean health); more than one plausible journey
+// comes back as choices, never a guess; a site that hasn't joined gets the same answer as hosted
+// Usher gives today. Brightwater has two: a health insurance quote and a car insurance quote.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,22 +36,29 @@ test('a site\'s name comes from its own home page', async () => {
   assert.equal(siteNameFrom('<meta property="og:site_name" content="Acme Insurance"><title>Home - Acme</title>'), 'Acme Insurance');
   assert.equal(siteNameFrom('<meta content="Shop" name="application-name">'), 'Shop');
   assert.equal(siteNameFrom('<p>nothing</p>'), null);
-  assert.equal(await registry.registry.siteName(site.url), 'Brightwater Motor');
+  assert.equal(await registry.registry.siteName(site.url), 'Brightwater');
   const [joined] = await registry.registry.joinedSites();
-  assert.deepEqual([joined!.name, joined!.journeys.map((j) => [j.start, j.intent, j.label])], ['Brightwater Motor', [['/quote/driver', 'quote.car_insurance', 'car insurance quote']]]);
+  assert.deepEqual([joined!.name, joined!.journeys.map((j) => [j.start, j.intent, j.label]).sort()], ['Brightwater', [['/health/about', 'quote.health_insurance', 'health insurance quote'], ['/quote/driver', 'quote.car_insurance', 'car insurance quote']]]);
 });
 
 test('by name (with or without Motor, any case), host or a URL on the site', async () => {
-  const want = { status: 'resolved', url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', site: { name: 'Brightwater Motor', origin: site.url } };
-  for (const said of ['Brightwater', 'brightwater motor', 'BRIGHTWATER MOTOR', new URL(site.url).host, `${site.url}/quote/cover`, site.url]) assert.deepEqual(await resolve(said, 'car insurance quote'), want, said);
-  assert.deepEqual(await resolve('Brightwater'), want, 'one journey: no task needed');
-  assert.deepEqual(await resolve('Brightwater', 'get me a quote for my car'), want);
+  const car = { status: 'resolved', url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', site: { name: 'Brightwater', origin: site.url } };
+  for (const said of ['Brightwater', 'brightwater motor', 'BRIGHTWATER', new URL(site.url).host, `${site.url}/quote/cover`, site.url]) assert.deepEqual(await resolve(said, 'car insurance quote'), car, said);
+  assert.deepEqual(await resolve('Brightwater', 'get me a quote for my car'), car);
+  assert.deepEqual(await resolve('Brightwater', 'motor insurance'), car);
+  assert.equal((await resolve('Brightwater')).status, 'needs_details', 'two journeys and no task: the choices');
+});
+
+test('health insurance, medical insurance and PMI are the health quote; car insurance is still the car quote', async () => {
+  const health = { status: 'resolved', url: `${site.url}/health/about`, intent: 'quote.health_insurance', site: { name: 'Brightwater', origin: site.url } };
+  for (const task of ['health insurance quote', 'medical insurance', 'PMI', 'private medical insurance', 'a PMI quote', 'health cover']) assert.deepEqual(await resolve('Brightwater', task), health, task);
+  assert.equal((await resolve('Brightwater', 'car insurance') as { intent?: string }).intent, 'quote.car_insurance');
 });
 
 test('a site that hasn\'t joined: the answer hosted Usher gives today, pointing at the local server', async () => {
   const byName = await resolve('Acme Insurance', 'car insurance quote');
   assert.equal(byName.status, 'not_joined');
-  assert.match((byName as { message: string }).message, /"Acme Insurance" isn't one of the sites that have joined \(Brightwater Motor/);
+  assert.match((byName as { message: string }).message, /"Acme Insurance" isn't one of the sites that have joined \(Brightwater \(/);
   assert.match((byName as { message: string }).message, /npx -y @usher-run\/mcp/);
   const byUrl = await resolve('https://quotes.example.org/car', 'car insurance quote');
   assert.equal(byUrl.status, 'not_joined');
@@ -64,7 +72,7 @@ test('two plausible journeys: the choices, never a guess; a task that says which
   await registry.registry.storage.putMap({ digest: home.fingerprint.digest, map: home as never, added_at: new Date().toISOString() });
   const either = await resolve('Brightwater', 'insurance quote');
   assert.equal(either.status, 'needs_details');
-  assert.deepEqual((either as { choices: { task: string }[] }).choices.map((c) => c.task).sort(), ['car insurance quote', 'home insurance quote']);
+  assert.deepEqual((either as { choices: { task: string }[] }).choices.map((c) => c.task).sort(), ['car insurance quote', 'health insurance quote', 'home insurance quote']);
   assert.equal((await resolve('Brightwater')).status, 'needs_details', 'two journeys and no task');
   const car = await resolve('Brightwater', 'car insurance quote');
   assert.equal((car as { intent: string }).intent, 'quote.car_insurance');
@@ -72,5 +80,5 @@ test('two plausible journeys: the choices, never a guess; a task that says which
   assert.equal((homeQuote as { url: string }).url, `${site.url}/home/start`);
   const nothing = await resolve('Brightwater', 'book a flight');
   assert.equal(nothing.status, 'needs_details');
-  assert.match((nothing as { message: string }).message, /Nothing on Brightwater Motor matches "book a flight"\. It offers: /);
+  assert.match((nothing as { message: string }).message, /Nothing on Brightwater matches "book a flight"\. It offers: /);
 });

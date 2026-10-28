@@ -37,7 +37,7 @@ These screenshots are from the test harness ([`packages/mcp/test/apps.test.ts`](
 
 ### Claude (claude.ai and Claude Desktop), hosted
 
-Add `https://usher.run/mcp` as a custom connector (Settings → Connectors → Add custom connector), as in [hosted-mcp.md](hosted-mcp.md). Then ask: "Get me a car insurance quote on brightwater.usher.run for this profile", followed by the profile.
+Add `https://usher.run/mcp` as a custom connector (Settings → Connectors → Add custom connector), as in [hosted-mcp.md](hosted-mcp.md). Then ask: "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess." The card asks you to confirm the smoker answer, shows the declaration word for word, and asks before Get my quote. The car quote works the same way: "Get me a car insurance quote on brightwater.usher.run", followed by the details.
 
 **Claude's domain.** Claude gives each server's views a dedicated origin: the first 32 hex characters of the SHA-256 of the server's URL, under `claudemcpcontent.com`. For `https://usher.run/mcp`, the hosted endpoint returns this as `_meta.ui.domain` on the card when the client is Claude (its `clientInfo.name` contains "claude"). Other clients get no `domain`, and their default applies.
 

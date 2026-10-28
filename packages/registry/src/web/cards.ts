@@ -24,6 +24,7 @@ export const CARD_CSS = `
 .uc .req { background:var(--user-bg); color:var(--user); }.uc .opt { background:var(--safe-bg); color:var(--safe); }
 .uc .yesno { display:flex; gap:14px; margin:8px 0 0 28px; font-size:14px; }
 .uc .yesno label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+.uc .said { margin:6px 0 0; font-size:14px; color:var(--muted); }
 .uc .disclosure { margin:6px 0 0 28px; font-size:13px; color:var(--muted); white-space:pre-wrap; }
 .uc input[type=text] { width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:7px 9px; margin-top:6px; }
 .uc button { font:inherit; font-weight:600; background:var(--rule); color:var(--card); border:0; padding:10px 18px; cursor:pointer; margin-top:12px; }

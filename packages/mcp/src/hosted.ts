@@ -62,6 +62,8 @@ export interface HostedOptions {
   limits?: Partial<HostedLimits>;
   /** Let fills reach private addresses (local development and tests only). */
   allowPrivate?: boolean;
+  /** How long a fill may run to its next decision, and wait for an answer (tests shorten them). */
+  timeouts?: { stepMs?: number; decisionMs?: number };
 }
 
 export interface HostedMcp {
@@ -109,7 +111,7 @@ const jsonRpcError = (res: ServerResponse, status: number, message: string, head
   res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message }, id: null }));
 };
 
-/** One line per joined site: "- Brightwater Motor (its host): demo car insurance quote." */
+/** One line per joined site: "- Brightwater (its host): health insurance quote, car insurance quote." */
 export function siteList(joined: JoinedSite[]): string {
   return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}.`).join('\n');
 }
@@ -185,6 +187,8 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       browser: options.browser,
       perHour: limits.fillsPerConnectionHour,
       toolMeta: CARD_META,
+      ...(options.timeouts?.stepMs && { stepTimeoutMs: options.timeouts.stepMs }),
+      ...(options.timeouts?.decisionMs && { decisionTimeoutMs: options.timeouts.decisionMs }),
       // A joined site is still a page from the internet: its redirects and requests stay public.
       ...(!options.allowPrivate && { allowHost: publicHost }),
       ...(options.fallback && { fallback: options.fallback }),

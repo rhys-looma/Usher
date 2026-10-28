@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-27T11:23:17.634Z",
+  "recorded_at": "2026-10-28T16:52:11.228Z",
   "layout": "a",
   "step": "cover",
   "attempts": [
     {
       "request_sha256": "756eac258e630f0262f2eb053926fd11b879474378dfab84e8051639394dabd7",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is a quote parameter, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover selection only configures the quote, no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess choice is a reversible quote input.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Years of no-claims discount is factual input for pricing, reversible.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference informs quote only, no payment details or charge.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires user's judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user's own judgement.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is reversible navigation with no external effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submit requests an insurance quote, an action with external effect the user should know about.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is a quote parameter, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover selection is for quote calculation only, reversible.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess choice is a quote parameter, reversible.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Years of no-claims discount is informational for quote, reversible.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference is for quote estimate, not actual payment details or commitment.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires user's own attestation.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user's own judgement.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is navigation within form, no data submission or external effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submits form to request an insurance quote, an external action the user should know about.\"}]}",
       "usage": {
         "prompt_tokens": 728,
-        "completion_tokens": 1167,
-        "total_tokens": 1895,
-        "cached_tokens": 640
+        "completion_tokens": 1105,
+        "total_tokens": 1833,
+        "cached_tokens": 384
       },
-      "latency_ms": 3688
+      "latency_ms": 3628
     }
   ]
 }

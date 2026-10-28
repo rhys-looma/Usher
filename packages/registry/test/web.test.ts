@@ -53,7 +53,7 @@ const viewer = async (url: string) => {
 test('home and viewer pages render', async () => {
   const home = await fetch(`${registry.url}/`);
   assert.equal(home.status, 200);
-  assert.match(await home.text(), /<h3>Map<\/h3>.*<h3>Knock<\/h3>.*<h3>Log<\/h3>/s);
+  assert.match(await home.text(), /<h2>What happens in between<\/h2>.*Knock<\/h3>.*Map, not values<\/h3>.*On the record<\/h3>/s);
   assert.match(await (await fetch(`${registry.url}/viewer`)).text(), /Build the map/);
 });
 

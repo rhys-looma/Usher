@@ -1,0 +1,310 @@
+{
+  "usher": "0.1",
+  "origin": "https://quote.example",
+  "path": "/health/cover",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:a0eb7d865bf7b29a18cd8b546736f082b467953dcd16e6473ccd72ea85a27a28",
+    "signature": [
+      "7f9fd431c537",
+      "3209bf4f13bc",
+      "9e9839ea3fe3",
+      "9339ff63c7ec",
+      "9218314ab2f9",
+      "5f73ba8a9291",
+      "fcc5e8327a93",
+      "aaf42bd620d6"
+    ]
+  },
+  "form": {
+    "purpose": "Health insurance quote: cover options",
+    "intent": "quote.health_insurance",
+    "step": 2
+  },
+  "fields": [
+    {
+      "id": "e1",
+      "key": "cover.level",
+      "label": "Level of cover",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "core",
+            "label": "Core"
+          },
+          {
+            "value": "standard",
+            "label": "Standard"
+          },
+          {
+            "value": "comprehensive",
+            "label": "Comprehensive"
+          }
+        ],
+        "total": 3,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "cover-level"
+        },
+        {
+          "by": "name",
+          "value": "cover_level"
+        },
+        {
+          "by": "label",
+          "value": "Level of cover"
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "key": "cover.excess",
+      "label": "Excess",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "0",
+            "label": "£0"
+          },
+          {
+            "value": "100",
+            "label": "£100"
+          },
+          {
+            "value": "250",
+            "label": "£250"
+          },
+          {
+            "value": "500",
+            "label": "£500"
+          },
+          {
+            "value": "1000",
+            "label": "£1,000"
+          }
+        ],
+        "total": 5,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "excess"
+        },
+        {
+          "by": "name",
+          "value": "excess"
+        },
+        {
+          "by": "label",
+          "value": "Excess"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "cover.hospital_list",
+      "label": "Hospital list",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "local",
+            "label": "Local hospitals"
+          },
+          {
+            "value": "standard",
+            "label": "Standard list"
+          },
+          {
+            "value": "extended",
+            "label": "Extended list, including central London"
+          }
+        ],
+        "total": 3,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "hospital-list"
+        },
+        {
+          "by": "name",
+          "value": "hospital_list"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "Hospital list"
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "key": "cover.outpatient_limit",
+      "label": "Outpatient limit",
+      "control": "select",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "none",
+            "label": "No outpatient cover"
+          },
+          {
+            "value": "500",
+            "label": "Up to £500 a year"
+          },
+          {
+            "value": "1000",
+            "label": "Up to £1,000 a year"
+          },
+          {
+            "value": "1500",
+            "label": "Up to £1,500 a year"
+          },
+          {
+            "value": "unlimited",
+            "label": "Unlimited"
+          }
+        ],
+        "total": 5,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "outpatient-limit"
+        },
+        {
+          "by": "name",
+          "value": "outpatient_limit"
+        },
+        {
+          "by": "label",
+          "value": "Outpatient limit"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "key": "policy.start_date",
+      "label": "When would you like cover to start? (DD/MM/YYYY)",
+      "control": "text",
+      "required": true,
+      "risk": "safe",
+      "constraints": {
+        "pattern": "\\d{2}\\/\\d{2}\\/\\d{4}"
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "start-date"
+        },
+        {
+          "by": "name",
+          "value": "start_date"
+        },
+        {
+          "by": "label",
+          "value": "When would you like cover to start? (DD/MM/YYYY)"
+        }
+      ]
+    },
+    {
+      "id": "e6",
+      "key": "policy.payment_frequency",
+      "label": "How would you like to pay?",
+      "control": "radio",
+      "required": true,
+      "risk": "safe",
+      "options": {
+        "items": [
+          {
+            "value": "monthly",
+            "label": "Monthly"
+          },
+          {
+            "value": "annually",
+            "label": "Annually"
+          }
+        ],
+        "total": 2,
+        "truncated": false
+      },
+      "locators": [
+        {
+          "by": "id",
+          "value": "payment"
+        },
+        {
+          "by": "name",
+          "value": "payment"
+        },
+        {
+          "by": "role",
+          "value": "group",
+          "name": "How would you like to pay?"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e7",
+      "key": "nav.back",
+      "label": "Back",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Back"
+        },
+        {
+          "by": "css",
+          "value": "form a"
+        }
+      ]
+    },
+    {
+      "id": "e8",
+      "key": "nav.next",
+      "label": "Continue",
+      "kind": "submit",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Continue"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"submit\"]"
+        }
+      ],
+      "leads_to": "/health/declaration"
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-28T15:58:33.130Z",
+    "verified": false
+  }
+}

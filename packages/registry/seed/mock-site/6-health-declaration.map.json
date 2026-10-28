@@ -1,0 +1,88 @@
+{
+  "usher": "0.1",
+  "origin": "https://quote.example",
+  "path": "/health/declaration",
+  "fingerprint": {
+    "algo": "usher-fp-1",
+    "digest": "sha256:c92ceb16af2a6e8637eee960c0900231fbff22eba269d94c5b1465730910efc8",
+    "signature": [
+      "1df346538c21",
+      "fcc5e8327a93",
+      "0355aecb180b"
+    ]
+  },
+  "form": {
+    "purpose": "Health insurance quote declaration and consent",
+    "intent": "quote.health_insurance",
+    "step": 3
+  },
+  "fields": [
+    {
+      "id": "e1",
+      "key": "consent.declaration",
+      "label": "I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote",
+      "control": "checkbox",
+      "required": true,
+      "risk": "needs_user",
+      "locators": [
+        {
+          "by": "id",
+          "value": "declaration"
+        },
+        {
+          "by": "name",
+          "value": "declaration"
+        },
+        {
+          "by": "label",
+          "value": "I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "e2",
+      "key": "nav.back",
+      "label": "Back",
+      "kind": "link",
+      "risk": "safe",
+      "locators": [
+        {
+          "by": "role",
+          "value": "link",
+          "name": "Back"
+        },
+        {
+          "by": "css",
+          "value": "form a"
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "key": "form.submit",
+      "label": "Get my quote",
+      "kind": "submit",
+      "risk": "consequential",
+      "locators": [
+        {
+          "by": "role",
+          "value": "button",
+          "name": "Get my quote"
+        },
+        {
+          "by": "css",
+          "value": "form button[type=\"submit\"]"
+        }
+      ],
+      "leads_to": "/health/result"
+    }
+  ],
+  "provenance": {
+    "source": "compiled",
+    "compiler": "muse-spark-1.3",
+    "created_at": "2026-10-28T15:58:38.759Z",
+    "verified": false
+  }
+}

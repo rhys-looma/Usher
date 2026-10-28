@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T13:24:20.438Z",
+  "recorded_at": "2026-10-28T15:59:14.396Z",
   "layout": "c",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "5a45c1cf2710f679f7fdff0c227c22c6779defe0effd2d539b52f6a5d7946056",
+      "request_sha256": "afd658d72ebb37e58f59179643b14ffeb09a13d83719cc03a85dbcb9d2874818",
       "content": "{\"advance_action_id\": \"e16\", \"elements\": [{\"id\": \"e1\", \"key\": \"person.title\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"person.first_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"person.last_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"contact.email\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"contact.phone\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"address.postcode\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"lookup.address\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"person.occupation\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e12\", \"key\": \"person.employment_status\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e13\", \"key\": \"person.claims.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e14\", \"key\": \"person.claims.date\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e13\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e15\", \"key\": \"person.claims.type\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e13\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e16\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: driver details\"}}",
       "usage": {
-        "prompt_tokens": 6213,
-        "completion_tokens": 1768,
-        "total_tokens": 7981,
+        "prompt_tokens": 6396,
+        "completion_tokens": 1368,
+        "total_tokens": 7764,
         "cached_tokens": 0
       },
-      "latency_ms": 6643
+      "latency_ms": 5618
     }
   ]
 }

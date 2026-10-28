@@ -208,7 +208,8 @@ test('drift: in layout B the script compares locally, reports once per change, a
     }
     const drift = (await registry.registry.storage.readLog('drift')) as { path: string; score: number }[];
     assert.deepEqual(drift.map((d) => d.path), ['/quote/driver', '/quote/vehicle', '/quote/cover']);
-    for (const record of await registry.registry.storage.mapsForOrigin(site.url)) assert.ok(record.drift, `${record.map.path} marked drifted`);
+    // The car journey's maps, the pages opened here; the health journey's are untouched.
+    for (const record of (await registry.registry.storage.mapsForOrigin(site.url)).filter((r) => r.map.path.startsWith('/quote/'))) assert.ok(record.drift, `${record.map.path} marked drifted`);
     const scores = Object.fromEntries(drift.map((d) => [d.path, d.score]));
     console.log(`drift (layout B vs seeded layout A): scores ${JSON.stringify(scores)}`);
     assert.deepEqual(drifted, { driver: true, vehicle: true, cover: true });

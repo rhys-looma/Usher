@@ -20,14 +20,21 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
-import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
+import { fillField, httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
 import { blockHash, consentBlocks, disclosureBlock, resultFacts, type Block } from './blocks.ts';
 import { mapDetails } from './details.ts';
 
-export type DecisionKind = 'required_consent' | 'optional_consent' | 'submit' | 'missing_value';
+/**
+ * confirm_value: an answer that is the person's alone (whether they smoke), entered only as they
+ * said it and put back to them with the submit; if they say it isn't right, nothing is submitted.
+ */
+export type DecisionKind = 'required_consent' | 'optional_consent' | 'submit' | 'missing_value' | 'confirm_value';
+
+/** Keys an agent never fills or asks for (health.*): the person answers them on the site. */
+const SENSITIVE = new Set(vocabulary.entries.filter((e) => e.sensitive).map((e) => e.key));
 
 /** One thing the user decides, with the page's own label for it. */
 export interface Decision {
@@ -40,6 +47,8 @@ export interface Decision {
   options?: string[];
   /** What is assumed when no answer is given (optional consents: false). */
   default?: boolean;
+  /** confirm_value: what the person said, as the site's option reads ("No"). */
+  value?: string;
   /** The decision's name in the person's own confirmation ("declaration", "get my quote"). */
   short: string;
 }
@@ -95,6 +104,8 @@ interface Job {
   /** Keys read from the person's details (never the values). */
   fromDetails?: string[];
   outcome?: { title: string; facts: Block[]; image?: string };
+  /** confirm_value answers as the person gave them: entered as said, confirmed before the submit. */
+  proposed: Map<string, string>;
   /** The last knock: where the session log takes the record of what was shown. */
   knock?: KnockResponse;
   transport?: RegistryTransport;
@@ -160,7 +171,7 @@ async function launchChromium(): Promise<Browser> {
 }
 
 const FILL_DESCRIPTION =
-  'Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a car insurance quote from Brightwater. I\'m Mr Sam Taylor, born 2 April 1988, …" becomes usher_fill({ site: "Brightwater", task: "car insurance quote", details: "I\'m Mr Sam Taylor, born 2 April 1988, …" }). With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
+  'Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a health insurance quote from Brightwater. I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" becomes usher_fill({ site: "Brightwater", task: "health insurance quote", details: "I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" }). Answers that are the person\'s alone, such as whether they smoke, come back on the decision set for them to confirm; medical questions are never filled. With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
 
 const CONFIRM_DESCRIPTION =
   'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
@@ -187,12 +198,13 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
 
   /** The decision set as plain text, so a client without cards shows the person the same thing. */
   const listing = (decisions: Decision[], blocks: Block[]) => {
-    const kinds: Record<DecisionKind, string> = { required_consent: 'Required', optional_consent: 'Optional', submit: 'Action', missing_value: 'Needed' };
+    const kinds: Record<DecisionKind, string> = { required_consent: 'Required', optional_consent: 'Optional', submit: 'Action', missing_value: 'Needed', confirm_value: 'Confirm' };
     const lines = decisions.map((d, i) => {
       const own = blocks.filter((b) => b.source.key === d.key && b.verbatim);
       const wording = own.find((b) => b.kind === 'consent')?.text ?? d.label;
       const extra = own.filter((b) => b.kind !== 'consent' || b.text !== wording).map((b) => `\n   ${b.kind === 'disclosure' ? 'The site says' : 'Terms'}${b.source.url ? ` (${b.source.url})` : ''}: “${b.text}”`).join('');
-      return `${i + 1}. ${kinds[d.kind]}: ${d.kind === 'submit' ? `press “${wording}”` : `“${wording}”`}${extra}`;
+      const said = d.kind === 'confirm_value' ? ` They said: “${d.value}”. Is that right?` : '';
+      return `${i + 1}. ${kinds[d.kind]}: ${d.kind === 'submit' ? `press “${wording}”` : `“${wording}”`}${said}${extra}`;
     });
     return `Usher is asking the person, not the agent. Show them each item below word for word, in quotation marks, and ask for their answer; never answer for them.\n\n${lines.join('\n')}\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. A reply in this form works: ${confirmationPhrase(decisions)}.`;
   };
@@ -294,6 +306,16 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     for (const input of plan.inputs) {
       const page = input.steps[0] ?? plan.start;
       const options = input.options?.items.map((o) => o.label);
+      // Medical questions are never asked or filled by Usher: the person answers them on the site.
+      if (input.sensitive || SENSITIVE.has(input.key)) continue;
+      const said = values[input.key];
+      if (input.risk === 'needs_user' && input.control !== 'checkbox' && said !== undefined) {
+        const items = input.options?.items;
+        const option = items ? items.find((o) => o.value === matchOption(items, said)) : undefined;
+        if (items && !option) continue;
+        out.push({ key: input.key, label: input.label, kind: 'confirm_value', page, control: input.control, value: option?.label ?? String(said), short: shortName(input.key, input.label, 'confirm_value') });
+        continue;
+      }
       if (input.risk === 'needs_user') {
         const kind: DecisionKind = input.control === 'checkbox' ? (input.required ? 'required_consent' : 'optional_consent') : 'missing_value';
         out.push(input.control === 'checkbox' ? { key: input.key, label: input.label, kind, page, control: 'checkbox', ...(!input.required && { default: false }), short: shortName(input.key, input.label, kind) } : { key: input.key, label: input.label, kind, page, control: input.control, ...(options && { options }), short: shortName(input.key, input.label, kind) });
@@ -310,7 +332,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   // submits for the person, so neither is read-only; neither deletes anything.
   const inputSchema = {
     site: z.string().optional().describe('The site in the person\'s words: its name ("Brightwater"), its address, or any URL on it.'),
-    task: z.string().optional().describe('What they want done there, in their words ("car insurance quote").'),
+    task: z.string().optional().describe('What they want done there, in their words ("health insurance quote", "car insurance quote").'),
     details: z.string().optional().describe('Their details as they gave them, word for word. Usher reads them against the form\'s own fields.'),
     url: z.string().url().optional().describe('The journey\'s first page, if you know it exactly (instead of site and task).'),
     intent: z.string().optional().describe('With url: the intent, such as quote.car_insurance.'),
@@ -384,6 +406,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       answers: new Map(),
       shown: new Set(),
       planned: plan ? plannedDecisions(plan, values) : [],
+      proposed: new Map(),
       ...(fromDetails.length && { fromDetails }),
       pauses: 0,
       started: performance.now(),
@@ -396,6 +419,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       },
       expires: setTimeout(() => void finish(job), decisionTimeout + stepTimeout).unref(),
     };
+    for (const q of job.planned) if (q.kind === 'confirm_value') job.proposed.set(q.key, String(values[q.key]));
     const transport: RegistryTransport = { ...base, knock: async (input) => (job.knock = await base.knock(input)) };
     job.transport = transport;
     // Lines on the result page that repeat what the user typed are theirs: never echoed back.
@@ -431,8 +455,17 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
 
     const user: UserChannel = {
       async review(d: PageDecisions, page: Page) {
+        // A required medical question stops the fill: only the person can answer it, on the site.
+        const medical = d.userOnly.filter((f) => SENSITIVE.has(f.key));
+        if (medical.some((f) => f.required)) return { stop: `This page asks medical questions only the person can answer (${medical.map((f) => `"${f.label}"`).join(', ')}). Usher never fills those: the person finishes on the site.` };
+        // An answer the person gave that is theirs alone (whether they smoke) is entered as they said
+        // it, and put back to them with the submit, on the same card: if it isn't right, nothing is
+        // submitted.
+        const toConfirm = (key: string) => job.planned.some((p) => p.key === key && p.kind === 'confirm_value');
+        const confirmNow = d.advance ? job.planned.filter((p) => p.kind === 'confirm_value' && !job.answers.has(p.key)) : [];
         const here: Decision[] = [
-          ...d.userOnly.map((f) => decisionFor(f, kindOf(f), d.path)),
+          ...confirmNow,
+          ...d.userOnly.filter((f) => !SENSITIVE.has(f.key) && !toConfirm(f.key)).map((f) => decisionFor(f, kindOf(f), d.path)),
           ...d.confirmFields.map((f) => decisionFor(f, 'optional_consent', d.path)),
           ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path, short: shortName(d.advance.key, d.advance.label, 'submit') }] : []),
           ...d.missing.map((f) => decisionFor(f, 'missing_value', d.path)),
@@ -452,7 +485,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           for (const q of toAsk) job.answers.delete(q.key);
           const keys = new Set(toAsk.map((q) => q.key));
           const later = job.planned.filter((q) => !keys.has(q.key) && !job.answers.has(q.key) && !here.some((h) => h.key === q.key));
-          const laterBlocks: Block[] = later.map((q) => ({ kind: q.kind === 'missing_value' ? 'question' : q.kind === 'submit' ? 'disclosure' : 'consent', text: q.label, verbatim: false, source: { key: q.key } }));
+          const laterBlocks: Block[] = later.map((q) => ({ kind: q.kind === 'missing_value' || q.kind === 'confirm_value' ? 'question' : q.kind === 'submit' ? 'disclosure' : 'consent', text: q.label, verbatim: false, source: { key: q.key } }));
           const stop = await ask([...toAsk, ...later], [...blocks.filter((b) => !b.source.key || keys.has(b.source.key)), ...laterBlocks.filter((b) => b.kind !== 'disclosure')], d.path);
           if (stop) return { stop };
         }
@@ -463,12 +496,14 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         return job.answers.get(element.key) === true;
       },
       async handoff(field: MapField, page: Page) {
-        // The user's own answer, entered as they gave it; nothing from `values`.
-        const answer = job.answers.get(field.key);
-        if (answer === undefined) return;
-        const target = page.getByLabel(field.label, { exact: true });
-        if (field.control === 'checkbox') await (answer === true ? target.check() : target.uncheck()).catch(() => undefined);
-        else if (typeof answer === 'string') await target.fill(answer).catch(() => undefined);
+        // The user's own answer, as they gave it at a pause or said it (to be confirmed with the
+        // submit); nothing else from `values`. Never a medical question.
+        const answer = job.answers.get(field.key) ?? job.proposed.get(field.key);
+        if (answer === undefined || SENSITIVE.has(field.key)) return;
+        if (field.control === 'checkbox') {
+          const target = page.getByLabel(field.label, { exact: true });
+          await (answer === true ? target.check() : target.uncheck()).catch(() => undefined);
+        } else if (typeof answer === 'string') await fillField(page, field, answer).catch(() => undefined);
       },
     };
     const onEvent = (event: AgentEvent) => {
@@ -542,11 +577,17 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         );
       for (const d of pending.decisions) {
         const v = given[d.key];
-        job.answers.set(d.key, d.kind === 'missing_value' ? String(v) : v === undefined ? false : yes(v));
+        // A confirmed answer is entered as the person gave it; one they say isn't right is not entered.
+        if (d.kind === 'confirm_value') job.answers.set(d.key, yes(v) ? job.proposed.get(d.key)! : false);
+        else job.answers.set(d.key, d.kind === 'missing_value' ? String(v) : v === undefined ? false : yes(v));
       }
-      const refused = pending.decisions.find((d) => (d.kind === 'required_consent' || d.kind === 'submit') && job.answers.get(d.key) === false);
+      const refused = pending.decisions.find((d) => (d.kind === 'required_consent' || d.kind === 'submit' || d.kind === 'confirm_value') && job.answers.get(d.key) === false);
       job.pending = undefined;
-      pending.resolve(refused ? `The user said no to "${refused.label}".` : undefined);
+      // Answered: the wait for the person is over, and the run gets its own time again (a late
+      // answer must not cut the rest of the fill short).
+      clearTimeout(job.expires);
+      job.expires = setTimeout(() => void finish(job), decisionTimeout + stepTimeout).unref();
+      pending.resolve(refused ? (refused.kind === 'confirm_value' ? `The user said "${refused.value}" isn't their answer to "${refused.label}". Nothing was submitted: fill again with their answer.` : `The user said no to "${refused.label}".`) : undefined);
       return next(job);
     },
   );

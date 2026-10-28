@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('change', refresh);
   refresh();
 
-  // "Find address" (layout C) adds a list of the addresses on the postcode, for the person to pick.
+  // "Find address" (health, and car layout C) adds a list of the addresses on the postcode, for the person to pick.
   const findAddress = form.querySelector('[data-lookup="address"]');
   if (findAddress) {
     const postcode = form.querySelector(`[name="${CSS.escape(findAddress.dataset.postcode)}"]`);
@@ -32,11 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.ok) throw new Error('not found');
         const { addresses } = await res.json();
         const label = document.createElement('label');
-        label.htmlFor = 'address';
-        label.textContent = 'Please select an address';
+        // The list's name and label are the layout's own (layout B renames them).
+        const name = findAddress.dataset.select ?? 'address';
+        label.htmlFor = name;
+        label.textContent = findAddress.dataset.label ?? 'Please select an address';
         const select = document.createElement('select');
-        select.id = 'address';
-        select.name = 'address';
+        select.id = name;
+        select.name = name;
         select.required = true;
         select.append(new Option('Please select', ''), ...addresses.map((a) => new Option(a.label, a.id)));
         results.append(label, select);

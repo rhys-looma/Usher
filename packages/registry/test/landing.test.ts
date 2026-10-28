@@ -1,10 +1,12 @@
-// The front page (LU-53): the sentence and the three blocks, the viewer box, both quickstarts with
-// this registry's address, the numbers, and the interest form, which carries Usher's own tag, is
-// locked to agents that didn't knock, and is listed for the admin only.
+// The front page (LU-53): the sentence and the health example, what happens between the message and
+// the quote (six steps, in reading order with no JavaScript) and what Usher keeps (as docs/security.md
+// says it), the viewer box, both quickstarts with this registry's address, the numbers, and the
+// interest form, which carries Usher's own tag, is locked to agents that didn't knock, and is listed
+// for the admin only.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +14,7 @@ import { chromium } from 'playwright';
 import { startRegistry, type RunningRegistry } from '../src/index.ts';
 import { testStorage } from './storage-helper.ts';
 import { pickerForms } from '../src/web/picker.ts';
+import { KEEPS } from '../src/web/keeps.ts';
 
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
 let dir: string;
@@ -29,12 +32,12 @@ after(async () => {
 const post = (path: string, form: Record<string, string>, headers: Record<string, string> = {}) =>
   fetch(`${registry.url}${path}`, { method: 'POST', body: new URLSearchParams(form), headers, redirect: 'manual' });
 
-test('front page: the sentence, map / knock / log, the viewer box, both quickstarts, numbers, sharing tags', async () => {
+test('front page: the sentence, the six steps, the viewer box, both quickstarts, numbers, sharing tags', async () => {
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">More of the web, open to agents.</p>', '<h3>Map</h3>', '<h3>Knock</h3>', '<h3>Log</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>The control layer for AI agents on your forms.</h2>', '<p class="lede">No integration required.</p>', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', 'Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', '<p class="ticket-title">Health insurance quote</p>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
@@ -75,7 +78,7 @@ test('front page: a failed "try it" is explained on the page', async () => {
   assert.equal(res.status, 422);
   const text = await res.text();
   assert.match(text, /class="card error">The viewer only opens public websites\./);
-  assert.match(text, /<h3>Map<\/h3>/, 'still the front page');
+  assert.match(text, /<h2>What happens in between<\/h2>/, 'still the front page');
 });
 
 test('interest: people are stored, agents must knock, mistakes are explained, the list is for the admin only', async () => {
@@ -124,4 +127,42 @@ test('numbers: a half-marked accuracy run is never shown; the latest complete on
   // The current review still has unmarked public rows, so the complete run of 27 October shows.
   assert.equal(accuracy.run, '2026-10-27');
   assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.9%', '51 of 69', '98.6%', '68 of 69']);
+});
+
+test('what happens in between: six steps in reading order, each with what Usher sees, readable with no JavaScript', async () => {
+  const text = await (await fetch(`${registry.url}/`)).text();
+  const section = /<section class="between" id="how"[\s\S]*?<\/section>/.exec(text)?.[0] ?? '';
+  // The message, then the steps, then the result: the middle of the story, in the page's own order.
+  assert.ok(section.indexOf('class="seq-ask"') < section.indexOf('<ol class="seq-steps">') && section.indexOf('</ol>') < section.indexOf('class="seq-result'));
+  const steps = [...section.matchAll(/<li data-step="(\d)"><h3><span class="n">\d<\/span> ([^<]+)<\/h3><p>([^<]+)<\/p>(?:<p class="note">([^<]+)<\/p>)?<p class="sees"><b>Usher sees:<\/b> ([^<]+)<\/p><\/li>/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]]);
+  const plain = (s?: string) => s?.replace(/&#39;/g, "'");
+  assert.deepEqual(steps.map((s) => s.map(plain)), [
+    ['1', 'Knock', 'The agent identifies itself; the site opens for this one session.', undefined, 'agent identity, site, intent, expiry.'],
+    ['2', 'Map, not values', "Usher hands the agent the form's structure and the site's rules.", undefined, 'field names and types. Never what anyone types.'],
+    ['3', 'The safe fields are filled', 'Name, date of birth, postcode, cover level: seconds.', undefined, 'which fields were filled. Not the values.'],
+    ['4', 'The questions that are yours', "Smoker, the declaration: shown to you in the insurer's exact words, unticked, with Usher asking you, not the agent.", "Medical history is never Usher's to fill: the insurer asks you that directly, after the quote.", 'that each was shown to you, and your yes or no.'],
+    ['5', 'Submit with the token', 'The site checks it on its own server. No token, no quote.', undefined, 'that the quote was asked for, with a valid token.'],
+    ['6', 'On the record', "The site's dashboard shows the session: which agent, which fields, what was shown and confirmed.", undefined, 'the session. Never the answers.'],
+  ]);
+  // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
+  assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
+  assert.match(section, /<figure class="seq" data-steps>/);
+  const js = await (await fetch(`${registry.url}/site.js`)).text();
+  assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
+  assert.match(js, /data-steps/);
+  assert.match(text, /\.seq\.seq-on li\.on \{ background:var\(--card\);/, 'emphasis only once site.js marks the sequence');
+  assert.doesNotMatch(text.split('.seq.seq-on')[1]?.split('</style>')[0] ?? '', /opacity:/, 'never dimmed: every step at full contrast');
+});
+
+test('what Usher keeps: the same three lines on the page, in /privacy and in docs/security.md', async () => {
+  const text = (await (await fetch(`${registry.url}/`)).text()).replace(/&#39;/g, "'");
+  const privacy = (await (await fetch(`${registry.url}/privacy`)).text()).replace(/&#39;/g, "'");
+  const doc = await readFile(new URL('../../../docs/security.md', import.meta.url), 'utf8');
+  const block = /## What Usher keeps\n\n((?:- .+\n)+)/.exec(doc)?.[1] ?? '';
+  assert.deepEqual(block.trim().split('\n').map((l) => l.slice(2)), [...KEEPS], 'docs/security.md says it word for word');
+  const keeps = /<div class="keeps" id="keeps"><h3>What Usher keeps<\/h3><ul>([\s\S]*?)<\/ul>/.exec(text)?.[1] ?? '';
+  assert.deepEqual([...keeps.matchAll(/<li>([^<]+)<\/li>/g)].map((m) => m[1]), [...KEEPS]);
+  for (const line of KEEPS) assert.ok(privacy.includes(`<li>${line}</li>`), line);
+  for (const page of [text, privacy, doc]) assert.doesNotMatch(page, /no sensitive data goes to Usher/i);
+  assert.ok(text.indexOf('id="keeps"') > text.indexOf('<ol class="seq-steps">'), 'directly under the sequence');
 });

@@ -1,17 +1,17 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T12:43:24.737Z",
+  "recorded_at": "2026-10-28T16:13:07.000Z",
   "attempts": [
     {
-      "request_sha256": "a2abf7aa40ee9bd253fb1eeab5a4da8d3f107326a37999e438cee6e25a9134d9",
+      "request_sha256": "2b51d966f4eba667b180f8cc62700c61ac7359382d88296636bb205ef8a08e80",
       "content": "{\"address.line1\": \"1 High Street\", \"address.postcode\": \"WR14 1AA\", \"contact.email\": \"sam@example.com\", \"contact.phone\": \"07700 900123\", \"person.claims.date\": null, \"person.claims.has_any\": \"no\", \"person.claims.type\": null, \"person.dob\": \"1988-04-02\", \"person.employment_status\": \"employed\", \"person.first_name\": \"Sam\", \"person.last_name\": \"Taylor\", \"person.occupation\": \"teacher\", \"person.title\": \"mr\", \"policy.cover_level\": \"comprehensive\", \"policy.no_claims_years\": \"5\", \"policy.payment_frequency\": \"monthly\", \"policy.start_date\": \"2026-11-15\", \"policy.voluntary_excess\": \"250\", \"vehicle.annual_mileage\": \"8000\", \"vehicle.make\": null, \"vehicle.model\": null, \"vehicle.modifications.has_any\": \"no\", \"vehicle.overnight_location\": \"driveway\", \"vehicle.registration\": \"AB12CDE\", \"vehicle.use\": \"social-and-commuting\", \"vehicle.year\": null}",
       "usage": {
         "prompt_tokens": 2078,
-        "completion_tokens": 1846,
-        "total_tokens": 3924,
+        "completion_tokens": 2092,
+        "total_tokens": 4170,
         "cached_tokens": 0
       },
-      "latency_ms": 10484
+      "latency_ms": 9105
     }
   ]
 }

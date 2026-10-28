@@ -1,0 +1,19 @@
+{
+  "model": "meta-models/muse-spark-open-1026",
+  "recorded_at": "2026-10-28T16:53:02.619Z",
+  "layout": "b",
+  "step": "health-cover",
+  "attempts": [
+    {
+      "request_sha256": "0f8568f3839030f9e86384107c0626fc1cf4d86f97a89b02b0fd3b087c09d681",
+      "content": "{\"form\":{\"purpose\":\"Health cover selection: choose your cover\",\"intent\":\"quote.health_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"cover.level\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"cover.excess\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"cover.hospital_list\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"cover.outpatient_limit\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"policy.start_date\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"policy.payment_frequency\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e8\"}",
+      "usage": {
+        "prompt_tokens": 4745,
+        "completion_tokens": 927,
+        "total_tokens": 5672,
+        "cached_tokens": 2176
+      },
+      "latency_ms": 5545
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "_comment": "Test data for Brightwater Health on the mock site. Keys are Usher vocabulary keys; select and radio values are the site's option values. person.smoker is the person's own answer: an agent enters it only as they gave it.",
+  "person.title": "mr",
+  "person.first_name": "Sam",
+  "person.last_name": "Taylor",
+  "person.dob": "1988-04-02",
+  "contact.email": "sam@example.com",
+  "contact.phone": "07700 900123",
+  "address.postcode": "WR14 1AA",
+  "address.line1": "1 High Street",
+  "cover.who": "just-me",
+  "person.smoker": "no",
+  "cover.level": "comprehensive",
+  "cover.excess": "250",
+  "cover.hospital_list": "standard",
+  "cover.outpatient_limit": "1000",
+  "policy.start_date": "2026-12-01",
+  "policy.payment_frequency": "monthly",
+  "consent.declaration": true
+}
