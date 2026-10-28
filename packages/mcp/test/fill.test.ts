@@ -99,9 +99,10 @@ test('the tools are offered alongside knock, and their descriptions carry the be
   const tools = (await client.listTools()).tools;
   for (const name of ['knock', 'usher_fill', 'usher_confirm', 'usher_cancel']) assert.ok(tools.some((t) => t.name === name), name);
   const fill = tools.find((t) => t.name === 'usher_fill')!.description!;
-  assert.match(fill, /pauses before consents and submissions/);
+  assert.match(fill, /pauses for the person at every consent and before anything is submitted/);
   assert.match(fill, /word for word/);
-  assert.match(fill, /never answer a decision on the user's behalf/);
+  assert.match(fill, /never answer them yourself/);
+  assert.match(fill, /usher_fill\(\{ site: "Brightwater", task: "car insurance quote", details: /, 'one example, in the person\'s words');
   assert.match(tools.find((t) => t.name === 'usher_confirm')!.description!, /never decide for them/);
 });
 

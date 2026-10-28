@@ -20,11 +20,12 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, modelApi, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, modelApi, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
 import { blockHash, consentBlocks, disclosureBlock, resultFacts, type Block } from './blocks.ts';
+import { mapDetails } from './details.ts';
 
 export type DecisionKind = 'required_consent' | 'optional_consent' | 'submit' | 'missing_value';
 
@@ -91,6 +92,8 @@ interface Job {
   planned: Decision[];
   pending?: Pending;
   pauses: number;
+  /** Keys read from the person's details (never the values). */
+  fromDetails?: string[];
   outcome?: { title: string; facts: Block[]; image?: string };
   /** The last knock: where the session log takes the record of what was shown. */
   knock?: KnockResponse;
@@ -157,7 +160,7 @@ async function launchChromium(): Promise<Browser> {
 }
 
 const FILL_DESCRIPTION =
-  'Fill a whole form journey for your user, by meaning. Pass the starting page URL, the intent (for example quote.car_insurance) and the values you already have, keyed by Usher vocabulary keys (person.first_name, contact.email, vehicle.registration, …). Usher fills the pages in its own browser and pauses before consents and submissions: it returns a set of decisions (required and optional consents, the submit, and any required value it is missing) with verbatim blocks from the page. Put every decision to your user, and show every block marked verbatim to them word for word: never summarise it, and never answer a decision on the user\'s behalf, even when you think you know the answer. Then pass all their answers at once to usher_confirm. Values with the wrong format come back first as problems by key, before anything runs. When the journey completes you get the result page\'s title, its figures as verbatim facts (show them as they are), the final URL and a screenshot.';
+  'Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a car insurance quote from Brightwater. I\'m Mr Sam Taylor, born 2 April 1988, …" becomes usher_fill({ site: "Brightwater", task: "car insurance quote", details: "I\'m Mr Sam Taylor, born 2 April 1988, …" }). With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
 
 const CONFIRM_DESCRIPTION =
   'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
@@ -235,6 +238,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           decisions,
           blocks,
           confirmation_form: confirmationPhrase(decisions),
+          ...(job.fromDetails && { read_from_details: job.fromDetails }),
           actions_so_far: job.actions.length,
           elapsed_ms: Math.round(performance.now() - job.started),
           },
@@ -285,13 +289,15 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   /** What the plan shows the user will be asked across the journey, before any page is open. */
   function plannedDecisions(plan: UsherPlan, values: Profile): Decision[] {
     const out: Decision[] = [];
+    // What the site's own lookups will fill (make and model from a registration) isn't asked for.
+    const looked = lookupFilled(plan, (k) => values[k] !== undefined);
     for (const input of plan.inputs) {
       const page = input.steps[0] ?? plan.start;
       const options = input.options?.items.map((o) => o.label);
       if (input.risk === 'needs_user') {
         const kind: DecisionKind = input.control === 'checkbox' ? (input.required ? 'required_consent' : 'optional_consent') : 'missing_value';
         out.push(input.control === 'checkbox' ? { key: input.key, label: input.label, kind, page, control: 'checkbox', ...(!input.required && { default: false }), short: shortName(input.key, input.label, kind) } : { key: input.key, label: input.label, kind, page, control: input.control, ...(options && { options }), short: shortName(input.key, input.label, kind) });
-      } else if (input.required && !input.shown_if && values[input.key] === undefined) {
+      } else if (input.required && !input.shown_if && values[input.key] === undefined && !looked.has(input.key)) {
         out.push({ key: input.key, label: input.label, kind: 'missing_value', page, control: input.control, ...(options && { options }), short: shortName(input.key, input.label, 'missing_value') });
       }
     }
@@ -302,23 +308,61 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   const meta = options.toolMeta ? { _meta: options.toolMeta } : {};
   // Honest annotations: filling moves a site's journey on (it presses Continue), and usher_confirm
   // submits for the person, so neither is read-only; neither deletes anything.
-  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema: { url: z.string().url(), intent: z.string(), values: valuesSchema }, annotations: { title: 'Fill a form with Usher', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, ...meta }, async (args) => {
-    const odd = Object.entries(args.values).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
+  const inputSchema = {
+    site: z.string().optional().describe('The site in the person\'s words: its name ("Brightwater"), its address, or any URL on it.'),
+    task: z.string().optional().describe('What they want done there, in their words ("car insurance quote").'),
+    details: z.string().optional().describe('Their details as they gave them, word for word. Usher reads them against the form\'s own fields.'),
+    url: z.string().url().optional().describe('The journey\'s first page, if you know it exactly (instead of site and task).'),
+    intent: z.string().optional().describe('With url: the intent, such as quote.car_insurance.'),
+    values: valuesSchema.optional(),
+  };
+  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema, annotations: { title: 'Fill a form with Usher', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, ...meta }, async (args) => {
+    const given = args.values ?? {};
+    const odd = Object.entries(given).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
     if (odd.length) return failure(`Values must be text, numbers or true/false: ${odd.join(', ')}.`);
+    if (!args.url && !args.site) return failure('Say which site (its name or address) and what to do there, or pass url and intent.');
+    if (args.details && !options.fallback) return failure('Reading details in the person\'s own words needs Muse Spark on this server (MODEL_API_KEY). Pass them by Usher key in values instead.');
     if (!limiter.allow('fill')) return failure('Too many fills this hour; try again later.');
-    const admitted = options.admit ? await options.admit(args.url) : { release: () => undefined };
-    if ('refused' in admitted) return failure(admitted.refused);
-    const values = Object.fromEntries(Object.entries(args.values).map(([k, v]) => [k, typeof v === 'number' ? String(v) : v])) as Profile;
     const base = options.transport ? await options.transport() : await httpTransport(options.registryUrl!, options.keyFile);
+    const stop = async (result: ReturnType<typeof failure> | ReturnType<typeof reply>) => (await base.close?.(), result);
+    // The journey: url and intent when given, else the site and task in the person's words.
+    let url = args.url;
+    let intent = args.intent;
+    if (!url || !intent) {
+      if (!base.resolve) return stop(failure('This server can\'t look sites up by name: pass url and intent.'));
+      const found = await base.resolve(args.site ?? url!, args.task).catch((err: Error) => ({ status: 'not_joined' as const, message: err.message }));
+      if (found.status === 'not_joined') return stop(failure(found.message));
+      if (found.status === 'needs_details') return stop(reply({ status: 'needs_details', message: found.message, choices: found.choices }));
+      url ??= found.url;
+      intent ??= found.intent;
+    }
+    const admitted = options.admit ? await options.admit(url) : { release: () => undefined };
+    if ('refused' in admitted) return stop(failure(admitted.refused));
     // Before anything runs: the plan's inputs. Wrong values come back now; missing ones are asked later.
-    const plan = await base.getPlan(args.url).catch(() => null);
+    const plan = await base.getPlan(url).catch(() => null);
+    let values = Object.fromEntries(Object.entries(given).map(([k, v]) => [k, typeof v === 'number' ? String(v) : v])) as Profile;
+    let fromDetails: string[] = [];
+    if (args.details) {
+      if (!plan) {
+        admitted.release();
+        return stop(failure('Usher has no plan for this journey yet, so it can\'t read details in the person\'s words. Pass them by Usher key in values.'));
+      }
+      // Keyed values win, key by key.
+      const mapped = await mapDetails(options.fallback!.chat, options.fallback!.model, plan, args.details, { logDir: options.fallback!.logDir, given: () => true }).catch((err: Error) => err);
+      if (mapped instanceof Error) {
+        admitted.release();
+        return stop(failure(`Usher couldn't read the details: ${mapped.message}. Pass them by Usher key in values.`));
+      }
+      fromDetails = Object.keys(mapped.values).filter((k) => !(k in values)).sort();
+      values = { ...mapped.values, ...values };
+    }
     if (plan) {
       const checked = preflight(plan.inputs.filter((i) => i.risk !== 'needs_user'), values);
       const wrong = checked.problems.filter((p) => p.problem !== 'missing');
       if (wrong.length) {
         await base.close?.();
         admitted.release();
-        return reply({ status: 'invalid', problems: wrong.map((p) => ({ key: p.key, message: p.message, ...(p.expected && { expected: p.expected }) })) });
+        return reply({ status: 'invalid', ...(fromDetails.length && { read_from_details: fromDetails }), problems: wrong.map((p) => ({ key: p.key, message: p.message, ...(p.expected && { expected: p.expected }) })) });
       }
     }
     browser ??= (options.browser ?? launchChromium)();
@@ -329,6 +373,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       answers: new Map(),
       shown: new Set(),
       planned: plan ? plannedDecisions(plan, values) : [],
+      ...(fromDetails.length && { fromDetails }),
       pauses: 0,
       started: performance.now(),
       run: undefined as unknown as Promise<RunResult>,
@@ -424,8 +469,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       try {
         return await runAgent({
           browser: await browser!,
-          url: args.url,
-          intent: args.intent,
+          url: url!,
+          intent: intent!,
           profile,
           registry: transport,
           user,
@@ -442,7 +487,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         });
       } catch (err) {
         // A run that broke (or whose page a cancel closed) ends as failed, never as a crash.
-        return { outcome: 'failed', reason: err instanceof Error ? err.message : String(err), session: null, final_url: job.page?.url() ?? args.url, pages: [], maps_submitted: 0, transport: 'http', total_ms: 0, knock_ms: 0, model_ms: 0, fill_ms: 0, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, cost_usd: 0, plan_used: false };
+        return { outcome: 'failed', reason: err instanceof Error ? err.message : String(err), session: null, final_url: job.page?.url() ?? url!, pages: [], maps_submitted: 0, transport: 'http', total_ms: 0, knock_ms: 0, model_ms: 0, fill_ms: 0, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, cost_usd: 0, plan_used: false };
       } finally {
         await transport.close?.();
         admitted.release();

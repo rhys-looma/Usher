@@ -57,6 +57,7 @@ Turn on developer mode and create a connector for `https://usher.run/mcp` with n
 
 ## Per-client notes and quirks
 
+- **ChatGPT keeps tool descriptions per connection.** After Usher's descriptions or server instructions change (a new release, a site joining), remove the connector and add it again, or ChatGPT keeps routing by the old text.
 - **ChatGPT: no tool calls from the card,** and it rejected answers sent as card-written text. The message path above sends only the person's own confirmation.
 - **Claude: a domain is required** for a stable origin. It's computed from the server URL, not signed by a key, so it only applies to the hosted URL. A local stdio server can't have one.
 - **`ui/message` content.** The spec's prose example shows `content` as a single block. The SDK's schema (`@modelcontextprotocol/ext-apps` 1.7.5) requires an array, and its `AppBridge` rejects a single block. The card sends an array.
