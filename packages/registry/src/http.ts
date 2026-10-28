@@ -229,6 +229,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web'> {
   chat?: ChatFn;
   model?: string;
   explainer?: { chat: ChatFn; model: string };
+  /** The registry's clock (tests). */
+  now?: () => Date;
   port?: number;
   host?: string;
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
@@ -269,6 +271,7 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.threshold !== undefined && { threshold: options.threshold }),
     ...(options.chat && options.model && { chat: options.chat, model: options.model }),
     ...(options.explainer && { explainer: options.explainer }),
+    ...(options.now && { now: options.now }),
     ...(options.signingKey && { signingKey: options.signingKey }),
     ...(options.retiredKeys && { retiredKeys: options.retiredKeys }),
     ...(options.directories && { directories: options.directories }),

@@ -25,6 +25,7 @@ import {
   jwkThumbprint,
   type ActionRule,
   type EffectiveRules,
+  type RateLimit,
   type Risk,
   agentStanding,
   composePlan,
@@ -110,6 +111,8 @@ export interface RegistryOptions {
 
 /** How long the public demo keeps sessions from other people's agents. */
 export const DEMO_SESSION_HOURS = 24;
+/** On the public demo, each agent confirms at most five quotes an hour, whatever the site's policy says. */
+export const DEMO_SUBMIT_LIMIT: RateLimit = { action: 'form.submit', per: 'agent', max: 5, window: 'hour' };
 
 /** What a registrant publishes to prove they control an origin: either one is enough. */
 export interface ClaimInstructions {
@@ -270,7 +273,10 @@ export class Registry {
 
   /** Checks the site's rate limits for these uses and counts them if all allow. */
   private withinLimits(effective: EffectiveRules, origin: string, agent: string, uses: string[]): string | null {
-    const applicable = effective.rate_limits.filter((l) => uses.includes(l.action));
+    // The same limit twice (a site's own and the demo's) counts once.
+    const applicable = effective.rate_limits
+      .filter((l) => uses.includes(l.action))
+      .filter((l, i, all) => all.findIndex((o) => o.action === l.action && o.per === l.per && o.max === l.max && o.window === l.window) === i);
     const keyed = applicable.map((l) => {
       const id = `${l.max}/${l.window}`;
       let limiter = this.policyLimits.get(id);
@@ -389,6 +395,7 @@ export class Registry {
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
     const policy = await this.policy(page.origin);
     const effective = effectiveRules(policy, map, page.pathname);
+    if (this.options.publicDemo?.origin === page.origin) effective.rate_limits = [...effective.rate_limits, DEMO_SUBMIT_LIMIT];
     const refuse = async (status: number, code: string, message: string, action?: string) => {
       await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }) });
       return error(status, code, message);
