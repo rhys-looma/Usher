@@ -85,6 +85,8 @@ For example:
 
 `usher_fill` never fills a field the map marks as the user's own to decide; it asks. The tool descriptions tell the agent to put every decision to its user, to show every verbatim block word for word (a consent's exact wording and the terms it links to, the text beside "Get my quote", the quote's figures), and never to answer for the user. The session log records which blocks were shown, by key and a hash of the text, never the text. The response shape is in [spec/knock.md](https://github.com/rhys-looma/Usher/blob/main/spec/knock.md#8-filling-for-a-user-decision-sets-and-verbatim-blocks). On a page with no map it reads the page with a model (when `MODEL_API_KEY` is set, capped by `USHER_DAILY_MODEL_BUDGET_USD`, default $1 a day) and says which pages it read that way. The first `usher_fill` installs Playwright's Chromium if it isn't there.
 
+In clients that support MCP Apps (Claude, ChatGPT), `knock`, `usher_fill` and `usher_confirm` also render as small cards: the decision card (the site's consent wording with real checkboxes and one Confirm, whose answers go back to your assistant for `usher_confirm`), the "Admit one agent" ticket, and the result card. The text results are unchanged, and nothing depends on the cards. See [docs/mcp-apps.md](https://github.com/rhys-looma/Usher/blob/main/docs/mcp-apps.md).
+
 Every request is signed with your agent's key (Web Bot Auth, RFC 9421). Maps hold structure, never values: nothing anyone types is read, sent or stored.
 
 ## Options
