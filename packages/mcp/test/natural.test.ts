@@ -74,7 +74,7 @@ const decisionSet = (r: Reply) => r.decisions!.map((d) => `${d.kind}:${d.key}:${
 
 test('the server says which sites it acts on, and that it pauses for the person by default', async () => {
   const instructions = (await connect()).getInstructions() ?? '';
-  assert.ok(instructions.includes(`- Brightwater (${new URL(site.url).host}): health insurance quote, car insurance quote.`), instructions);
+  assert.ok(instructions.includes(`- Brightwater Insurance (${new URL(site.url).host}): health insurance quote, car insurance quote.`), instructions);
   assert.match(instructions, /pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that/);
 });
 

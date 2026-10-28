@@ -140,7 +140,7 @@ test('what your customer sees and the rails underneath: a native card on one sid
   const customer = /<figure class="assistant uc"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
   assert.doesNotMatch(customer.replace(/<p class="callout">[\s\S]*?<\/p>/, ''), /Usher/);
   assert.match(customer, /<p class="callout"><b>Only with Usher<\/b> Your customer decides, in your words\./);
-  assert.match(customer, /<div class="card decision"><p class="label">Brightwater<\/p>/);
+  assert.match(customer, /<div class="card decision"><p class="label">Brightwater Insurance<\/p>/);
   const steps = [...section.matchAll(/<li data-step="(\d)"><h3><span class="n">\d<\/span> ([^<]+)<\/h3><p>([^<]+)<\/p>(?:<p class="note">([^<]+)<\/p>)?<p class="sees"><b>Usher sees:<\/b> ([^<]+)<\/p><\/li>/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]]);
   const plain = (s?: string) => s?.replace(/&#39;/g, "'");
   assert.deepEqual(steps.map((s) => s.map(plain)), [
@@ -154,7 +154,7 @@ test('what your customer sees and the rails underneath: a native card on one sid
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
   assert.match(section, /<div class="views seq" data-steps>/);
-  assert.match(section, /What your customer sees <span>A native Brightwater experience<\/span>[\s\S]*Under the hood <span>The Usher rails, for you<\/span>/);
+  assert.match(section, /What your customer sees <span>A native Brightwater Insurance experience<\/span>[\s\S]*Under the hood <span>The Usher rails, for you<\/span>/);
   // Brightwater's app runs on Usher; the form is on Brightwater's own site.
   assert.match(section, /<ol class="route"[^>]*><li>Your assistant<\/li><li>Brightwater(&#39;|')s app<\/li><li class="usher"><span>Usher<\/span><\/li><li>Brightwater(&#39;|')s site<\/li><\/ol>/);
   const js = await (await fetch(`${registry.url}/site.js`)).text();

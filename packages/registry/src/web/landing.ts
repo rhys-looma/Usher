@@ -182,17 +182,17 @@ function howSection(url: string, hosted: boolean): Raw {
   const you = html`<span class="by-you">you</span>`;
   return html`<section class="between" id="how" data-reveal>
 <h2>What your customer sees, and the rails underneath</h2>
-<p class="lede">In their assistant, your customer gets Brightwater: your app, your words, your quote, with no Usher in sight. Underneath, it runs on Usher's rails, the infrastructure between assistants and your forms. Both sides, at the same moment.</p>
+<p class="lede">In their assistant, your customer gets Brightwater Insurance: your app, your words, your quote, with no Usher in sight. Underneath, it runs on Usher's rails, the infrastructure between assistants and your forms. Both sides, at the same moment.</p>
 <div class="views seq" data-steps>
-<div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>A native Brightwater experience</span></h3>
-<figure class="assistant uc" aria-label="Illustration: a customer gets a health insurance quote from Brightwater's app in their assistant" inert>
+<div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>A native Brightwater Insurance experience</span></h3>
+<figure class="assistant uc" aria-label="Illustration: a customer gets a health insurance quote from Brightwater Insurance's app in their assistant" inert>
 <div class="assistant-window" aria-hidden="true"></div>
-<div class="assistant-bar"><span class="assistant-name">Your assistant</span><span class="assistant-tag">Brightwater app connected</span></div>
+<div class="assistant-bar"><span class="assistant-name">Your assistant</span><span class="assistant-tag">Brightwater Insurance app connected</span></div>
 <div class="step person"><p class="bubble">${EXAMPLE}</p></div>
-<div class="step said s-working"><p class="working"><span class="spinner" aria-hidden="true"></span>Getting your quote from Brightwater…</p></div>
+<div class="step said s-working"><p class="working"><span class="spinner" aria-hidden="true"></span>Getting your quote from Brightwater Insurance…</p></div>
 <div class="step said s-decision">
 <p class="callout"><b>Only with Usher</b> Your customer decides, in your words. Their assistant can't answer for them.</p>
-<div class="card decision"><p class="label">Brightwater</p><p class="title">Before we get your quote</p><p class="where">${host}/health/declaration</p><p class="asking">Brightwater is asking you, not your assistant</p>
+<div class="card decision"><p class="label">Brightwater Insurance</p><p class="title">Before we get your quote</p><p class="where">${host}/health/declaration</p><p class="asking">Brightwater is asking you, not your assistant</p>
 <div class="row"><span class="verbatim">Have you smoked or used nicotine products in the last 12 months?<span class="tag req">confirm</span></span><p class="said">You said: <b>No</b></p><div class="t1"><div class="yesno"><span class="radio on"></span> That's right <span class="radio"></span> Not right${you}</div></div></div>
 <div class="row"><span class="check t2">${tick}<span class="verbatim">I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote<span class="tag req">required</span></span>${you}</span></div>
 <div class="row"><span class="check t3">${tick}<span>Yes, press <b>“Get my quote”</b> for me</span>${you}</span><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. Medical history is not asked here: Brightwater asks you about it after the quote. This is a demo site: nothing is bought.</p></div>
@@ -200,7 +200,7 @@ function howSection(url: string, hosted: boolean): Raw {
 </div>
 </div>
 <div class="step said s-result">
-<div class="card"><p class="label">Brightwater</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
+<div class="card"><p class="label">Brightwater Insurance</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
 <ul class="facts"><li class="verbatim">£66.91 a month</li><li class="verbatim">Quote reference BWH-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
 <p class="note"><span class="link">Open the page</span> · as the site shows it, word for word</p></div>
 </div>
@@ -208,7 +208,7 @@ function howSection(url: string, hosted: boolean): Raw {
 </div>
 <div class="view"><h3 class="view-label">Under the hood <span>The Usher rails, for you</span></h3>
 <div class="hood">
-<p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater<span class="runs-on">runs on Usher</span></p>
+<p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater Insurance<span class="runs-on">runs on Usher</span></p>
 <ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>Brightwater's site</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
@@ -279,7 +279,7 @@ ${siteClaims()}
 ${o.hosted
   ? html`<pre class="wrap">${o.url}/mcp</pre>
 <p>Hosted Usher acts on sites that have joined.</p>
-<p class="small muted">For example, Brightwater's health quote:</p>
+<p class="small muted">For example, Brightwater Insurance's health quote:</p>
 <pre class="wrap">usher_fill({ site: "Brightwater", task: "health insurance quote",
   details: "I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess." })</pre>
 <details class="local"><summary>Running your own agent or framework?</summary>
