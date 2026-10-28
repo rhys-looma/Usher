@@ -211,7 +211,7 @@ The site script and the agent append events to the session with `POST <events_ur
 { "events": [{ "ts": "2026-10-27T10:01:12Z", "source": "site", "action": "fill", "key": "person.first_name", "element": "e2", "path": "/quote/driver" }] }
 ```
 
-`action` is one of `knock`, `fill`, `select`, `choose`, `check`, `uncheck`, `click`, `submit`, `held`, `confirm`, `handoff`, `run`, `invalid` (the site rejected the answer for that key; see [plan.md](plan.md)). `key` is the element's semantic key from the map. **Events never carry values**: not what was typed, not which option was chosen. The site script logs nothing for page loads without a bound token, so people using the site are never logged.
+`action` is one of `knock`, `fill`, `select`, `choose`, `check`, `uncheck`, `click`, `submit`, `held`, `confirm`, `handoff`, `run`, `invalid` (the site rejected the answer for that key; see [plan.md](plan.md)), `shown` (the agent put a verbatim block to its user; see section 8: `detail` has the block's `kind` and the `sha256` of its text, never the text). `key` is the element's semantic key from the map. **Events never carry values**: not what was typed, not which option was chosen. The site script logs nothing for page loads without a bound token, so people using the site are never logged.
 
 The script also checks the live form against the registry's map, without telling the registry about the visit: it fetches the current map digest for the page (`GET <registry>/maps/current?origin=…&path=…`, no cookies) at most once an hour per browser, compares it with the live form's fingerprint locally, and only on a mismatch sends a **drift report** (`POST /drift` with the site key in `Usher-Site-Key`, the map digest, the live fingerprint and the score), once per change. Drift reports carry structure only; the registry keeps nothing about the visitor (no IP address, no user agent) and rate-limits them per site key.
 
@@ -234,6 +234,65 @@ Link: <https://registry.example/knock>; rel="usher-knock"
 A `reason` member (`missing`, `expired`, `wrong_origin`, `replayed`, …) may be added to help agents recover.
 
 When the request also carries a Web Bot Auth signature (section 2), the check verifies it with the token's `cnf` key, or the agent's key directory for a token without one. The keyid must be the token's `sub`. A signature that fails, or one from a different key, is refused with `reason: bad_signature`. A site can also require signatures, refusing a token that arrives unsigned (`reason: signature_required`); that is off by default, so plain tokens keep working.
+
+## 8. Filling for a user: decision sets and verbatim blocks
+
+An agent that fills a journey for its user (Usher's `usher_fill` tool) stops before the steps that are the user's to decide. It asks them together, with the page's own words, and the user answers them all at once. This section is the shape of those tool results, so other implementations can return the same thing.
+
+### Decision sets
+
+Before filling a page, the agent collects every decision on it, and with a [plan](plan.md) every decision across the rest of the journey. It returns them as one set:
+
+```json
+{
+  "status": "needs_decision",
+  "id": "f_3c1d…",
+  "decisions": [
+    { "key": "consent.declaration", "label": "I confirm the information I have given is true and complete", "kind": "required_consent", "page": "/quote/cover", "control": "checkbox" },
+    { "key": "consent.marketing", "label": "Send me offers by email (optional)", "kind": "optional_consent", "page": "/quote/cover", "control": "checkbox", "default": false },
+    { "key": "form.submit", "label": "Get my quote", "kind": "submit", "page": "/quote/cover" }
+  ],
+  "blocks": [
+    { "kind": "consent", "text": "I confirm the information I have given is true and complete", "verbatim": true, "source": { "key": "consent.declaration", "url": "https://brightwater.example/quote/cover" } },
+    { "kind": "disclosure", "text": "By selecting Get my quote you agree that Brightwater may use these answers to work out your price. …", "verbatim": true, "source": { "key": "form.submit", "url": "https://brightwater.example/quote/cover" } }
+  ]
+}
+```
+
+Each decision has one of four `kind`s:
+- **`required_consent`:** a box only the user may tick, which the form requires.
+- **`optional_consent`:** the same box, but optional. Its `default` is `false`.
+- **`submit`:** a consequential action that needs the user's confirmation.
+- **`missing_value`:** a required field the agent has no value for. It's a question, not a failure.
+
+The `label` is the page's own. Values in the wrong format, or an option that isn't in the list, still come back before anything runs, as `{ "status": "invalid", "problems": [{ "key", "message" }] }`.
+
+The user answers every decision at once, by key:
+- `true` or `false` for consents and the submit;
+- the value itself for a missing value.
+
+An optional consent left out counts as `false`. A `false` for a required consent or the submit stops the journey there, with nothing submitted.
+
+The agent stops again only when a later page shows a decision that wasn't known. That includes wording the user hasn't seen: a consent whose page wording differs from the label already shown, or text beside a submit that was confirmed earlier from the plan.
+
+### Verbatim blocks
+
+Tool results carry blocks:
+
+```json
+{ "kind": "consent" | "disclosure" | "fact" | "question", "text": "…", "verbatim": true | false, "source": { "key": "…", "url": "…" } }
+```
+
+- **`consent`:** the exact wording of a consent box's label. Where the label links to terms, a second block carries the linked page's relevant section, with that URL. That's the element the link's fragment names; for a heading, the heading through to the next one of the same level. It's fetched once and trimmed to about 1,500 characters.
+- **`disclosure`:** text beside a consequential action, such as the paragraph before "Get my quote".
+- **`fact`:** on completion, the result page's amounts, references and validity lines. A line that repeats a value the user supplied is never returned. What was submitted is listed by key (`submitted`).
+- **`question`:** a missing value, asked in the page's words (`verbatim: false`).
+
+A block with `verbatim: true` is shown to the user word for word, never summarised, and never answered on their behalf. Tool descriptions say so.
+
+A completed journey also returns `result: { title, final_url, facts }` and a screenshot.
+
+The session log records each verbatim block the agent returned as a `shown` event: the decision's key, the block's `kind` and the `sha256` of its text, plus `linked: true` for text from a linked page. The text itself is never logged.
 
 ## What the protocol does not do
 
