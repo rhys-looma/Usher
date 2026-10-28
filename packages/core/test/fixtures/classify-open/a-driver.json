@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T16:52:01.405Z",
+  "recorded_at": "2026-10-28T20:55:30.295Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
       "request_sha256": "4b1a8f7883a35c31e1f0cf25ef600ae6677785b830f34dd277b6cc6585b3db14",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Title selection is reversible personal detail with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible and stays within the quote session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Last name entry is reversible and has no effect outside the session.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Date of birth is standard quote data entry, reversible with no commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Email address entry alone does not send or commit to anything.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact detail with no external action.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible location data for quoting.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Address line entry is reversible and has no standalone consequence.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Occupation selection is reversible quote information.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status choice is reversible and has no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history question is factual data entry for the quote, reversible.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of claim is conditional detail entry, reversible with no commitment.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible detail for underwriting.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"Continue is navigation to next step of quote, not a final submission or purchase.\"}]}",
+      "content": "{\"elements\": [{\"id\": \"e1\", \"risk\": \"safe\", \"reason\": \"Selecting a title is reversible personal detail entry with no external effect.\"}, {\"id\": \"e2\", \"risk\": \"safe\", \"reason\": \"Entering first name is reversible data entry within the quote flow.\"}, {\"id\": \"e3\", \"risk\": \"safe\", \"reason\": \"Entering last name is reversible data entry with no outside commitment.\"}, {\"id\": \"e4\", \"risk\": \"safe\", \"reason\": \"Providing date of birth for quoting is reversible and has no external effect on its own.\"}, {\"id\": \"e5\", \"risk\": \"safe\", \"reason\": \"Entering email address to proceed with quote is reversible contact detail entry.\"}, {\"id\": \"e6\", \"risk\": \"safe\", \"reason\": \"Optional phone number entry is reversible and does not commit or send anything.\"}, {\"id\": \"e7\", \"risk\": \"safe\", \"reason\": \"Entering postcode is reversible location detail for quoting purposes.\"}, {\"id\": \"e8\", \"risk\": \"safe\", \"reason\": \"Entering address line is reversible personal data with no external effect.\"}, {\"id\": \"e9\", \"risk\": \"safe\", \"reason\": \"Selecting occupation is a reversible choice to calculate quote.\"}, {\"id\": \"e10\", \"risk\": \"safe\", \"reason\": \"Choosing employment status is reversible option selection.\"}, {\"id\": \"e11\", \"risk\": \"safe\", \"reason\": \"Answering claims history question is reversible factual input.\"}, {\"id\": \"e12\", \"risk\": \"safe\", \"reason\": \"Entering claim date is reversible detail supporting the quote.\"}, {\"id\": \"e13\", \"risk\": \"safe\", \"reason\": \"Selecting claim type is reversible categorization with no commitment.\"}, {\"id\": \"e14\", \"risk\": \"safe\", \"reason\": \"Continue button only moves to next step of quote, no quote requested or commitment made yet.\"}]}",
       "usage": {
         "prompt_tokens": 861,
-        "completion_tokens": 1064,
-        "total_tokens": 1925,
-        "cached_tokens": 256
+        "completion_tokens": 1365,
+        "total_tokens": 2226,
+        "cached_tokens": 768
       },
-      "latency_ms": 3818
+      "latency_ms": 4531
     }
   ]
 }

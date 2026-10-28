@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T16:28:47.603Z",
+  "recorded_at": "2026-10-28T20:49:34.128Z",
   "layout": "a",
   "step": "vehicle",
   "attempts": [
     {
-      "request_sha256": "8b9df433efd41f4f64dc25796076866db59f0c3240ce731e2256217ec6673d88",
-      "content": "{\"form\":{\"purpose\":\"Car insurance quote: your vehicle details\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"vehicle.registration\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"lookup.vehicle\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"vehicle.make\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"vehicle.model\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"vehicle.year\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"vehicle.annual_mileage\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"vehicle.use\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"vehicle.overnight_location\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"vehicle.modifications.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e11\"}",
+      "request_sha256": "f81f72761ed56691bf739bb12ec5f1fd79bc03ef4eb8c5b4c6aa71b0a5cee478",
+      "content": "{\"form\":{\"purpose\":\"Car insurance quote: vehicle details\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"vehicle.registration\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"lookup.vehicle\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"vehicle.make\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"vehicle.model\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"vehicle.year\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"vehicle.annual_mileage\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"vehicle.use\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"vehicle.overnight_location\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"vehicle.modifications.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e11\"}",
       "usage": {
-        "prompt_tokens": 5031,
-        "completion_tokens": 753,
-        "total_tokens": 5784,
-        "cached_tokens": 2688
+        "prompt_tokens": 5378,
+        "completion_tokens": 735,
+        "total_tokens": 6113,
+        "cached_tokens": 2560
       },
-      "latency_ms": 7260
+      "latency_ms": 7059
     }
   ]
 }

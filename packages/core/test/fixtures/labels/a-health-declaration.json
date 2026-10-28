@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T15:58:38.759Z",
+  "recorded_at": "2026-10-28T20:51:17.541Z",
   "layout": "a",
   "step": "health-declaration",
   "attempts": [
     {
-      "request_sha256": "aa13f7299a7f09059248bbf6a124f5128176957f53ecf98c7b6e7841f76144ca",
-      "content": "{\"advance_action_id\": \"e3\", \"elements\": [{\"id\": \"e1\", \"key\": \"consent.declaration\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.health_insurance\", \"purpose\": \"Health insurance quote declaration and consent\"}}",
+      "request_sha256": "13aece92ab6ae043b8b59de0b1f9505b8116d78e34f57dbe107652739a16ae60",
+      "content": "{\"advance_action_id\": \"e3\", \"elements\": [{\"id\": \"e1\", \"key\": \"consent.declaration\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.health_insurance\", \"purpose\": \"Health insurance declaration before quote\"}}",
       "usage": {
-        "prompt_tokens": 3168,
-        "completion_tokens": 799,
-        "total_tokens": 3967,
+        "prompt_tokens": 3521,
+        "completion_tokens": 927,
+        "total_tokens": 4448,
         "cached_tokens": 0
       },
-      "latency_ms": 5479
+      "latency_ms": 4127
     }
   ]
 }

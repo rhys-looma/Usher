@@ -77,6 +77,23 @@ const ALIASES: Record<string, string> = {
   'nav.next': 'continue next proceed forward',
   'nav.back': 'back previous',
   'nav.skip': 'skip later',
+  'cover.purpose': 'cover type family mortgage protection what for',
+  'cover.amount': 'sum assured amount how much money leave pay out',
+  'cover.term': 'term length years how long policy',
+  'cover.inflation_linked': 'inflation protect effects rise',
+  'cover.joint': 'joint policy individual policies policy type',
+  'cover.critical_illness': 'critical illness add',
+  'cover.critical_illness_amount': 'critical illness amount how much',
+  'person.smoker_stopped': 'smoked stopped quit ago past last when',
+  'partner.first_name': 'their first given forename name partner someone else second',
+  'partner.last_name': 'their last surname family name partner someone else second',
+  'partner.dob': 'their birth born dob date partner someone else second',
+  'partner.smoker': 'they their smoke smoked smoking nicotine vaping tobacco partner',
+  'partner.smoker_stopped': 'they their smoked stopped quit ago past last partner',
+  'partner.email': 'their email partner someone else second',
+  'partner.phone': 'their phone telephone partner someone else second',
+  'partner.address.same': 'same address details as above their partner',
+  'partner.address.postcode': 'their postcode partner same address',
   'lookup.address': 'find address lookup look up',
   'lookup.vehicle': 'find car vehicle lookup look up registration',
   'form.save': 'save',
@@ -90,11 +107,11 @@ const ALIASES: Record<string, string> = {
 
 /** Control types that point at particular keys. */
 const CONTROLS: Record<string, string[]> = {
-  email: ['contact.email'],
-  tel: ['contact.phone', 'contact.mobile'],
+  email: ['contact.email', 'partner.email'],
+  tel: ['contact.phone', 'contact.mobile', 'partner.phone'],
   password: ['account.password'],
   search: ['search.query'],
-  date: ['person.dob', 'policy.start_date', 'booking.date', 'search.date_from', 'search.date_to', 'person.claims.date', 'vehicle.purchase_date'],
+  date: ['person.dob', 'partner.dob', 'policy.start_date', 'booking.date', 'search.date_from', 'search.date_to', 'person.claims.date', 'vehicle.purchase_date'],
 };
 
 /** The HTML autocomplete tokens that name a key outright. */

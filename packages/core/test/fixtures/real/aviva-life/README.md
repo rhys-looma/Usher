@@ -9,7 +9,7 @@ Captured on 28 October 2026 from www.direct.aviva.co.uk (life insurance, "Person
 | `01-personal-details.json` | As it loads: 37 elements in one form |
 | `02-family-joint-ci-ex-smoker.json` | Family protection, me and someone else, one joint policy, critical illness, "I have in the past": 63 elements |
 | `03-mortgage-joint-ci-ex-smoker.json` | The same with mortgage protection: 60 elements |
-| `*.labels.json`, `01-personal-details.map.json` | Muse Spark's labels for each (recorded with `scripts/record-real.ts`), and the first page's map |
+| `*.labels.json`, `*.map.json` | Muse Spark's labels for each (recorded with `scripts/record-real.ts`), and the map they give |
 
 `packages/core/test/aviva-life.test.ts` rebuilds the page at its own address (every request answered locally, nothing sent to Aviva), checks it extracts exactly as the real page did, and compiles it from the recording.
 
@@ -29,6 +29,6 @@ Captured on 28 October 2026 from www.direct.aviva.co.uk (life insurance, "Person
 - **Smoking** is one question with three answers ("I've never smoked", "Regularly, occasionally or socially", "I have in the past"), not yes or no. A plain "no" matches none of them, so the person is asked, or the model picks from the labels.
 - **Lookup:** "Find my address" from the postcode (`lookup.address`).
 - **The way forward** is a link, "See your quote", and nothing is marked required in the markup: the site validates on its server.
-- **No vocabulary key yet** for life cover's own questions (the cover type, amounts, term, inflation, critical illness) or for a second person, so they come back as `custom.*`, and not the same ones from one state to the next (the second person's date of birth is one key in one state and three in the other).
-- **One group label is wrong:** the extractor names "Me / Me and someone else" by the nearest heading above it, which once the term question has appeared is "How long do you need cover for?".
+- **Life cover and a second person** have their own keys (added for this page): `cover.purpose`, `cover.amount`, `cover.term`, `cover.inflation_linked`, `cover.joint`, `cover.critical_illness`, `cover.critical_illness_amount`; `partner.first_name` … `partner.address.postcode`; `person.smoker_stopped` and `partner.smoker_stopped`. Where Aviva offers preset amounts and a free £ box for the same amount, the presets take `cover.amount` and the box a custom key: one key, one field.
+- **Two questions are named by a heading inside their own fieldset** (no legend): "Which cover type would you like?" and "Who would you like to cover?". The extractor took the heading before the fieldset, the previous question's, until it was fixed on 28 October; the captures carry the page's own headings (`headingInside`, noted by hand after checking the live page).
 - **Marketing preferences** are hidden behind a "Show" button and left out of the map.

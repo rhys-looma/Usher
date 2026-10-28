@@ -23,6 +23,8 @@ export interface CapturedElement {
   placeholder?: string;
   constraints?: { pattern?: string; max_length?: number };
   options?: { items: OptionItem[] };
+  /** A radio group named by a heading inside its own fieldset (no legend): noted by hand, from the page. */
+  headingInside?: boolean;
 }
 export interface CapturedPage {
   url: string;
@@ -46,8 +48,8 @@ function element(e: CapturedElement, n: number): string {
   const attrs = `${e.domId ? ` id="${esc(e.domId)}"` : ''}${e.name ? ` name="${esc(e.name)}"` : ''}${e.required ? ' required' : ''}${e.autocomplete ? ` autocomplete="${esc(e.autocomplete)}"` : ''}${e.placeholder ? ` placeholder="${esc(e.placeholder)}"` : ''}${e.constraints?.pattern ? ` pattern="${esc(e.constraints.pattern)}"` : ''}${e.constraints?.max_length ? ` maxlength="${e.constraints.max_length}"` : ''}`;
   if (e.control === 'radio') {
     // A heading or a legend names the group, as on the page.
-    const head = e.labelSource === 'legend' ? `<legend>${esc(e.label)}</legend>` : '';
-    const before = e.labelSource === 'heading' ? `<h3>${esc(e.label)}</h3>` : '';
+    const head = e.labelSource === 'legend' ? `<legend>${esc(e.label)}</legend>` : e.headingInside ? `<h3>${esc(e.label)}</h3>` : '';
+    const before = e.labelSource === 'heading' && !e.headingInside ? `<h3>${esc(e.label)}</h3>` : '';
     return `${before}<fieldset${e.role === 'group' && e.labelSource !== 'legend' ? ' role="group"' : ''}${hide}>${head}${e.options!.items.map((o, i) => `<input type="radio" id="${esc(e.name!)}-${i}" name="${esc(e.name!)}" value="${esc(o.value)}"><label for="${esc(e.name!)}-${i}">${esc(o.label)}</label>`).join('')}</fieldset>`;
   }
   const tag = e.control === 'select' ? 'select' : 'input';
