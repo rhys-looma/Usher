@@ -128,6 +128,13 @@
       "sensitive": false
     },
     {
+      "key": "person.smoker",
+      "meaning": "Smoked or used nicotine in a recent period",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": false
+    },
+    {
       "key": "contact.email",
       "meaning": "Email address",
       "kind": "field",
@@ -322,6 +329,69 @@
       "kind": "field",
       "default_risk": "safe",
       "sensitive": false
+    },
+    {
+      "key": "cover.who",
+      "meaning": "Who the health cover is for: just me, a partner, a family",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.level",
+      "meaning": "Level of health cover: core, standard, comprehensive…",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.excess",
+      "meaning": "Excess on a health policy",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.hospital_list",
+      "meaning": "Which hospitals the cover includes",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "cover.outpatient_limit",
+      "meaning": "Limit on outpatient cover",
+      "kind": "field",
+      "default_risk": "safe",
+      "sensitive": false
+    },
+    {
+      "key": "health.condition",
+      "meaning": "A medical condition, past or present",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "health.medication",
+      "meaning": "Medication taken",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "health.history",
+      "meaning": "Medical history: treatment, symptoms, consultations",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
+    },
+    {
+      "key": "health.gp_details",
+      "meaning": "The person's GP or doctor",
+      "kind": "field",
+      "default_risk": "needs_user",
+      "sensitive": true
     },
     {
       "key": "search.query",

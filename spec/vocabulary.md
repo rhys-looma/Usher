@@ -13,7 +13,7 @@ Values by key are written one way everywhere, whatever the site shows; the agent
 
 ## Defaults
 
-Each key has a default risk and sensitivity. A map may make a field **stricter** than its default (for example, a `safe` key marked `consequential` on one site) but never looser. Keys marked sensitive are always `needs_user` and never appear in a plan's filled values.
+Each key has a default risk and sensitivity. A map may make a field **stricter** than its default (for example, a `safe` key marked `consequential` on one site) but never looser. Keys marked sensitive are always `needs_user` and never appear in a plan's filled values. A `needs_user` key that isn't sensitive (`person.smoker`) is filled only from what the person said, and put back to them to confirm before anything is submitted.
 
 ## Person
 
@@ -37,6 +37,7 @@ Each key has a default risk and sensitivity. A map may make a field **stricter**
 | `person.claims.date` | Date of a claim | safe |
 | `person.claims.type` | Type of a claim | safe |
 | `person.convictions.has_any` | Any motoring convictions in a period | safe |
+| `person.smoker` | Smoked or used nicotine in a recent period | needs_user |
 
 ## Contact and address
 
@@ -78,6 +79,29 @@ Each key has a default risk and sensitivity. A map may make a field **stricter**
 | `policy.no_claims_years` | Years of no-claims discount | safe |
 | `policy.payment_frequency` | Monthly or annual | safe |
 | `policy.additional_drivers.has_any` | Any additional drivers | safe |
+
+## Health cover
+
+A health insurance quote asks who is covered and how much cover, then the cover's start date and how to pay (`policy.start_date`, `policy.payment_frequency`).
+
+| Key | Meaning | Default risk |
+| --- | --- | --- |
+| `cover.who` | Who the health cover is for: just me, a partner, a family | safe |
+| `cover.level` | Level of health cover: core, standard, comprehensive… | safe |
+| `cover.excess` | Excess on a health policy | safe |
+| `cover.hospital_list` | Which hospitals the cover includes | safe |
+| `cover.outpatient_limit` | Limit on outpatient cover | safe |
+
+## Health
+
+Medical questions: conditions, medication, history, a GP's details. They exist so a map can say what a field is and an agent knows to leave it alone: an agent never fills them, and they never appear in a plan's values, a map or a log. The person answers them, on the site, usually after the quote when the insurer underwrites.
+
+| Key | Meaning | Default risk |
+| --- | --- | --- |
+| `health.condition` | A medical condition, past or present | needs_user, sensitive |
+| `health.medication` | Medication taken | needs_user, sensitive |
+| `health.history` | Medical history: treatment, symptoms, consultations | needs_user, sensitive |
+| `health.gp_details` | The person's GP or doctor | needs_user, sensitive |
 
 ## Search and booking
 
