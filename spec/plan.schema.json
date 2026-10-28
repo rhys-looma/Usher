@@ -73,6 +73,16 @@
         "properties": { "path": { "type": "string" }, "key": { "$ref": "#/$defs/key" }, "label": { "type": "string" }, "risk": { "$ref": "#/$defs/risk" } }
       }
     },
+    "lookups": {
+      "type": "array",
+      "description": "Lookup actions on the way (lookup.vehicle, lookup.address): an agent runs them before filling the fields they fill.",
+      "items": {
+        "type": "object",
+        "required": ["path", "key", "label"],
+        "additionalProperties": false,
+        "properties": { "path": { "type": "string" }, "key": { "$ref": "#/$defs/key" }, "label": { "type": "string" } }
+      }
+    },
     "complete": { "type": "boolean" },
     "stops_at": { "type": ["string", "null"] }
   },
