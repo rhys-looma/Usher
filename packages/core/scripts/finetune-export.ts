@@ -8,6 +8,11 @@
 //
 // --since keeps only labels logged from then on, so a set can be rebuilt from one prompt's labels
 // without older runs outvoting them.
+//
+// Owners' corrections from a walkthrough (task: correction, owner_verified) are examples too, and
+// they win: an element an owner corrected takes the owner's answer over any number of model runs.
+// In production they are kept in the registry's corrections table; --corrections reads an export
+// of it (one JSON record per line).
 
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -23,6 +28,7 @@ const { values } = parseArgs({
     models: { type: 'string', default: 'muse-spark-1.3' },
     'eval-share': { type: 'string', default: '0.2' },
     since: { type: 'string' },
+    corrections: { type: 'string' },
   },
 });
 const models = new Set(values.models.split(','));
@@ -62,11 +68,42 @@ if (!files.length) {
   process.exit(1);
 }
 const examples: Example[] = [];
+const ownerVerified = new Set<Example>();
 let records = 0;
 let skipped = 0;
+let corrections = 0;
+
+interface Correction {
+  task: 'correction';
+  owner_verified: true;
+  url: string;
+  path: string;
+  page_title?: string;
+  form_purpose?: string;
+  element: { kind: string; control: string | null; label: string; required: boolean; options: string | null; constraints: Record<string, unknown> | null; neighbours: { before: string[]; after: string[] } };
+  owner: { key: string; risk: string };
+}
+function addCorrection(c: Correction) {
+  if (!c.element?.neighbours) return;
+  corrections++;
+  const url = new URL(c.url);
+  const e = c.element;
+  const input: ElementInput = withCandidates({ label: e.label, kind: e.kind, control: e.control, required: e.required, options: e.options, constraints: e.constraints, form_purpose: c.form_purpose ?? '', page_title: c.page_title ?? '', neighbours: e.neighbours });
+  const { form_purpose: _p, page_title: _t, candidates: _c, ...structure } = input;
+  const ex: Example = { id: sha(JSON.stringify(structure)).slice(0, 16), input, output: { key: c.owner.key, risk: c.owner.risk }, meta: { source: sourceOf(url), path: c.path, form: `${sourceOf(url)}${c.path}`, model: 'owner' } };
+  examples.push(ex);
+  ownerVerified.add(ex);
+}
+if (values.corrections) for (const line of (await readFile(values.corrections, 'utf8')).split('\n').filter(Boolean)) addCorrection(JSON.parse(line) as Correction);
+
 for (const file of files) {
   for (const line of (await readFile(join(values.log, file), 'utf8')).split('\n').filter(Boolean)) {
-    const r = JSON.parse(line) as {
+    const raw = JSON.parse(line) as { task?: string; owner_verified?: boolean };
+    if (raw.task === 'correction' && raw.owner_verified) {
+      addCorrection(raw as Correction);
+      continue;
+    }
+    const r = raw as {
       ts: string;
       task?: string;
       model: string;
@@ -121,6 +158,13 @@ for (const ex of examples) byInput.set(ex.id, [...(byInput.get(ex.id) ?? []), ex
 let conflicts = 0;
 const unique: Example[] = [];
 for (const group of byInput.values()) {
+  // An owner's answer wins outright; the latest correction if there were several.
+  const owner = group.filter((ex) => ownerVerified.has(ex)).at(-1);
+  if (owner) {
+    if (group.some((ex) => JSON.stringify(ex.output) !== JSON.stringify(owner.output))) conflicts++;
+    unique.push(owner);
+    continue;
+  }
   const votes = new Map<string, number>();
   for (const ex of group) votes.set(JSON.stringify(ex.output), (votes.get(JSON.stringify(ex.output)) ?? 0) + 1);
   if (votes.size > 1) conflicts++;
@@ -160,6 +204,8 @@ const stats = {
   examples_before_dedup: examples.length,
   unique: unique.length,
   conflicting_inputs: conflicts,
+  owner_corrections: corrections,
+  owner_verified: { total: unique.filter((ex) => ownerVerified.has(ex)).length, train: train.filter((ex) => ownerVerified.has(ex)).length, eval: evals.filter((ex) => ownerVerified.has(ex)).length },
   train: train.length,
   eval: evals.length,
   forms: { train: [...new Set(train.map((ex) => ex.meta.form))].length, eval: [...new Set(evals.map((ex) => ex.meta.form))].length },

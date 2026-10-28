@@ -19,6 +19,8 @@ import { RateLimiter } from '../rate-limit.ts';
 import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
+import type { TestValues, Walkthroughs } from '../walkthrough.ts';
+import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, walkthroughPage } from './walkthrough.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
@@ -38,6 +40,42 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   status?: Omit<StatusSources, 'started'>;
   /** Hosted MCP is served at /mcp: the front page offers it to assistants. */
   hostedMcp?: boolean;
+  /** The walkthrough mapper ("Map my site"), when this registry has a model and a browser for it. */
+  walkthroughs?: Walkthroughs;
+}
+
+/** "key: value" lines from the start form, held in memory for one run only. */
+function testValues(text: string): TestValues {
+  const out: TestValues = {};
+  for (const line of text.split('\n')) {
+    const m = /^\s*([a-z][a-z0-9_.]*)\s*[:=]\s*(.*?)\s*$/.exec(line);
+    if (m && m[2] !== '') out[m[1]!] = m[2] === 'true' ? true : m[2] === 'false' ? false : m[2]!;
+  }
+  return out;
+}
+
+/** Server-sent events for a run: its log so far, then each line, frame and the end. */
+function streamRun(req: IncomingMessage, res: ServerResponse, walkthroughs: Walkthroughs, origin: string, id: string): void {
+  res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+  const send = (event: string, data: string) => res.write(`event: ${event}\ndata: ${data.replace(/\n/g, ' ')}\n\n`);
+  const unsubscribe = walkthroughs.subscribe(origin, id, (e) => {
+    if (e.type === 'frame') send('frame', e.data);
+    else if (e.type === 'log') send('log', e.text);
+    else {
+      send('done', JSON.stringify({ status: e.status }));
+      res.end();
+    }
+  });
+  if (!unsubscribe) {
+    send('done', '{}');
+    res.end();
+    return;
+  }
+  const alive = setInterval(() => res.write(': still here\n\n'), 15_000);
+  req.on('close', () => {
+    clearInterval(alive);
+    unsubscribe();
+  });
 }
 
 const SPEC_DIR = new URL('../../../../spec/', import.meta.url);
@@ -162,6 +200,10 @@ export class Web {
     // Usher's own claim to its origin, like any site's.
     if (route === 'GET /privacy') return sendHtml(res, 200, privacyPage({ url: this.registry.url, ...(this.options.contact && { contact: this.options.contact }) })), true;
     if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
+    if (route === 'GET /walkthrough.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(WALKTHROUGH_JS), true;
+    }
     if (route === 'GET /site.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(SITE_JS), true;
@@ -247,6 +289,25 @@ export class Web {
 <tbody>${list.map((i) => html`<tr><td>${when(i.ts)}</td><td>${i.site}</td><td>${i.email}</td><td>${i.note}</td><td>${i.via === 'agent' ? 'an agent' : 'a person'}</td></tr>`)}</tbody></table></div>`,
           ),
         ), true;
+      }
+      // Owners' corrections, for npm run finetune:export -- --corrections <file>: structure only.
+      if (route === 'GET /admin/corrections.jsonl') {
+        const rows = await this.registry.storage.readLog('corrections');
+        res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(rows.map((r) => `${JSON.stringify(r)}\n`).join('')), true;
+      }
+      const walk = this.options.walkthroughs;
+      const demoOrigin = this.registry.publicDemo?.origin;
+      // The operator may walk the public demo site, and only it: every other site is its owner's.
+      if (walk && demoOrigin && route === 'POST /admin/walkthrough') {
+        const form = await readForm(req);
+        const started = await walk.start({ origin: demoOrigin, start: `${demoOrigin}${(form.get('path') ?? '/').startsWith('/') ? (form.get('path') ?? '/') : '/'}`, generated: true, pressFinal: form.get('final') === '1', by: 'operator' });
+        if ('refused' in started) return sendHtml(res, 422, page('Walkthrough', html`<h1>Walkthrough</h1><div class="card error">${started.refused}</div>`)), true;
+        return redirect(res, '/demo/walkthrough'), true;
+      }
+      if (walk && demoOrigin && route === 'POST /admin/walkthrough/publish') {
+        const n = await walk.publish(demoOrigin);
+        return sendHtml(res, 200, page('Walkthrough', html`<h1>Published</h1><p>${String(n)} map${n === 1 ? '' : 's'} for ${demoOrigin}.</p>`)), true;
       }
       return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
     }
@@ -382,7 +443,17 @@ export class Web {
       if (!result.ok && form.get('from') === 'home') return sendHtml(res, status, await this.landing({ viewer: { url: target, error: result.message } }), { siteScript: true }), true;
       if (!result.ok) return sendHtml(res, status, viewerPage({ forms, open, url: target, error: result, ...(owner && { owner }) })), true;
       const source = `${result.cached ? 'from cache' : `compiled by ${result.model}`} in ${(result.ms / 1000).toFixed(1)}s${result.cost_usd ? `, $${result.cost_usd.toFixed(4)}` : ''}`;
-      return sendHtml(res, 200, mapPage(result.map, { source, ...(result.flags && { flags: result.flags }) })), true;
+      return sendHtml(res, 200, mapPage(result.map, { source, ...(result.flags && { flags: result.flags }), ...(id && { annotated: `/viewer/annotated?form=${encodeURIComponent(id)}` }) })), true;
+    }
+    if (route === 'GET /viewer/annotated') {
+      const id = url.searchParams.get('form') ?? '';
+      const drawn = await this.viewer.annotate(id);
+      if (!drawn) return sendHtml(res, 404, page('Map viewer', html`<h1>Not drawn yet</h1><p>Pick the form in the <a href="/viewer">map viewer</a> first; its map is drawn from there.</p>`)), true;
+      const body = html`<p class="muted small"><a href="/viewer">Map viewer</a> · ${drawn.url}</p>
+<h1>How Usher reads this form</h1>
+<p class="lede">${drawn.map.form.purpose}. Each box is one element Usher mapped: green is safe for an assistant to fill, amber is consequential (the person confirms), red is the person's own to answer. Anything that could show an answer is greyed out.</p>
+${annotated(drawn, { anchor: 'v' })}`;
+      return sendHtml(res, 200, page('How Usher reads this form', body, { scripts: ['/walkthrough.js'], style: ANNOTATE_STYLE }), { siteScript: true }), true;
     }
     if (route === 'GET /maps/view') {
       const origin = url.searchParams.get('origin') ?? '';
@@ -395,6 +466,13 @@ export class Web {
     }
 
     if (url.pathname === '/demo/dashboard' || url.pathname.startsWith('/demo/dashboard/')) return this.demoBoard(req, res, url, route);
+    // The demo site's last walkthrough, live or finished, read-only, for anyone.
+    if ((route === 'GET /demo/walkthrough' || route === 'GET /demo/walkthrough/events') && this.registry.publicDemo && this.options.walkthroughs) {
+      const demo = this.registry.publicDemo.origin;
+      const run = await this.options.walkthroughs.get(demo);
+      if (route === 'GET /demo/walkthrough/events') return streamRun(req, res, this.options.walkthroughs, demo, url.searchParams.get('id') ?? ''), true;
+      return sendHtml(res, 200, walkthroughPage(run, { editable: false, ...(run && { events: `/demo/walkthrough/events?id=${run.id}` }), title: 'Watch Usher map a site' }), { siteScript: true }), true;
+    }
     if (url.pathname.startsWith('/sites/')) return this.signup(req, res, url, route);
     if (!url.pathname.startsWith('/dashboard')) return false;
     const board = await this.board();
@@ -416,7 +494,34 @@ export class Web {
     }
     // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else.
     if (!site.claim) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
-    if (route === 'GET /dashboard') return sendHtml(res, 200, await board.overview(origin, url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : undefined)), true;
+    const walk = this.options.walkthroughs;
+    if (route === 'GET /dashboard') {
+      const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
+      const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
+      return sendHtml(res, 200, await board.overview(origin, html`${welcome}${card}`)), true;
+    }
+    if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {
+      if (route === 'GET /dashboard/walkthrough/new') return sendHtml(res, 200, startForm(origin)), true;
+      if (route === 'POST /dashboard/walkthrough') {
+        const form = await readForm(req);
+        const started = await walk.start({ origin, start: (form.get('start') ?? '').trim(), values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner' });
+        if ('refused' in started) return sendHtml(res, 422, startForm(origin, started.refused)), true;
+        return redirect(res, '/dashboard/walkthrough'), true;
+      }
+      if (route === 'GET /dashboard/walkthrough') {
+        const run = await walk.get(origin);
+        return sendHtml(res, 200, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish' }), { siteScript: true }), true;
+      }
+      if (route === 'GET /dashboard/walkthrough/events') return streamRun(req, res, walk, origin, url.searchParams.get('id') ?? ''), true;
+      if (route === 'POST /dashboard/walkthrough/cancel') return walk.cancel(origin, (await readForm(req)).get('id') ?? ''), redirect(res, '/dashboard/walkthrough'), true;
+      if (route === 'POST /dashboard/walkthrough/publish') return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;
+      if (route === 'POST /dashboard/walkthrough/correct') {
+        const form = await readForm(req);
+        const failure = await walk.correct(origin, form.get('path') ?? '', form.get('id') ?? '', { ...(form.get('key') && { key: form.get('key')!.trim() }), ...(form.get('risk') && { risk: form.get('risk')! }), ...(form.get('label') && { label: form.get('label')!.trim() }) });
+        if (failure) return sendHtml(res, 422, page('Map my site', html`<h1>That correction wasn't saved</h1><div class="card error">${failure}</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
+        return redirect(res, `/dashboard/walkthrough#${encodeURIComponent(form.get('id') ?? '')}`), true;
+      }
+    }
     if (route === 'POST /dashboard/rules') {
       const text = (await readForm(req)).get('text') ?? '';
       const reply = await this.registry.proposeRulesFor(origin, text);

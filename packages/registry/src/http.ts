@@ -12,6 +12,7 @@ import type { ChatFn, PrivateJwk, PublicJwk } from '@usher/core';
 import { Registry, type Reply } from './registry.ts';
 import { Web, type WebOptions } from './web/routes.ts';
 import { Keeper, type KeeperOptions } from './keeper.ts';
+import type { Walkthroughs } from './walkthrough.ts';
 import type { Storage } from './storage.ts';
 
 const MAX_BODY = 256_000;
@@ -267,6 +268,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web' | 'mcp'> {
   now?: () => Date;
   /** Hosted MCP at /mcp, made once the registry exists. */
   mcp?: (registry: Registry) => McpEndpoint;
+  /** The walkthrough mapper, made once the registry exists. */
+  walkthroughs?: (registry: Registry) => Walkthroughs;
   port?: number;
   host?: string;
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
@@ -317,7 +320,8 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
     ...(options.publicDemo && { publicDemo: options.publicDemo }),
   });
   const mcp = options.mcp?.(registry);
-  const web = options.web ? new Web(registry, { ...options.web, ...(mcp && { hostedMcp: true }), ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const walkthroughs = options.web && options.walkthroughs?.(registry);
+  const web = options.web ? new Web(registry, { ...options.web, ...(mcp && { hostedMcp: true }), ...(walkthroughs && { walkthroughs }), ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
     registryHandler(registry, {
       ...(options.siteScript && { siteScript: options.siteScript }),

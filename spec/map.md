@@ -81,6 +81,7 @@ Lookups match on `digest` first, then on signature similarity (a Jaccard score o
 | `part` | no | `day`, `month` or `year`: one part of a date split across fields (see below) |
 | `shown_if` | no | A condition; the field is only present when it holds |
 | `locators` | yes | At least one locator, in priority order |
+| `box` | no | Where the element sat on the page when it was mapped (below) |
 
 ### Actions
 
@@ -93,6 +94,11 @@ Lookups match on `digest` first, then on signature similarity (a Jaccard score o
 | `risk` | yes | `safe`, `consequential` or `needs_user` |
 | `locators` | yes | At least one locator |
 | `leads_to` | no | Path of the map this action moves to, once known (an **edge**) |
+| `box` | no | Where the element sat on the page when it was mapped (below) |
+
+### Box
+
+`box` is `{ "x", "y", "width", "height" }` in CSS pixels from the top left of the whole page (not the viewport), at the 1280-wide viewport Usher maps with. It is position and size only, never content. A walkthrough ([docs/walkthrough.md](../docs/walkthrough.md)) records it to draw the annotated screenshot an owner reviews; the maps agents are served leave it out. Agents locate elements by `locators`, never by box.
 
 ### Risk
 

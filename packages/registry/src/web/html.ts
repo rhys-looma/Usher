@@ -151,7 +151,7 @@ ol.timeline .src { color:var(--muted); }
 details summary { cursor:pointer; color:var(--accent); }
 `;
 
-export function page(title: string, body: Raw, options: { nav?: Raw } = {}): string {
+export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: string[]; style?: string } = {}): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -159,7 +159,8 @@ export function page(title: string, body: Raw, options: { nav?: Raw } = {}): str
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} · Usher</title>
 <link rel="icon" href="${FAVICON}">
-<style>${STYLE}</style>
+<style>${STYLE}${options.style ?? ''}</style>
+${(options.scripts ?? []).map((src) => `<script src="${esc(src)}" defer></script>`).join('\n')}
 </head>
 <body>
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>

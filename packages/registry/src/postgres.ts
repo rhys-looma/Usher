@@ -7,7 +7,7 @@ import type { PublicJwk } from '@usher/core';
 import type { LogName, MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, SiteClaim, Storage, StoredKey } from './storage.ts';
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url);
-const LOG_TABLES: Record<LogName, string> = { matches: 'match_log', runs: 'run_reports', drift: 'drift_reports', blocked: 'blocked_attempts', interest: 'interest' };
+const LOG_TABLES: Record<LogName, string> = { matches: 'match_log', runs: 'run_reports', drift: 'drift_reports', blocked: 'blocked_attempts', interest: 'interest', corrections: 'corrections' };
 
 const iso = (d: Date | string | null | undefined) => (d instanceof Date ? d.toISOString() : (d ?? undefined));
 

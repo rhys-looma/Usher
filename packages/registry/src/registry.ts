@@ -515,6 +515,11 @@ export class Registry {
     return { status: 'needs_details', message: scored.length ? `More than one journey on ${found.name} fits "${task}": say which.` : `Nothing on ${found.name} matches "${task}". It offers: ${found.journeys.map((j) => j.label).join(', ')}.`, choices: (scored.length ? scored.map((x) => x.j) : found.journeys).map(choice) };
   }
 
+  /** The public demo site's origin, when this registry has one. */
+  get demoOrigin(): string | undefined {
+    return this.options.publicDemo?.origin;
+  }
+
   /** Sites a hosted connection may act on: those that have proved their origin, and the demo site. */
   async joined(origin: string): Promise<boolean> {
     return origin === this.options.publicDemo?.origin || Boolean((await this.storage.getSite(origin))?.claim);
@@ -522,18 +527,21 @@ export class Registry {
 
   /**
    * A knock. `as.hosted`: the hosted MCP endpoint knocking in-process for one of its connections,
-   * signed with the key it minted for that connection. Never reachable over HTTP.
+   * signed with the key it minted for that connection. `as.walkthrough`: the walkthrough mapper
+   * knocking for a site's owner, recorded as the agent "walkthrough:<host>". Never reachable over HTTP.
    */
-  async knock(request: unknown, via?: HttpSignatureCheck | null, as?: { hosted: true }): Promise<Reply> {
+  async knock(request: unknown, via?: HttpSignatureCheck | null, as?: { hosted: true } | { walkthrough: string }): Promise<Reply> {
+    const hosted = Boolean(as && 'hosted' in as);
+    const walkthrough = as && 'walkthrough' in as ? as.walkthrough : null;
     const invalid = knockSchemaErrors('knockRequest', request);
     if (invalid) return error(400, 'invalid_request', invalid);
     const knock = request as { url: string; intent?: string; fingerprint?: Fingerprint; session?: string; confirmed?: string[] };
-    const checked = await this.agentOf(request, via, !as?.hosted);
+    const checked = await this.agentOf(request, via, !as);
     if (!checked.ok) return error(checked.status, checked.error, checked.message);
-    const check = as?.hosted ? { ...checked, identity: { method: 'hosted' as const } } : checked;
+    const check = hosted ? { ...checked, identity: { method: 'hosted' as const } } : walkthrough ? { ...checked, agentId: `walkthrough:${walkthrough}`, identity: { method: 'walkthrough' as const } } : checked;
 
     const page = new URL(knock.url);
-    if (as?.hosted && !(await this.joined(page.origin))) return error(403, 'not_joined', notJoinedMessage(page.origin));
+    if (as && !(await this.joined(page.origin))) return error(403, 'not_joined', notJoinedMessage(page.origin));
     const match = await this.lookup(page.origin, page.pathname, knock.fingerprint, 'knock', check.agentId, knock.intent);
     const map = match.record?.map ?? null;
     const intent = knock.intent ?? map?.form.intent;
@@ -542,12 +550,12 @@ export class Registry {
     const effective = effectiveRules(policy, map, page.pathname);
     if (this.options.publicDemo?.origin === page.origin) effective.rate_limits = [...effective.rate_limits, DEMO_SUBMIT_LIMIT];
     const refuse = async (status: number, code: string, message: string, action?: string) => {
-      await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }), ...(as?.hosted && { hosted: true as const }) });
+      await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }), ...(hosted && { hosted: true as const }) });
       return error(status, code, message);
     };
     if (!effective.agent_lane) return refuse(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
-    const standing = agentStanding(policy, check.agentId, Boolean(as?.hosted));
-    if (standing !== 'allowed') return refuse(403, 'agent_blocked', as?.hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
+    const standing = agentStanding(policy, check.agentId, hosted);
+    if (standing !== 'allowed') return refuse(403, 'agent_blocked', hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
     const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
     if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
@@ -589,7 +597,7 @@ export class Registry {
       confirm: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'confirm'),
       forbid: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'forbid'),
       ...(confirmed.length && { confirmed }),
-      ...(as?.hosted && { act: { sub: 'hosted' as const } }),
+      ...(hosted && { act: { sub: 'hosted' as const } }),
       cnf: { jwk: check.jwk },
     };
     return ok({
@@ -1055,7 +1063,7 @@ export class Registry {
   }
 
   /** The newest map for each path on an origin. */
-  private async currentMaps(origin: string): Promise<Map<string, UsherMap>> {
+  async currentMaps(origin: string): Promise<Map<string, UsherMap>> {
     const latest = new Map<string, MapRecord>();
     for (const r of await this.mapsFor(origin)) {
       const seen = latest.get(r.map.path);
