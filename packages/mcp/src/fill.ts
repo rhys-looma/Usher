@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, modelApi, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
@@ -357,7 +357,18 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       values = { ...mapped.values, ...values };
     }
     if (plan) {
-      const checked = preflight(plan.inputs.filter((i) => i.risk !== 'needs_user'), values);
+      const inputs = plan.inputs.filter((i) => i.risk !== 'needs_user');
+      let checked = preflight(inputs, values);
+      // An answer no rule matches to an option: Muse Spark chooses among the labels, or none.
+      if (options.fallback && checked.problems.some((p) => p.problem === 'not_an_option')) {
+        for (const p of checked.problems.filter((x) => x.problem === 'not_an_option')) {
+          const input = inputs.find((i) => i.key === p.key);
+          const picked = input?.options ? await pickOption(options.fallback.chat, options.fallback.model, input, input.options.items, String(values[p.key])).catch(() => null) : null;
+          if (picked !== null) values = { ...values, [p.key]: picked };
+        }
+        checked = preflight(inputs, values);
+      }
+      values = { ...values, ...checked.normalised };
       const wrong = checked.problems.filter((p) => p.problem !== 'missing');
       if (wrong.length) {
         await base.close?.();
