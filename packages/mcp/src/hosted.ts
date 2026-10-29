@@ -177,7 +177,9 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       lookup: (url, fingerprint) => tools.lookup(new URL(url).origin, new URL(url).pathname, fingerprint),
       getPlan: (url) => tools.getPlan(url).catch(() => null),
       resolve: (site, task) => registry.resolveTask(site, task),
-      submitMap: async () => ({ digest: '', stored: false }),
+      // Maps it builds on a site the admin listed are kept as the registry's own, so the next fill
+      // there is fast; elsewhere (joined sites map through their owners) nothing is kept.
+      submitMap: async (map) => ((await registry.keepListedMap(map)) ? { digest: map.fingerprint.digest, stored: true } : { digest: '', stored: false }),
       reportRun: tools.reportRun,
       logEvents: async (eventsUrl, token, events) => {
         const sid = /\/sessions\/(s_[A-Za-z0-9_-]+)\/events$/.exec(new URL(eventsUrl).pathname)?.[1];
@@ -187,6 +189,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     });
     const fill = registerFillTools(server, {
       transport,
+      shareMaps: true,
       browser: options.browser,
       perHour: limits.fillsPerConnectionHour,
       toolMeta: CARD_META,

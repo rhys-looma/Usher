@@ -113,6 +113,11 @@ export interface AgentOptions {
   signatureAgent?: string;
   /** Ignore the site's knock notice (an agent that skips Usher), but still look maps up. */
   knock?: boolean;
+  /**
+   * Offer the registry the maps it builds on pages with no knock too (hosted Usher, on sites the
+   * admin listed); the transport decides whether to keep them. Without it, only after a knock.
+   */
+  shareMaps?: boolean;
   /** Every request the browser makes (redirects, scripts, frames) must reach a host this allows. */
   allowHost?: (host: string) => Promise<boolean>;
   /** Extra headers on every request the browser makes, e.g. Usher-Agent. */
@@ -515,7 +520,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         // The token names the intent this agent knocked with; the model's own name for the form
         // varies between runs (quote.car_insurance, quote.motor_insurance), and the page only
         // accepts a token whose intent matches the map.
-        if (knock && options.intent) map = { ...map, form: { ...map.form, intent: options.intent } };
+        const sharing = Boolean(knock) || options.shareMaps === true;
+        if (sharing && options.intent) map = { ...map, form: { ...map.form, intent: options.intent } };
         usage = { prompt_tokens: usage.prompt_tokens + compiled.usage.prompt_tokens, completion_tokens: usage.completion_tokens + compiled.usage.completion_tokens, total_tokens: usage.total_tokens + compiled.usage.total_tokens, cached_tokens: usage.cached_tokens + compiled.usage.cached_tokens };
         cost += compiled.cost_usd ?? costUsd(options.fallback.model, compiled.usage) ?? 0;
         source = 'compiled';
@@ -523,7 +529,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         // Share it before acting, so the site script can log this run by semantic key and the
         // next agent gets the fast path.
         // A registry may not accept maps (403 maps_closed); the run goes on with this one.
-        if (knock && (await options.registry.submitMap(map).catch(() => ({ stored: false }))).stored) submitted++;
+        if (sharing && (await options.registry.submitMap(map).catch(() => ({ stored: false }))).stored) submitted++;
       }
 
       if (knock) {
@@ -698,7 +704,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       const fillMs = ms(t);
       pages.push({ path, match: knock?.match.kind ?? (found ? 'exact' : 'none'), map_source: source, knock_ms: knockMs, model_ms: modelMs, fill_ms: fillMs, filled, handed_off: handedOff });
 
-      if (source === 'compiled' && knock) {
+      if (source === 'compiled' && (knock || options.shareMaps)) {
         // We now know where the way forward leads: record that edge on the map we shared.
         const leadsTo = new URL(page.url()).pathname;
         await options.registry.submitMap({ ...map, actions: map.actions.map((a) => (a.id === advance.id ? { ...a, leads_to: leadsTo } : a)) }).catch(() => undefined);

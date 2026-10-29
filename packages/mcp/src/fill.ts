@@ -127,6 +127,8 @@ export interface FillOptions {
   keyFile?: string;
   /** How each fill reaches the registry (hosted connections: in-process, with the connection's key). */
   transport?: () => Promise<RegistryTransport>;
+  /** Offer the maps fills build to the transport on every page, not only after a knock (hosted Usher). */
+  shareMaps?: boolean;
   /** Checked before a fill starts: a refusal to return instead, or null to go ahead. */
   admit?: (url: string) => Promise<{ refused: string } | { release: () => void }>;
   /** For pages with no map: Muse Spark (MODEL_API_KEY), within the daily cap. */
@@ -533,6 +535,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           profile,
           registry: transport,
           user,
+          ...(options.shareMaps && { shareMaps: true }),
           ...(options.fallback && { fallback: options.fallback }),
           ...(options.allowHost && { allowHost: options.allowHost }),
           onPage: (page) => void (job.page = page),
