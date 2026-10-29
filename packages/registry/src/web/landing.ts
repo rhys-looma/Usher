@@ -156,10 +156,10 @@ export interface LandingOptions {
 /** The six steps under the hood, told to the site that runs the form, and what Usher sees at each. */
 const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
   { title: 'Knock', what: 'Your customer\'s agent says who it is before it touches your form, and your site opens for that one session.', sees: 'the agent, your site, what it came to do, when its pass expires.' },
-  { title: 'Map, not values', what: 'Usher gives the agent your form\'s structure and your rules, so it fills by meaning, not by guessing.', sees: 'field names and types. Never what anyone types.' },
-  { title: 'The fields you\'re happy to hand over', what: 'Name, date of birth, postcode, cover level: the ones you let agents fill are done in seconds.', sees: 'which fields were filled. Not the values.' },
+  { title: 'The plan and your rules', what: 'Usher hands the agent your form\'s plan: every field by meaning, in order, with where to find it, and your rules, so it fills by meaning, not by guessing.', sees: 'field names and types. Never what anyone types.' },
+  { title: 'The agent fills the safe fields from the plan', what: 'Name, date of birth, postcode, cover level: the fields you let agents fill, typed in the agent\'s own browser from the plan, in seconds.', sees: 'which fields were filled. Not the values.' },
   { title: 'The questions you keep for people', what: 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', note: 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', sees: 'that each was shown, and your customer\'s yes or no.' },
-  { title: 'Nothing without a pass', what: 'Your server checks the agent\'s token before it quotes. No token, no quote.', sees: 'that a quote was asked for, with a valid token.' },
+  { title: 'The agent submits with the token', what: 'Your server checks the agent\'s token before it quotes. No token, no quote.', sees: 'that a quote was asked for, with a valid token.' },
   { title: 'On your record', what: 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', sees: 'the session. Never the answers.' },
 ];
 
@@ -274,24 +274,24 @@ ${pickerButtons(o.forms, 'home')}
 ${siteClaims()}
 <p><a class="button" href="/sites/new">Get your keys</a></p>
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
-<div class="card" id="agents"><p class="label">For agents</p><h2>One call fills the form.</h2>
+<div class="card" id="agents"><p class="label">For agents</p><h2>Usher gives you the plan and the rules; you drive.</h2>
 <p class="lede">No signup. Your agent's key is its identity.</p>
 ${o.hosted
   ? html`<pre class="wrap">${o.url}/mcp</pre>
-<p>Hosted Usher acts on sites that have joined.</p>
+<p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>
 <p class="small muted">For example, Brightwater Insurance's health quote:</p>
-<pre class="wrap">usher_fill({ site: "Brightwater", task: "health insurance quote",
-  details: "I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess." })</pre>
+<pre class="wrap">get_plan({ url: "https://brightwater.usher.run/health/about" })
+prepare_run({ url, values: { "person.first_name": "Sam", … }, confirmed: ["consent.declaration", "form.submit"] })
+// open entry_url, fill by key, stop at each stop</pre>
+<p class="small muted">No browser? <code>usher_fill</code> fills the form for you instead.</p>
 <details class="local"><summary>Running your own agent or framework?</summary>
 <pre>${mcp}</pre>
 <p class="small muted">The local server acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>
 </details>
 <p><a href="#assistant">See it inside an assistant</a>.</p>`
   : html`<pre>${mcp}</pre>
-<p><code>usher_fill</code> takes the form's values by meaning, fills every page in seconds, and stops to ask before anything is submitted.</p>
-<pre class="wrap">usher_fill({ site: "Brightwater", task: "health insurance quote",
-  details: "I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess." })</pre>`}
-${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run <code>usher_fill</code> on it and your agent's session appears there, step by step.</p>` : ''}</div>
+<p><code>get_plan</code> gives you the journey and the rules; <code>prepare_run</code> puts your user's answers in the site's own form; you fill and stop where the rules say.</p>`}
+${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run the plan on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>
 
 ${numbersSection(o.numbers)}
