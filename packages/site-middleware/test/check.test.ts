@@ -115,7 +115,9 @@ test('mock site API: 403 knock_required without a token, a quote with one, 403 o
   const token = await knockToken(`${site.url}/api/quote`);
   const priced = await call({ Authorization: `Usher ${token}` });
   assert.equal(priced.status, 200);
-  assert.match((await priced.json()).reference, /^BW-/);
+  const quoted = (await priced.json()) as { reference: string; retrieve_url: string };
+  assert.match(quoted.reference, /^BW-/);
+  assert.equal(quoted.retrieve_url, `${site.url}/retrieve?reference=${quoted.reference}`, 'and where to pick it up on the site');
   const replay = await call({ Authorization: `Usher ${token}` });
   assert.equal(replay.status, 403);
   assert.equal((await replay.json()).reason, 'replayed');

@@ -136,3 +136,17 @@ export async function resultFacts(page: Page, supplied: string[]): Promise<{ tit
     .map((text): Block => ({ kind: 'fact', text, verbatim: true, source: { url: page.url() } }));
   return { title, facts };
 }
+
+/**
+ * The reference a result gives, as the site wrote it in one of its facts ("Quote reference
+ * BW-1A2B3C4D"): letters, digits and dashes, with at least one digit. Never a value the user typed:
+ * those lines are already left out of the facts.
+ */
+export function referenceOf(facts: string[]): string | undefined {
+  const pattern = /\b(?:ref(?:erence)?|quote (?:number|no\.?)|policy (?:number|no\.?)|confirmation (?:number|code))\b(?:\s+(?:is|number|no\.?))?[\s:#]*([A-Z0-9][A-Z0-9-]{3,30})\b/i;
+  for (const f of facts) {
+    const m = pattern.exec(f);
+    if (m && /\d/.test(m[1]!)) return m[1]!;
+  }
+  return undefined;
+}

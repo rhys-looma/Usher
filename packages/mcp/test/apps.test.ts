@@ -155,6 +155,17 @@ test('a host that can\'t take a card\'s tool calls: Confirm sends the person\'s 
   assert.equal(await rc.locator('img.thumb').count(), 1);
   assert.equal(await rc.locator('text=Taylor').count(), 0, 'no values the user didn\'t ask to see');
   await shot(result, 'result-card.png');
+  // The car quote, picked up on the site and taken on to its next step: a demo wall, nothing bought.
+  const car = (done.structuredContent as { result: { reference: string; continue: { url: string } } }).result;
+  assert.match(car.reference, /^BW-[0-9A-F]{8}$/);
+  const own = await (await browser.newContext()).newPage();
+  await own.goto(car.continue.url);
+  await own.fill('#dob', String(profile['person.dob']));
+  await own.click('button[type=submit]');
+  await own.waitForURL(/\/quote\/result$/);
+  await own.click('text=Continue to buy');
+  await own.waitForURL(/\/quote\/proceed$/);
+  assert.match(await own.locator('.demo-wall').innerText(), /nothing can be bought here/);
 
   const knock = await client.callTool({ name: 'knock', arguments: { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance' } });
   const ticket = await render(html, knock);
@@ -249,4 +260,20 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   const result = await render(html, done);
   assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month[\s\S]*Quote reference BWH-/);
   await shot(result, 'result-card-health.png');
+
+  // Finishable: the reference, and the site's own page to pick the quote up on, with it prefilled.
+  const finished = (done.structuredContent as { result: { reference: string; continue: { url: string; label: string; asks: string[] } } }).result;
+  assert.match(finished.reference, /^BWH-[0-9A-F]{8}$/);
+  assert.equal(finished.continue.url, `${site.url}/retrieve?reference=${finished.reference}`);
+  assert.deepEqual(finished.continue.asks, ['your quote reference', 'your date of birth']);
+  assert.match((done.content as { text?: string }[])[0]!.text ?? '', new RegExp(`Reference: ${finished.reference}\\.\\nTo continue on .*, your user opens ${finished.continue.url.replace(/[.?]/g, '\\$&')} \\(it asks for your quote reference and your date of birth\\)\\.`));
+  assert.equal(await result.frameLocator('#v').locator('a.button', { hasText: /^Continue on / }).count(), 1);
+  // The person, in their own browser: the reference is there; they give their date of birth.
+  const own = await (await browser.newContext()).newPage();
+  await own.goto(finished.continue.url);
+  assert.equal(await own.inputValue('#reference'), finished.reference);
+  await own.fill('#dob', String(health['person.dob']));
+  await own.click('button[type=submit]');
+  await own.waitForURL(/\/health\/result$/);
+  assert.match(await own.locator('.ref').innerText(), new RegExp(finished.reference));
 });
