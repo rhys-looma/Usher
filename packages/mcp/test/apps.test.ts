@@ -180,8 +180,14 @@ test('a host that passes a card\'s tool calls on (serverTools): Confirm calls us
   assert.equal(call.params!.name, 'usher_confirm');
   assert.deepEqual(call.params!.arguments!.answers, { 'consent.declaration': true, 'consent.marketing': false, 'form.submit': true });
   assert.equal(call.params!.arguments!.confirmation, 'Confirm: declaration yes, marketing no, get my quote yes');
-  assert.ok(!msgs.some((m) => m.method === 'ui/message'), 'no message needed');
   assert.ok(msgs.some((m) => m.method === 'ui/update-model-context'), 'the agent is told what happened');
+  // The chat carries on with one message after the result, which isn't a confirmation of its own.
+  const follow = msgs.filter((m) => m.method === 'ui/message');
+  assert.equal(follow.length, 1);
+  assert.ok(msgs.indexOf(follow[0]!) > msgs.indexOf(call), 'after usher_confirm, not instead of it');
+  const said = (follow[0]!.params as { content: { text: string }[] }).content[0]!.text;
+  assert.equal(said, 'I confirmed in the Usher card: declaration yes, marketing no, get my quote yes. What happened?');
+  assert.doesNotMatch(said, /^Confirm:/, 'the agent won\'t call usher_confirm again from it');
 });
 
 test('usher_confirm says what it does: it submits on the person\'s behalf', async () => {
