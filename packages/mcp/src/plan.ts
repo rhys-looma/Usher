@@ -28,7 +28,7 @@ export const GET_PLAN_DESCRIPTION =
   'Use this first when your user wants a form filled and you can drive a browser yourself. Returns Usher\'s plan for the journey: the rules in plain words, ask_first (every detail to ask your user for, in one go, before you start), the steps in order with each field\'s key, label, options, format and where to find it, and the stops where you must show your user the site\'s own wording and wait. Then call prepare_run with their answers. If Usher hasn\'t mapped the site, it says so: fill it by sight.';
 
 export const PREPARE_RUN_DESCRIPTION =
-  'Call after get_plan, with your user\'s answers: values by key (from ask_first), or their details as they said them, and confirmed: the stop keys they have said yes to (the declaration, the final step). Returns the plan with each value in the site\'s own form against its field, problems by key for anything the site won\'t accept (ask your user again), and on a joined site an entry_url carrying the token: open it, fill in order by the find hints, run each lookup with the value given, stop at every stop and wait for your user, and submit only after they confirm. Usher keeps none of the values.';
+  'Call after get_plan, with your user\'s answers: values by key (from ask_first), or their details as they said them, and confirmed: the stop keys they have said yes to (the final step, and a declaration unless it is user_only). Dates may be 1988-03-14, 14/03/1988 or 14 March 1988. Returns the plan with each value in the site\'s own form against its field, problems by key for anything the site won\'t accept (ask your user again), and on a joined site, once every answer fits, an entry_url carrying the token: open it, fill in order by the find hints, run each lookup with the value given, stop at every stop and wait for your user, ask them to do anything user_only themselves, and submit only after they confirm. Usher keeps none of the values.';
 
 const notMapped = (origin: string) => ({
   content: [{ type: 'text' as const, text: `Usher hasn't mapped ${origin} yet, so there is no plan. Fill it by sight in your user's browser, asking them before anything is submitted. Usher has noted that an assistant asked for it.` }],
@@ -111,7 +111,8 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
       const confirmable = new Set(confirmableStops(found.view));
       const confirmed = (args.confirmed ?? []).filter((k) => confirmable.has(k));
       let entry: { entry_url: string; expires_at: string; session: string; confirmed: string[] } | { token_error: string } | undefined;
-      if (found.view.site.joined) {
+      // No token while answers won't fit: it lasts ten minutes, and the assistant asks again first.
+      if (found.view.site.joined && !placed.problems?.length) {
         try {
           const k = await options.knock({ url: found.view.steps[0]!.url, ...(found.plan.intent && { intent: found.plan.intent }), ...(confirmed.length && { confirmed }) });
           entry = k.entry_url ? { entry_url: k.entry_url, expires_at: k.expires_at, session: k.session, confirmed } : { token_error: 'The registry gave no entry URL.' };
@@ -119,9 +120,9 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
           entry = { token_error: err instanceof Error ? err.message : String(err) };
         }
       }
-      const value = { status: 'ready', plan: placed, ...entry };
+      const value = { status: placed.problems?.length ? 'needs_answers' : 'ready', plan: placed, ...entry };
       const lead = placed.problems?.length
-        ? `Some answers won't fit the site: ${placed.problems.map((p) => p.key).join(', ')}. Ask your user again, then call prepare_run once more.`
+        ? `Some answers won't fit the site: ${placed.problems.map((p) => `${p.key} (${p.message})`).join('; ')}. Ask your user again, then call prepare_run once more. There is no entry_url until they fit.`
         : entry && 'entry_url' in entry
           ? 'Open entry_url in your browser, then fill each step in order by the find hints and values given, run each lookup, and stop at every stop for your user. The token is in the entry URL and lasts 10 minutes.'
           : 'Open the first step\'s url in your browser, then fill each step in order by the find hints and values given, and stop at every stop for your user.';

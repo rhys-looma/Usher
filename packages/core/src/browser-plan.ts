@@ -9,6 +9,7 @@ import { LOOKUP_FILLS, type UsherPlan } from './plan.ts';
 import { preflight, type Profile, type PreflightProblem } from './preflight.ts';
 import { dateFormatOf, datePart, formatDate, matchOption } from './values.ts';
 import type { Locator } from './locators.ts';
+import type { ActionRule } from './policy.ts';
 import type { MapField, MapAction, UsherMap } from './map.ts';
 
 export interface PlanAsk {
@@ -33,6 +34,8 @@ export interface PlanField {
   control?: string;
   required?: true;
   risk?: 'consequential' | 'needs_user';
+  /** The site lets only the person do this: the assistant asks them to, in the browser, and waits. */
+  user_only?: true;
   options?: string[];
   more_options?: number;
   /** For one part of a split date: which part, and how many digits. */
@@ -62,6 +65,8 @@ export interface PlanStop {
   label: string;
   /** The site's own wording, to show the person exactly as it is. */
   verbatim?: string;
+  /** The site lets only the person do this; confirming it for them is refused. */
+  user_only?: true;
   say: string;
 }
 
@@ -84,6 +89,8 @@ export interface BrowserPlanContext {
   joined: boolean;
   /** The site owner's rules in their own words, when it has joined and set them. */
   siteRules?: string;
+  /** On a joined site, the rule for each key on each step's path (effectiveRules): what the site enforces. */
+  actions?: Record<string, Record<string, ActionRule>>;
 }
 
 const MAX_OPTIONS = 12;
@@ -137,12 +144,16 @@ const stopSay = (risk: string) =>
     ? 'This is your user\'s to answer or do. Ask them, show them this wording exactly, and enter only what they say.'
     : 'Show this to your user word for word and wait for their yes before you go on.';
 
+const userOnlySay = (name: string) =>
+  `${name} lets only your user do this. Show them the wording exactly and ask them to do it themselves in the browser, then carry on once they have. Usher refuses to confirm it for you.`;
+
 /** The rules at the top, in plain words: the site's own if it set them, then Usher's defaults. */
-function rulesFor(ctx: BrowserPlanContext): string[] {
+function rulesFor(ctx: BrowserPlanContext, userOnly: boolean): string[] {
   return [
     ...(ctx.joined && ctx.siteRules ? [`${ctx.name}'s own rules: ${ctx.siteRules.trim()}`] : []),
     'Ask your user for everything in ask_first in one go, before the first page.',
     'Fill safe fields freely, in order, by the find hints.',
+    ...(userOnly ? ['Anything marked user_only is for your user\'s own hand: the site refuses it from you, whatever they say. Ask them to do it in the browser and wait.'] : []),
     'At each stop, show the wording exactly and wait for your user\'s yes. Never tick a consent yourself.',
     'Submit only after your user confirms. Never invent an answer that is theirs.',
   ];
@@ -156,9 +167,11 @@ export function browserPlan(plan: UsherPlan, maps: Map<string, UsherMap>, ctx: B
   const lookupFilled = new Set((plan.lookups ?? []).flatMap((l) => LOOKUP_FILLS[l.key]?.fills ?? []));
   const steps: PlanStepView[] = [];
   const stops: PlanStop[] = [];
+  const userOnlyKeys = new Set<string>();
   plan.steps.forEach((s, i) => {
     const map = maps.get(s.path)!;
     const n = i + 1;
+    const forbidden = (key: string) => ctx.actions?.[s.path]?.[key] === 'forbid';
     const fields: PlanField[] = map.fields.map((f) => {
       // A text box is the default: control is given only when it is something else.
       const out: PlanField = { key: f.key, label: f.label, ...(f.control !== 'text' && { control: f.control }), find: finders(f.locators) };
@@ -170,7 +183,13 @@ export function browserPlan(plan: UsherPlan, maps: Map<string, UsherMap>, ctx: B
       if (format) out.format = format;
       const cond = onlyIf(f);
       if (cond) out.only_if = cond;
-      if (isConsent(f.key) || f.risk === 'needs_user') stops.push({ step: n, key: f.key, label: f.label.slice(0, 80), ...(isConsent(f.key) && { verbatim: f.label }), say: stopSay(isConsent(f.key) ? 'consequential' : f.risk) });
+      const userOnly = forbidden(f.key);
+      if (userOnly) {
+        out.user_only = true;
+        userOnlyKeys.add(f.key);
+      }
+      if (isConsent(f.key) || f.risk === 'needs_user' || userOnly)
+        stops.push({ step: n, key: f.key, label: f.label.slice(0, 80), ...((isConsent(f.key) || userOnly) && { verbatim: f.label }), ...(userOnly && { user_only: true as const }), say: userOnly ? userOnlySay(ctx.name) : stopSay(isConsent(f.key) ? 'consequential' : f.risk) });
       return out;
     });
     const lookups = map.actions
@@ -178,17 +197,19 @@ export function browserPlan(plan: UsherPlan, maps: Map<string, UsherMap>, ctx: B
       .map((a) => ({ key: a.key, label: a.label, find: finders(a.locators), run_with: LOOKUP_FILLS[a.key]!.input, fills: LOOKUP_FILLS[a.key]!.fills.filter((k) => map.fields.some((f) => f.key === k)) }));
     const advance = s.advance ? map.actions.find((a) => a.id === s.advance!.id) : undefined;
     const forward: PlanStepView['forward'] = advance ? { key: advance.key, label: advance.label, find: finders(advance.locators), ...(advance.risk !== 'safe' && { stop: true as const }) } : null;
-    if (advance && advance.risk !== 'safe') stops.push({ step: n, key: advance.key, label: advance.label, say: advance.risk === 'needs_user' ? stopSay('needs_user') : `Before pressing "${advance.label}", tell your user what it does and wait for their yes.` });
+    if (advance && forbidden(advance.key)) stops.push({ step: n, key: advance.key, label: advance.label, user_only: true, say: userOnlySay(ctx.name) });
+    else if (advance && advance.risk !== 'safe') stops.push({ step: n, key: advance.key, label: advance.label, say: advance.risk === 'needs_user' ? stopSay('needs_user') : `Before pressing "${advance.label}", tell your user what it does and wait for their yes.` });
     steps.push({ n, url: `${plan.origin}${s.path}`, title: map.form.purpose, fields, ...(lookups.length && { lookups }), forward });
   });
-  // Ask first: what the person must give, across the journey; not what a lookup fills, not consents.
+  // Ask first: what the person must give, across the journey; not what a lookup fills, not consents,
+  // not what only they may enter (they do that on the page).
   const ask_first: PlanAsk[] = plan.inputs
-    .filter((i) => (i.required || i.risk === 'needs_user') && !isConsent(i.key) && !lookupFilled.has(i.key))
+    .filter((i) => (i.required || i.risk === 'needs_user') && !isConsent(i.key) && !lookupFilled.has(i.key) && !userOnlyKeys.has(i.key))
     .map((i) => {
       const ask: PlanAsk = { key: i.key, label: i.label, ...(i.control !== 'text' && { control: i.control }), required: i.required };
       if (i.risk === 'needs_user') ask.theirs = true;
       Object.assign(ask, optionLabels(i));
-      if (i.control === 'date' || i.constraints?.format === 'date') ask.format = 'a date, e.g. 14 March 1988';
+      if (i.control === 'date' || i.constraints?.format === 'date') ask.format = 'a date: 1988-03-14, 14/03/1988 or 14 March 1988';
       const cond = onlyIf(i);
       if (cond) ask.only_if = cond;
       return ask;
@@ -198,7 +219,7 @@ export function browserPlan(plan: UsherPlan, maps: Map<string, UsherMap>, ctx: B
     usher_plan_for: 'browser',
     site: { name: ctx.name, origin: plan.origin, joined: ctx.joined },
     known,
-    rules: rulesFor(ctx),
+    rules: rulesFor(ctx, userOnlyKeys.size > 0),
     ask_first,
     steps,
     stops,
@@ -224,6 +245,10 @@ export function placeValues(view: BrowserPlan, plan: UsherPlan, maps: Map<string
       const out: PlanField = { ...pf };
       const raw = values[pf.key];
       const field = fieldOf(step, pf.key, pf.part);
+      if (pf.user_only) {
+        out.do = 'stop: your user does this themselves in the browser; ask them to, and wait';
+        return out;
+      }
       if (isConsent(pf.key)) {
         out.do = 'stop: show the wording to your user; tick it only after they say yes';
         return out;
@@ -248,14 +273,16 @@ export function placeValues(view: BrowserPlan, plan: UsherPlan, maps: Map<string
       lookups: step.lookups.map((l) => (values[l.run_with] !== undefined ? { ...l, run_with: `${l.run_with} = ${String(values[l.run_with])}` } : l)),
     }),
   }));
-  // A consent is a stop the person confirms, not an answer to give: never a missing value.
-  const problems = checked.problems.filter((p) => !(p.problem === 'missing' && isConsent(p.key)));
+  // A consent is a stop the person confirms, and a user_only field is theirs to enter on the page:
+  // neither is a missing answer.
+  const userOnly = new Set(view.steps.flatMap((st) => st.fields.filter((f) => f.user_only).map((f) => f.key)));
+  const problems = checked.problems.filter((p) => !(p.problem === 'missing' && (isConsent(p.key) || userOnly.has(p.key))));
   return { ...view, steps, ...(problems.length && { problems: problems.map(({ key, label, message, expected }) => ({ key, label, message, ...(expected && { expected }) })) }) };
 }
 
-/** The keys of a plan's stop points the person can confirm up front (consents and the final step). */
+/** The keys of a plan's stop points the person can confirm up front (consents and the final step), never one only they may do. */
 export function confirmableStops(view: BrowserPlan): string[] {
-  return view.stops.filter((s) => s.key.startsWith('consent.') || ['form.submit', 'form.purchase', 'form.apply'].includes(s.key)).map((s) => s.key);
+  return view.stops.filter((s) => !s.user_only && (s.key.startsWith('consent.') || ['form.submit', 'form.purchase', 'form.apply'].includes(s.key))).map((s) => s.key);
 }
 
 export type { MapAction };

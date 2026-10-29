@@ -44,7 +44,7 @@ const go = async (p: Profile, options: { usePlan?: boolean; preflight?: boolean;
 const session = async (sid: string): Promise<Session> => (await fetch(`${registry.url}/sessions/${sid}`, { headers: { Authorization: `Bearer ${keys.secret_key}` } })).json() as Promise<Session>;
 
 test('with a plan, a wrong date format is caught before any page is opened', async () => {
-  const run = await go({ ...profile, 'person.dob': '02/04/1988' });
+  const run = await go({ ...profile, 'person.dob': '31/02/1988' });
   assert.equal(run.outcome, 'failed');
   assert.equal(run.plan_used, true);
   assert.deepEqual(run.problems?.map((p) => [p.key, p.problem]), [['person.dob', 'format']]);

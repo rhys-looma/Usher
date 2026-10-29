@@ -7,6 +7,29 @@ import { vocabulary } from './vocabulary.ts';
 import { parseJsonContent, type ChatFn, type ChatRequest } from './compile/model.ts';
 
 
+/**
+ * A date as people write it, to YYYY-MM-DD: 1988-03-14, 14/03/1988, 14-3-1988, 14 March 1988,
+ * March 14, 1988. Day first unless only month first makes sense (UK sites). Null when it isn't a
+ * real date.
+ */
+export function toIsoDate(text: string): string | null {
+  const monthOf = (name: string) => (name.length >= 3 ? MONTHS.findIndex((m) => m.startsWith(name)) + 1 : 0);
+  const t = text.trim().toLowerCase().replace(/(\d)(st|nd|rd|th)\b/g, '$1').replace(/,/g, ' ').replace(/\s+/g, ' ');
+  let y: number, m: number, d: number;
+  let hit: RegExpExecArray | null;
+  if ((hit = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t))) [y, m, d] = [Number(hit[1]), Number(hit[2]), Number(hit[3])];
+  else if ((hit = /^(\d{1,2})[/.\- ](\d{1,2})[/.\- ](\d{4})$/.exec(t))) {
+    const [a, b] = [Number(hit[1]), Number(hit[2])];
+    [d, m] = a <= 12 && b > 12 ? [b, a] : [a, b];
+    y = Number(hit[3]);
+  } else if ((hit = /^(\d{1,2}) ([a-z]+) (\d{4})$/.exec(t))) [d, m, y] = [Number(hit[1]), monthOf(hit[2]!), Number(hit[3])];
+  else if ((hit = /^([a-z]+) (\d{1,2}) (\d{4})$/.exec(t))) [m, d, y] = [monthOf(hit[1]!), Number(hit[2]), Number(hit[3])];
+  else return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (m < 1 || date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 /** Day, month or year of a date split across several fields under one key. */
 export type DatePart = 'day' | 'month' | 'year';
 

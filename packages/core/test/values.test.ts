@@ -49,8 +49,10 @@ test('preflight: a date by key is YYYY-MM-DD whatever the box\'s own pattern; op
   const ok = preflight([start, mileage], { 'policy.start_date': '2026-11-01', 'vehicle.annual_mileage': '12,000' });
   assert.equal(ok.ok, true, JSON.stringify(ok.problems));
   assert.equal(ok.normalised['vehicle.annual_mileage'], 'UpTo12000');
-  const bad = preflight([start], { 'policy.start_date': '01/11/2026' });
+  const bad = preflight([start], { 'policy.start_date': '31/11/2026' });
   assert.deepEqual(bad.problems.map((p) => p.problem), ['format']);
+  // As people write it, read to YYYY-MM-DD.
+  assert.equal(preflight([start], { 'policy.start_date': '01/11/2026' }).normalised['policy.start_date'], '2026-11-01');
 });
 
 let browser: Browser;
