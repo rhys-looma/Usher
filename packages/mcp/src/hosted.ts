@@ -189,7 +189,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     if (!site) {
       // The plan path (plan.ts) replaces the registry's plain get_plan: the plan for a browser, its
       // card, and prepare_run.
-      registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'] });
+      registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'], theme: (origin) => registry.cardTheme(origin) });
       registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, tickets: { store: tickets, connection: randomUUID() }, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
     }
     // Results as cards in clients with MCP Apps; Claude gets this server's dedicated origin.
@@ -219,6 +219,11 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       toolMeta: CARD_META,
       // A site's app has its generated tools instead of usher_fill (usher_confirm and usher_cancel stay).
       exposeFill: !site,
+      // A joined site's cards, under its name and theme once its owner has accepted one.
+      brand: async (origin) => {
+        const theme = (await registry.joined(origin)) ? await registry.cardTheme(origin) : undefined;
+        return theme && { name: theme.name, theme };
+      },
       ...(options.timeouts?.stepMs && { stepTimeoutMs: options.timeouts.stepMs }),
       ...(options.timeouts?.decisionMs && { decisionTimeoutMs: options.timeouts.decisionMs }),
       // A joined site is still a page from the internet: its redirects and requests stay public.

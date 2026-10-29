@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan, type CardTheme } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { fillField, httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
@@ -120,6 +120,7 @@ interface Job {
   rearm: () => void;
   expires: NodeJS.Timeout;
   started: number;
+  brand?: Brand;
 }
 
 export interface FillOptions {
@@ -148,6 +149,17 @@ export interface FillOptions {
   toolMeta?: Record<string, unknown>;
   /** Register usher_fill itself (default). A site's app doesn't: its generated tools call `fill`. */
   exposeFill?: boolean;
+  /**
+   * A site's name and theme, once its owner has accepted one: the cards for its journeys carry the
+   * theme (in structuredContent only, never in the text the model reads), and the plain-text result
+   * names the site.
+   */
+  brand?: (origin: string) => Promise<Brand | undefined>;
+}
+
+export interface Brand {
+  name: string;
+  theme: CardTheme;
 }
 
 /** usher_fill's arguments, as a site app's generated tools pass them. */
@@ -211,9 +223,9 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   const stepTimeout = options.stepTimeoutMs ?? 120_000;
   const decisionTimeout = options.decisionTimeoutMs ?? 600_000;
 
-  const reply = (value: unknown, image?: string, lead?: string) => ({
+  const reply = (value: unknown, image?: string, lead?: string, brand?: Brand) => ({
     content: [...(lead ? [{ type: 'text' as const, text: lead }] : []), { type: 'text' as const, text: JSON.stringify(value, null, 2) }, ...(image ? [{ type: 'image' as const, data: image, mimeType: 'image/png' }] : [])],
-    structuredContent: value as Record<string, unknown>,
+    structuredContent: (brand ? { ...(value as Record<string, unknown>), theme: brand.theme } : value) as Record<string, unknown>,
   });
 
   /** The decision set as plain text, so a client without cards shows the person the same thing. */
@@ -276,13 +288,14 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           },
           undefined,
           listing(decisions, blocks),
+          job.brand,
         );
       }
       const woke = await Promise.race([ended, job.wait.then(() => 'changed' as const), timeout]);
       if (woke === 'timeout') {
         const image = await maskedShot(job.page);
         await finish(job);
-        return reply({ status: 'failed', id: job.id, reason: `No decision or end within ${stepTimeout / 1000} s; the run was stopped.`, ...describe(job) }, image);
+        return reply({ status: 'failed', id: job.id, reason: `No decision or end within ${stepTimeout / 1000} s; the run was stopped.`, ...describe(job) }, image, undefined, job.brand);
       }
       if (woke === 'changed') continue;
       const r = woke.r;
@@ -307,6 +320,9 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           elapsed_ms: Math.round(performance.now() - job.started),
         },
         image,
+        // In plain text too, the result is the site's: its name, and its figures as it shows them.
+        job.brand && r.outcome === 'completed' && job.outcome?.facts.length ? `${job.brand.name}, as the site shows it: ${job.outcome.facts.map((f) => f.text).join(' · ')}` : undefined,
+        job.brand,
       );
     }
   }
@@ -442,6 +458,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       expires: setTimeout(() => void finish(job), decisionTimeout + stepTimeout).unref(),
     };
     for (const q of job.planned) if (q.kind === 'confirm_value') job.proposed.set(q.key, String(values[q.key]));
+    const brand = await options.brand?.(new URL(url).origin).catch(() => undefined);
+    if (brand) job.brand = brand;
     const transport: RegistryTransport = { ...base, knock: async (input) => (job.knock = await base.knock(input)) };
     job.transport = transport;
     // Lines on the result page that repeat what the user typed are theirs: never echoed back.
@@ -637,7 +655,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       const job = jobs.get(args.id);
       if (!job) return failure(`No fill ${args.id}.`);
       await finish(job);
-      return reply({ status: 'cancelled', id: args.id, actions: job.actions });
+      return reply({ status: 'cancelled', id: args.id, actions: job.actions }, undefined, undefined, job.brand);
     },
   );
 

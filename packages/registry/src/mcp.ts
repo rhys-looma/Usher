@@ -49,7 +49,7 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
  * knock, get_map, get_plan, report_run, and submit_map where the client can share maps.
  * `knockMeta`: tool metadata for knock (the card its result renders as, in clients with MCP Apps).
  */
-export function registerRegistryTools(server: McpServer, client: RegistryTools, options: { knockMeta?: Record<string, unknown>; skip?: string[] } = {}): void {
+export function registerRegistryTools(server: McpServer, client: RegistryTools, options: { knockMeta?: Record<string, unknown>; skip?: string[]; theme?: (origin: string) => Promise<unknown> } = {}): void {
   const skip = new Set(options.skip ?? []);
 
   server.registerTool(
@@ -67,8 +67,8 @@ export function registerRegistryTools(server: McpServer, client: RegistryTools, 
       },
       ...(options.knockMeta && { _meta: options.knockMeta }),
     },
-    (args) =>
-      guarded(() =>
+    async (args) => {
+      const reply = await guarded(() =>
         client.knock({
           url: args.url,
           ...(args.intent && { intent: args.intent }),
@@ -76,7 +76,11 @@ export function registerRegistryTools(server: McpServer, client: RegistryTools, 
           ...(args.session && { session: args.session }),
           ...(args.confirmed && { confirmed: args.confirmed }),
         }),
-      ),
+      );
+      // The site's theme, for the ticket card only: in structuredContent, not in the text.
+      const theme = 'structuredContent' in reply && options.theme ? await options.theme(new URL(args.url).origin).catch(() => undefined) : undefined;
+      return theme && 'structuredContent' in reply ? { ...reply, structuredContent: { ...reply.structuredContent, theme } } : reply;
+    },
   );
 
   server.registerTool(

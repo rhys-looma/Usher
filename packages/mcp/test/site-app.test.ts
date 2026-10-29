@@ -84,14 +84,25 @@ test('Brightwater\'s app: its own tools, generated from its plans; none of the g
   assert.ok(health._meta, 'renders as Usher\'s card');
 });
 
-test('an assistant with only Brightwater\'s endpoint gets a health quote from a plain sentence', async () => {
+test('an assistant with only Brightwater\'s endpoint gets a health quote from a plain sentence, on cards in Brightwater\'s theme', async () => {
+  // The owner has accepted a theme: the cards carry it; the text the model reads never does.
+  const accepted = await registry.registry.approveTheme(site.url, { name: 'Brightwater Insurance', accent: '#0b6e6e', second: '#0b6e6e', typeface: 'system', radius: 8, result_fields: ['more_facts'] });
+  assert.ok('theme' in accepted);
   const client = await connect();
-  const first = (await client.callTool({ name: 'get_health_insurance_quote', arguments: { details: NATURAL_HEALTH } })).structuredContent as { status: string; id: string; decisions: { kind: string; key: string }[] };
+  const firstReply = await client.callTool({ name: 'get_health_insurance_quote', arguments: { details: NATURAL_HEALTH } });
+  const first = firstReply.structuredContent as { status: string; id: string; decisions: { kind: string; key: string }[]; theme?: { name: string } };
   assert.equal(first.status, 'needs_decision', JSON.stringify(first).slice(0, 400));
   assert.deepEqual(first.decisions.map((d) => `${d.kind}:${d.key}`), ['confirm_value:person.smoker', 'required_consent:consent.declaration', 'submit:form.submit']);
-  const done = (await client.callTool({ name: 'usher_confirm', arguments: { id: first.id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } })).structuredContent as { status: string; reason?: string; result?: { facts: string[] } };
+  assert.equal(first.theme?.name, 'Brightwater Insurance');
+  const text = (r: typeof firstReply) => (r.content as { type: string; text?: string }[]).map((c) => c.text ?? '').join('\n');
+  assert.doesNotMatch(text(firstReply), /"theme"|accent_ink/, 'the theme is for the card, not the model');
+  const doneReply = await client.callTool({ name: 'usher_confirm', arguments: { id: first.id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } });
+  const done = doneReply.structuredContent as { status: string; reason?: string; result?: { facts: string[] }; theme?: { name: string } };
   assert.equal(done.status, 'completed', done.reason);
   assert.ok(done.result!.facts.some((f) => /a month/.test(f)), done.result!.facts.join(' | '));
+  assert.equal(done.theme?.name, 'Brightwater Insurance');
+  assert.match(text(doneReply), /^Brightwater Insurance, as the site shows it: £[\d,.]+ a month/, 'the plain-text result names the site');
+  assert.doesNotMatch(text(doneReply), /"theme"|accent_ink/);
   const usage = await registry.registry.siteAppUsage(site.url);
   assert.ok(usage.connections >= 1 && usage.fills >= 1, JSON.stringify(usage));
 });
