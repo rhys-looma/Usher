@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, readResultView, vocabulary, type ReadItem, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { fillField, httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
@@ -106,7 +106,7 @@ interface Job {
   pauses: number;
   /** Keys read from the person's details (never the values). */
   fromDetails?: string[];
-  outcome?: { title: string; facts: Block[]; image?: string };
+  outcome?: { title: string; facts: Block[]; image?: string; items?: ReadItem[] };
   /** confirm_value answers as the person gave them: entered as said, confirmed before the submit. */
   proposed: Map<string, string>;
   /** Keys the person alone answers that the site permits an agent to enter (health.*, by its rules). */
@@ -283,7 +283,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           ...(r.reason && { reason: r.reason }),
           ...(r.problems?.length && { problems: r.problems.map((p) => ({ key: p.key, message: p.message })) }),
           session: r.session,
-          ...(r.outcome === 'completed' && job.outcome && { result: { title: job.outcome.title, final_url: r.final_url, facts: job.outcome.facts.map((f) => f.text) } }),
+          ...(r.outcome === 'completed' && job.outcome && { result: { title: job.outcome.title, final_url: r.final_url, facts: job.outcome.facts.map((f) => f.text), ...(job.outcome.items && { items: job.outcome.items }) } }),
           final_url: r.final_url,
           ...(job.outcome?.facts.length && { blocks: job.outcome.facts }),
           // What was submitted, by key: the values themselves are never echoed back.
@@ -542,6 +542,16 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           onEvent,
           onFinish: async (page, outcome) => {
             if (outcome !== 'completed') return;
+            // A page with a result view is read by it, by code: its reference, price, cover and
+            // documents, and no screenshot. Elsewhere the facts that look like figures, and one.
+            const view = await transport.resultView?.(page.url()).catch(() => null);
+            const items = view ? await readResultView(page, view).catch(() => []) : [];
+            if (view && items.length) {
+              const facts = items.filter((i) => i.kind === 'fact').map((i): Block => ({ kind: 'fact', text: `${i.label}: ${i.text}`, verbatim: true, source: { url: page.url() } }));
+              job.outcome = { title: view.title, facts, items };
+              await logShown(job, facts, new URL(page.url()).pathname);
+              return;
+            }
             const { title, facts } = await resultFacts(page, supplied);
             job.outcome = { title, facts, ...(await maskedShot(page).then((image) => image && { image })) };
             await logShown(job, facts, new URL(page.url()).pathname);

@@ -181,6 +181,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       // there is fast; elsewhere (joined sites map through their owners) nothing is kept.
       submitMap: async (map) => ((await registry.keepListedMap(map)) ? { digest: map.fingerprint.digest, stored: true } : { digest: '', stored: false }),
       reportRun: tools.reportRun,
+      resultView: async (url) => (await registry.resultView(new URL(url).origin, new URL(url).pathname)) ?? null,
       logEvents: async (eventsUrl, token, events) => {
         const sid = /\/sessions\/(s_[A-Za-z0-9_-]+)\/events$/.exec(new URL(eventsUrl).pathname)?.[1];
         if (sid) await registry.appendEvents(sid, `Usher ${token}`, { events });

@@ -43,6 +43,14 @@ export const CARD_CSS = `
 .uc .facts { list-style:none; margin:10px 0 0; padding:0; }
 .uc .facts li { border-top:1px dotted var(--line); padding:7px 0; font-size:15px; }
 .uc .facts li:first-child { border-top:0; font-family:var(--serif); font-size:22px; font-weight:700; }
+.uc .view { margin:10px 0 0; display:grid; grid-template-columns:1fr; gap:0; }
+.uc .view .row { display:flex; justify-content:space-between; align-items:baseline; gap:12px; border-top:1px dotted var(--line); padding:8px 0; }
+.uc .view .row:first-child { border-top:0; }
+.uc .view .row span { color:var(--muted); font-size:13.5px; }
+.uc .view .row b { font-size:15px; text-align:right; }
+.uc .view .row.big b { font-family:var(--serif); font-size:24px; }
+.uc .docs { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
+.uc .docs a { display:inline-block; border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:13.5px; text-decoration:none; }
 .uc .thumb { display:block; width:100%; max-height:180px; object-fit:cover; object-position:top; border:1px solid var(--line); margin-top:10px; }
 .uc .outcome { font-weight:700; }
 .uc .outcome.ok { color:var(--safe); }.uc .outcome.no { color:var(--user); }

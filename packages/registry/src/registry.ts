@@ -7,6 +7,8 @@ import {
   importSigningKey,
   knockSchemaErrors,
   mapSchemaErrors,
+  viewSchemaErrors,
+  type ResultView,
   randomId,
   signToken,
   verifySignedRequest,
@@ -494,6 +496,17 @@ export class Registry {
       out.push({ name: listed.name, origin: listed.origin, demo: false, listed: true, journeys: [...mapped, ...named].sort((a, b) => a.start.localeCompare(b.start)) });
     }
     return out.filter((s) => s.journeys.length).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** A published result view (spec/view.md) for a page, if there is one. */
+  async resultView(origin: string, path: string): Promise<ResultView | undefined> {
+    return this.storage.getCached<ResultView>('result-view', `${origin}|${path}`);
+  }
+
+  async putResultView(view: ResultView): Promise<void> {
+    const invalid = viewSchemaErrors(view);
+    if (invalid) throw new Error(`Invalid result view: ${invalid}`);
+    await this.storage.putCached('result-view', `${view.origin}|${view.path}`, view);
   }
 
   /** Sites the admin has listed for hosted Usher without their joining. */

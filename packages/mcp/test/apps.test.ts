@@ -224,3 +224,39 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month[\s\S]*Quote reference BWH-/);
   await shot(result, 'result-card-health.png');
 });
+
+test('a result read with its result view: each fact by the site\'s label, the price large, documents as links that open', async () => {
+  const client = await connect();
+  const html = ((await client.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
+  const result = {
+    structuredContent: {
+      status: 'completed',
+      id: 'f_1',
+      final_url: 'https://life.example/your-quick-quote',
+      result: {
+        title: 'Quick quote results',
+        final_url: 'https://life.example/your-quick-quote',
+        facts: ['You pay each month: £15.67', 'Life insurance cover: £250,000'],
+        items: [
+          { key: 'result.price', label: 'You pay each month', kind: 'fact', text: '£15.67' },
+          { key: 'result.amount', label: 'Life insurance cover', kind: 'fact', text: '£250,000' },
+          { key: 'result.reference', label: 'Quote reference', kind: 'fact', text: 'Quote reference: Q-99881' },
+          { key: 'result.document', label: 'Policy summary (PDF)', kind: 'link', href: 'https://life.example/docs/summary.pdf' },
+          { key: 'result.document', label: 'Bad link', kind: 'link', href: 'javascript:alert(1)' },
+        ],
+      },
+    },
+    content: [{ type: 'text', text: '{}' }],
+  };
+  const page = await render(html, result, { caps: { openLinks: {} } });
+  const card = page.frameLocator('#v');
+  const rows = await card.locator('.view .row').evaluateAll((els) => els.map((e) => [e.querySelector('span')!.textContent, e.querySelector('b')!.textContent, e.classList.contains('big')]));
+  assert.deepEqual(rows, [['You pay each month', '£15.67', true], ['Life insurance cover', '£250,000', true], ['Quote reference', 'Q-99881', false]]);
+  assert.deepEqual(await card.locator('.docs a').allTextContents(), ['Policy summary (PDF)'], 'only http(s) links');
+  assert.equal(await card.locator('img.thumb').count(), 0, 'no screenshot when the view has the facts');
+  await card.locator('.docs a').click();
+  await page.waitForTimeout(200);
+  const opened = (await sent(page)).filter((m) => m.method === 'ui/open-link').map((m) => (m.params as { url: string }).url);
+  assert.deepEqual(opened, ['https://life.example/docs/summary.pdf']);
+  await page.close();
+});
