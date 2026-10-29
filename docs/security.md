@@ -86,6 +86,17 @@ The walkthrough ([walkthrough.md](walkthrough.md)) drives a real browser through
 - **The final action.** Pressed only when the owner ticked it, after a knock that confirms it, like any agent.
 - **Publishing.** A proposal changes nothing until the owner publishes it. Corrections are validated against the map schema and stored as structure, for training (owner-verified labels).
 
+## Automatic retraining
+
+With `USHER_AUTO_TRAIN=1` the registry sends a training set to Baseten ([finetune.md](finetune.md#automatic-retraining)). Its controls:
+
+- **What leaves.** Structure only: element labels, options, constraints, neighbouring labels, the form's purpose and title, and the key and risk. Owners' corrections are stored that way, and nothing anyone typed is ever in them.
+- **The job's access.** Each run gets a random token, stored hashed. It lets the job fetch only its own files and post only its own scores, and only while the run is going. Every other request to `/training/` gets a 404.
+- **The student's deployment** fetches the promoted adapter with a separate secret, and gets presigned URLs for the adapter's files and nothing else.
+- **Keys.** `BASETEN_TRAINING_API_KEY` is used for training and the student's deployment only, and Muse Spark Open's key never for training. Neither is logged.
+- **Spend.** One run at a time, a hard stop at two hours, a cooldown between runs and a monthly cap.
+- **Safety of the result.** A run is promoted only if it does no worse on held-out forms, and the student only ever adds caution: the stricter risk is kept.
+
 ## Other controls
 
 - **Rate limits** on every registry endpoint, per address and per key, plus the site's own limits per agent (for example, five quotes an hour).

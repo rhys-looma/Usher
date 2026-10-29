@@ -1,5 +1,5 @@
 # Usher on ECS behind CloudFront, all new: its own VPC, an ALB, the cluster and both services,
-# a small private Postgres, the five secrets, the certificates and the CloudFront distribution.
+# a small private Postgres, the secrets, the certificates and the CloudFront distribution.
 # It changes nothing that already exists.
 # Images come from deploy/terraform/ecr. Two phases (see DEPLOY.md):
 #

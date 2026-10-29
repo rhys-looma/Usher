@@ -23,7 +23,7 @@ The MCP server is not hosted. It holds the agent's private key, so it runs where
 - The ALB, which accepts traffic only from CloudFront's origin-facing prefix list.
 - The ECS cluster and both services, built from the templates in `deploy/ecs`.
 - A small private Postgres: `db.t4g.micro`, single-AZ, 20 GB gp3, encrypted, 7 days of backups, reachable only from the registry's tasks.
-- The five secrets, both certificates (eu-west-2 and us-east-1), and the CloudFront distribution with the cache policy described in step 7 below.
+- The secrets (six; `BASETEN_TRAINING_API_KEY` is set by hand), both certificates (eu-west-2 and us-east-1), and the CloudFront distribution with the cache policy described in step 7 below.
 
 The database password never enters Terraform state: it is an ephemeral value passed only to write-only arguments. Terraform writes `DATABASE_URL`, and you fill the other four secrets.
 
@@ -80,7 +80,7 @@ Each resource's "Value for `config.env` / the app" is what you carry over.
 | **RDS** PostgreSQL 16 | `db.t4g.micro`, 20 GB gp3, encrypted, **not** publicly accessible, automated backups on (7 days), deletion protection. Database `usher`, user `usher`. Security group: 5432 from the registry tasks' security group only. | The **endpoint**, for `DATABASE_URL` (step 3) |
 | **Secrets Manager**: five plain-text secrets, `usher/DATABASE_URL`, `usher/MODEL_API_KEY`, `usher/BASETEN_API_KEY`, `usher/USHER_SIGNING_KEY`, `usher/USHER_ADMIN_KEY` | Values in step 3 | `SECRET_PREFIX=usher`. The ARNs are looked up by name when task definitions are rendered; to give one directly, set `SECRET_ARN_<NAME>`. |
 | **CloudWatch log groups** `/ecs/usher-registry`, `/ecs/usher-mock-site` | Retention 30 days | none |
-| **IAM execution role** (trusted by `ecs-tasks.amazonaws.com`) | `AmazonECSTaskExecutionRolePolicy`, plus `secretsmanager:GetSecretValue` on the five secrets | `EXECUTION_ROLE_ARN` |
+| **IAM execution role** (trusted by `ecs-tasks.amazonaws.com`) | `AmazonECSTaskExecutionRolePolicy`, plus `secretsmanager:GetSecretValue` on the secrets | `EXECUTION_ROLE_ARN` |
 | **IAM task role** for the registry | `ssmmessages:CreateControlChannel`, `CreateDataChannel`, `OpenControlChannel`, `OpenDataChannel` (ECS Exec, used by backups). The app calls no AWS API. | `TASK_ROLE_ARN` |
 | **Security groups** | ALB: 443 inbound from the managed prefix list `com.amazonaws.global.cloudfront.origin-facing` only, so nothing can skip CloudFront and forge forwarded headers. Registry tasks: 4200 from the ALB's group. Mock site tasks: 4100 from the ALB's group. All three: outbound open (images, model APIs, sites the registry maps). | `TASK_SECURITY_GROUP`: the registry's, used by the migrate task |
 | **Subnets** | Private subnets with a NAT gateway, in two or more availability zones. Public subnets work with `ASSIGN_PUBLIC_IP=ENABLED`. | `TASK_SUBNETS`, `ASSIGN_PUBLIC_IP` |
@@ -292,6 +292,9 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `BASETEN_API_KEY` | for the classifier | Baseten key (Muse Spark Open). `USHER_OPEN_MODEL` overrides the model id. |
 | `USHER_HOSTED_MCP` | on | Hosted MCP at `/mcp` (docs/hosted-mcp.md): `usher_fill` for assistants, on joined sites only, in the registry's Chromium. `off` turns it off. |
 | `USHER_KEEPER_ORIGINS` | the demo site's URL | The only origins the keeper opens, comma-separated (none if unset). It loads pages in a browser, which can be redirected anywhere, so it visits only sites we control. |
+| `USHER_AUTO_TRAIN` | off | `1` retrains the student on Baseten as owners correct maps ([docs/finetune.md](docs/finetune.md#automatic-retraining)). Needs `BASETEN_TRAINING_API_KEY` (training and the student's deployment only; never Spark Open's key) and `REGISTRY_PUBLIC_URL`. Limits: `USHER_TRAINING_MONTHLY_CAP_USD` (40), `USHER_TRAINING_MIN_CORRECTIONS` (10), `USHER_TRAINING_COOLDOWN_HOURS` (24). |
+| `USHER_TRAINING_SECRET` | with retraining | What the student's deployment sends to fetch the promoted adapter. The same value goes in the Baseten secret `usher_training_secret`. |
+| `USHER_STUDENT_MODEL`, `USHER_STUDENT_URL`, `USHER_STUDENT_KEY`, `USHER_STUDENT_BASETEN_MODEL` | off | The student: `usher-labeller`, the deployment's URL (`https://model-<id>.api.baseten.co/environments/production/sync`), the training key, and the deployment's model id (restarted on promotion). With retraining on, it is asked only once a run is promoted. |
 | `USHER_WALKTHROUGH_DAILY_LIMIT` | 6 | Walkthroughs ("Map my site") the demo site may run per UTC day. Every other site gets one ([docs/walkthrough.md](docs/walkthrough.md)). |
 | `USHER_ACCEPT_MAPS` | on | Maps agents submit are stored private to their agent, and served to every agent once a second agent or the keeper verifies them (docs/security.md). `0` refuses submissions. |
 | `USHER_SEED`, `USHER_SEED_ORIGIN` | `mock-site`, the demo site's URL | Seeds the demo site's maps on start. In production this never registers or claims the site. |

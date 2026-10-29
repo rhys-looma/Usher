@@ -8,7 +8,7 @@ data "aws_iam_policy_document" "ecs_tasks_assume" {
   }
 }
 
-# Starts the tasks: pulls images, writes logs, reads the five secrets into the environment.
+# Starts the tasks: pulls images, writes logs, reads the secrets into the environment.
 resource "aws_iam_role" "execution" {
   name               = "${var.name}-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
