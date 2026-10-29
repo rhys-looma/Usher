@@ -26,7 +26,7 @@ const PAGE = `<!doctype html><html><body>
   </div>
 </body></html>`;
 
-const action = (id: string, label: string): MapAction => ({ id, key: 'ui.dismiss', label, risk: 'safe', locators: [{ by: 'id', value: 'customise' }] });
+const action = (id: string, label: string): MapAction => ({ id, key: 'ui.dismiss', kind: 'button', label, risk: 'safe', locators: [{ by: 'id', value: 'customise' }] });
 
 for (const [name, actions] of [['from the map', [action('e9', 'Customise cookies')]], ['by code, before there is a map', []]] as const) {
   test(`a "Customise" banner and its dialog are closed with the least consent, ${name}`, async () => {
