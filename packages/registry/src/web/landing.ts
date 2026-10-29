@@ -19,7 +19,7 @@ export const SUBLINE = 'Usher: no rebuild. Your forms as your own assistant app.
 export const DESCRIPTION = 'Usher puts your site inside every assistant in twenty minutes: the forms you already have become your own app, in your name and look, run under your rules. Nothing to rebuild. Usher fills the form and forgets it.';
 export const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 /** The one-sentence positioning, under the headline. */
-export const POSITIONING = 'Your site is already the way in. Usher turns the forms you have into your own app in Claude, ChatGPT and any assistant that speaks MCP, in your name and look. Nothing to rebuild: you write the rules, in plain English. Usher fills the form and forgets it.';
+export const POSITIONING = 'Your site is already the way in. Usher turns the forms you have into your own app in Claude, ChatGPT and any assistant that speaks MCP. Nothing to rebuild: you write the rules, in plain English. Usher fills the form and forgets it.';
 /** The example the page follows: a health insurance quote on the demo site, asked in plain words. */
 export const EXAMPLE = "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.";
 const HEALTH_JOURNEY = 'Brightwater Health, 3 steps, submitted';
@@ -197,7 +197,7 @@ function exampleSection(): Raw {
 <div class="step person"><p class="bubble">${EXAMPLE}</p></div>
 <div class="step said">${resultCard("Brightwater's site · ")}</div>
 </figure>
-<p class="small muted example-note">Brightwater Insurance is our demo insurer. It rebuilt nothing: this is its own three-page quote form, unchanged, as an app in its name and colours, run under its rules in plain English. Usher's mark sits small in the corner.</p>
+<p class="small muted example-note">Brightwater Insurance is our demo insurer. It rebuilt nothing: its own three-page quote form, unchanged, is now an app in its name and colours, under its rules, set in plain English. Usher's mark sits small in the corner.</p>
 </section>`;
 }
 
@@ -530,7 +530,7 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 /* The Brightwater example under the hero, and the twenty minutes. */
 .example { margin-top:-12px; }
 .example .assistant { max-width:640px; margin:0 auto; }
-.example-note { text-align:center; margin:12px 0 0; }
+.example-note { text-align:center; max-width:640px; margin:12px auto 0; }
 .logo-mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
 .assistant .ref { margin:6px 0; font-size:14px; }
 .assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:8px; }
