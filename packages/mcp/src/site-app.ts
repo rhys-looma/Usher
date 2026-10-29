@@ -9,64 +9,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import type { Registry, SiteApp } from '@usher/registry';
+import type { SiteTool } from '@usher/registry';
 import type { registerFillTools } from './fill.ts';
 
-/** A tool name from an intent: quote.health_insurance is get_health_insurance_quote; contact.callback is request_callback. */
-export function toolNameFor(intent: string): string {
-  const [verb, ...rest] = intent.split('.');
-  const object = rest.join('_');
-  const name = verb === 'quote' ? `get_${object}_quote` : verb === 'contact' ? `request_${object}` : verb === 'apply' ? `apply_for_${object}` : `${verb}_${object}`;
-  return name.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 64);
-}
-
-/** A parameter name from a semantic key: person.first_name is person_first_name. */
-export const paramFor = (key: string) => key.replace(/[^A-Za-z0-9_]+/g, '_');
-
-export interface SiteToolParam {
-  name: string;
-  key: string;
-  description: string;
-  options?: string[];
-  required: boolean;
-}
-
-export interface SiteTool {
-  name: string;
-  intent: string;
-  url: string;
-  title: string;
-  description: string;
-  params: SiteToolParam[];
-}
-
-/** The tools a site's app shows, from its plans and the owner's settings (renamed, hidden, described). */
-export async function siteTools(registry: Registry, origin: string, app: SiteApp): Promise<SiteTool[]> {
-  const name = await registry.siteName(origin);
-  const rules = (await registry.storage.getPolicy(origin))?.text;
-  const out: SiteTool[] = [];
-  for (const journey of await registry.journeys(origin)) {
-    const own = app.tools?.[journey.intent] ?? {};
-    if (own.hidden) continue;
-    const found = await registry.browserPlanFor(`${origin}${journey.start}`, journey.intent);
-    if (!found) continue;
-    const params: SiteToolParam[] = found.view.ask_first.map((a) => ({
-      name: paramFor(a.key),
-      key: a.key,
-      description: [a.label, a.theirs ? 'Their own answer: only as they said it; Usher puts it back to them before anything is submitted.' : '', a.format ? `As ${a.format}.` : '', a.only_if ? `Only ${a.only_if}.` : ''].filter(Boolean).join(' '),
-      ...(a.options && !a.more_options && { options: a.options }),
-      required: a.required,
-    }));
-    const title = `${journey.title.replace(/^(.)/, (c) => c.toUpperCase())} from ${name}`;
-    const description = [
-      own.description?.trim() || `${title}.`,
-      'Give what the person has told you by these parameters, or their own words in details. Usher fills the form on the site; anything missing, and anything that is theirs to decide (the site\'s own wording, word for word, and the final step), comes back as a short set of questions for them, which you put to them and answer with usher_confirm. Never answer for them.',
-      `Runs under ${name}'s rules${rules ? `: ${rules.trim()}` : '.'}`,
-    ].join(' ');
-    out.push({ name: own.name?.trim() || toolNameFor(journey.intent), intent: journey.intent, url: `${origin}${journey.start}`, title, description, params });
-  }
-  return out;
-}
+export { paramFor, siteTools, toolNameFor, type SiteTool, type SiteToolParam } from '@usher/registry';
 
 export type FillCall = ReturnType<typeof registerFillTools>['fill'];
 
