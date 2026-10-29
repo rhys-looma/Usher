@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
-import type { MapRecord, RulesDraft, Session } from '../storage.ts';
+import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
 import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
@@ -22,6 +22,21 @@ function identityBadge(session: Session | undefined): Raw {
 
 const COOKIE = 'usher_site';
 const SESSION_HOURS = 12;
+/** An admin's sign-in to a site's dashboard is short: it isn't the owner's. */
+const ADMIN_SESSION_HOURS = 2;
+
+/** What Usher's admin did on a site's dashboard, kept per origin and shown to its owner. */
+export interface AdminAction {
+  ts: string;
+  /** "POST /dashboard/rules", for instance: what was done, never what was typed. */
+  action: string;
+}
+
+/** The last 200 admin actions on an origin. */
+export async function recordAdminAction(storage: Storage, origin: string, action: string, now = new Date()): Promise<void> {
+  const list = (await storage.getCached<AdminAction[]>('admin-audit', origin)) ?? [];
+  await storage.putCached('admin-audit', origin, [...list, { ts: now.toISOString(), action }].slice(-200));
+}
 
 export interface BlockedEntry {
   ts: string;
@@ -88,6 +103,11 @@ export class Dashboard {
 
   /** The origin this browser is signed in to, from its signed cookie. */
   originOf(req: IncomingMessage): string | null {
+    return this.sessionOf(req)?.origin ?? null;
+  }
+
+  /** The signed-in origin, and whether Usher's admin opened it (from /admin/sites) rather than its owner. */
+  sessionOf(req: IncomingMessage): { origin: string; admin: boolean } | null {
     const raw = /(?:^|;\s*)usher_site=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
     if (!raw) return null;
     const [payload, mac] = raw.split('.');
@@ -95,19 +115,25 @@ export class Dashboard {
     const expected = this.sign(payload);
     if (expected.length !== mac.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(mac))) return null;
     try {
-      const { origin, exp } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { origin: string; exp: number };
-      return exp > Date.now() ? origin : null;
+      const { origin, exp, admin } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { origin: string; exp: number; admin?: boolean };
+      return exp > Date.now() ? { origin, admin: admin === true } : null;
     } catch {
       return null;
     }
   }
 
-  private setCookie(res: ServerResponse, origin: string | null): void {
+  /** Usher's admin opens a site's dashboard with its owner's powers (the caller has checked the admin key). */
+  adminSignIn(res: ServerResponse, origin: string): void {
+    this.setCookie(res, origin, true);
+  }
+
+  private setCookie(res: ServerResponse, origin: string | null, admin = false): void {
     // Secure whenever the registry is served over https, as it is in production.
     const secure = this.registry.url.startsWith('https://') ? '; Secure' : '';
     if (!origin) return void res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
-    const payload = Buffer.from(JSON.stringify({ origin, exp: Date.now() + SESSION_HOURS * 3_600_000 })).toString('base64url');
-    res.setHeader('Set-Cookie', `${COOKIE}=${payload}.${this.sign(payload)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_HOURS * 3600}${secure}`);
+    const hours = admin ? ADMIN_SESSION_HOURS : SESSION_HOURS;
+    const payload = Buffer.from(JSON.stringify({ origin, exp: Date.now() + hours * 3_600_000, ...(admin && { admin: true }) })).toString('base64url');
+    res.setHeader('Set-Cookie', `${COOKIE}=${payload}.${this.sign(payload)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${hours * 3600}${secure}`);
   }
 
   async login(res: ServerResponse, form: URLSearchParams): Promise<string | null> {
@@ -154,6 +180,7 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
       storage.readLog('blocked') as Promise<BlockedEntry[]>,
       this.hooks.explanations?.(origin) ?? Promise.resolve([]),
     ]);
+    const adminActions = demo ? [] : ((await storage.getCached<AdminAction[]>('admin-audit', origin)) ?? []).slice(-10).reverse();
     const blocked = blockedAll.filter((b) => b.origin === origin).reverse();
     const byAgent = new Map<string, Session[]>();
     for (const s of sessions) byAgent.set(s.agent, [...(byAgent.get(s.agent) ?? []), s]);
@@ -174,6 +201,7 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
 <p class="lede">${demo ? 'Agents on the demo quote form: who knocked, what they did, what was refused, and the rules they follow.' : 'Agents on your forms: who knocked, what they did, what was refused, and the rules they follow.'}</p>
 ${demo ? demoBanner(origin) : ''}
 ${notice ?? ''}
+${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher's admin</b> <span class="muted small">(${String(adminActions.length)} most recent, newest first)</span></summary><ul class="small">${adminActions.map((a) => html`<li>${when(a.ts)}: <code>${a.action}</code></li>`)}</ul></details>` : ''}
 <div data-live="top">
 <div class="grid">
   <div class="card stat"><b>${records.length}</b><span>forms mapped${drifted ? html`, <span class="badge rule-confirm">${drifted} drifted</span>` : ''}</span></div>
