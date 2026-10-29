@@ -100,6 +100,8 @@ interface Interest {
   site: string;
   email: string;
   note: string;
+  /** "Would you want Looma to set up and publish your assistant app?", if answered. */
+  setup?: 'yes' | 'maybe' | 'no';
   /** Who sent it: a person, or an agent that knocked. */
   via: 'person' | 'agent';
 }
@@ -272,6 +274,7 @@ export class Web {
       const site = (form.get('site') ?? '').trim();
       const email = (form.get('email') ?? '').trim();
       const note = (form.get('note') ?? '').trim().slice(0, 200);
+      const setup = ['yes', 'maybe', 'no'].find((v) => v === form.get('setup')) as Interest['setup'];
       let error = '';
       try {
         if (!/^https?:$/.test(new URL(site).protocol)) error = 'Give your site\'s address, starting https://.';
@@ -280,7 +283,7 @@ export class Web {
       }
       if (!error && (!EMAIL.test(email) || email.length > 200)) error = 'That email address doesn\'t look right.';
       if (error) return sendHtml(res, 422, await this.landing({ interest: { error } }), { siteScript: true }), true;
-      const record: Interest = { ts: new Date().toISOString(), site: site.slice(0, 300), email, note, via: check.status === 'human' ? 'person' : 'agent' };
+      const record: Interest = { ts: new Date().toISOString(), site: site.slice(0, 300), email, note, ...(setup && { setup }), via: check.status === 'human' ? 'person' : 'agent' };
       await this.registry.storage.appendLog('interest', record);
       return redirect(res, '/interest/thanks'), true;
     }
@@ -332,8 +335,8 @@ export class Web {
           page(
             'Interest',
             html`<h1>Interest</h1><p class="lede">${list.length} from the front page's form, newest first. <a href="/admin/sites">All sites</a>.</p>
-<div class="card"><table><thead><tr><th>When</th><th>Site</th><th>Email</th><th>Note</th><th>Sent by</th></tr></thead>
-<tbody>${list.map((i) => html`<tr><td>${when(i.ts)}</td><td>${i.site}</td><td>${i.email}</td><td>${i.note}</td><td>${i.via === 'agent' ? 'an agent' : 'a person'}</td></tr>`)}</tbody></table></div>`,
+<div class="card"><table><thead><tr><th>When</th><th>Site</th><th>Email</th><th>Note</th><th>Looma to set up</th><th>Sent by</th></tr></thead>
+<tbody>${list.map((i) => html`<tr><td>${when(i.ts)}</td><td>${i.site}</td><td>${i.email}</td><td>${i.note}</td><td>${i.setup ?? ''}</td><td>${i.via === 'agent' ? 'an agent' : 'a person'}</td></tr>`)}</tbody></table></div>`,
           ),
         ), true;
       }

@@ -9,13 +9,14 @@ Usher is an entry in the **Meta Global AI Developer Hackathon** (Startups track,
 
 **Everything in this repository.** No code, specifications or data here existed before the hackathon. The repository started empty apart from the licence file, and the commit history is the record of the work.
 
-Looma has an existing consumer app that automates car insurance quote journeys. **None of its code, plans or insurer data is in this repository, and none of it appears in the demo.** Usher is a new, general-purpose system; insurance is used only as an example of a hard, multi-step form. The demo's headline example is a private medical insurance quick quote on Brightwater, a fictional insurer we wrote for the demo; its car insurance quote is the second example. Neither asks medical questions; on sites that do, the site decides whether Usher may fill them.
+Looma has an existing consumer app that automates car insurance quote journeys. **None of its code, plans or insurer data is in this repository, and none of it appears in the demo.** Usher is a new, general-purpose system: it puts a site inside every assistant as the site's own app, hosted by Usher, under the site's rules, with an open protocol underneath for agents that drive their own browser. Insurance is used only as an example of a hard, multi-step form. The demo's headline example is a private medical insurance quick quote on Brightwater, a fictional insurer we wrote for the demo; its car insurance quote is the second example. Neither asks medical questions; on sites that do, the site decides whether Usher may fill them.
 
 ## Meta models used
 
 | Job | Model |
 | --- | --- |
 | Compile forms into maps (semantic labels, risk, conditions) | Muse Spark `muse-spark-1.3` (Meta Model API): strict structured output from the extraction plus a screenshot. In use. |
+| Propose a joined site's look for its assistant app: choose the name, logo, colours, typeface and corners among candidates read from the site's own pages | Muse Spark `muse-spark-1.3`, strict structured output, choosing by index only; code chooses without it. The owner accepts it. In use. |
 | Turn site rules written in plain English into a policy file | Muse Spark `muse-spark-1.3`, strict structured output, validated against the policy schema and the never-looser check. In use. |
 | Explain agent sessions to site owners | Muse Spark `muse-spark-1.3`, or Muse Spark Open on Baseten for self-hosters (`--explain-open`); code computes the facts, the model writes 1 to 3 sentences. In use. |
 | Flag consequential fields and actions: a second opinion on every element's risk; disagreements keep the stricter risk and are flagged | Muse Spark Open on Baseten (open weights). In use: 95.6% agreement with Muse Spark on the mock site, 90% on five public forms ([report](reports/classifier-agreement.md)). |
@@ -66,3 +67,8 @@ Status on 29 October: steps 1 to 4 are live; step 5 has passed a dry run (one tr
 | 28 Oct | Brightwater Health: a private medical insurance quick quote (layouts A and B) seeded as the headline example; `person.smoker` confirmed on the decision card, `health.*` never filled; front page "What happens in between" and "What Usher keeps"; a test that a fill leaves no value behind |
 | 28 Oct | Aviva life insurance captured as its answers open it; life cover (`cover.*`) and second-person (`partner.*`) keys; the extractor reads a heading inside a fieldset |
 | 29 Oct | The site decides on medical answers: a site's rules may permit `health.*` and smoking answers (`confirm`), entered from what the person said and confirmed by them; off by default |
+| 29 Oct | Rules behave as the demo describes; site apps at `/mcp/<host>`, one tool per mapped journey (LU-57) |
+| 29 Oct | A site's look on the cards, proposed by Muse Spark from the site's own pages and accepted by the owner (LU-58) |
+| 29 Oct | Finishable quotes: the reference and "Continue on <site>" from the plan's resume page |
+| 29 Oct | Publish as an assistant app: the setup strip with join-to-publish time (Brightwater 79 s of machine time), the switch, tool settings, the directory pack (LU-59) |
+| 29 Oct | Front page, README and docs follow the product: your site inside every assistant in twenty minutes; docs/site-apps.md |

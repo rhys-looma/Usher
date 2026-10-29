@@ -1,10 +1,37 @@
 # Usher
 
-An open protocol and script tag that lets websites control AI agents on their forms, and gives agents a fast, trusted way in.
+**Your site inside every assistant in twenty minutes. Under your rules.**
 
-**Usher makes sites with complex forms agent-ready without integrating new systems, standards or products.** Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt. The site adds one script tag, plus a server-side check where it matters. The description agents need is built from the live page itself and kept up to date when the form changes.
+Usher turns a site's forms into the site's own assistant app, hosted by Usher. It shows in Claude, ChatGPT and any assistant that speaks MCP, in the site's name and look. Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt.
+
+The site does four things:
+- adds one script tag;
+- publishes the map Usher builds from its live pages;
+- writes its rules in plain English;
+- accepts the look Usher reads from its pages.
+
+Then it switches its app on. A person asks their assistant for a quote, and the app does the rest:
+- **The safe fields:** it fills them on the site.
+- **The questions that are the person's:** it puts them to the person in the site's own wording, word for word.
+- **The submit:** it presses the button with a token the site's server checks.
+- **The result:** it hands back the quote, its reference and a way to continue on the site.
+
+Usher fills the form and forgets it.
+
+Underneath is an open protocol, the map, the knock and the log, which any agent can use directly: an agent that drives its own browser gets the plan and the rules, and fills the form itself.
 
 > **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
+
+## Site apps
+
+A site that has joined gets an MCP server at `/mcp/<its host>` on the registry, with one tool per mapped journey. The owner sets it up at `/dashboard/app`. A setup strip shows each step: joined, mapped, rules, look, published. Once published, it shows the time from joining to publishing; Brightwater, the demo insurer, took 79 s of machine time.
+
+On that page the owner can also:
+- rename, describe or hide each tool;
+- switch the app off, which stops it answering everyone;
+- download a pack for Claude's and ChatGPT's app directories.
+
+Hosted filling acts only on sites that joined, at the site's instruction, and a site's app acts only on that site. [docs/site-apps.md](docs/site-apps.md) has the details.
 
 ## Map, knock, log
 
@@ -14,12 +41,12 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 - **Knock.** Before an agent fills a form, it knocks and says who it is, signing with its own key (Web Bot Auth). It gets back the map, the site's rules for that form, and short-lived signed permission. The site's page and server check that permission on their own.
 - **Log.** While a knocked agent works, the site sees each step by meaning ("filled date of birth", "asked the user before *Get my quote*"), never the values. People using the site are never logged.
 
-**For sites: the control layer for AI agents on your forms. No integration required.**
+**For sites: your own app in every assistant, under your rules. No integration required.**
 - **No changes to your systems.** One script tag on the pages you already have. Agents come through the same forms your customers use.
 - **You set the terms.** Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit.
 - **Every agent action on the record.** Who the agent was and what it did, step by step, by meaning. Your customers' data is never captured.
 
-**For agents: Usher gives you the plan and the rules; you drive. No signup: your agent's key is its identity.** `get_plan` hands an assistant that drives its own browser the journey as Usher mapped it: what to ask the person first, each field by meaning and where to find it, and the stops where the site's own words go to the person. `prepare_run` puts the person's answers in the site's format and, on a site that has joined, returns an entry URL with the token. The assistant fills and stops where the rules say; Usher never touches the site with the person's values. No browser? `usher_fill` in [`@usher-run/mcp`](packages/mcp) fills the form for you.
+**For agents: Usher gives you the plan and holds the door; you drive. No signup: your agent's key is its identity.** `get_plan` hands an assistant that drives its own browser the journey as Usher mapped it: what to ask the person first, each field by meaning and where to find it, and the stops where the site's own words go to the person. `prepare_run` puts the person's answers in the site's format and, on a site that has joined, returns an entry URL with the token. The assistant fills and stops where the rules say; Usher never touches the site with the person's values. No browser? `usher_fill` in [`@usher-run/mcp`](packages/mcp) fills the form for you.
 
 **Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher, sites don't write declarations: Usher derives them from the live form and verifies them before any agent acts on them. The tag on the page watches for changes and reports drift, and agents get the map only from the registry, never from page content ([why](docs/security.md#considered-and-rejected-maps-published-in-the-page)).
 
@@ -37,9 +64,17 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 
 Then lock consequential endpoints on your server with [`@usher/site-middleware`](packages/site-middleware/). The script in the page is a convenience; the server is the lock.
 
+4. Open `/dashboard/app` and follow the strip:
+   - map your journeys;
+   - write your rules;
+   - accept your look;
+   - switch your app on.
+
+   Add its address, `/mcp/<your host>` on the registry, to Claude or ChatGPT as a custom connector.
+
 ## Quickstart: an agent
 
-**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add the public registry's `/mcp` address as a remote MCP server. There's nothing to install. Hosted Usher acts on sites that have joined Usher, such as the demo site, Brightwater; setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md), and the ways to connect are compared in [docs/integrations.md](docs/integrations.md). Then ask in plain words:
+**In an assistant** (claude.ai, Claude Desktop, ChatGPT, Cursor), add a site's app, such as Brightwater's at `/mcp/<Brightwater's host>`, as a remote MCP server. There's nothing to install. The general `/mcp` address serves every site that has joined, and gives assistants with a browser the plan path too. Setup for each assistant is in [docs/hosted-mcp.md](docs/hosted-mcp.md), and the ways to connect are compared in [docs/integrations.md](docs/integrations.md). Then ask in plain words:
 
 > Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.
 
@@ -71,7 +106,7 @@ npm test
 
 `npm test` builds everything, installs Chromium for Playwright, and runs the suite offline from recorded model responses.
 
-**The demo**, scene by scene against the live registry and demo site: each scene resets the demo site, opens its windows and prints the numbers it shows. Scenes 1 to 8, or `all`; `--once` closes the windows when done.
+**The demo**, scene by scene against the live registry and demo site: each scene resets the demo site, opens its windows and prints the numbers it shows. Scenes 1 to 9, or `all`; `--once` closes the windows when done.
 
 ```bash
 npm run demo -- 3
@@ -139,6 +174,7 @@ Spark Open's times are its recorded calls, made on 28 October while Baseten was 
 | --- | --- |
 | [spec/](spec/) | The specifications, with JSON Schemas: [map](spec/map.md), [vocabulary](spec/vocabulary.md), [knock](spec/knock.md) (including Web Bot Auth and domain claims), [policy](spec/policy.md), [plan](spec/plan.md) |
 | [DEPLOY.md](DEPLOY.md) | Deploying to AWS (CloudFront, ALB, ECS Fargate, RDS), the pre-deploy dry run, configuration, backups |
+| [docs/site-apps.md](docs/site-apps.md) | Site apps: what one is, what the owner controls, what Usher never stores, where it acts |
 | [docs/security.md](docs/security.md) | Threats, controls, and what Usher does not do |
 | [docs/finetune.md](docs/finetune.md) | A small labeller: the short list and retrieval few-shot (no training, measured), the per-element dataset, and how Muse Glimmer would be tuned |
 | [reports/](reports/) | [Benchmark](reports/benchmark.md), [drift and rebuild](reports/drift-demo.md), [map accuracy](reports/accuracy.md), [classifier agreement](reports/classifier-agreement.md) |

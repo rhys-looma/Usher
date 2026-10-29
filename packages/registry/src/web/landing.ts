@@ -1,6 +1,8 @@
-// The front page (LU-53): what Usher is, what happens between a person's message and their quote (and
-// what Usher keeps), the map viewer inline (when it is on), the two quickstarts, the numbers from the
-// committed reports, and an interest form that carries Usher's own script tag.
+// The front page (LU-53): a site inside every assistant in twenty minutes. The hero and the
+// Brightwater example as its own app in an assistant; the twenty minutes (tag, map, rules, publish,
+// quote); what happens in between on the hosted path, and what Usher keeps; for sites, then for
+// agents; the map viewer (when it is on); the numbers from the committed reports; and an interest form
+// that carries Usher's own script tag.
 
 import { readFile, readdir } from 'node:fs/promises';
 import { FAVICON, LOOMA_FOOTER, THEME, esc, html, siteClaims, type Raw } from './html.ts';
@@ -11,13 +13,13 @@ import { KEEPS, KEEPS_HEADING } from './keeps.ts';
 
 const ROOT = new URL('../../../../', import.meta.url);
 
-export const SENTENCE = 'Usher is the front door for AI agents on web forms. Agents knock, get in fast, and follow the house rules.';
-export const SUBLINE = 'More of the web, open to agents.';
+export const SENTENCE = 'Your site inside every assistant in twenty minutes. Under your rules.';
+export const SUBLINE = 'Usher: your forms as your own assistant app.';
 /** The meta and OpenGraph description. */
-export const DESCRIPTION = 'Usher is the front door for AI agents on web forms: the control layer for sites, one call for agents, no integration required.';
+export const DESCRIPTION = 'Usher puts your site inside every assistant in twenty minutes: your forms as your own app, in your name and look, run under your rules. Usher fills the form and forgets it.';
 export const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 /** The one-sentence positioning, under the headline. */
-export const POSITIONING = 'The control layer for AI agents on your forms. No integration required.';
+export const POSITIONING = 'Your forms become your own app in Claude, ChatGPT and any assistant that speaks MCP: your name, your look, your questions in your words. Usher fills the form and forgets it.';
 /** The example the page follows: a health insurance quote on the demo site, asked in plain words. */
 export const EXAMPLE = "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.";
 const HEALTH_JOURNEY = 'Brightwater Health, 3 steps, submitted';
@@ -153,63 +155,100 @@ export interface LandingOptions {
   hosted?: boolean;
 }
 
-/** The six steps under the hood, told to the site that runs the form, and what Usher sees at each. */
-const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
-  { title: 'Knock', what: 'Your customer\'s agent says who it is before it touches your form, and your site opens for that one session.', sees: 'the agent, your site, what it came to do, when its pass expires.' },
-  { title: 'The plan and your rules', what: 'Usher hands the agent your form\'s plan: every field by meaning, in order, with where to find it, and your rules, so it fills by meaning, not by guessing.', sees: 'field names and types. Never what anyone types.' },
-  { title: 'The agent fills the safe fields from the plan', what: 'Name, date of birth, postcode, cover level: the fields you let agents fill, typed in the agent\'s own browser from the plan, in seconds.', sees: 'which fields were filled. Not the values.' },
-  { title: 'The questions you keep for people', what: 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', note: 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', sees: 'that each was shown, and your customer\'s yes or no.' },
-  { title: 'The agent submits with the token', what: 'Your server checks the agent\'s token before it quotes. No token, no quote.', sees: 'that a quote was asked for, with a valid token.' },
-  { title: 'On your record', what: 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', sees: 'the session. Never the answers.' },
+/** The twenty minutes, from the tag to a customer's quote: what the owner does at each step. */
+export const TWENTY: { title: string; what: string }[] = [
+  { title: 'Tag', what: 'Add one script tag and claim your site. Your forms stay as they are.' },
+  { title: 'Map', what: 'Usher maps your journey: every field and button by meaning, in order. Never a value. You review it and publish it.' },
+  { title: 'Rules', what: 'Say in plain English what an assistant may do and which questions are your customer\'s alone. Usher turns it into rules you confirm.' },
+  { title: 'Publish', what: 'Accept your look (your name, logo and colours, read from your site), switch your app on and add its address to Claude or ChatGPT.' },
+  { title: 'Quote', what: 'Your customer asks their assistant. Your app fills your form, puts your questions to them in your words, and hands back your quote with its reference and a way to continue on your site.' },
 ];
 
+/** The six steps of the hosted path, told to the site that runs the form, and what Usher sees at each. */
+const STEPS: { title: string; what: string; sees: string; note?: string }[] = [
+  { title: 'Your app is asked', what: 'Your customer asks their assistant for a quote, and it calls your app. Your app runs only on sites that joined, and acts only on yours.', sees: 'your site, what the app came to do, when its pass expires.' },
+  { title: 'Your map and your rules', what: 'Usher takes your published map, every field by meaning, in order, and your rules: what an assistant may fill and what is your customer\'s alone.', sees: 'field names and types. Never what anyone types.' },
+  { title: 'Usher fills the safe fields', what: 'Name, date of birth, postcode, cover level: the fields you let it fill, from what your customer said, in a fresh browser on your site. Usher fills the form and forgets it.', sees: 'which fields were filled. Not the values.' },
+  { title: 'The questions that are yours', what: 'Smoking, the declaration, any you choose: shown to your customer in your own wording, word for word, unticked, never answered by their assistant.', note: 'Or let the assistant answer one from what your customer said: Usher still shows it back to them to confirm.', sees: 'that each was shown, and your customer\'s yes or no.' },
+  { title: 'Submit with the token', what: 'Usher presses your button as your rules say (Brightwater\'s: only once the customer confirms), with a token your server checks before it quotes. No token, no quote.', sees: 'that a quote was asked for, with a valid token.' },
+  { title: 'On your record', what: 'Your customer gets your quote, its reference and a way to continue on your site. Your dashboard shows the session: which fields, what your customer was shown and what they confirmed.', sees: 'the session. Never the answers.' },
+];
+
+/** Brightwater's band, as the card draws it for an accepted theme: the site's name, and Usher's mark. */
+const BAND = html`<div class="band"><span class="logo-mark" aria-hidden="true"></span><span class="name">Brightwater Insurance</span><span class="via">via Usher</span></div>`;
+
+/** The result card as the app returns it: the quote, its reference and the way back to the site. */
+function resultCard(host: string): Raw {
+  return html`<div class="card branded">${BAND}<p class="label">Your result</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
+<ul class="facts"><li class="verbatim">£66.92 a month</li></ul>
+<p class="ref">Reference <b>BWH-3F9A2C71</b></p>
+<p><span class="button">Continue on Brightwater Insurance</span></p><p class="note">Find your quote asks for your quote reference and your date of birth.</p></div>`;
+}
+
 /**
- * What your customer sees, and the rails underneath: one section, two panes playing in step. On the
- * left, a native Brightwater experience in the customer's assistant, with no Usher in sight (a plain window of our own, no product's interface, with
- * the MCP Apps cards' own markup from cards.ts, drawn rather than live): their message, a line saying
- * it's working,
- * the decision card they tick (in Brightwater's name), the quote. On the right, what happens underneath: Brightwater's app
- * runs on Usher's rails, and the six steps stream in, each with what Usher sees. As Usher knocks the
- * assistant says it's working; at the questions that are the person's the card arrives and they tick it; the quote lands
- * with the last step. What Usher keeps sits under both. Everything is in the page in reading order;
- * site.js only plays it (reached steps as r1…r6 on the container), and without it, or with reduced
- * motion, the last frame shows.
+ * Under the hero: Brightwater's own app inside a generic assistant window (a plain window of our own,
+ * no product's name or interface), the message and the branded result card, drawn with the MCP Apps
+ * cards' own markup from cards.ts.
+ */
+function exampleSection(): Raw {
+  return html`<section class="example" aria-label="Example: Brightwater Insurance's app inside an assistant">
+<figure class="assistant uc" aria-label="Illustration: a customer gets a health insurance quote from Brightwater Insurance's app in their assistant" inert>
+<div class="assistant-bar"><span class="assistant-name">Your assistant</span><span class="assistant-tag">Brightwater Insurance app connected</span></div>
+<div class="step person"><p class="bubble">${EXAMPLE}</p></div>
+<div class="step said">${resultCard("Brightwater's site · ")}</div>
+</figure>
+<p class="small muted example-note">Brightwater Insurance is our demo insurer. Its app, in its name and colours, with Usher's mark small in the corner.</p>
+</section>`;
+}
+
+/** The twenty minutes: five steps, and Brightwater's measured machine time. */
+function twentySection(): Raw {
+  return html`<section id="twenty" data-reveal><h2>The twenty minutes</h2>
+<p class="lede">From a script tag to your customer's quote, inside their assistant.</p>
+<ol class="twenty">${TWENTY.map((t, i) => html`<li><span class="n">${String(i + 1)}</span><h3>${t.title}</h3><p>${t.what}</p></li>`)}</ol>
+<p class="small muted">Brightwater, our demo insurer, went from joined to published in 79 seconds of machine time: its three health pages mapped, its rules and its look proposed by Muse Spark. The rest of the twenty minutes is you, reading and clicking. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">How it was measured</a>.</p>
+</section>`;
+}
+
+/**
+ * What happens in between, on the hosted path: one section, two panes playing in step. On the left,
+ * Brightwater's app in the customer's assistant (a plain window of our own, the cards' own markup,
+ * drawn rather than live): their message, a line saying it's working, the decision card they tick,
+ * the quote. On the right, the six steps, each with what Usher sees. While Usher fills, the assistant
+ * says it's working; at the questions that are the person's the card arrives and they tick it; the
+ * quote lands with the last step. What Usher keeps sits under both. Everything is in the page in
+ * reading order; site.js only plays it (reached steps as r1…r6 on the container), and without it, or
+ * with reduced motion, the last frame shows.
  */
 function howSection(url: string, hosted: boolean): Raw {
-  // Brightwater's own site, by name: the demo is hosted beside Usher, but a real site isn't.
   const host = "Brightwater's site · ";
   const tick = html`<span class="box" aria-hidden="true"></span>`;
   const you = html`<span class="by-you">you</span>`;
   return html`<section class="between" id="how" data-reveal>
-<h2>What your customer sees, and the rails underneath</h2>
-<p class="lede">In their assistant, your customer gets Brightwater Insurance: your app, your words, your quote, with no Usher in sight. Underneath, it runs on Usher's rails, the infrastructure between assistants and your forms. Both sides, at the same moment.</p>
+<h2>What happens in between</h2>
+<p class="lede">Between your customer's message and your quote, Usher runs your app on your own site, under your rules. Your customer sees your app; you see the session. Both sides, at the same moment.</p>
 <div class="views seq" data-steps>
-<div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>A native Brightwater Insurance experience</span></h3>
-<figure class="assistant uc" aria-label="Illustration: a customer gets a health insurance quote from Brightwater Insurance's app in their assistant" inert>
-<div class="assistant-window" aria-hidden="true"></div>
+<div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>Brightwater Insurance's own app</span></h3>
+<figure class="assistant uc" aria-label="Illustration: a customer answers Brightwater Insurance's questions in their assistant and gets a quote" inert>
 <div class="assistant-bar"><span class="assistant-name">Your assistant</span><span class="assistant-tag">Brightwater Insurance app connected</span></div>
 <div class="step person"><p class="bubble">${EXAMPLE}</p></div>
 <div class="step said s-working"><p class="working"><span class="spinner" aria-hidden="true"></span>Getting your quote from Brightwater Insurance…</p></div>
 <div class="step said s-decision">
 <p class="callout"><b>Only with Usher</b> Your customer decides, in your words. Their assistant can't answer for them.</p>
-<div class="card decision"><p class="label">Brightwater Insurance</p><p class="title">Before we get your quote</p><p class="where">${host}/health/declaration</p><p class="asking">Brightwater is asking you, not your assistant</p>
+<div class="card decision branded">${BAND}<p class="label">Your decision</p><p class="title">Before Usher goes on</p><p class="where">${host}/health/declaration</p><p class="asking">Usher is asking you, not the agent</p>
 <div class="row"><span class="verbatim">Have you smoked or used nicotine products in the last 12 months?<span class="tag req">confirm</span></span><p class="said">You said: <b>No</b></p><div class="t1"><div class="yesno"><span class="radio on"></span> That's right <span class="radio"></span> Not right${you}</div></div></div>
 <div class="row"><span class="check t2">${tick}<span class="verbatim">I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote<span class="tag req">required</span></span>${you}</span></div>
 <div class="row"><span class="check t3">${tick}<span>Yes, press <b>“Get my quote”</b> for me</span>${you}</span><p class="disclosure">By selecting Get my quote you agree that Brightwater may use these answers to work out your price. Medical history is not asked here: Brightwater asks you about it after the quote. This is a demo site: nothing is bought.</p></div>
 <span class="button confirm">Confirm</span>
 </div>
 </div>
-<div class="step said s-result">
-<div class="card"><p class="label">Brightwater Insurance</p><p class="title">Your quote</p><p class="where">${host}/health/result</p><p class="outcome ok">Completed</p>
-<ul class="facts"><li class="verbatim">£66.91 a month</li><li class="verbatim">Quote reference BWH-3F9A2C71</li><li class="verbatim">This quote is valid for 30 days.</li></ul>
-<p class="note"><span class="link">Open the page</span> · as the site shows it, word for word</p></div>
-</div>
+<div class="step said s-result">${resultCard(host)}</div>
 </figure>
 </div>
-<div class="view"><h3 class="view-label">Under the hood <span>The Usher rails, for you</span></h3>
+<div class="view"><h3 class="view-label">Under the hood <span>Usher, for you</span></h3>
 <div class="hood">
 <p class="tool-head"><span class="tool-icon" aria-hidden="true"></span>Using Brightwater Insurance<span class="runs-on">runs on Usher</span></p>
-<ol class="route" aria-label="The route your request takes"><li>Your assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>Brightwater's site</li></ol>
+<ol class="route" aria-label="The route your request takes"><li>Your customer's assistant</li><li>Brightwater's app</li><li class="usher"><span>Usher</span></li><li>Brightwater's site</li></ol>
 <ol class="seq-steps">${STEPS.map(
     (st, i) => html`<li data-step="${String(i + 1)}"><h3><span class="n">${String(i + 1)}</span> ${st.title}</h3><p>${st.what}</p>${st.note ? html`<p class="note">${st.note}</p>` : ''}<p class="sees"><b>Usher sees:</b> ${st.sees}</p></li>`,
   )}</ol>
@@ -218,7 +257,7 @@ function howSection(url: string, hosted: boolean): Raw {
 </div>
 </div>
 <div class="keeps" id="keeps"><h3>${KEEPS_HEADING}</h3><ul>${KEEPS.map((line) => html`<li>${line}</li>`)}</ul></div>
-${hosted ? html`<p class="small muted assistant-note">Add ${url}/mcp to any assistant that speaks MCP. Shown on Muse Spark through the Meta Model API. Works in Claude, ChatGPT, Cursor and any MCP client; cards where the client supports MCP Apps, plain text everywhere else.</p>` : ''}
+${hosted ? html`<p class="small muted assistant-note">Each site's app has its own address, ${url}/mcp/ and the site's host, for any assistant that speaks MCP. Shown on Muse Spark through the Meta Model API. Cards where the assistant supports MCP Apps, plain text everywhere else.</p>` : ''}
 </section>`;
 }
 
@@ -235,10 +274,10 @@ export function landingPage(o: LandingOptions): string {
   const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">
 <div class="hero-copy">
-<p class="label">An open protocol for web forms</p>
+<p class="label">Hosted assistant apps for sites with forms</p>
 <h1>${first}. <em>${rest.join('. ')}</em></h1>
 <p class="lede">${POSITIONING}</p>
-<p class="actions"><a class="button" href="/sites/new">Get your keys</a><a class="button ghost" href="#agents">Connect an agent</a></p>
+<p class="actions"><a class="button" href="/sites/new">Publish your app</a><a class="button ghost" href="#twenty">See the twenty minutes</a></p>
 </div>
 <aside class="ticket" aria-label="An example of what an agent receives when it knocks">
 <div class="ticket-main">
@@ -255,27 +294,23 @@ export function landingPage(o: LandingOptions): string {
 </aside>
 </section>
 
+${exampleSection()}
+
+${twentySection()}
+
 ${howSection(o.url, Boolean(o.hosted))}
 
-
-${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
-<p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
-${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
-${pickerButtons(o.forms, 'home')}
-<p class="small muted">Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites.</p>
-<p class="small muted">Run a site? <a href="/dashboard">Sign in</a> and map any page on it.</p>
-</section>` : ''}
-
 <section class="grid two" id="start" data-reveal>
-<div class="card"><p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>
-<p class="lede">One tag, no integration.</p>
-<p>Looma, the team behind Usher, sets it up with you: <a href="#interest">tell us about your site</a>.</p>
+<div class="card"><p class="label">For sites</p><h2>Your own app in every assistant, under your rules.</h2>
+<p class="lede">One tag, then twenty minutes. Usher hosts your app and runs it.</p>
+<ul class="owns"><li><b>Your name and look</b> on every card, read from your site and accepted by you.</li><li><b>Your questions in your words</b>, word for word, put to your customer and never answered by their assistant.</li><li><b>Your rules</b>, in plain English: what an assistant may fill, and what is your customer's alone.</li><li><b>Your tools</b>: rename, describe or hide each one, and switch your app off at any time.</li></ul>
 <pre class="wrap">${tag}</pre>
 ${siteClaims()}
-<p><a class="button" href="/sites/new">Get your keys</a></p>
+<p><a class="button" href="/sites/new">Publish your app</a></p>
+<p>Or Looma, the team behind Usher, sets it up and publishes it with you: <a href="#interest">tell us about your site</a>.</p>
 <p class="small muted">Then lock the actions that matter (getting a quote, sending a message) on your server, with <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a>.</p></div>
-<div class="card" id="agents"><p class="label">For agents</p><h2>Usher gives you the plan and the rules; you drive.</h2>
-<p class="lede">No signup. Your agent's key is its identity.</p>
+<div class="card" id="agents"><p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>
+<p class="lede">Driving your own browser? No signup. Your agent's key is its identity.</p>
 ${o.hosted
   ? html`<pre class="wrap">${o.url}/mcp</pre>
 <p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>
@@ -293,6 +328,13 @@ prepare_run({ url, values: { "person.first_name": "Sam", … }, confirmed: ["con
 <p><code>get_plan</code> gives you the journey and the rules; <code>prepare_run</code> puts your user's answers in the site's own form; you fill and stop where the rules say.</p>`}
 ${o.demo ? html`<p><a class="button ghost" href="/demo/dashboard">See the site's view</a></p><p class="small muted">The demo quote site's live dashboard: run the plan on it and your agent's session appears there, step by step.</p>` : ''}</div>
 </section>
+${o.forms?.length ? html`<section id="try" data-reveal><h2>Try it</h2>
+<p class="lede">Pick a form and see its map: what each field means and how risky it is to act on. Usher reads structure, never anything typed, and nothing is submitted.</p>
+${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
+${pickerButtons(o.forms, 'home')}
+<p class="small muted">Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites.</p>
+<p class="small muted">Run a site? <a href="/dashboard">Sign in</a> and map any page on it.</p>
+</section>` : ''}
 
 ${numbersSection(o.numbers)}
 
@@ -301,6 +343,8 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <form class="card stack" method="post" action="/interest">
 <label>Your site<input type="url" name="site" required placeholder="https://www.example.com"></label>
 <label>Email<input type="email" name="email" required autocomplete="email"></label>
+<fieldset class="setup"><legend>Would you want Looma to set up and publish your assistant app?</legend>
+<label class="choice"><input type="radio" name="setup" value="yes"> Yes</label><label class="choice"><input type="radio" name="setup" value="maybe"> Maybe</label><label class="choice"><input type="radio" name="setup" value="no"> No, I'll do it myself</label></fieldset>
 <label>Anything else? <span class="muted small">(optional)</span><input type="text" name="note" maxlength="200"></label>
 <button type="submit">Tell me more</button>
 <p class="small muted">This form is agent-ready too: it carries the Usher tag, and an agent filling it for you knocks first.</p>
@@ -312,11 +356,11 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Usher: the front door for AI agents on web forms</title>
+<title>Usher: your site inside every assistant</title>
 <meta name="description" content="${esc(description)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${esc(o.url)}/">
-<meta property="og:title" content="Usher: the front door for AI agents on web forms">
+<meta property="og:title" content="Usher: your site inside every assistant">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${esc(o.url)}/og.png">
 <meta property="og:image:width" content="1200">
@@ -330,7 +374,7 @@ ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a>${o.forms?.length ? '<a href="#try">Try it</a>' : ''}<a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
-<div class="foot-brand"><a class="brand" href="/">Usher</a><p>The front door for AI agents on web forms. Maps hold structure, never values.</p></div>
+<div class="foot-brand"><a class="brand" href="/">Usher</a><p>Your site inside every assistant, under your rules. Maps hold structure, never values.</p></div>
 <nav>
 <a href="/dashboard">Site dashboard</a>
 <a href="${REPOSITORY}">GitHub</a>
@@ -483,6 +527,24 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .stat b { display:block; font-family:var(--serif); font-size:44px; font-weight:700; line-height:1.1; color:var(--ink); }
 .stat span { color:var(--muted); font-size:15px; }
 @media (max-width:640px) { table, tbody, tr, td { display:block; } thead { display:none; } tr { padding:8px 0; border-bottom:1px solid var(--line); } td { border:0; padding:2px 0; } td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); } }
+/* The Brightwater example under the hero, and the twenty minutes. */
+.example { margin-top:-12px; }
+.example .assistant { max-width:640px; margin:0 auto; }
+.example-note { text-align:center; margin:12px 0 0; }
+.logo-mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
+.assistant .ref { margin:6px 0; font-size:14px; }
+.assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:8px; }
+.assistant .card.branded { --btn:#0b6e6e; --btn-ink:#ffffff; --band:#0b6e6e; --band-ink:#ffffff; }
+ol.twenty { list-style:none; margin:20px 0 14px; padding:0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; counter-reset:none; }
+.twenty li { background:var(--card); border:1.5px solid var(--rule); padding:16px 16px 14px; position:relative; }
+.twenty .n { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--ink); color:var(--bg); font:700 13px Inter,system-ui,sans-serif; }
+.twenty h3 { font-family:var(--serif); font-size:20px; margin:10px 0 6px; }
+.twenty p { margin:0; font-size:14.5px; line-height:1.5; }
+@media (max-width:980px) { ol.twenty { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); } }
+ul.owns { padding-left:20px; margin:0 0 16px; } ul.owns li { margin:6px 0; }
+fieldset.setup { border:0; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px 18px; }
+fieldset.setup legend { font-weight:600; font-size:14px; margin-bottom:6px; padding:0; }
+form.stack label.choice { flex-direction:row; align-items:center; gap:6px; font-weight:400; font-size:15px; }
 form.stack { display:flex; flex-direction:column; gap:18px; max-width:560px; }
 form.stack label { display:flex; flex-direction:column; gap:2px; font-weight:600; font-size:14px; }
 form.stack input { min-width:0; }

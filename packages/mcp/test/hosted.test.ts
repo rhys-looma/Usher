@@ -159,20 +159,19 @@ test('opening /mcp in a browser explains what it is', async () => {
   assert.match(await res.text(), /remote MCP server[\s\S]*npx -y @usher-run\/mcp/);
 });
 
-test('the front page shows what the customer sees (Brightwater, natively) beside the Usher rails, the decision card picked out, nothing consequential pre-ticked', async () => {
+test('the front page shows Brightwater\'s own app beside what happens in between, the decision card picked out, nothing consequential pre-ticked', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
   const section = /<section class="between" id="how"[\s\S]*?<\/section>/.exec(home)?.[0] ?? '';
-  assert.ok(section.includes(`Add ${registry.url}/mcp to any assistant that speaks MCP.`));
+  assert.ok(section.includes(`Each site&#39;s app has its own address, ${registry.url}/mcp/ and the site&#39;s host`) || section.includes(`Each site's app has its own address, ${registry.url}/mcp/ and the site's host`));
   assert.match(section, /<div class="view" id="assistant">/, 'the old #assistant links still land here');
   const figure = /<figure class="assistant uc"[^>]* inert>[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
   assert.ok(figure, 'a drawn, inert illustration');
   // The customer's side, in order: their message, the assistant working, the card, the quote.
   const order = [...figure.matchAll(/class="(step person|step said s-working|step said s-decision|step said s-result)"/g)].map((m) => m[1]);
   assert.deepEqual(order, ['step person', 'step said s-working', 'step said s-decision', 'step said s-result']);
-  for (const text of ['Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', 'Brightwater Insurance app connected', 'Getting your quote from Brightwater Insurance', 'Before we get your quote', 'Brightwater is asking you, not your assistant', 'Have you smoked or used nicotine products in the last 12 months?', 'You said: <b>No</b>', 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', '“Get my quote”', '>Confirm</span>', 'a month', 'Quote reference', 'This quote is valid for']) assert.ok(figure.includes(text), text);
-  for (const cls of ['class="card decision"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"', 'class="callout"']) assert.ok(figure.includes(cls), cls);
-  // Native: Brightwater's, with Usher named only in the reader's annotation on the decision card.
-  assert.doesNotMatch(figure.replace(/<p class="callout">[\s\S]*?<\/p>/, ''), /Usher/);
+  // The card's own words, under Brightwater's band.
+  for (const text of ['Get me a health insurance quote from Brightwater. I&#39;m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.', 'Brightwater Insurance app connected', 'Getting your quote from Brightwater Insurance', '<span class="name">Brightwater Insurance</span><span class="via">via Usher</span>', 'Before Usher goes on', 'Usher is asking you, not the agent', 'Have you smoked or used nicotine products in the last 12 months?', 'You said: <b>No</b>', 'I confirm the information I have given is true and complete, and I understand that my medical history will be asked about after the quote', '“Get my quote”', '>Confirm</span>', 'a month', 'Reference <b>BWH-', 'Continue on Brightwater Insurance']) assert.ok(figure.includes(text), text);
+  for (const cls of ['class="card decision branded"', 'class="asking"', 'class="tag req"', 'class="yesno"', 'class="facts"', 'class="callout"', 'class="band"']) assert.ok(figure.includes(cls), cls);
   // Drawn boxes, not inputs; no third party's product or logo.
   assert.doesNotMatch(figure, /<input|<button|Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|Meta AI|<img|<svg/);
   // Before it plays: boxes empty, Confirm greyed, the card waiting (site.js marks the steps reached).
@@ -182,8 +181,9 @@ test('the front page shows what the customer sees (Brightwater, natively) beside
   assert.match(await (await fetch(`${registry.url}/site.js`)).text(), /seq\.classList\.toggle\('r' \+ k/);
 });
 
-test('For agents leads with the hosted URL; the local server is one click away; the hero buttons go where they say', async () => {
+test('For sites leads; For agents gives the hosted URL with the local server one click away; the hero buttons go where they say', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
+  assert.ok(home.indexOf('<p class="label">For sites</p>') < home.indexOf('<p class="label">For agents</p>'), 'sites first');
   const card = /<div class="card" id="agents">[\s\S]*?<\/details>/.exec(home)?.[0] ?? '';
   const fold = card.split('<details')[0]!;
   assert.ok(fold.includes('No signup. Your agent&#39;s key is its identity.') || fold.includes("No signup. Your agent's key is its identity."));
@@ -192,6 +192,7 @@ test('For agents leads with the hosted URL; the local server is one click away; 
   assert.ok(fold.includes('No browser? <code>usher_fill</code> fills the form for you instead.'), 'usher_fill once, as the fallback');
   assert.doesNotMatch(fold, /npx|mcpServers/, 'nothing local above the fold');
   assert.match(card, /<details class="local"><summary>Running your own agent or framework\?<\/summary>[\s\S]*mcpServers[\s\S]*The local server acts on any site, with your own key\./);
-  assert.match(home, /<a class="button" href="\/sites\/new">Get your keys<\/a><a class="button ghost" href="#agents">Connect an agent<\/a>/);
+  assert.match(home, /<a class="button" href="\/sites\/new">Publish your app<\/a><a class="button ghost" href="#twenty">See the twenty minutes<\/a>/);
+  assert.match(home, /<section id="twenty"/);
   assert.match(home, /<a href="#assistant">See it inside an assistant<\/a>/);
 });
