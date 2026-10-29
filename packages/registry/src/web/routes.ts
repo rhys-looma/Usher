@@ -27,6 +27,8 @@ import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, 
 import type { ThemeDeriver } from '../theme-derive.ts';
 import { CARD_HTML } from './card-page.ts';
 import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
+import { appCard, appPage } from './app.ts';
+import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools } from '../site-app.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
@@ -717,11 +719,48 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
       const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : '';
-      return send(res, 200, await board.overview(origin, html`${welcome}${card}${look}`)), true;
+      const app = appCard(await this.registry.siteApp(origin), await this.registry.siteSetup(origin));
+      return send(res, 200, await board.overview(origin, html`${welcome}${app}${card}${look}`)), true;
+    }
+    if (url.pathname === '/dashboard/app' || url.pathname.startsWith('/dashboard/app/')) {
+      const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
+      const endpoint = `${this.registry.url}/mcp/${new URL(origin).host}`;
+      const show = async (status: number, extra: { notice?: string; problems?: string[] } = {}) => {
+        const app = await this.registry.siteApp(origin);
+        const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : html``;
+        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
+      };
+      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : url.searchParams.has('saved') ? { notice: 'Tools saved. New connections get them; open ones keep theirs until they reconnect.' } : {}), true;
+      if (route === 'POST /dashboard/app/switch') {
+        const on = (await readForm(req)).get('enabled') === '1';
+        const app = await this.registry.siteApp(origin);
+        if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map a journey first: each one becomes a tool.'] }), true;
+        await this.registry.setSiteApp(origin, { ...app, enabled: on });
+        return redirect(res, on ? '/dashboard/app?published' : '/dashboard/app'), true;
+      }
+      if (route === 'POST /dashboard/app/tools') {
+        const form = await readForm(req);
+        const app = await this.registry.siteApp(origin);
+        const intents = (await this.registry.journeys(origin)).map((j) => j.intent);
+        const given = Object.fromEntries(intents.map((i) => [i, { name: form.get(`name:${i}`) ?? '', description: form.get(`description:${i}`) ?? '', hidden: form.get(`hidden:${i}`) === '1' }]));
+        const checked = checkToolSettings(given, intents);
+        if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
+        await this.registry.setSiteApp(origin, { ...app, tools: checked.tools });
+        return redirect(res, '/dashboard/app?saved'), true;
+      }
+      if (route === 'GET /dashboard/app/pack.md' || route === 'GET /dashboard/app/pack.json') {
+        const app = await this.registry.siteApp(origin);
+        const logo = (await this.registry.siteTheme(origin)).approved?.logo;
+        const pack = directoryPack({ name, origin, endpoint, tools: await siteTools(this.registry, origin, app), registry: this.registry.url, ...(logo && { logo }) });
+        const md = route.endsWith('.md');
+        const file = `${new URL(origin).host}-assistant-app.${md ? 'md' : 'json'}`;
+        res.writeHead(200, { 'Content-Type': md ? 'text/markdown; charset=utf-8' : 'application/json', 'Content-Disposition': `attachment; filename="${file}"`, 'Cache-Control': 'no-store' });
+        return res.end(md ? directoryPackMarkdown(pack) : JSON.stringify(pack, null, 2)), true;
+      }
     }
     const themes = this.options.themes;
     if (themes && url.pathname.startsWith('/dashboard/theme')) {
-      const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
+      const name = await this.registry.displayName(origin).catch(() => new URL(origin).host);
       const journey = (await this.registry.journeys(origin).catch(() => []))[0];
       const show = async (status: number, extra: Partial<Parameters<typeof themePage>[0]> = {}) =>
         send(res, status, themePage({ origin, record: await this.registry.siteTheme(origin), name, ...(journey && { journey }), refusal: await themes.refusal(origin), busy: themes.busy(origin), ...extra }), { siteScript: true, frames: true });
