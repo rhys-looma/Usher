@@ -91,3 +91,20 @@ test('hosted Usher keeps the maps it builds on a listed site as public, and nowh
   assert.equal((await running.registry.storage.mapsForOrigin('https://not-listed.example')).length, 0);
   assert.equal(await running.registry.keepListedMap({ ...map!, origin: listedOrigin, fields: 'broken' as never }), false, 'schema-checked');
 });
+
+test('the admin opens a mapped site that never registered and sees its maps, and each map', async () => {
+  const open = await fetch(`${running.url}/admin/sites/open`, { method: 'POST', redirect: 'manual', headers: admin, body: new URLSearchParams({ origin: ORIGIN }) });
+  assert.equal(open.status, 303);
+  const cookie = open.headers.get('set-cookie')!.split(';')[0]!;
+  const text = await (await fetch(`${running.url}/dashboard`, { headers: { Cookie: cookie } })).text();
+  assert.match(text, /Signed in as Usher's admin/);
+  assert.match(text, /forms mapped/);
+  const link = /href="(\/dashboard\/maps\/[^"]+)"/.exec(text)?.[1];
+  assert.ok(link, 'a link to each map');
+  const map = await fetch(`${running.url}${link}`, { headers: { Cookie: cookie } });
+  assert.equal(map.status, 200);
+  assert.match(await map.text(), /\/health\//);
+  // Nobody else gets in: an origin with no maps and no listing is refused.
+  const none = await fetch(`${running.url}/admin/sites/open`, { method: 'POST', redirect: 'manual', headers: admin, body: new URLSearchParams({ origin: 'https://nothing.example' }) });
+  assert.equal(none.status, 404);
+});
