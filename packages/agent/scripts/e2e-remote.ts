@@ -5,7 +5,8 @@
 //
 // Uses recorded model responses (no spend) unless --live. Checks: health; an unknocked API call
 // is refused; Agent A (Muse Spark) completes the quote, building maps if there are none; Agent B
-// (Spark Open, MCP) runs on the maps and is faster; the session is readable with the site's secret;
+// (Spark Open, MCP) runs on the maps, and is faster when A had to build them (on a site whose
+// maps are already published both do the same work, so their times are only reported); the session is readable with the site's secret;
 // layout B is reported as drift; the dashboard shows the session, the refusal and the drift.
 
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -71,7 +72,11 @@ try {
   const runB = await runAgent({ browser, url: `${site}/quote/driver`, profile, intent: 'quote.car_insurance', registry: b, user: scriptedUser(profile), fallback: sparkOpen });
   await b.close();
   check('Agent B (Spark Open, MCP) ran on the maps', runB.outcome === 'completed' && runB.pages.every((p) => p.map_source === 'registry'), summaryLine(runB));
-  check('Agent B faster than Agent A', runB.total_ms < runA.total_ms, `${(runB.total_ms / 1000).toFixed(2)}s vs ${(runA.total_ms / 1000).toFixed(2)}s`);
+  const times = `${(runB.total_ms / 1000).toFixed(2)}s vs ${(runA.total_ms / 1000).toFixed(2)}s`;
+  // A race only when A built maps for B to reuse: with every page already mapped, both load the
+  // same maps without a model and differ by the transport alone, within run-to-run noise.
+  if (runA.pages.some((p) => p.map_source === 'compiled')) check('Agent B faster than Agent A (A built the maps)', runB.total_ms < runA.total_ms, times);
+  else console.log(`info Agent B and Agent A both ran on published maps, so no speed race: ${times}`);
 
   const session = await fetch(`${registry}/sessions/${runA.session}`, { headers: { Authorization: `Bearer ${values.secret}` } });
   const events = session.ok ? ((await session.json()) as { events: { action: string; key?: string }[] }).events : [];

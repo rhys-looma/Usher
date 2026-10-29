@@ -179,7 +179,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     let identity: Promise<AgentIdentity> | undefined;
     const mint = () => (identity ??= generateAgentIdentity().then((g) => g.identity));
     const tools = inProcess(registry, mint);
-    const name = site ? await registry.siteName(site) : 'Usher';
+    const name = site ? await registry.displayName(site) : 'Usher';
     const server = new McpServer(
       { name: site ? `${name} (via Usher)` : 'usher', version: options.version },
       {

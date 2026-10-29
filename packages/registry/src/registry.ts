@@ -173,6 +173,18 @@ export interface SiteThemeRecord {
   };
 }
 
+/**
+ * A site's way from joining to a published assistant app (LU-59), from when each step was done:
+ * joined (its claim proved), mapped (its first published map), rules (its policy confirmed), look
+ * (its theme accepted) and published (its app switched on). Join to publish is the last minus the
+ * first; a site with no claim (the demo, a listed site) counts from its first map.
+ */
+export interface SiteSetup {
+  steps: { key: 'joined' | 'mapped' | 'rules' | 'look' | 'published'; label: string; done_at?: string }[];
+  /** Milliseconds from joining to publishing, once published. */
+  join_to_publish_ms?: number;
+}
+
 /** What a site's app has been used for: connections and fills, by day. Counts only. */
 export interface SiteAppUsage {
   connections: number;
@@ -1186,6 +1198,27 @@ export class Registry {
     await this.storage.putCached('site-app-usage', origin, usage);
   }
 
+  /** The name a site's app goes by: the one on its accepted theme, else the name read from its pages. */
+  async displayName(origin: string): Promise<string> {
+    return (await this.siteTheme(origin)).approved?.name ?? (await this.siteName(origin));
+  }
+
+  async siteSetup(origin: string): Promise<SiteSetup> {
+    const [site, records, policy, theme, app] = await Promise.all([this.storage.getSite(origin), this.storage.mapsForOrigin(origin), this.storage.getPolicy(origin), this.siteTheme(origin), this.siteApp(origin)]);
+    // Maps the site's own (or Usher's) work published, not an agent's unverified one.
+    const published = records.filter((r) => !r.submitted_by || r.verification).map((r) => r.added_at).sort();
+    const joined = site?.claim?.verified_at ?? published[0];
+    const steps: SiteSetup['steps'] = [
+      { key: 'joined', label: 'Joined: your site proved its address', ...(joined && { done_at: joined }) },
+      { key: 'mapped', label: 'Mapped: your forms, checked by you', ...(published[0] && { done_at: published[0] }) },
+      { key: 'rules', label: 'Rules: what assistants may do, in your words', ...(policy && { done_at: policy.confirmed_at }) },
+      { key: 'look', label: 'Look: your name, logo and colours on the cards', ...(theme.approved_at && { done_at: theme.approved_at }) },
+      { key: 'published', label: 'Published: your assistant app is on', ...(app.enabled && app.enabled_at && { done_at: app.enabled_at }) },
+    ];
+    const end = app.enabled && app.enabled_at;
+    return { steps, ...(joined && end && { join_to_publish_ms: Math.max(0, Date.parse(end) - Date.parse(joined)) }) };
+  }
+
   /** How a site's journeys are picked up afterwards, by intent (the plan's optional resume). */
   async siteResume(origin: string): Promise<Record<string, PlanResume>> {
     return (await this.storage.getCached<Record<string, PlanResume>>('site-resume', origin)) ?? {};
@@ -1237,6 +1270,8 @@ export class Registry {
   async seedPolicy(policy: UsherPolicy, text: string): Promise<void> {
     const current = await this.storage.getPolicy(policy.origin);
     if (current && current.draft !== 'seed') return;
+    // Unchanged since the last start: keep when it was set (the setup strip reads it).
+    if (current && current.text === text && JSON.stringify(current.policy) === JSON.stringify(policy)) return;
     await this.storage.putPolicy({ policy, text, draft: 'seed', confirmed_at: this.now().toISOString() });
   }
 
