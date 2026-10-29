@@ -122,6 +122,10 @@ export class PostgresStorage implements Storage {
     }
   }
 
+  async mapOrigins(): Promise<string[]> {
+    return (await this.rows<{ origin: string }>('SELECT DISTINCT origin FROM maps ORDER BY origin')).map((r) => r.origin);
+  }
+
   async mapsForOrigin(origin: string): Promise<MapRecord[]> {
     return (await this.rows<{ record: MapRecord }>('SELECT record FROM maps WHERE origin = $1 ORDER BY added_at', [origin])).map((r) => r.record);
   }

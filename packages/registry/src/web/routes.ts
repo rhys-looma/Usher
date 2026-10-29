@@ -318,6 +318,42 @@ export class Web {
       }
       // Every site, and its dashboard with its owner's powers (logged, and shown to the owner).
       if (route === 'GET /admin/sites') return sendHtml(res, 200, await this.adminSites()), true;
+      // A mapped site that hasn't joined, opened to hosted Usher (or closed again).
+      if (route === 'POST /admin/listed') {
+        const form = await readForm(req);
+        const failure = async (message: string) => (sendHtml(res, 422, await this.adminSites(message)), true);
+        let origin: string;
+        try {
+          origin = new URL((form.get('origin') ?? '').trim()).origin;
+        } catch {
+          return failure('That origin is not a URL.');
+        }
+        const name = (form.get('name') ?? '').trim().slice(0, 80);
+        if (!name) return failure('Give the site a name, as people would say it ("Aviva").');
+        const journeys: { start: string; intent: string }[] = [];
+        const start = (form.get('start') ?? '').trim();
+        const intent = (form.get('intent') ?? '').trim();
+        if (start || intent) {
+          let path: string;
+          try {
+            const u = new URL(start);
+            if (u.origin !== origin) return failure('The journey\'s first page must be on the same origin.');
+            path = u.pathname;
+          } catch {
+            return failure('The journey\'s first page is not a URL.');
+          }
+          if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(intent)) return failure('An intent is dotted lowercase words, like quote.life_insurance.');
+          journeys.push({ start: path, intent });
+        }
+        await this.registry.setListed(origin, { name, journeys });
+        const published = form.get('publish') === '1' ? await this.registry.publishAgentMaps(origin) : 0;
+        return sendHtml(res, 200, await this.adminSites(`${name} is open to hosted Usher.${published ? ` Published ${published} map${published === 1 ? '' : 's'} agents built there.` : ''}`, true)), true;
+      }
+      if (route === 'POST /admin/listed/remove') {
+        const origin = ((await readForm(req)).get('origin') ?? '').trim();
+        await this.registry.setListed(origin, null);
+        return sendHtml(res, 200, await this.adminSites(`${origin} is closed to hosted Usher again.`, true)), true;
+      }
       if (route === 'POST /admin/sites/open') {
         const origin = ((await readForm(req)).get('origin') ?? '').trim();
         if (!(await this.registry.storage.getSite(origin))) return sendHtml(res, 404, page('Not found', html`<h1>No such site</h1><p><a href="/admin/sites">All sites</a></p>`)), true;
@@ -391,8 +427,16 @@ export class Web {
   }
 
   /** /admin/sites: every registered site, with what the operator needs to pick one. */
-  private async adminSites(): Promise<string> {
+  private async adminSites(message?: string, ok = false): Promise<string> {
     const storage = this.registry.storage;
+    const registered = new Set((await storage.listSites()).map((s) => s.origin));
+    const listed = await this.registry.listedSites();
+    const mapped = await Promise.all(
+      [...new Set([...(await storage.mapOrigins()).filter((o) => !registered.has(o)), ...listed.map((l) => l.origin)])].sort().map(async (origin) => {
+        const records = (await storage.mapsForOrigin(origin)).filter((r) => !r.replaced);
+        return { origin, maps: records.length, private: records.filter((r) => !visibleTo(r)).length, paths: [...new Set(records.map((r) => r.map.path))].slice(0, 6), listing: listed.find((l) => l.origin === origin) };
+      }),
+    );
     const corrections = (await storage.readLog('corrections')) as { origin?: string }[];
     const rows = await Promise.all(
       (await storage.listSites()).map(async (site) => {
@@ -409,7 +453,29 @@ export class Web {
 <tbody>${rows.map(
         (r) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`<span class="badge">${r.site.claim.method}</span>` : html`<span class="muted">not proved</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
 <td><form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${r.site.origin}"><button class="secondary">Open as owner</button></form></td></tr>`,
-      )}</tbody></table></div>`,
+      )}</tbody></table></div>
+<h2 id="mapped">Mapped, not joined</h2>
+<p>Sites Usher has maps for that haven't registered. Listing one lets hosted Usher (ChatGPT, Claude) fill it with its maps. The site runs no script and checks no token, and has set no rules, so only the defaults apply: consequential steps still wait for the person. Publishing makes the maps agents built there (private to each agent until another agrees) available to every connection.</p>
+${message ? html`<div class="card ${ok ? 'notice' : 'error'}">${message}</div>` : ''}
+${mapped.length ? mapped.map(
+        (m) => html`<div class="card"><h3 class="mono">${m.origin} ${m.listing ? html`<span class="badge rule-allow">listed as ${m.listing.name}</span>` : ''}</h3>
+<p class="small">${String(m.maps)} map${m.maps === 1 ? '' : 's'}, ${String(m.private)} private to the agent that built ${m.private === 1 ? 'it' : 'them'}. Pages: ${m.paths.map((p) => html`<code>${p}</code> `)}</p>
+<form method="post" action="/admin/listed" class="stack">
+<input type="hidden" name="origin" value="${m.origin}">
+<label>Name, as people say it <input name="name" value="${m.listing?.name ?? ''}" required></label>
+<label>A journey's first page (optional) <input name="start" value="${m.listing?.journeys[0] ? `${m.origin}${m.listing.journeys[0].start}` : ''}" placeholder="${m.origin}/…"></label>
+<label>Its intent <input name="intent" value="${m.listing?.journeys[0]?.intent ?? ''}" placeholder="quote.life_insurance"></label>
+<label><input type="checkbox" name="publish" value="1"${m.private ? ' checked' : ''}> Publish the maps agents built here</label>
+<button>${m.listing ? 'Update listing' : 'Open to hosted Usher'}</button></form>
+${m.listing ? html`<form method="post" action="/admin/listed/remove"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}</div>`,
+      ) : html`<p class="muted">None.</p>`}
+<h3>List a site with no maps yet</h3>
+<form method="post" action="/admin/listed" class="card stack">
+<label>Origin <input name="origin" placeholder="https://www.example.co.uk" required></label>
+<label>Name <input name="name" required></label>
+<label>Its first page <input name="start" placeholder="https://www.example.co.uk/quote"></label>
+<label>Intent <input name="intent" placeholder="quote.life_insurance"></label>
+<button>Open to hosted Usher</button></form>`,
     );
   }
 

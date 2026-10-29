@@ -122,7 +122,21 @@ export interface JoinedSite {
   name: string;
   origin: string;
   demo: boolean;
+  /** Listed by Usher's admin, not joined: Usher has mapped it, but the site has no rules, script or token check. */
+  listed?: boolean;
   journeys: { start: string; intent: string; label: string; title: string }[];
+}
+
+/**
+ * A site Usher's admin has opened to hosted Usher without the site joining (/admin/sites): its maps
+ * are used, but the site runs no script, checks no token and has set no rules.
+ */
+export interface ListedSite {
+  origin: string;
+  name: string;
+  /** Journeys the admin named, for pages Usher has no public map of yet (hosted fill maps them as it goes). */
+  journeys: { start: string; intent: string }[];
+  listed_at: string;
 }
 
 
@@ -467,13 +481,53 @@ export class Registry {
     return out.sort((a, b) => a.start.localeCompare(b.start));
   }
 
-  /** Every site a hosted connection may act on, with its name and journeys. */
+  /** Every site a hosted connection may act on, with its name and journeys: joined, and listed by the admin. */
   async joinedSites(): Promise<JoinedSite[]> {
     const origins = new Set((await this.storage.listSites()).filter((s) => s.claim).map((s) => s.origin));
     if (this.options.publicDemo) origins.add(this.options.publicDemo.origin);
     const out: JoinedSite[] = [];
     for (const origin of origins) out.push({ name: await this.siteName(origin), origin, demo: origin === this.options.publicDemo?.origin, journeys: await this.journeys(origin) });
+    for (const listed of await this.listedSites()) {
+      if (origins.has(listed.origin)) continue;
+      const mapped = await this.journeys(listed.origin);
+      const named = listed.journeys.filter((j) => !mapped.some((m) => m.start === j.start)).map((j) => ({ start: j.start, intent: j.intent, label: intentLabel(j.intent), title: intentLabel(j.intent) }));
+      out.push({ name: listed.name, origin: listed.origin, demo: false, listed: true, journeys: [...mapped, ...named].sort((a, b) => a.start.localeCompare(b.start)) });
+    }
     return out.filter((s) => s.journeys.length).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Sites the admin has listed for hosted Usher without their joining. */
+  async listedSites(): Promise<ListedSite[]> {
+    return (await this.storage.getCached<ListedSite[]>('listed-sites', 'all')) ?? [];
+  }
+
+  /** Lists a site for hosted Usher (replacing an earlier listing), or unlists it with null. */
+  async setListed(origin: string, listing: { name: string; journeys: { start: string; intent: string }[] } | null): Promise<void> {
+    const others = (await this.listedSites()).filter((l) => l.origin !== origin);
+    await this.storage.putCached('listed-sites', 'all', listing ? [...others, { origin, name: listing.name, journeys: listing.journeys, listed_at: this.now().toISOString() }] : others);
+  }
+
+  /**
+   * The admin publishes the maps agents built on an origin (hosted fills map pages as they go, each
+   * private to its agent until a second agent agrees): the newest unverified one per page, not replaced.
+   * Returns how many were published.
+   */
+  async publishAgentMaps(origin: string): Promise<number> {
+    const records = await this.storage.mapsForOrigin(origin);
+    const newest = new Map<string, MapRecord>();
+    for (const r of records) {
+      if (r.replaced) continue;
+      const seen = newest.get(r.map.path);
+      if (!seen || r.added_at > seen.added_at) newest.set(r.map.path, r);
+    }
+    const at = this.now().toISOString();
+    let published = 0;
+    for (const r of newest.values()) {
+      if (visibleTo(r)) continue;
+      await this.storage.putMap({ ...r, verification: { by: 'admin', at } });
+      published++;
+    }
+    return published;
   }
 
   /**
@@ -520,9 +574,9 @@ export class Registry {
     return this.options.publicDemo?.origin;
   }
 
-  /** Sites a hosted connection may act on: those that have proved their origin, and the demo site. */
+  /** Sites a hosted connection may act on: those that have proved their origin, the demo site, and those the admin listed. */
   async joined(origin: string): Promise<boolean> {
-    return origin === this.options.publicDemo?.origin || Boolean((await this.storage.getSite(origin))?.claim);
+    return origin === this.options.publicDemo?.origin || Boolean((await this.storage.getSite(origin))?.claim) || (await this.listedSites()).some((l) => l.origin === origin);
   }
 
   /**
