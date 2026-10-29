@@ -139,6 +139,25 @@ ${CARD_CSS}
     });
     html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Confirm sends your answers on. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
     root.innerHTML = html;
+    // A plan's card may be left open while the person answers in the chat instead: ask Usher every
+    // few seconds whether the plan was prepared, and if so, say so in place of the questions.
+    var answeredHere = false;
+    if (plan && d.plan_id && caps && caps.serverTools) {
+      var polls = 0;
+      var poll = setInterval(function () {
+        if (answeredHere || ++polls > 450) return clearInterval(poll);
+        request('tools/call', { name: 'plan_status', arguments: { plan_id: d.plan_id } }).then(function (r) {
+          var status = r && r.structuredContent && r.structuredContent.status;
+          if (status === 'unknown') return clearInterval(poll);
+          if (status !== 'prepared' || answeredHere) return;
+          clearInterval(poll);
+          root.innerHTML = '<div class="card"><p class="label">Your decision</p><h1 class="title">Answered in the chat</h1>'
+            + (d.url ? '<p class="where">' + esc(where(d.url)) + '</p>' : '')
+            + '<p class="note">Your assistant has your answers and is carrying on with the plan. Nothing more to do here.</p></div>';
+          resize();
+        }).catch(function () { clearInterval(poll); });
+      }, 4000);
+    }
     // A button, not a form: sandboxed cards may not be allowed to submit forms.
     document.getElementById('go').addEventListener('click', function () {
       var answers = {}, missing = [], parts = [];
@@ -159,6 +178,7 @@ ${CARD_CSS}
       // The person's own confirmation, in their words: what the agent passes to usher_confirm.
       // A plan's answers aren't a confirmation for usher_confirm: they go to prepare_run.
       var phrase = (plan ? 'My answers for the Usher plan: ' : 'Confirm: ') + parts.join(', ');
+      answeredHere = true;
       document.getElementById('go').disabled = true;
       function say(cls, text) { msg.className = cls; msg.textContent = text; resize(); }
       // Path 2, the default: the confirmation goes into the chat as the person's message, and the

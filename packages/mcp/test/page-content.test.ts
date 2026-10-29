@@ -83,8 +83,9 @@ test('the reference agent ignores a map in the page: registry maps, and it still
   assert.equal(run.outcome, 'completed', run.reason);
   assert.deepEqual(run.pages.map((p) => [p.match, p.map_source]), [['exact', 'registry'], ['exact', 'registry'], ['exact', 'registry']]);
   assert.ok(knocks.every((k) => k.map !== null), 'every knock brought the registry\'s map');
-  assert.deepEqual(user.confirmations, ['form.submit'], 'the page said safe; the registry said ask');
-  assert.deepEqual(user.handoffs, ['consent.declaration', 'consent.marketing']);
+  assert.ok(user.confirmations.includes('form.submit'), 'the page said safe; the registry said ask');
+  assert.deepEqual(user.confirmations, ['consent.declaration', 'consent.marketing', 'form.submit']);
+  assert.deepEqual(user.handoffs, []);
   const log = await session(run.session!);
   assert.ok(log.events.some((e) => e.source === 'site' && e.action === 'confirm' && e.key === 'form.submit'));
 });

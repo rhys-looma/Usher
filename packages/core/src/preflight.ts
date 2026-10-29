@@ -4,7 +4,7 @@
 
 import type { Options } from './extract.ts';
 import type { MapConstraints, MapField } from './map.ts';
-import { isDateKey, matchOption } from './values.ts';
+import { isDateKey, matchOption, toIsoDate } from './values.ts';
 
 export type ProfileValue = string | boolean;
 export type Profile = Record<string, ProfileValue>;
@@ -81,7 +81,7 @@ export function preflight(fields: FieldSpec[], profile: Profile): PreflightResul
       else if (f.required && value === false && f.risk !== 'needs_user') say(f, 'missing', `"${f.label}" must be ticked.`);
       continue;
     }
-    const text = String(value);
+    let text = String(value);
     // A search box takes whatever the user wants to search for: only its length limit applies.
     if (f.key === 'search.query') {
       const max = f.constraints?.max_length;
@@ -94,10 +94,13 @@ export function preflight(fields: FieldSpec[], profile: Profile): PreflightResul
     // the form the fill types, not for this value.
     const date = f.control === 'date' || c.format === 'date' || Boolean(f.part) || isDateKey(f.key);
     if (date) {
-      if (!ISO_DATE.test(text) || Number.isNaN(Date.parse(text))) {
-        say(f, 'format', `"${text}" is not a date in the form YYYY-MM-DD for "${f.label}".`, 'YYYY-MM-DD');
+      // Written as people write dates (14 March 1988, 14/03/1988): read to YYYY-MM-DD.
+      const iso = ISO_DATE.test(text) && !Number.isNaN(Date.parse(text)) ? text : toIsoDate(text);
+      if (!iso) {
+        say(f, 'format', `"${text}" is not a date for "${f.label}". Give it as YYYY-MM-DD, or as 14/03/1988 or 14 March 1988.`, 'YYYY-MM-DD');
         continue;
       }
+      normalised[f.key] = text = iso;
       if (f.control !== 'date') continue;
     }
     if (f.options) {

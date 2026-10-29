@@ -1,0 +1,21 @@
+{
+  "usher_policy": "0.1",
+  "origin": "https://brightwater.example",
+  "default": {
+    "agent_lane": true,
+    "actions": {
+      "person.smoker": "confirm",
+      "partner.smoker": "confirm",
+      "consent.declaration": "confirm",
+      "form.submit": "confirm",
+      "account.password": "forbid"
+    }
+  },
+  "agents": {
+    "allow": "*",
+    "block": []
+  },
+  "retention": {
+    "session_days": 30
+  }
+}

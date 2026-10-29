@@ -18,6 +18,8 @@ import { publicFetch } from '@usher/core/public-fetch';
 // The least an action's default risk allows, so a token from a knock on an unmapped page can't
 // skip confirmation.
 const DEFAULT_RISK = new Map(vocabulary.entries.map((e) => [e.key, e.default_risk]));
+// As core's policy.ts: what is forbidden to agents when the token says nothing about it.
+const FORBIDDEN_BY_DEFAULT = /^(health\.|payment\.|account\.password|form\.purchase$)/;
 
 export interface UsherCheckOptions {
   /** The registry the site trusts: tokens must be issued by it (its public URL). */
@@ -180,10 +182,11 @@ export function createUsherCheck(options: UsherCheckOptions) {
       const { claims } = result;
       // The site's rules travel in the token: forbidden actions, and ones the user must confirm.
       const floor = opts.action ? DEFAULT_RISK.get(opts.action) : undefined;
-      if (opts.action && (claims.forbid?.includes(opts.action) || floor === 'needs_user')) {
+      if (opts.action && (claims.forbid?.includes(opts.action) || (floor === 'needs_user' && FORBIDDEN_BY_DEFAULT.test(opts.action)))) {
         return { status: 'knock_required', reason: 'action_forbidden', message: `Agents may not do ${opts.action} here.` };
       }
-      const needsConfirmation = claims.confirm?.includes(opts.action ?? '') || floor === 'consequential';
+      // The person's own, or consequential: never without their yes in the token.
+      const needsConfirmation = claims.confirm?.includes(opts.action ?? '') || floor === 'consequential' || floor === 'needs_user';
       if (opts.action && needsConfirmation && !claims.confirmed?.includes(opts.action)) {
         return { status: 'knock_required', reason: 'confirmation_required', message: `Ask your user, then knock with confirmed: ["${opts.action}"].` };
       }

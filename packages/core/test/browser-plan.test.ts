@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { browserPlan, composePlan, confirmableStops, placeValues, type UsherMap } from '../src/index.ts';
+import { browserPlan, composePlan, confirmableStops, effectiveRules, placeValues, toIsoDate, type UsherMap } from '../src/index.ts';
 
 const seed = new URL('../../registry/seed/mock-site/', import.meta.url);
 async function health() {
@@ -60,4 +60,30 @@ test('answers placed in the site\'s form: option labels, split dates by part, lo
   assert.ok(level!.expected?.includes('Comprehensive'), 'with what the site would take');
   assert.ok(bad.problems?.some((p) => p.key === 'person.first_name'), 'and missing required answers, by key');
   assert.ok(!JSON.stringify(view).includes('WR14 1AA'), 'the plan itself holds no values');
+});
+
+test('on a joined site, what the site forbids to assistants is user_only: not asked first, not confirmable, a stop for their own hand', async () => {
+  const { maps, plan } = await health();
+  // A site that forbids the smoking answer and the declaration to assistants.
+  const strict = { usher_policy: '0.1' as const, origin: 'https://brightwater.example', default: { actions: { 'person.smoker': 'forbid' as const, 'consent.declaration': 'forbid' as const } } };
+  const actions = Object.fromEntries(plan.steps.map((s) => [s.path, effectiveRules(strict, maps.get(s.path)!, s.path).actions]));
+  const view = browserPlan(plan, maps, { name: 'Brightwater', joined: true, actions });
+  const smoker = view.steps[0]!.fields.find((f) => f.key === 'person.smoker')!;
+  assert.equal(smoker.user_only, true);
+  assert.ok(!view.ask_first.some((a) => a.key === 'person.smoker'), 'they answer it on the page');
+  const declaration = view.stops.find((s) => s.key === 'consent.declaration')!;
+  assert.equal(declaration.user_only, true);
+  assert.match(declaration.say, /only your user/);
+  assert.deepEqual(confirmableStops(view), ['form.submit'], 'Usher would refuse to confirm the declaration');
+  assert.ok(view.rules.some((r) => /user_only/.test(r)));
+  const placed = placeValues(view, plan, maps, { 'person.title': 'Mr', 'person.first_name': 'Sam', 'person.last_name': 'Lee', 'person.dob': '14 March 1988', 'policy.start_date': '01/11/2026' });
+  assert.match(placed.steps[0]!.fields.find((f) => f.key === 'person.smoker')!.do!, /themselves/);
+  assert.ok(!placed.problems?.some((p) => ['person.smoker', 'person.dob', 'policy.start_date'].includes(p.key)), JSON.stringify(placed.problems));
+  assert.equal(placed.steps[0]!.fields.find((f) => f.key === 'person.dob' && f.part === 'month')!.value, '03');
+  assert.equal(placed.steps[1]!.fields.find((f) => f.key === 'policy.start_date')!.value, '01/11/2026');
+});
+
+test('dates as people write them', () => {
+  for (const [given, iso] of [['1988-03-14', '1988-03-14'], ['14/03/1988', '1988-03-14'], ['14-3-1988', '1988-03-14'], ['14 March 1988', '1988-03-14'], ['14th Mar 1988', '1988-03-14'], ['March 14, 1988', '1988-03-14'], ['03/14/1988', '1988-03-14']] as const) assert.equal(toIsoDate(given), iso, given);
+  for (const bad of ['31/02/1988', '14 Smarch 1988', 'soon', '1988']) assert.equal(toIsoDate(bad), null, bad);
 });

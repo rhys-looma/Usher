@@ -33,6 +33,8 @@ import {
   type BrowserPlan,
   type UsherPlan,
   effectiveRules,
+  defaultRule,
+  stricterRule,
   intentLabel,
   words,
   WINDOW_MS,
@@ -619,6 +621,12 @@ export class Registry {
     if (!intent) return error(400, 'invalid_request', 'No map matched this page, so the knock must say its intent.');
     const policy = await this.policy(page.origin);
     const effective = effectiveRules(policy, map, page.pathname);
+    // The token lasts the journey, so its rules do too: an action is as strict as any page of the
+    // site makes it (a declaration on the last page is the person's even when knocking on the first).
+    for (const [path, other] of await this.currentMaps(page.origin)) {
+      if (path === page.pathname) continue;
+      for (const [k, rule] of Object.entries(effectiveRules(policy, other, path).actions)) effective.actions[k] = stricterRule(effective.actions[k] ?? 'allow', rule);
+    }
     if (this.options.publicDemo?.origin === page.origin) effective.rate_limits = [...effective.rate_limits, DEMO_SUBMIT_LIMIT];
     const refuse = async (status: number, code: string, message: string, action?: string) => {
       await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }), ...(hosted && { hosted: true as const }) });
@@ -628,7 +636,10 @@ export class Registry {
     const standing = agentStanding(policy, check.agentId, hosted);
     if (standing !== 'allowed') return refuse(403, 'agent_blocked', hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
-    const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
+    // A key on none of the site's maps takes its vocabulary default: confirming a health answer is
+    // refused on a site that never asks one.
+    const ruleOf = (k: string) => effective.actions[k] ?? defaultRule(vocabulary.entries.find((e) => e.key === k)?.default_risk ?? 'safe', k);
+    const forbidden = confirmed.filter((k) => ruleOf(k) === 'forbid');
     if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
     const limited = this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
     if (limited) return refuse(429, 'rate_limited', `${page.origin}: ${limited}`, confirmed.join(',') || 'knock');
@@ -1079,6 +1090,13 @@ export class Registry {
     }
   }
 
+  /** A seed's policy (the demo site's): set unless the owner has confirmed their own, which a seed never replaces. */
+  async seedPolicy(policy: UsherPolicy, text: string): Promise<void> {
+    const current = await this.storage.getPolicy(policy.origin);
+    if (current && current.draft !== 'seed') return;
+    await this.storage.putPolicy({ policy, text, draft: 'seed', confirmed_at: this.now().toISOString() });
+  }
+
   /** Applies a draft the owner has read. Nothing changes until this is called. */
   async confirmRules(origin: string, id: string, authorization: string | undefined): Promise<Reply> {
     const refused = await this.claimedSite(origin, authorization);
@@ -1164,7 +1182,9 @@ export class Registry {
     const joined = url.origin === this.options.publicDemo?.origin || Boolean(site?.claim);
     const listed = (await this.listedSites()).find((l) => l.origin === url.origin);
     const policy = joined ? await this.storage.getPolicy(url.origin) : undefined;
-    const view = browserPlan(plan, maps, { name: listed?.name ?? (await this.siteName(url.origin)), joined, ...(policy?.text && { siteRules: policy.text }) });
+    // On a joined site, what it enforces on each step: what only the person may do is marked so.
+    const actions = joined ? Object.fromEntries(plan.steps.map((s) => [s.path, effectiveRules(policy?.policy, maps.get(s.path) ?? null, s.path).actions])) : undefined;
+    const view = browserPlan(plan, maps, { name: listed?.name ?? (await this.siteName(url.origin)), joined, ...(policy?.text && { siteRules: policy.text }), ...(actions && { actions }) });
     return { plan, maps, view };
   }
 

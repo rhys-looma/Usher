@@ -139,3 +139,32 @@ test('rules endpoints: propose from English, nothing applies until the owner con
     await rm(dir, { recursive: true });
   }
 });
+
+test('Brightwater\'s rules: the smoking answer, the declaration and the submit are confirmed by the person; health is refused', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'usher-rules-'));
+  const running = await startRegistry({ storage: await testStorage(dir) });
+  try {
+    const health = (await seed(running.registry, 'mock-site', RULES_ORIGIN)).filter((m) => m.path.startsWith('/health/'));
+    await registerSite(running, RULES_ORIGIN);
+    const agent = new RegistryClient(running.url, (await generateAgentIdentity()).identity);
+    const declaration = health.find((m) => m.path === '/health/declaration')!;
+    for (const confirmed of [['consent.declaration', 'form.submit'], ['person.smoker']]) {
+      const k = await agent.knock({ url: `${RULES_ORIGIN}${declaration.path}`, fingerprint: declaration.fingerprint, confirmed });
+      assert.equal(k.rules.actions['consent.declaration'], 'confirm');
+      assert.ok(k.token);
+    }
+    // From the first page too: the token lasts the journey.
+    const about = health.find((m) => m.path === '/health/about')!;
+    assert.ok((await agent.knock({ url: `${RULES_ORIGIN}${about.path}`, fingerprint: about.fingerprint, confirmed: ['consent.declaration', 'form.submit'] })).token);
+    for (const key of ['health.condition', 'payment.card_number', 'account.password']) {
+      await assert.rejects(
+        () => agent.knock({ url: `${RULES_ORIGIN}${about.path}`, fingerprint: about.fingerprint, confirmed: [key] }),
+        (e: RegistryError) => e.status === 403 && /action_forbidden/.test(e.message),
+        key,
+      );
+    }
+  } finally {
+    await running.close();
+    await rm(dir, { recursive: true });
+  }
+});

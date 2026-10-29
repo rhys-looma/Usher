@@ -91,7 +91,10 @@ test('get_plan: the plan for a browser, with the card\'s questions and the decla
   assert.equal(data.plan.known, '3 of 3 pages, to the end');
   assert.equal(data.plan.site.joined, true);
   assert.ok(data.decisions.some((d) => d.key === 'person.first_name' && d.kind === 'missing_value'));
+  // Brightwater's rules: the smoking answer, the declaration and the submit on the person's yes.
   assert.deepEqual(data.decisions.filter((d) => d.kind !== 'missing_value').map((d) => d.key), ['consent.declaration', 'form.submit']);
+  assert.ok(data.decisions.some((d) => d.key === 'person.smoker'), 'their own answer, asked');
+  assert.ok(!data.plan.stops.some((s) => s.user_only), 'nothing on this journey is refused to an assistant');
   assert.match(data.blocks[0]!.text, /I confirm/);
   // The plan from the home page reaches the same journey for its intent.
   const fromHome = await client.callTool({ name: 'get_plan', arguments: { url: `${site.url}/`, intent: 'quote.health_insurance' } });
@@ -108,9 +111,19 @@ test('an unmapped site gets no plan, never a compile, and the ask is noted for t
   await client.close();
 });
 
+test('prepare_run with an answer that won\'t fit: needs_answers, the problem by key, and no token yet', async () => {
+  const client = await connect();
+  const result = await client.callTool({ name: 'prepare_run', arguments: { url: `${site.url}/health/about`, values: { ...values, 'person.dob': 'the spring of 79' } } });
+  const data = result.structuredContent as { status: string; plan: BrowserPlan; entry_url?: string };
+  assert.equal(data.status, 'needs_answers');
+  assert.deepEqual(data.plan.problems?.map((p) => p.key), ['person.dob']);
+  assert.equal(data.entry_url, undefined);
+  await client.close();
+});
+
 test('prepare_run, then the assistant\'s own browser opens entry_url, fills by the plan and gets its quote; nothing is kept', async () => {
   const client = await connect();
-  const result = await client.callTool({ name: 'prepare_run', arguments: { url: `${site.url}/health/about`, values, confirmed: ['consent.declaration', 'form.submit'] } });
+  const result = await client.callTool({ name: 'prepare_run', arguments: { url: `${site.url}/health/about`, values: { ...values, 'person.dob': '17 March 1979', 'policy.start_date': '14/12/2026' }, confirmed: ['consent.declaration', 'form.submit'] } });
   const data = result.structuredContent as { status: string; plan: BrowserPlan; entry_url: string; confirmed: string[] };
   assert.equal(data.status, 'ready');
   assert.equal(data.plan.problems, undefined, JSON.stringify(data.plan.problems));

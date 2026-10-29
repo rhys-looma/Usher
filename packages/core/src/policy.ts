@@ -1,7 +1,8 @@
 // Site policies (LU-15): rules per origin and form, with the invariant that a policy can only make
-// an action stricter than its map's risk, never looser. One exception, the site's to make: what the
-// person says about their health and whether they smoke (PERMITTABLE) may be permitted, "confirm":
-// an agent then enters the person's own answer and puts it back to them before anything is submitted.
+// an action stricter than its map's risk, never looser. What is the person's own (needs_user) is
+// "confirm" by default: the agent shows it to them in the site's words and acts only after their
+// yes. Health answers are forbidden unless the site permits them; card, bank and password details
+// are always the person's alone (ALWAYS_THEIRS).
 // Shared by the registry, the server check and the site script.
 
 import type { UsherMap } from './map.ts';
@@ -47,22 +48,30 @@ export interface EffectiveRules {
 
 export const RULE_ORDER: readonly ActionRule[] = ['allow', 'confirm', 'forbid'];
 
-/** The least a map's risk allows. */
-export const FLOOR: Record<Risk, ActionRule> = { safe: 'allow', consequential: 'confirm', needs_user: 'forbid' };
+/**
+ * The least a map's risk allows. Something that is the person's own (needs_user) is "confirm": the
+ * agent shows it to them in the site's words and acts only after their yes, unless the site forbids
+ * it, or it is one of the few things that are always theirs alone (ALWAYS_THEIRS).
+ */
+export const FLOOR: Record<Risk, ActionRule> = { safe: 'allow', consequential: 'confirm', needs_user: 'confirm' };
+
+/** Never an agent's, whatever a site says: card and bank details, and a password. */
+export const ALWAYS_THEIRS = /^(payment\.|account\.password)/;
+
+/** Forbidden by default (a site may permit them with "confirm"): what the person says about their health, and a purchase. */
+export const FORBID_BY_DEFAULT = /^(health\.|form\.purchase$)/;
+
+/** The rule for an element when the site's policy says nothing about it. */
+export function defaultRule(risk: Risk, key: string): ActionRule {
+  return risk === 'needs_user' && (ALWAYS_THEIRS.test(key) || FORBID_BY_DEFAULT.test(key)) ? 'forbid' : FLOOR[risk];
+}
 
 /**
- * Answers a site may permit an agent to enter for the person: what they say about their health and
- * whether they smoke. Never a consent, a password, card or bank details: those stay the person's.
+ * The least a site may set for an element: its risk's floor ("allow" on a needs_user element counts
+ * as "confirm"), except what is always the person's alone, which stays "forbid".
  */
-export const PERMITTABLE = /^(health\.|person\.smoker|partner\.smoker)/;
-
-/**
- * The least a site may set for an element: its risk's floor, except a needs_user field the site may
- * permit (PERMITTABLE), which may be "confirm" ("allow" counts as "confirm"). Actions never go below
- * their floor.
- */
-export function siteFloor(risk: Risk, kind: 'field' | 'action', key: string): ActionRule {
-  return risk === 'needs_user' && kind === 'field' && PERMITTABLE.test(key) ? 'confirm' : FLOOR[risk];
+export function siteFloor(risk: Risk, _kind: 'field' | 'action', key: string): ActionRule {
+  return risk === 'needs_user' && ALWAYS_THEIRS.test(key) ? 'forbid' : FLOOR[risk];
 }
 
 export const WINDOW_MS: Record<RateLimit['window'], number> = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
@@ -102,9 +111,9 @@ export function effectiveRules(policy: UsherPolicy | undefined, map: UsherMap | 
   const actions: Record<string, ActionRule> = { ...own.actions };
   for (const [kind, els] of [['field', map?.fields ?? []], ['action', map?.actions ?? []]] as const) {
     for (const el of els) {
-      // A field that is the person's to answer stays forbidden unless the site's own rule permits it.
-      const permitted = own.actions[el.key] !== undefined && own.actions[el.key] !== 'forbid';
-      actions[el.key] = stricterRule(actions[el.key] ?? 'allow', permitted ? siteFloor(el.risk, kind, el.key) : FLOOR[el.risk]);
+      // The site's own rule where it set one, never below the floor; otherwise the default.
+      const set = own.actions[el.key] !== undefined;
+      actions[el.key] = stricterRule(actions[el.key] ?? 'allow', set ? siteFloor(el.risk, kind, el.key) : defaultRule(el.risk, el.key));
     }
   }
   return { agent_lane: own.agent_lane, actions, rate_limits: own.rate_limits };

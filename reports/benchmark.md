@@ -43,3 +43,12 @@ Generated 2026-10-28 by `packages/agent/scripts/benchmark.ts`, 5 runs per row.
 | Mock quote site, 3 steps, submitted | (a) reads pages, no Usher | Agent B (Muse Spark Open, MCP) | failed | 60.27 s | 0.00 s | 0 / 0 | $0.0000 |
 | httpbin.org/forms/post, 1 page, filled not submitted | (a) reads pages, no Usher | Agent A (Muse Spark, HTTP) | completed | 11.17 s | 10.64 s | 3953 / 1552 | $0.0115 |
 | httpbin.org/forms/post, 1 page, filled not submitted | (a) reads pages, no Usher | Agent B (Muse Spark Open, MCP) | completed | 7.77 s | 7.18 s | 4104 / 1249 | $0.0079 |
+
+## ChatGPT runs
+
+Real runs in ChatGPT with Usher's hosted MCP connected, on production, with made-up details. Timed by hand from the first message to the quote on screen.
+
+| Date | Journey | Path | Outcome | Wall time | Hand-offs to the person | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-29 | Brightwater Health, 3 steps, quote | Plan path (`get_plan`, `prepare_run`, ChatGPT's own browser) | Quote reached (BWH-…, £48.69 a month) | (to add: Rhys's timing) | 3: the smoking answer, the declaration and "Get my quote", the last two in a fresh tab after ChatGPT's browser tab dropped | `prepare_run` first refused "14 March 1988" (the format its own plan suggested) and "01/11/2026"; ChatGPT resent ISO dates. The site's rules then refused the smoking answer and the declaration from ChatGPT even with the person's yes (`action_forbidden`), so the person clicked them. Both fixed since (rules: needs_user is confirm unless the site forbids; dates read as people write them). |
+| — | Brightwater Health | `usher_fill` (hosted filling) | (no ChatGPT figure recorded yet) | — | — | To run beside the plan path once part 2 (site apps) is live. |

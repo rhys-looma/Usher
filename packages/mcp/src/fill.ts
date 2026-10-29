@@ -37,7 +37,8 @@ export type DecisionKind = 'required_consent' | 'optional_consent' | 'submit' | 
 const SENSITIVE = new Set(vocabulary.entries.filter((e) => e.sensitive).map((e) => e.key));
 
 /** The site permits an agent to enter the person's own answer to this input (its rule, from the plan). */
-const permitted = (input: { risk: string; rule?: string }) => input.risk === 'needs_user' && (input.rule === 'confirm' || input.rule === 'allow');
+// The person's own answer an agent may enter as they gave it (the site's rule is confirm): never a tick box, which is a consent.
+const permitted = (input: { risk: string; rule?: string; control?: string }) => input.risk === 'needs_user' && input.control !== 'checkbox' && (input.rule === 'confirm' || input.rule === 'allow');
 
 /** One thing the user decides, with the page's own label for it. */
 export interface Decision {
@@ -477,13 +478,14 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           ...confirmNow,
           ...d.userOnly.filter((f) => !SENSITIVE.has(f.key) && !toConfirm(f.key)).map((f) => decisionFor(f, kindOf(f), d.path)),
           // A field the site permits is the person's own answer, not a yes or no to filling it.
-          ...d.confirmFields.filter((f) => !job.permitted.has(f.key)).map((f) => decisionFor(f, 'optional_consent', d.path)),
+          // A consent the person confirms (the site's rule is confirm): asked as the consent it is.
+          ...d.confirmFields.filter((f) => !job.permitted.has(f.key)).map((f) => decisionFor(f, f.risk === 'needs_user' ? kindOf(f) : 'optional_consent', d.path)),
           ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path, short: shortName(d.advance.key, d.advance.label, 'submit') }] : []),
           ...d.missing.map((f) => decisionFor(f, 'missing_value', d.path)),
         ];
         // The page's own words for each: consent wording (and linked terms), the text by the submit.
         const blocks: Block[] = [];
-        for (const f of d.userOnly.filter((f) => f.control === 'checkbox')) blocks.push(...(await consentBlocks(page, f, terms)));
+        for (const f of [...d.userOnly, ...d.confirmFields.filter((f) => f.risk === 'needs_user')].filter((f) => f.control === 'checkbox')) blocks.push(...(await consentBlocks(page, f, terms)));
         if (d.advance) {
           const disclosure = await disclosureBlock(page, d.advance as MapAction);
           if (disclosure) blocks.push(disclosure);

@@ -137,7 +137,8 @@ test('dashboard: agent sessions as timelines, blocked attempts from registry and
   await page.getByLabel('First name').fill('Sam');
   await page.waitForTimeout(150);
   await page.close();
-  await assert.rejects(() => agent.knock({ url: `${site.url}/quote/cover`, intent: 'quote.car_insurance', confirmed: ['consent.declaration'] }));
+  // Card details are never an agent's: confirming them is refused.
+  await assert.rejects(() => agent.knock({ url: `${site.url}/quote/cover`, intent: 'quote.car_insurance', confirmed: ['payment.card_number'] }));
   // Drift: layout B, seen by the site script.
   await site.setLayout('b');
   const b = await browser.newPage();

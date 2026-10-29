@@ -107,7 +107,7 @@ test('the tools are offered alongside knock, and their descriptions carry the be
 });
 
 test('pre-flight: a wrongly formatted value comes back by key, and nothing runs', async () => {
-  const reply = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values: { ...values, 'person.dob': '02/04/1988' } });
+  const reply = await call('usher_fill', { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values: { ...values, 'person.dob': '31/02/1988' } });
   assert.equal(reply.status, 'invalid');
   assert.deepEqual(reply.problems?.map((p) => p.key), ['person.dob']);
   assert.equal(reply.actions, undefined, 'nothing ran');
