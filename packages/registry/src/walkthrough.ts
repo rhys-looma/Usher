@@ -20,7 +20,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Browser, Page } from 'playwright';
-import { compilePage, composePlan, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
+import { compilePage, composePlan, dismissConsent, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
 import type { Registry } from './registry.ts';
@@ -422,6 +422,9 @@ export class Walkthroughs {
         }
         say(`Extracting ${title || path}: ${plural(form.elements.filter((e) => e.visible).length, 'visible element')}.`);
 
+        // A cookie banner first, with the least consent, so nothing covers the page.
+        const consent = await dismissConsent(page, []);
+        if (consent.length) say(`Cookie banner: pressed ${consent.map((c) => `"${c}"`).join(', then ')}.`);
         // Every option of each radio and select, to see what it shows.
         const explored = await this.explore(page, form, say, () => live.cancelled);
         scan = await page.evaluate(scanScript());

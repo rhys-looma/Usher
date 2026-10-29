@@ -32,6 +32,7 @@ import {
   fingerprint,
   scanScript,
   waitForForm,
+  dismissConsent,
   type ChatFn,
   type MapAction,
   type MapField,
@@ -194,17 +195,8 @@ const ZERO: Usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, c
 const ms = (start: number) => Math.round(performance.now() - start);
 
 
-const LEAST_CONSENT = /\b(reject|decline|refuse|deny|necessary|essential|required only|only necessary|manage|settings|no,? thanks)\b/i;
-const MORE_CONSENT = /\b(accept|allow|agree|ok|got it|consent|yes)\b/i;
-
-/**
- * The banner action to click: always the least-consent option. Among ui.dismiss actions, one that
- * rejects or keeps only what's necessary; never one that accepts. Null if there's no safe choice.
- */
-export function leastConsent(actions: MapAction[]): MapAction | null {
-  const dismiss = actions.filter((a) => a.key === 'ui.dismiss');
-  return dismiss.find((a) => LEAST_CONSENT.test(a.label)) ?? dismiss.find((a) => !MORE_CONSENT.test(a.label)) ?? null;
-}
+/** The banner action to click, always the least consent (in core, shared with the walkthrough). */
+export { leastConsent } from '@usher/core';
 
 /** Every option of a select or radio group, from the page. */
 async function fullOptions(page: Page, field: MapField): Promise<MapField['options'] | null> {
@@ -592,11 +584,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       const chosen = profile['address.line1'];
       if (unpicked && typeof chosen === 'string' && (await pickResult(page, unpicked, chosen))) emit({ type: 'action', path, action: 'fill', key: 'address.line1' });
       // Cookie banners first, with the least consent on offer.
-      const banner = leastConsent(map.actions);
-      if (banner) {
-        const button = await locate(page, banner);
-        if (button && (await button.isVisible())) await button.click().catch(() => undefined);
-      }
+      // The least consent, and a preferences dialog it opened closed the same way (LV's OneTrust).
+      await dismissConsent(page, map.actions);
       for (const field of map.fields) {
         if (!conditionHolds(field, profile) || lookedUp.has(field.key)) continue;
         if (ruleFor(field) === 'forbid') {
