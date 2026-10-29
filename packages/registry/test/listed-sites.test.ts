@@ -78,3 +78,16 @@ test('maps built elsewhere are imported by the admin as the registry\'s own, sch
   assert.equal(records.length, 1);
   assert.ok(visibleTo(records[0]!), 'public, not private to an agent');
 });
+
+test('hosted Usher keeps the maps it builds on a listed site as public, and nowhere else', async () => {
+  const [map] = (await seedMaps('mock-site')).filter((m) => m.path.startsWith('/quote/'));
+  const listedOrigin = 'https://keep.example';
+  await running.registry.setListed(listedOrigin, { name: 'Keep', journeys: [] });
+  assert.equal(await running.registry.keepListedMap({ ...map!, origin: listedOrigin }), true);
+  const kept = await running.registry.storage.mapsForOrigin(listedOrigin);
+  assert.equal(kept.length, 1);
+  assert.ok(visibleTo(kept[0]!), 'the next connection sees it');
+  assert.equal(await running.registry.keepListedMap({ ...map!, origin: 'https://not-listed.example' }), false);
+  assert.equal((await running.registry.storage.mapsForOrigin('https://not-listed.example')).length, 0);
+  assert.equal(await running.registry.keepListedMap({ ...map!, origin: listedOrigin, fields: 'broken' as never }), false, 'schema-checked');
+});

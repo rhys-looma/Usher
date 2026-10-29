@@ -508,6 +508,20 @@ export class Registry {
   }
 
   /**
+   * A map hosted Usher's own model built on a site the admin listed: kept as the registry's own
+   * (public, schema-checked), so the next fill there needs no model. False anywhere else: joined
+   * sites are mapped through their owners, and outside agents' maps stay private until verified.
+   */
+  async keepListedMap(map: UsherMap): Promise<boolean> {
+    const site = await this.storage.getSite(map.origin);
+    if (site?.claim || map.origin === this.options.publicDemo?.origin) return false;
+    if (!(await this.listedSites()).some((l) => l.origin === map.origin)) return false;
+    if (mapSchemaErrors(map)) return false;
+    await this.addMap(map);
+    return true;
+  }
+
+  /**
    * The admin publishes the maps agents built on an origin (hosted fills map pages as they go, each
    * private to its agent until a second agent agrees): the newest unverified one per page, not replaced.
    * Returns how many were published.
