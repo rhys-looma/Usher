@@ -14,10 +14,10 @@
 // In production they are kept in the registry's corrections table; --corrections reads an export
 // of it (one JSON record per line).
 
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { chatRow, correctionExample, dedupeExamples, exampleId, exampleSource, isOwnerVerified, splitByForm, type CorrectionRecord } from '../src/index.ts';
 import { systemPrompt, withCandidates, type ElementInput, type Example } from './finetune-shared.ts';
 
 const { values } = parseArgs({
@@ -52,10 +52,7 @@ interface Extracted {
   constraints?: Record<string, unknown>;
 }
 
-const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const describe = (e: Extracted) => `${e.control ?? e.kind}: ${e.label}`;
-// Ports change from run to run; the mock site is one source.
-const sourceOf = (url: URL) => (url.hostname === 'localhost' || url.hostname === '127.0.0.1' ? 'mock-quote-site' : url.hostname);
 
 function optionsSummary(e: Extracted): string | null {
   if (!e.options) return null;
@@ -70,39 +67,23 @@ if (!files.length) {
   process.exit(1);
 }
 const examples: Example[] = [];
-const ownerVerified = new Set<Example>();
 let records = 0;
 let skipped = 0;
 let corrections = 0;
 
-interface Correction {
-  task: 'correction';
-  owner_verified: true;
-  url: string;
-  path: string;
-  page_title?: string;
-  form_purpose?: string;
-  element: { kind: string; control: string | null; label: string; required: boolean; options: string | null; constraints: Record<string, unknown> | null; neighbours: { before: string[]; after: string[] } };
-  owner: { key: string; risk: string };
-}
-function addCorrection(c: Correction) {
-  if (!c.element?.neighbours) return;
+function addCorrection(c: CorrectionRecord) {
+  const ex = correctionExample(c);
+  if (!ex) return;
   corrections++;
-  const url = new URL(c.url);
-  const e = c.element;
-  const input: ElementInput = withCandidates({ label: e.label, kind: e.kind, control: e.control, required: e.required, options: e.options, constraints: e.constraints, form_purpose: c.form_purpose ?? '', page_title: c.page_title ?? '', neighbours: e.neighbours });
-  const { form_purpose: _p, page_title: _t, candidates: _c, ...structure } = input;
-  const ex: Example = { id: sha(JSON.stringify(structure)).slice(0, 16), input, output: { key: c.owner.key, risk: c.owner.risk }, meta: { source: sourceOf(url), path: c.path, form: `${sourceOf(url)}${c.path}`, model: 'owner' } };
   examples.push(ex);
-  ownerVerified.add(ex);
 }
-if (values.corrections) for (const line of (await readFile(values.corrections, 'utf8')).split('\n').filter(Boolean)) addCorrection(JSON.parse(line) as Correction);
+if (values.corrections) for (const line of (await readFile(values.corrections, 'utf8')).split('\n').filter(Boolean)) addCorrection(JSON.parse(line) as CorrectionRecord);
 
 for (const file of files) {
   for (const line of (await readFile(join(values.log, file), 'utf8')).split('\n').filter(Boolean)) {
     const raw = JSON.parse(line) as { task?: string; owner_verified?: boolean };
     if (raw.task === 'correction' && raw.owner_verified) {
-      addCorrection(raw as Correction);
+      addCorrection(raw as CorrectionRecord);
       continue;
     }
     const r = raw as {
@@ -129,7 +110,7 @@ for (const file of files) {
     const clamps = new Map(r.validation.clamps.map((c) => [c.id, c.final]));
     const excluded = new Set(r.validation.excluded.map((e) => e.id));
     const url = new URL(r.url);
-    const form = `${sourceOf(url)}${extraction.page.path}`;
+    const form = `${exampleSource(url)}${extraction.page.path}`;
     const elements = extraction.elements;
     for (const label of response.elements) {
       const i = elements.findIndex((e) => e.id === label.id);
@@ -146,51 +127,19 @@ for (const file of files) {
         page_title: extraction.page.title ?? '',
         neighbours: { before: elements.slice(Math.max(0, i - 2), i).map(describe), after: elements.slice(i + 1, i + 3).map(describe) },
       });
-      // The id ignores the purpose and title the model wrote, which vary in wording from run to run.
-      const { form_purpose: _p, page_title: _t, candidates: _c, ...structure } = input;
-      examples.push({ id: sha(JSON.stringify(structure)).slice(0, 16), input, output: { key: label.key, risk: clamps.get(label.id) ?? label.risk }, meta: { source: sourceOf(url), path: extraction.page.path, form, model: r.model } });
+      examples.push({ id: exampleId(input), input, output: { key: label.key, risk: clamps.get(label.id) ?? label.risk }, meta: { source: exampleSource(url), path: extraction.page.path, form, model: r.model } });
     }
   }
 }
 
-// De-duplicate by the element's structure and neighbours. The same element labelled differently
-// keeps the most common answer.
-const byInput = new Map<string, Example[]>();
-for (const ex of examples) byInput.set(ex.id, [...(byInput.get(ex.id) ?? []), ex]);
-let conflicts = 0;
-const unique: Example[] = [];
-for (const group of byInput.values()) {
-  // An owner's answer wins outright; the latest correction if there were several.
-  const owner = group.filter((ex) => ownerVerified.has(ex)).at(-1);
-  if (owner) {
-    if (group.some((ex) => JSON.stringify(ex.output) !== JSON.stringify(owner.output))) conflicts++;
-    unique.push(owner);
-    continue;
-  }
-  const votes = new Map<string, number>();
-  for (const ex of group) votes.set(JSON.stringify(ex.output), (votes.get(JSON.stringify(ex.output)) ?? 0) + 1);
-  if (votes.size > 1) conflicts++;
-  const best = [...votes].sort((a, b) => b[1] - a[1])[0]![0];
-  unique.push(group.find((ex) => JSON.stringify(ex.output) === best)!);
-}
+// De-duplicate by the element's structure and neighbours: an owner's answer wins, else the most
+// common answer. Then split by form, so no eval form is seen in training (training-set.ts).
+const { unique, conflicts } = dedupeExamples(examples);
+const { train, eval: evals } = splitByForm(unique, evalShare);
 
-// Split by form, so no eval form is seen in training: forms in a fixed order (by hash) go to eval
-// until it holds the share asked for. Re-running on the same log gives the same split.
-const forms = [...new Set(unique.map((ex) => ex.meta.form))].sort((a, b) => sha(a).localeCompare(sha(b)));
-const evalForms = new Set<string>();
-for (const form of forms) {
-  if (unique.filter((ex) => evalForms.has(ex.meta.form)).length >= evalShare * unique.length) break;
-  const size = unique.filter((ex) => ex.meta.form === form).length;
-  // Skip a form that would push eval far past its share; a later, smaller one may fit.
-  if (evalForms.size && unique.filter((ex) => evalForms.has(ex.meta.form)).length + size > evalShare * unique.length * 1.5) continue;
-  evalForms.add(form);
-}
-const train = unique.filter((ex) => !evalForms.has(ex.meta.form));
-const evals = unique.filter((ex) => evalForms.has(ex.meta.form));
-
-// Chat format for SFT services (Fireworks, or a LoRA run on Modal): system, user, assistant.
+// Chat format for SFT (Baseten, Fireworks or Modal): system, user, assistant.
 const SYSTEM = await systemPrompt({ shortlist: true });
-const chat = (ex: Example) => JSON.stringify({ messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: JSON.stringify(ex.input) }, { role: 'assistant', content: JSON.stringify(ex.output) }] });
+const chat = (ex: Example) => chatRow(ex, SYSTEM);
 
 await mkdir(values.out, { recursive: true });
 const write = (name: string, rows: string[]) => writeFile(join(values.out, name), rows.map((r) => `${r}\n`).join(''));
@@ -207,7 +156,7 @@ const stats = {
   unique: unique.length,
   conflicting_inputs: conflicts,
   owner_corrections: corrections,
-  owner_verified: { total: unique.filter((ex) => ownerVerified.has(ex)).length, train: train.filter((ex) => ownerVerified.has(ex)).length, eval: evals.filter((ex) => ownerVerified.has(ex)).length },
+  owner_verified: { total: unique.filter(isOwnerVerified).length, train: train.filter(isOwnerVerified).length, eval: evals.filter(isOwnerVerified).length },
   train: train.length,
   eval: evals.length,
   forms: { train: [...new Set(train.map((ex) => ex.meta.form))].length, eval: [...new Set(evals.map((ex) => ex.meta.form))].length },

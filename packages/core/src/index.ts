@@ -21,6 +21,7 @@ export * from './compile/compile.ts';
 export * from './schemas.ts';
 export * from './compile/classify.ts';
 export * from './compile/student.ts';
+export * from './compile/training-set.ts';
 export * from './compile/budget.ts';
 export * from './plan.ts';
 export * from './preflight.ts';
