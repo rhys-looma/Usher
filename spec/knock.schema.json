@@ -121,6 +121,11 @@
         "expires_at": { "$ref": "#/$defs/timestamp" },
         "keys_url": { "type": "string", "format": "uri" },
         "events_url": { "type": "string", "format": "uri" },
+        "entry_url": {
+          "description": "The page with the token in its query (usher=<token>): an assistant driving its own browser opens it, and the site script binds the token, keeps it for the session and removes it from the address bar.",
+          "type": "string",
+          "format": "uri"
+        },
         "match": { "$ref": "#/$defs/match" },
         "map": { "anyOf": [{ "$ref": "map.schema.json" }, { "type": "null" }] },
         "plan": { "type": "null", "description": "Reserved for multi-step plans." },

@@ -106,9 +106,11 @@ ${CARD_CSS}
   function decisionCard(d) {
     var blocks = d.blocks || [], page = '', first = blocks.filter(function (b) { return b.source && b.source.url; })[0];
     if (first) page = where(first.source.url);
-    var html = '<div class="card"><p class="label">Your decision</p><h1 class="title">Before Usher goes on</h1>'
-      + (page ? '<p class="where">' + esc(page) + '</p>' : '')
-      + '<p class="asking">Usher is asking you, not the agent</p><div id="f">';
+    // A plan (get_plan): the person answers once, up front, for their own assistant's browser.
+    var plan = d.plan_for === 'browser';
+    var html = '<div class="card"><p class="label">Your decision</p><h1 class="title">' + (plan ? 'Before your assistant starts' : 'Before Usher goes on') + '</h1>'
+      + (page ? '<p class="where">' + esc(page) + '</p>' : plan && d.url ? '<p class="where">' + esc(where(d.url)) + '</p>' : '')
+      + '<p class="asking">' + (plan ? 'Your answers go to your assistant with the plan. Usher keeps none of them.' : 'Usher is asking you, not the agent') + '</p><div id="f">';
     (d.decisions || []).forEach(function (q, i) {
       var own = blocks.filter(function (b) { return b.source && b.source.key === q.key; });
       var wording = own.filter(function (b) { return b.kind === 'consent'; });
@@ -127,8 +129,12 @@ ${CARD_CSS}
         // Theirs alone: what they said, put back to them, nothing chosen until they choose.
         html += '<div class="row"><span class="verbatim">' + esc(q.label) + '<span class="tag req">confirm</span></span><p class="said">You said: <b>' + esc(q.value || '') + '</b></p>'
           + '<div class="yesno"><label><input type="radio" name="' + name + '" value="yes" data-key="' + esc(q.key) + '" data-kind="yesno"> That&#39;s right</label><label><input type="radio" name="' + name + '" value="no" data-key="' + esc(q.key) + '" data-kind="yesno"> Not right</label></div></div>';
+      } else if (q.options && q.options.length) {
+        // The site's own options: one is chosen, nothing chosen for them.
+        html += '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<select name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value"><option value="">Choose…</option>'
+          + q.options.map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('') + '</select></label></div>';
       } else {
-        html += '<div class="row"><label>' + esc(q.label) + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
+        html += '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
       }
     });
     html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Confirm sends your answers on. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
@@ -144,14 +150,15 @@ ${CARD_CSS}
           else if (kind === 'yesno') { if (el.checked) value = el.value === 'yes'; }
           else if (el.value.trim()) value = el.value.trim();
         });
-        if (value === undefined) { missing.push(q.key); return; }
+        if (value === undefined) { if (!plan || q.required || q.kind !== 'missing_value') missing.push(q.key); return; }
         answers[q.key] = value;
         parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
       if (missing.length) { msg.className = 'note warn'; msg.textContent = 'Please answer every question first.'; resize(); return; }
       // The person's own confirmation, in their words: what the agent passes to usher_confirm.
-      var phrase = 'Confirm: ' + parts.join(', ');
+      // A plan's answers aren't a confirmation for usher_confirm: they go to prepare_run.
+      var phrase = (plan ? 'My answers for the Usher plan: ' : 'Confirm: ') + parts.join(', ');
       document.getElementById('go').disabled = true;
       function say(cls, text) { msg.className = cls; msg.textContent = text; resize(); }
       // Path 2, the default: the confirmation goes into the chat as the person's message, and the
@@ -165,6 +172,24 @@ ${CARD_CSS}
       }
       // Path 1: hosts that let a card call its server's tools (they declare serverTools) submit from
       // here, the person's click being the authorisation, and the card shows the result.
+      // A plan: the answers go to prepare_run, which hands the plan back with them in place (and, on
+      // a joined site, the token for the stops the person ticked); the assistant then fills it.
+      if (plan && caps && caps.serverTools) {
+        var values = {}, confirmed = [];
+        (d.decisions || []).forEach(function (q) {
+          if (!(q.key in answers)) return;
+          if (q.kind === 'missing_value') values[q.key] = answers[q.key];
+          else if (answers[q.key] === true) confirmed.push(q.key);
+        });
+        request('tools/call', { name: 'prepare_run', arguments: { url: d.url, intent: d.intent || undefined, values: values, confirmed: confirmed } }).then(function (result) {
+          if (!result || result.isError) throw new Error('refused');
+          var text = (result.content || []).filter(function (c) { return c.type === 'text'; }).map(function (c) { return c.text; }).join('\\n');
+          request('ui/update-model-context', { content: [{ type: 'text', text: 'The person answered in the Usher card and Usher prepared the run:\\n' + text }] }).catch(function () {});
+          say('note', 'Done. Your assistant has the plan with your answers' + (confirmed.length ? ', and the go-ahead for ' + confirmed.length + ' stop' + (confirmed.length === 1 ? '' : 's') : '') + '.');
+          if (caps && caps.message) request('ui/message', { role: 'user', content: [{ type: 'text', text: 'I answered in the Usher card. Carry on with the plan.' }] }).catch(function () {});
+        }).catch(viaMessage);
+        return;
+      }
       if (caps && caps.serverTools) {
         request('tools/call', { name: 'usher_confirm', arguments: { id: d.id, answers: answers, confirmation: phrase } }).then(function (result) {
           if (!result || result.isError) throw new Error('refused');

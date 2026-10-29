@@ -72,10 +72,13 @@ const fill = async (client: Client, args: Record<string, unknown>) => {
 };
 const decisionSet = (r: Reply) => r.decisions!.map((d) => `${d.kind}:${d.key}:${d.label}`);
 
-test('the server says which sites it acts on, and that it pauses for the person by default', async () => {
+test('the server routes an assistant with a browser to the plan, names its mapped sites, and keeps usher_fill as the fallback', async () => {
   const instructions = (await connect()).getInstructions() ?? '';
   assert.ok(instructions.includes(`- Brightwater Insurance (${new URL(site.url).host}): health insurance quote, car insurance quote.`), instructions);
-  assert.match(instructions, /pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that/);
+  assert.match(instructions, /^Usher gives you the plan and the rules for a web form; you drive your own browser\. Call get_plan/);
+  assert.match(instructions, /prepare_run/);
+  assert.match(instructions, /stop at every stop for your user/);
+  assert.match(instructions, /only if you cannot drive a browser, use usher_fill instead/);
 });
 
 test('the details mapper: one optional key per field, options as their values, dates as YYYY-MM-DD; it reads the prose by key', async () => {

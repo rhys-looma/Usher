@@ -203,6 +203,15 @@ The script verifies the token as above against the cached keys (signature, issue
 
 A binding lasts for one page load. On a multi-step form the agent knocks on each page, passing `session`, and binds the new token.
 
+**The token in the entry URL.** An assistant that drives a browser can't call `window.usher.bind`. The knock response therefore also carries `entry_url`: the knocked page with `usher=<token>` in its query. The assistant opens it, and the site script:
+
+- binds the token from the query on load, as above;
+- removes it from the address bar (`history.replaceState`), so it is never bookmarked, shared or logged by the site;
+- keeps it in the tab's `sessionStorage` for the rest of the journey, and binds it again on each later page of the same origin, until it expires (tokens stay short-lived: 10 minutes) or fails to verify;
+- counts an action the token lists in `confirmed` as confirmed, because the person said yes to it before the run (in the assistant's Usher card, through `prepare_run`), so a consequential submit isn't held for a `window.usher.confirm` the assistant can't call.
+
+The submit carries the token in the hidden `usher_token` field as before, so the site's server checks it the same way. The hidden-field path with `bind` is unchanged for agents that prefer it.
+
 ## 6. The log
 
 The site script and the agent append events to the session with `POST <events_url>`, sending the session's token as `Authorization: Usher <token>`:

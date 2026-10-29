@@ -37,7 +37,7 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the v
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>One call fills the form.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>Usher gives you the plan and the rules; you drive.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
@@ -50,7 +50,7 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the v
   assert.match(text, /of fields and buttons on public forms given the right meaning \(\d+ of \d+\), human-checked/, 'human-checked public forms only, never the mock site\'s answer key');
   assert.match(text, /given the right risk \(\d+ of \d+\)/, 'with the sample size');
   assert.ok(text.includes('Maps are cached and refreshed by Usher&#39;s keeper; nothing is submitted to any of these sites.') || text.includes("Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites."));
-  assert.match(text, /<code>usher_fill<\/code> takes the form&#39;s values by meaning|<code>usher_fill<\/code> takes the form's values by meaning/);
+  assert.match(text, /<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user&#39;s answers in the site&#39;s own form|<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user's answers in the site's own form/);
   const description = 'Usher is the front door for AI agents on web forms: the control layer for sites, one call for agents, no integration required.';
   assert.ok(text.includes(`<meta name="description" content="${description}">`) && text.includes(`<meta property="og:description" content="${description}">`));
   assert.match(text, /<meta property="og:image" content="[^"]+\/og\.png">/);
@@ -145,10 +145,10 @@ test('what your customer sees and the rails underneath: a native card on one sid
   const plain = (s?: string) => s?.replace(/&#39;/g, "'");
   assert.deepEqual(steps.map((s) => s.map(plain)), [
     ['1', 'Knock', "Your customer's agent says who it is before it touches your form, and your site opens for that one session.", undefined, 'the agent, your site, what it came to do, when its pass expires.'],
-    ['2', 'Map, not values', "Usher gives the agent your form's structure and your rules, so it fills by meaning, not by guessing.", undefined, 'field names and types. Never what anyone types.'],
-    ['3', "The fields you're happy to hand over", 'Name, date of birth, postcode, cover level: the ones you let agents fill are done in seconds.', undefined, 'which fields were filled. Not the values.'],
+    ['2', 'The plan and your rules', "Usher hands the agent your form's plan: every field by meaning, in order, with where to find it, and your rules, so it fills by meaning, not by guessing.", undefined, 'field names and types. Never what anyone types.'],
+    ['3', 'The agent fills the safe fields from the plan', "Name, date of birth, postcode, cover level: the fields you let agents fill, typed in the agent's own browser from the plan, in seconds.", undefined, 'which fields were filled. Not the values.'],
     ['4', 'The questions you keep for people', 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', "that each was shown, and your customer's yes or no."],
-    ['5', 'Nothing without a pass', "Your server checks the agent's token before it quotes. No token, no quote.", undefined, 'that a quote was asked for, with a valid token.'],
+    ['5', 'The agent submits with the token', "Your server checks the agent's token before it quotes. No token, no quote.", undefined, 'that a quote was asked for, with a valid token.'],
     ['6', 'On your record', 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', undefined, 'the session. Never the answers.'],
   ]);
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.

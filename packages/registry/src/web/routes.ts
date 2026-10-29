@@ -454,6 +454,7 @@ export class Web {
     const storage = this.registry.storage;
     const registered = new Set((await storage.listSites()).map((s) => s.origin));
     const listed = await this.registry.listedSites();
+    const asks = await this.registry.planAsks();
     const mapped = await Promise.all(
       [...new Set([...(await storage.mapOrigins()).filter((o) => !registered.has(o)), ...listed.map((l) => l.origin)])].sort().map(async (origin) => {
         const records = (await storage.mapsForOrigin(origin)).filter((r) => !r.replaced);
@@ -493,6 +494,9 @@ ${mapped.length ? mapped.map(
 <form method="post" action="/admin/sites/open" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Open as owner: maps and sessions</button></form>
 ${m.listing ? html`<form method="post" action="/admin/listed/remove" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}</div>`,
       ) : html`<p class="muted">None.</p>`}
+<h2 id="asked">Asked for, not mapped</h2>
+<p>Sites assistants asked get_plan for that Usher hasn't mapped, most asked first. Map one (list it, then walk it) to give the next assistant a plan.</p>
+${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent</th><th>Asks</th><th>Last</th></tr></thead><tbody>${asks.slice(0, 50).map((a) => html`<tr><td class="mono">${a.origin}</td><td>${a.intent ? html`<code>${a.intent}</code>` : html`<span class="muted">none given</span>`}</td><td>${String(a.asks)}</td><td>${when(a.last)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">None yet.</p>`}
 <h3>List a site with no maps yet</h3>
 <form method="post" action="/admin/listed" class="card stack">
 <label>Origin <input name="origin" placeholder="https://www.example.co.uk" required></label>

@@ -53,7 +53,7 @@ const viewer = async (url: string) => {
 test('home and viewer pages render', async () => {
   const home = await fetch(`${registry.url}/`);
   assert.equal(home.status, 200);
-  assert.match(await home.text(), /<h2>What your customer sees, and the rails underneath<\/h2>.*Knock<\/h3>.*Map, not values<\/h3>.*On your record<\/h3>/s);
+  assert.match(await home.text(), /<h2>What your customer sees, and the rails underneath<\/h2>.*Knock<\/h3>.*The plan and your rules<\/h3>.*On your record<\/h3>/s);
   assert.match(await (await fetch(`${registry.url}/viewer`)).text(), /Build the map/);
 });
 

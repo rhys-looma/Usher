@@ -10,8 +10,15 @@ The demo site, Brightwater, offers two journeys: a health insurance quote (the e
 
 Add `https://usher.run/mcp` as a remote MCP server (a custom connector). There's nothing to install, and setup for each assistant is in [hosted-mcp.md](hosted-mcp.md).
 
-- **Acts on** sites that have joined Usher, and the demo site.
-- **Your details** pass from the assistant into the site's form, in a browser on Usher's servers that is closed when the fill ends. Usher fills the form and forgets it: nothing you type is stored ([security.md](security.md), "What Usher keeps").
+Usher gives your assistant the plan and the rules; your assistant drives its own browser.
+
+1. **get_plan** with the site's page: the journey as Usher mapped it, the rules in plain words, what to ask you for first, the steps with each field by meaning and where to find it, and the stops where the site's own wording is shown to you. In assistants that show MCP Apps cards, the questions and the declaration appear as Usher's card.
+2. **prepare_run** with your answers: they come back in the site's own format against each field (options as the site names them, dates as it wants them), with anything the site won't take named by key. On a site that has joined, it also returns an entry URL carrying the token for your session.
+3. Your assistant opens the entry URL, fills each page in order, runs the lookups, stops at every stop for you, and submits only after you say yes.
+
+- **Plans exist** for sites Usher has mapped: those that have joined (and walked their journey with "Map my site"), the demo site, and sites Usher's admin has mapped read-only. For any other site, get_plan says so and your assistant fills by sight.
+- **Your details** never reach the site through Usher on this path: your own browser fills the form. Usher holds them only inside the prepare_run call, to put them in the site's format, and keeps none of them ([security.md](security.md), "What Usher keeps").
+- **No browser?** `usher_fill` fills the form for you, on sites that have joined, in a browser on Usher's servers that is closed when the fill ends.
 
 ## On your own machine: the local server
 

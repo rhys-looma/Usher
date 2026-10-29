@@ -49,14 +49,15 @@ export async function createMcpServer(registryUrl: string, keyFile?: string, ver
  * knock, get_map, get_plan, report_run, and submit_map where the client can share maps.
  * `knockMeta`: tool metadata for knock (the card its result renders as, in clients with MCP Apps).
  */
-export function registerRegistryTools(server: McpServer, client: RegistryTools, options: { knockMeta?: Record<string, unknown> } = {}): void {
+export function registerRegistryTools(server: McpServer, client: RegistryTools, options: { knockMeta?: Record<string, unknown>; skip?: string[] } = {}): void {
+  const skip = new Set(options.skip ?? []);
 
   server.registerTool(
     'knock',
     {
       title: 'Knock on a form',
       description:
-        'Knock before filling a form on a site that uses Usher (its forms carry data-usher-knock). Returns the map of the form (fields by semantic key, risk, locators), the site rules, and a short-lived token to bind in the page with window.usher.bind(token). Pass the page fingerprint for an exact match and the session id to continue a multi-step journey.',
+        'On a site that has joined Usher, the token for your session (prepare_run knocks for you once your user has answered; call this yourself only to knock again). Returns entry_url: open it in your browser and the site binds the token, so the final step is accepted. Pass confirmed with the stop keys your user has said yes to (consent.declaration, form.submit). Also returns the map and the site\'s rules. Programs without a browser bind the token with window.usher.bind(token).',
       inputSchema: {
         url: z.string().url(),
         intent: z.string().optional(),
@@ -94,7 +95,7 @@ export function registerRegistryTools(server: McpServer, client: RegistryTools, 
       }),
   );
 
-  server.registerTool(
+  if (!skip.has('get_plan')) server.registerTool(
     'get_plan',
     {
       title: 'Get a plan',
@@ -120,10 +121,16 @@ export function registerRegistryTools(server: McpServer, client: RegistryTools, 
     'report_run',
     {
       title: 'Report a run',
-      description: 'Report how a run went (outcome, timings, token usage) to the session log. Structure only, never values.',
-      inputSchema: { session: z.string(), url: z.string().url(), outcome: z.enum(['completed', 'stopped', 'failed']), summary: z.record(z.string(), z.unknown()).optional() },
+      description: 'At the end, report how the run went: the outcome, and the pages you reached beyond the plan (each one\'s url, and its fields by label and control, never anything typed), so the journey fills in for the next agent. Structure only, never values.',
+      inputSchema: {
+        session: z.string(),
+        url: z.string().url(),
+        outcome: z.enum(['completed', 'stopped', 'failed']),
+        summary: z.record(z.string(), z.unknown()).optional(),
+        pages: z.array(z.object({ url: z.string().url(), fields: z.array(z.object({ label: z.string(), control: z.string(), options: z.array(z.string()).optional() })).max(60), actions: z.array(z.string()).max(30).optional() })).max(10).optional().describe('Pages reached beyond the plan, by structure only.'),
+      },
     },
-    (args) => guarded(() => client.reportRun({ session: args.session, url: args.url, outcome: args.outcome, ...(args.summary && { summary: args.summary }) })),
+    (args) => guarded(() => client.reportRun({ session: args.session, url: args.url, outcome: args.outcome, ...((args.summary || args.pages) && { summary: { ...(args.summary ?? {}), ...(args.pages && { pages_beyond_plan: args.pages }) } }) })),
   );
 }
 

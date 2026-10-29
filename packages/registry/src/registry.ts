@@ -29,6 +29,9 @@ import {
   type Risk,
   agentStanding,
   composePlan,
+  browserPlan,
+  type BrowserPlan,
+  type UsherPlan,
   effectiveRules,
   intentLabel,
   words,
@@ -668,13 +671,18 @@ export class Registry {
       ...(hosted && { act: { sub: 'hosted' as const } }),
       cnf: { jwk: check.jwk },
     };
+    const token = await signToken(claims, await this.signingKey());
+    // For an assistant driving its own browser: open this, and the site script binds the token.
+    const entry = new URL(page.href);
+    entry.searchParams.set('usher', token);
     return ok({
       usher: '0.1',
       session: session.id,
-      token: await signToken(claims, await this.signingKey()),
+      token,
       expires_at: new Date(claims.exp * 1000).toISOString().replace('.000Z', 'Z'),
       keys_url: `${this.url}/.well-known/usher-keys.json`,
       events_url: `${this.url}/sessions/${session.id}/events`,
+      entry_url: entry.href,
       match: summary,
       map,
       plan: null,
@@ -1116,6 +1124,55 @@ export class Registry {
       if (rule) input.rule = rule;
     }
     return ok(plan);
+  }
+
+  /**
+   * The plan for an assistant driving its own browser (core browser-plan.ts), from the journey's
+   * published maps: never compiled on request. The url may be the journey's first page, any page on
+   * it, or the site's home page (the journey for the intent is chosen). Unmapped: null, and the ask
+   * is counted so the admin can see what agents want mapped.
+   */
+  async browserPlanFor(input: string, intent?: string): Promise<{ plan: UsherPlan; maps: Map<string, UsherMap>; view: BrowserPlan } | null> {
+    const url = new URL(input);
+    const maps = await this.currentMaps(url.origin);
+    let start: string | null = maps.has(url.pathname) ? url.pathname : null;
+    // A page within a journey: start from the journey that reaches it.
+    const reached = new Set([...maps.values()].flatMap((m) => m.actions.map((a) => a.leads_to).filter((p): p is string => Boolean(p))));
+    if (start && reached.has(start)) {
+      const first = (await this.journeys(url.origin)).find((j) => composePlan(j.start, maps)?.steps.some((s) => s.path === start));
+      if (first) start = first.start;
+    }
+    if (!start) {
+      const journeys = await this.journeys(url.origin);
+      const want = intent ?? '';
+      start = (journeys.find((j) => j.intent === want) ?? (journeys.length === 1 ? journeys[0] : undefined))?.start ?? null;
+      if (!start && !journeys.length) {
+        const listed = (await this.listedSites()).find((l) => l.origin === url.origin);
+        start = listed?.journeys.find((j) => !intent || j.intent === intent)?.start ?? null;
+      }
+    }
+    const plan = start ? composePlan(start, maps) : null;
+    if (!plan) {
+      const key = `${url.origin}|${intent ?? ''}`;
+      const seen = (await this.storage.getCached<{ origin: string; intent: string | null; asks: number; last: string }>('plan-asks', key)) ?? { origin: url.origin, intent: intent ?? null, asks: 0, last: '' };
+      await this.storage.putCached('plan-asks', key, { ...seen, asks: seen.asks + 1, last: this.now().toISOString() });
+      const index = new Set((await this.storage.getCached<string[]>('plan-asks', 'index')) ?? []);
+      if (!index.has(key)) await this.storage.putCached('plan-asks', 'index', [...index, key].slice(-500));
+      return null;
+    }
+    const site = await this.storage.getSite(url.origin);
+    const joined = url.origin === this.options.publicDemo?.origin || Boolean(site?.claim);
+    const listed = (await this.listedSites()).find((l) => l.origin === url.origin);
+    const policy = joined ? await this.storage.getPolicy(url.origin) : undefined;
+    const view = browserPlan(plan, maps, { name: listed?.name ?? (await this.siteName(url.origin)), joined, ...(policy?.text && { siteRules: policy.text }) });
+    return { plan, maps, view };
+  }
+
+  /** What agents asked plans for that Usher hasn't mapped, most asked first (the admin's list). */
+  async planAsks(): Promise<{ origin: string; intent: string | null; asks: number; last: string }[]> {
+    const index = (await this.storage.getCached<string[]>('plan-asks', 'index')) ?? [];
+    const rows = await Promise.all(index.map((k) => this.storage.getCached<{ origin: string; intent: string | null; asks: number; last: string }>('plan-asks', k)));
+    return rows.filter((r): r is NonNullable<typeof r> => Boolean(r)).sort((a, b) => b.asks - a.asks);
   }
 
   /** For /healthz: is storage reachable? */

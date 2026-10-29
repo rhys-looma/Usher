@@ -121,6 +121,8 @@ export interface KnockResponse {
   expires_at: string;
   keys_url: string;
   events_url: string;
+  /** The page with the token in its query, for an assistant driving its own browser (spec/knock.md). */
+  entry_url?: string;
   match: { kind: 'exact' | 'near' | 'path' | 'none'; score: number; digest: string | null; drifted: boolean };
   map: UsherMap | null;
   plan: null;
