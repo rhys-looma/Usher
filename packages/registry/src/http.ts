@@ -44,9 +44,15 @@ export interface HttpOptions {
   mcp?: McpEndpoint;
 }
 
-/** Hosted MCP (packages/mcp/src/hosted.ts), mounted at /mcp. It keeps its own limits. */
+/** The origin a site app's path names: https, except a local development host (the mock site in tests). */
+export function siteOrigin(host: string): string {
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host);
+  return `${local ? 'http' : 'https'}://${host.toLowerCase()}`;
+}
+
+/** Hosted MCP (packages/mcp/src/hosted.ts), mounted at /mcp, and at /mcp/<host> for each site's app. It keeps its own limits. */
 export interface McpEndpoint {
-  handle(req: IncomingMessage, res: ServerResponse, client: string, body: unknown): Promise<void>;
+  handle(req: IncomingMessage, res: ServerResponse, client: string, body: unknown, site?: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -136,8 +142,11 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
         res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Usher-Site-Key, Content-Digest, Signature, Signature-Input, Signature-Agent');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       }
+      // /mcp/<host>: one site's assistant app (https only, as every joined site is).
+      const siteApp = /^\/mcp\/([a-z0-9.-]+(?::\d+)?)\/?$/i.exec(url.pathname)?.[1];
+      const isMcp = (url.pathname === '/mcp' || Boolean(siteApp)) && Boolean(options.mcp);
       // Browser-based MCP clients connect from their own origin; there are no cookies here.
-      if (url.pathname === '/mcp' && options.mcp) {
+      if (isMcp) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -154,14 +163,16 @@ export function registryHandler(registry: Registry, options: HttpOptions = {}) {
 
       // Per client address, in memory only.
       const client = clientAddress(req, options.proxyHops);
-      if (url.pathname === '/mcp' && options.mcp) {
+      if (isMcp && options.mcp) {
+        const site = siteApp ? siteOrigin(siteApp) : undefined;
         // Someone opening the address in a browser gets a pointer, not a protocol error.
         if (req.method === 'GET' && !req.headers['mcp-session-id'] && !String(req.headers.accept ?? '').includes('text/event-stream')) {
           res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          if (site) return void res.end(`${await registry.siteName(site)}'s assistant app, run by Usher. Add ${registry.url}${url.pathname} to your assistant as a remote MCP server (connector); there is nothing to install.\n`);
           return void res.end(`Usher's hosted MCP server. Add ${registry.url}/mcp to your assistant as a remote MCP server (connector); there is nothing to install.\nIt acts on sites that have joined Usher. For any other site, run it locally with your own key: npx -y @usher-run/mcp\n`);
         }
         const body = req.method === 'POST' ? await readJson(req).catch(() => undefined) : undefined;
-        return await options.mcp.handle(req, res, client, body);
+        return await options.mcp.handle(req, res, client, body, site);
       }
       const group = route === 'POST /knock' ? 'knock' : route === 'POST /drift' ? 'drift' : /^POST \/sessions\/[^/]+\/events$/.test(route) ? 'events' : req.method === 'GET' ? 'read' : 'write';
       if (!limiters[group].allow(`${group}|${client}`)) return send(res, { status: 429, body: { error: 'rate_limited', message: 'Too many requests from this address; slow down.' } }, { 'Retry-After': '60' });

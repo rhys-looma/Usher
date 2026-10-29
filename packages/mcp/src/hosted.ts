@@ -20,6 +20,7 @@ import type { FallbackModel, RegistryTransport } from '../../agent/src/index.ts'
 import { CARD_META, registerCards } from './apps.ts';
 import { registerFillTools } from './fill.ts';
 import { PlanTickets, registerPlanTools } from './plan.ts';
+import { registerSiteTools, siteTools } from './site-app.ts';
 
 export interface HostedLimits {
   /** New connections per client address an hour. */
@@ -32,6 +33,8 @@ export interface HostedLimits {
   fillsPerConnectionHour: number;
   /** usher_fill calls per client address an hour. */
   fillsPerAddressHour: number;
+  /** Fills through one site's app an hour, across every caller. */
+  fillsPerSiteHour: number;
   /** Fills running at once, across every connection (each is a browser context). */
   concurrentFills: number;
   /** Connections open at once. */
@@ -48,6 +51,7 @@ export const HOSTED_LIMITS: HostedLimits = {
   requestsPerConnectionMinute: 60,
   fillsPerConnectionHour: 10,
   fillsPerAddressHour: 120,
+  fillsPerSiteHour: 120,
   concurrentFills: 3,
   maxConnections: 500,
   idleMinutes: 30,
@@ -68,8 +72,11 @@ export interface HostedOptions {
 }
 
 export interface HostedMcp {
-  /** Handles a request to /mcp; `client` is the caller's address (for limits, never stored). */
-  handle(req: IncomingMessage, res: ServerResponse, client: string, body: unknown): Promise<void>;
+  /**
+   * Handles a request to /mcp, or to /mcp/<host> for one site's app (`site`, its origin); `client`
+   * is the caller's address (for limits, never stored).
+   */
+  handle(req: IncomingMessage, res: ServerResponse, client: string, body: unknown, site?: string): Promise<void>;
   readonly connections: number;
   close(): Promise<void>;
 }
@@ -79,6 +86,8 @@ interface Connection {
   server: McpServer;
   fill: { close: () => Promise<void> };
   seen: number;
+  /** A site app's connection: the origin it is scoped to, and nothing else. */
+  site?: string;
 }
 
 function unwrap<T>(reply: Reply): T {
@@ -120,6 +129,11 @@ export function siteList(joined: JoinedSite[]): string {
   return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}${j.listed ? ' (mapped by Usher; the site itself hasn\'t joined)' : ''}.`).join('\n');
 }
 
+/** A site app's instructions: one site, its tools, its rules. */
+export function siteInstructions(name: string): string {
+  return `This is ${name}'s assistant app, run by Usher under ${name}'s rules. Each tool fills one of ${name}'s forms for the person you are helping: pass what they have told you, or their own words in details. When a tool comes back with questions, put each to them in the site's own words and answer with usher_confirm using their reply; never answer for them. Usher keeps none of their answers.`;
+}
+
 export function hostedInstructions(listed: string): string {
   return `Usher gives you the plan and the rules for a web form; you drive your own browser. Call get_plan for the site, ask your user for its ask_first details in one go, call prepare_run with their answers, open the entry_url, fill by key in order, and stop at every stop for your user (only if you cannot drive a browser, use usher_fill instead).
 Mapped sites:
@@ -136,6 +150,8 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
   const perAddress = new RateLimiter(limits.requestsPerAddressMinute, 60_000);
   const perConnection = new RateLimiter(limits.requestsPerConnectionMinute, 60_000);
   const fillsPerAddress = new RateLimiter(limits.fillsPerAddressHour, 3_600_000);
+  // A site app's fills, per site: its own allowance, whoever the callers are.
+  const fillsPerSite = new RateLimiter(limits.fillsPerSiteHour, 3_600_000);
   let running = 0;
 
   const drop = async (id: string) => {
@@ -158,24 +174,26 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     return directory.text;
   };
 
-  async function connect(client: string): Promise<StreamableHTTPServerTransport> {
-    const listed = await sites();
+  async function connect(client: string, site?: string): Promise<StreamableHTTPServerTransport> {
     // The connection's key: minted when a tool first needs it, never written anywhere.
     let identity: Promise<AgentIdentity> | undefined;
     const mint = () => (identity ??= generateAgentIdentity().then((g) => g.identity));
     const tools = inProcess(registry, mint);
+    const name = site ? await registry.siteName(site) : 'Usher';
     const server = new McpServer(
-      { name: 'usher', version: options.version },
+      { name: site ? `${name} (via Usher)` : 'usher', version: options.version },
       {
-        instructions: hostedInstructions(listed),
+        instructions: site ? siteInstructions(name) : hostedInstructions(await sites()),
       },
     );
-    // The plan path (plan.ts) replaces the registry's plain get_plan: the plan for a browser, its
-    // card, and prepare_run.
-    registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'] });
-    registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, tickets: { store: tickets, connection: randomUUID() }, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
+    if (!site) {
+      // The plan path (plan.ts) replaces the registry's plain get_plan: the plan for a browser, its
+      // card, and prepare_run.
+      registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'] });
+      registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, tickets: { store: tickets, connection: randomUUID() }, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
+    }
     // Results as cards in clients with MCP Apps; Claude gets this server's dedicated origin.
-    registerCards(server, { serverUrl: `${registry.url}/mcp` });
+    registerCards(server, { serverUrl: `${registry.url}/mcp${site ? `/${new URL(site).host}` : ''}` });
     const transport = async (): Promise<RegistryTransport> => ({
       kind: 'hosted',
       identity: await mint(),
@@ -199,6 +217,8 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       browser: options.browser,
       perHour: limits.fillsPerConnectionHour,
       toolMeta: CARD_META,
+      // A site's app has its generated tools instead of usher_fill (usher_confirm and usher_cancel stay).
+      exposeFill: !site,
       ...(options.timeouts?.stepMs && { stepTimeoutMs: options.timeouts.stepMs }),
       ...(options.timeouts?.decisionMs && { decisionTimeoutMs: options.timeouts.decisionMs }),
       // A joined site is still a page from the internet: its redirects and requests stay public.
@@ -211,20 +231,29 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
         } catch {
           return { refused: 'That is not a URL.' };
         }
+        // A site's app acts on that site alone, and only while its owner has it switched on.
+        if (site && origin !== site) return { refused: `This is ${name}'s assistant app: it acts on ${new URL(site).host} only.` };
+        if (site && !(await registry.siteAppServed(site))) return { refused: `${name} has switched its assistant app off.` };
         if (!(await registry.joined(origin))) return { refused: notJoinedMessage(origin) };
+        if (site && !fillsPerSite.allow(site)) return { refused: `${name}'s assistant app is busy this hour; try again later.` };
         if (!fillsPerAddress.allow(client)) return { refused: 'Too many fills from this address this hour; try again later, or run Usher locally: npx -y @usher-run/mcp' };
         if (running >= limits.concurrentFills) return { refused: 'Hosted Usher is busy with other fills; try again in a minute, or run Usher locally: npx -y @usher-run/mcp' };
         running++;
+        if (site) void registry.countSiteApp(site, 'fills').catch(() => undefined);
         let released = false;
         return { release: () => void (released || ((released = true), running--)) };
       },
     });
+    if (site) registerSiteTools(server, await siteTools(registry, site, await registry.siteApp(site)), fill.fill, CARD_META);
     let transportRef!: StreamableHTTPServerTransport;
     transportRef = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       // Plain JSON replies: nothing here streams, and every proxy on the way handles JSON.
       enableJsonResponse: true,
-      onsessioninitialized: (id) => void connections.set(id, { transport: transportRef, server, fill, seen: Date.now() }),
+      onsessioninitialized: (id) => {
+        connections.set(id, { transport: transportRef, server, fill, seen: Date.now(), ...(site && { site }) });
+        if (site) void registry.countSiteApp(site, 'connections').catch(() => undefined);
+      },
     });
     transportRef.onclose = () => {
       if (transportRef.sessionId) void drop(transportRef.sessionId);
@@ -236,13 +265,16 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     get connections() {
       return connections.size;
     },
-    async handle(req, res, client, body) {
+    async handle(req, res, client, body, site) {
       if (!perAddress.allow(client)) return jsonRpcError(res, 429, 'Too many requests from this address; slow down.', { 'Retry-After': '60' });
+      // A site's app: only for a site that has joined and switched it on.
+      if (site && !(await registry.siteAppServed(site))) return jsonRpcError(res, 404, `No assistant app for ${new URL(site).host}: the site hasn't joined Usher or hasn't switched its app on.`);
       const id = req.headers['mcp-session-id'];
       const sid = Array.isArray(id) ? id[0] : id;
       if (sid) {
         const c = connections.get(sid);
-        if (!c) return jsonRpcError(res, 404, 'No such connection: it closed or expired. Reconnect to start a new one.');
+        // A connection belongs to the endpoint it opened on: one site's connection never reaches another, or the general server.
+        if (!c || c.site !== site) return jsonRpcError(res, 404, 'No such connection: it closed or expired. Reconnect to start a new one.');
         if (!perConnection.allow(sid)) return jsonRpcError(res, 429, 'Too many requests on this connection; slow down.', { 'Retry-After': '60' });
         c.seen = Date.now();
         return c.transport.handleRequest(req, res, body);
@@ -250,7 +282,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       if (req.method !== 'POST' || !isInitializeRequest(body)) return jsonRpcError(res, 400, 'Start a connection with an initialize request.');
       if (connections.size >= limits.maxConnections) return jsonRpcError(res, 503, 'Hosted Usher has too many connections open; try again shortly, or run it locally: npx -y @usher-run/mcp', { 'Retry-After': '60' });
       if (!opened.allow(client)) return jsonRpcError(res, 429, 'Too many new connections from this address; try again later.', { 'Retry-After': '600' });
-      const transport = await connect(client);
+      const transport = await connect(client, site);
       await transport.handleRequest(req, res, body);
     },
     async close() {
