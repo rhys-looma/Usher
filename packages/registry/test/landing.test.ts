@@ -1,7 +1,8 @@
-// The front page (LU-53): the sentence and the health example, what happens between the message and
-// the quote (six steps, in reading order with no JavaScript) and what Usher keeps (as docs/security.md
-// says it), the viewer box, both quickstarts with this registry's address, the numbers, and the
-// interest form, which carries Usher's own tag, is locked to agents that didn't knock, and is listed
+// The front page (LU-53, LU-60): the sentence and Brightwater's app in an assistant, the twenty
+// minutes, what happens in between on the hosted path (six steps, in reading order with no
+// JavaScript) and what Usher keeps (as docs/security.md says it), for sites then for agents with this
+// registry's address, the viewer box, the numbers, and the interest form, which carries Usher's own
+// tag, asks whether Looma should set up the app, is locked to agents that didn't knock, and is listed
 // for the admin only.
 
 import { test, before, after } from 'node:test';
@@ -32,12 +33,12 @@ after(async () => {
 const post = (path: string, form: Record<string, string>, headers: Record<string, string> = {}) =>
   fetch(`${registry.url}${path}`, { method: 'POST', body: new URLSearchParams(form), headers, redirect: 'manual' });
 
-test('front page: the sentence (no prompt box in the hero), the six steps, the viewer box, both quickstarts, numbers, sharing tags', async () => {
+test('front page: the sentence (no prompt box in the hero), the example, the twenty minutes, the six steps, both quickstarts, the viewer box, numbers, sharing tags', async () => {
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Usher is the front door for AI agents on web forms. <em>Agents knock, get in fast, and follow the house rules.</em>', '<p class="lede">The control layer for AI agents on your forms. No integration required.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>What your customer sees, and the rails underneath</h2>', '<h3>What Usher keeps</h3>', '<h2>Try it</h2>', '<p class="label">For sites</p><h2>Your forms in every assistant, under your rules.</h2>', '<p class="lede">One tag, no integration.</p>', 'Looma, the team behind Usher, sets it up with you', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', '<p class="label">For agents</p><h2>Usher gives you the plan and the rules; you drive.</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Your site inside every assistant in twenty minutes. <em>Under your rules.</em>', 'Usher fills the form and forgets it.</p>', '<p class="ticket-title">Health insurance quote</p>', '<section class="example"', '<h2>The twenty minutes</h2>', '<h3>Tag</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', '<h3>Quote</h3>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<p class="label">For sites</p><h2>Your own app in every assistant, under your rules.</h2>', '<p class="lede">One tag, then twenty minutes. Usher hosts your app and runs it.</p>', '<b>No changes to your systems.</b>', '<b>You set the terms.</b>', '<b>Every agent action on the record.</b>', 'Looma, the team behind Usher, sets it up and publishes it with you', '<p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Try it</h2>', '<h2>Numbers</h2>', '<h2>I run a site with forms</h2>', 'Would you want Looma to set up and publish your assistant app?', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
@@ -51,10 +52,10 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the v
   assert.match(text, /given the right risk \(\d+ of \d+\)/, 'with the sample size');
   assert.ok(text.includes('Maps are cached and refreshed by Usher&#39;s keeper; nothing is submitted to any of these sites.') || text.includes("Maps are cached and refreshed by Usher's keeper; nothing is submitted to any of these sites."));
   assert.match(text, /<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user&#39;s answers in the site&#39;s own form|<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user's answers in the site's own form/);
-  const description = 'Usher is the front door for AI agents on web forms: the control layer for sites, one call for agents, no integration required.';
+  const description = 'Usher puts your site inside every assistant in twenty minutes: your forms as your own app, in your name and look, run under your rules. Usher fills the form and forgets it.';
   assert.ok(text.includes(`<meta name="description" content="${description}">`) && text.includes(`<meta property="og:description" content="${description}">`));
   assert.match(text, /<meta property="og:image" content="[^"]+\/og\.png">/);
-  assert.match(text, /<title>Usher: the front door for AI agents on web forms<\/title>/);
+  assert.match(text, /<title>Usher: your site inside every assistant<\/title>/);
   assert.match(res.headers.get('content-security-policy') ?? '', /script-src 'self'; connect-src 'self'/, 'its own site script, nothing else');
   const og = await fetch(`${registry.url}/og.png`);
   assert.deepEqual([og.status, og.headers.get('content-type')], [200, 'image/png']);
@@ -79,11 +80,11 @@ test('front page: a failed "try it" is explained on the page', async () => {
   assert.equal(res.status, 422);
   const text = await res.text();
   assert.match(text, /class="card error">The viewer only opens public websites\./);
-  assert.match(text, /<h2>What your customer sees, and the rails underneath<\/h2>/, 'still the front page');
+  assert.match(text, /<h2>What happens in between<\/h2>/, 'still the front page');
 });
 
 test('interest: people are stored, agents must knock, mistakes are explained, the list is for the admin only', async () => {
-  const ok = await post('/interest', { site: 'https://shop.example', email: 'owner@shop.example', note: 'A checkout form' });
+  const ok = await post('/interest', { site: 'https://shop.example', email: 'owner@shop.example', note: 'A checkout form', setup: 'yes' });
   assert.deepEqual([ok.status, ok.headers.get('location')], [303, '/interest/thanks']);
   assert.match(await (await fetch(`${registry.url}/interest/thanks`)).text(), /Thank you/);
   const agent = await post('/interest', { site: 'https://shop.example', email: 'a@shop.example' }, { 'Usher-Agent': 'test-agent' });
@@ -101,7 +102,7 @@ test('interest: people are stored, agents must knock, mistakes are explained, th
   const cookie = login.headers.get('set-cookie')!.split(';')[0]!;
   const list = await (await fetch(`${registry.url}/admin`, { headers: { cookie } })).text();
   assert.match(list, /owner@shop\.example/);
-  assert.match(list, /A checkout form/);
+  assert.match(list, /A checkout form<\/td><td>yes<\/td>/, 'with the answer to "Looma to set up"');
   assert.doesNotMatch(list, /a@shop\.example/, 'the refused agent stored nothing');
 });
 
@@ -130,39 +131,43 @@ test('numbers: a half-marked accuracy run is never shown; the latest complete on
   assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.9%', '51 of 69', '98.6%', '68 of 69']);
 });
 
-test('what your customer sees and the rails underneath: a native card on one side, six steps with what Usher sees on the other, readable with no JavaScript', async () => {
+test('what happens in between: Brightwater\'s own app on one side, six hosted steps with what Usher sees on the other, readable with no JavaScript', async () => {
   const text = await (await fetch(`${registry.url}/`)).text();
   const section = /<section class="between" id="how"[\s\S]*?<\/section>/.exec(text)?.[0] ?? '';
-  // The customer's side first (message, decision card, quote), then the rails, then what Usher keeps.
+  // The customer's side first (message, decision card, quote), then the steps, then what Usher keeps.
   const at = (s: string) => section.indexOf(s);
   assert.ok(at('class="step person"') < at('class="step said s-decision"') && at('s-decision') < at('class="step said s-result"') && at('s-result') < at('<ol class="seq-steps">') && at('</ol>') < at('id="keeps"'));
-  // The customer's side is Brightwater's, with no Usher in sight but the reader's annotation on the decision card.
+  // The customer's side is Brightwater's app, drawn as the card draws it: the band with its name and
+  // Usher's mark, the card's own words, the reference and the way back to the site.
   const customer = /<figure class="assistant uc"[\s\S]*?<\/figure>/.exec(section)?.[0] ?? '';
-  assert.doesNotMatch(customer.replace(/<p class="callout">[\s\S]*?<\/p>/, ''), /Usher/);
   assert.match(customer, /<p class="callout"><b>Only with Usher<\/b> Your customer decides, in your words\./);
-  assert.match(customer, /<div class="card decision"><p class="label">Brightwater Insurance<\/p>/);
+  assert.match(customer, /<div class="card decision branded"><div class="band">[^]*?<span class="name">Brightwater Insurance<\/span><span class="via">via Usher<\/span><\/div><p class="label">Your decision<\/p><p class="title">Before Usher goes on<\/p>/);
+  assert.match(customer, /<p class="asking">Usher is asking you, not the agent<\/p>/);
+  assert.match(customer, /<p class="ref">Reference <b>BWH-3F9A2C71<\/b><\/p>[^]*Continue on Brightwater Insurance/);
   const steps = [...section.matchAll(/<li data-step="(\d)"><h3><span class="n">\d<\/span> ([^<]+)<\/h3><p>([^<]+)<\/p>(?:<p class="note">([^<]+)<\/p>)?<p class="sees"><b>Usher sees:<\/b> ([^<]+)<\/p><\/li>/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]]);
   const plain = (s?: string) => s?.replace(/&#39;/g, "'");
   assert.deepEqual(steps.map((s) => s.map(plain)), [
-    ['1', 'Knock', "Your customer's agent says who it is before it touches your form, and your site opens for that one session.", undefined, 'the agent, your site, what it came to do, when its pass expires.'],
-    ['2', 'The plan and your rules', "Usher hands the agent your form's plan: every field by meaning, in order, with where to find it, and your rules, so it fills by meaning, not by guessing.", undefined, 'field names and types. Never what anyone types.'],
-    ['3', 'The agent fills the safe fields from the plan', "Name, date of birth, postcode, cover level: the fields you let agents fill, typed in the agent's own browser from the plan, in seconds.", undefined, 'which fields were filled. Not the values.'],
-    ['4', 'The questions you keep for people', 'You choose which questions only a person may answer: smoking, the declaration, medical history, any you like. Usher puts them to your customer in your exact words, unticked, never answered by their agent.', 'Or let an agent fill one from what your customer said: Usher still shows it back to them to confirm.', "that each was shown, and your customer's yes or no."],
-    ['5', 'The agent submits with the token', "Your server checks the agent's token before it quotes. No token, no quote.", undefined, 'that a quote was asked for, with a valid token.'],
-    ['6', 'On your record', 'Your dashboard shows every session: which agent, which fields, what your customer was shown and what they confirmed.', undefined, 'the session. Never the answers.'],
+    ['1', 'Your app is asked', 'Your customer asks their assistant for a quote, and it calls your app. Your app runs only on sites that joined, and acts only on yours.', undefined, 'your site, what the app came to do, when its pass expires.'],
+    ['2', 'Your map and your rules', "Usher takes your published map, every field by meaning, in order, and your rules: what an assistant may fill and what is your customer's alone.", undefined, 'field names and types. Never what anyone types.'],
+    ['3', 'Usher fills the safe fields', 'Name, date of birth, postcode, cover level: the fields you let it fill, from what your customer said, in a fresh browser on your site. Usher fills the form and forgets it.', undefined, 'which fields were filled. Not the values.'],
+    ['4', 'The questions that are yours', 'Smoking, the declaration, any you choose: shown to your customer in your own wording, word for word, unticked, never answered by their assistant.', 'Or let the assistant answer one from what your customer said: Usher still shows it back to them to confirm.', "that each was shown, and your customer's yes or no."],
+    ['5', 'Submit with the token', "Usher presses your button as your rules say (Brightwater's: only once the customer confirms), with a token your server checks before it quotes. No token, no quote.", undefined, 'that a quote was asked for, with a valid token.'],
+    ['6', 'On your record', 'Your customer gets your quote, its reference and a way to continue on your site. Your dashboard shows the session: which fields, what your customer was shown and what they confirmed.', undefined, 'the session. Never the answers.'],
   ]);
   // Nothing in it is hidden or waiting until a script runs; the replay control is the script's.
   assert.doesNotMatch(section.replace('class="seq-replay" hidden', ''), /\shidden|display:none|opacity:0/);
   assert.match(section, /<div class="views seq" data-steps>/);
-  assert.match(section, /What your customer sees <span>A native Brightwater Insurance experience<\/span>[\s\S]*Under the hood <span>The Usher rails, for you<\/span>/);
+  assert.match(section, /What your customer sees <span>Brightwater Insurance(&#39;|')s own app<\/span>[\s\S]*Under the hood <span>Usher, for you<\/span>/);
   // Brightwater's app runs on Usher; the form is on Brightwater's own site.
-  assert.match(section, /<ol class="route"[^>]*><li>Your assistant<\/li><li>Brightwater(&#39;|')s app<\/li><li class="usher"><span>Usher<\/span><\/li><li>Brightwater(&#39;|')s site<\/li><\/ol>/);
+  assert.match(section, /<ol class="route"[^>]*><li>Your customer(&#39;|')s assistant<\/li><li>Brightwater(&#39;|')s app<\/li><li class="usher"><span>Usher<\/span><\/li><li>Brightwater(&#39;|')s site<\/li><\/ol>/);
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
   assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.22;/, 'faded only once site.js plays the sequence');
-  // A generic assistant, no product's interface.
-  assert.doesNotMatch(customer + (/<div class="hood">[\s\S]*?<\/ol>/.exec(section)?.[0] ?? ''), /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
+  // A generic assistant, no product's interface, here and in the example under the hero.
+  const example = /<section class="example"[\s\S]*?<\/section>/.exec(text)?.[0] ?? '';
+  assert.match(example, /<div class="card branded"><div class="band">/);
+  for (const shown of [customer, example, /<div class="hood">[\s\S]*?<\/ol>/.exec(section)?.[0] ?? '']) assert.doesNotMatch(shown, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
 });
 
 test('what Usher keeps: the same three lines on the page, in /privacy and in docs/security.md', async () => {
