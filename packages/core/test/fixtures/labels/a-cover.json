@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:51:02.986Z",
+  "recorded_at": "2026-10-29T11:08:09.769Z",
   "layout": "a",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "fc748b39dbc80d00907b00adecc7bfed90bbff225224d5b1ec3445c30ad4d85d",
-      "content": "{\"advance_action_id\": \"e9\", \"elements\": [{\"id\": \"e1\", \"key\": \"policy.start_date\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"policy.cover_level\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"policy.voluntary_excess\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"policy.no_claims_years\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"policy.payment_frequency\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"consent.declaration\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"consent.marketing\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: cover details\"}}",
+      "request_sha256": "907996aa6d3c7eb29d58ac42aea2e593a32457a7468d226ba3103486287f79fa",
+      "content": "{\"advance_action_id\": \"e9\", \"elements\": [{\"id\": \"e1\", \"key\": \"policy.start_date\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"policy.cover_level\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"policy.voluntary_excess\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"policy.no_claims_years\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"policy.payment_frequency\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"consent.declaration\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"consent.marketing\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"form.submit\", \"risk\": \"consequential\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: your cover\"}}",
       "usage": {
-        "prompt_tokens": 4878,
-        "completion_tokens": 1113,
-        "total_tokens": 5991,
+        "prompt_tokens": 4901,
+        "completion_tokens": 1078,
+        "total_tokens": 5979,
         "cached_tokens": 0
       },
-      "latency_ms": 4949
+      "latency_ms": 6089
     }
   ]
 }

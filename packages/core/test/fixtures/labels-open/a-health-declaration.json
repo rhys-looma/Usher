@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:50:01.065Z",
+  "recorded_at": "2026-10-29T11:10:12.431Z",
   "layout": "a",
   "step": "health-declaration",
   "attempts": [
     {
-      "request_sha256": "18ad6f9184d0fe00a50487b53fe0a939a675a1874d1a100e3cf8f0a2fe47b30c",
-      "content": "{\"form\":{\"purpose\":\"Health insurance declaration to get quote\",\"intent\":\"quote.health\"},\"elements\":[{\"id\":\"e1\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e3\"}",
+      "request_sha256": "1be943a6c51e315b44ec23372d7fdf1eac9636a5cb13f42e1b0c2fc423226173",
+      "content": "{\"form\":{\"purpose\":\"Health insurance quote: declaration\",\"intent\":\"quote.health\"},\"elements\":[{\"id\":\"e1\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e3\"}",
       "usage": {
-        "prompt_tokens": 3672,
-        "completion_tokens": 827,
-        "total_tokens": 4499,
+        "prompt_tokens": 3695,
+        "completion_tokens": 581,
+        "total_tokens": 4276,
         "cached_tokens": 2560
       },
-      "latency_ms": 5730
+      "latency_ms": 5451
     }
   ]
 }

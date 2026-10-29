@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:55:36.503Z",
+  "recorded_at": "2026-10-29T11:17:56.326Z",
   "layout": "a",
   "step": "vehicle",
   "attempts": [
     {
-      "request_sha256": "66300102fa76e74567b8d67ac78822b40c6ca3f2f7613840fc43fecc5c1ee7e4",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Entering registration number is reversible data entry with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is an in-session lookup/search with no commitment outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible data entry for the quote.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible data entry for the quote.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year of manufacture is reversible data entry with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible factual input for quote calculation.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting car usage is a reversible choice with no external commitment.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is a reversible choice for risk assessment.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering Yes/No about modifications is reversible factual input.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation to previous step, reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Continue advances to next step of the multi-step quote flow, does not itself request a quote or create commitment.\"}]}",
+      "request_sha256": "56223fba5c7d7cb282cd2d78f6146cd2eaa366d3f745777f95102c99d395941b",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Registration number entry is reversible data input with no external effect; does not commit legally or financially.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Find car is a search/lookup action within the session, reversible with no external effect.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Make is factual vehicle data, reversible entry with no external commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Model is factual vehicle data, reversible entry with no external commitment.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Year of manufacture is factual vehicle data, reversible entry.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Estimated annual mileage requires personal estimate that directly affects premium and risk; needs user's own judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Usage category is a material declaration affecting coverage validity and premium; requires user's judgement.\"},{\"id\":\"e8\",\"risk\":\"needs_user\",\"reason\":\"Overnight location affects risk assessment and premium; requires user's accurate declaration.\"},{\"id\":\"e9\",\"risk\":\"needs_user\",\"reason\":\"Modification status is a material insurance declaration where misrepresentation can void cover; needs user confirmation.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back is navigation to previous step, reversible with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Continue moves to next step of multi-step quote flow; reversible navigation, not yet a final quote request or commitment.\"}]}",
       "usage": {
         "prompt_tokens": 736,
-        "completion_tokens": 1843,
-        "total_tokens": 2579,
-        "cached_tokens": 384
+        "completion_tokens": 5885,
+        "total_tokens": 6621,
+        "cached_tokens": 256
       },
-      "latency_ms": 6060
+      "latency_ms": 19324
     }
   ]
 }

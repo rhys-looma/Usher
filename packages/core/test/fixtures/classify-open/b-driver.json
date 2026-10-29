@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:55:53.250Z",
+  "recorded_at": "2026-10-29T11:18:04.913Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
       "request_sha256": "781f237109af8e48246fe8000c77a49803d320ec359568b28a1869b61ccab0f9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Email field is reversible data entry for contact; no external effect or commitment until submitted.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Optional phone number is reversible contact data entry with no effect outside the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Title selection is a reversible demographic choice with no legal or financial commitment.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"First name entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Surname entry is reversible personal data input with no external effect on its own.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Date of birth entry is reversible personal data for quote rating; no commitment until form is submitted.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Postcode entry is reversible address data with no external effect on its own.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"House number and street entry is reversible address data with no external effect on its own.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Main occupation selection is reversible quote-rating data with no legal/financial commitment.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Employment status selection is reversible quote-rating data with no external effect.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Claims history Yes/No is reversible factual input for quote calculation; no declaration or commitment on its own.\"},{\"id\":\"e12\",\"risk\":\"safe\",\"reason\":\"Date of the claim is reversible detail for the quote, no external effect until submitted.\"},{\"id\":\"e13\",\"risk\":\"safe\",\"reason\":\"Type of claim selection is reversible detail for the quote with no commitment on its own.\"},{\"id\":\"e14\",\"risk\":\"safe\",\"reason\":\"'Next' only navigates to the next step of the quote flow; it does not request the quote or create a commitment.\"}]}",
+      "content": "{\"elements\": [{\"id\": \"e1\", \"risk\": \"safe\", \"reason\": \"Entering email address is reversible data entry with no external effect until submitted.\"}, {\"id\": \"e2\", \"risk\": \"safe\", \"reason\": \"Optional phone number entry is reversible and has no effect outside the session.\"}, {\"id\": \"e3\", \"risk\": \"safe\", \"reason\": \"Selecting a title is reversible personal detail entry with no external commitment.\"}, {\"id\": \"e4\", \"risk\": \"safe\", \"reason\": \"Typing first name is reversible data entry for quote personalization.\"}, {\"id\": \"e5\", \"risk\": \"safe\", \"reason\": \"Typing surname is reversible data entry with no external effect.\"}, {\"id\": \"e6\", \"risk\": \"safe\", \"reason\": \"Entering date of birth is reversible driver detail needed for quote calculation.\"}, {\"id\": \"e7\", \"risk\": \"safe\", \"reason\": \"Entering postcode is reversible address data with no commitment.\"}, {\"id\": \"e8\", \"risk\": \"safe\", \"reason\": \"Entering house number and street is reversible address entry.\"}, {\"id\": \"e9\", \"risk\": \"safe\", \"reason\": \"Selecting occupation is reversible choice for risk assessment.\"}, {\"id\": \"e10\", \"risk\": \"safe\", \"reason\": \"Choosing employment status is reversible option selection.\"}, {\"id\": \"e11\", \"risk\": \"safe\", \"reason\": \"Answering claims history question is reversible data entry.\"}, {\"id\": \"e12\", \"risk\": \"safe\", \"reason\": \"Entering claim date is reversible detail with no external effect.\"}, {\"id\": \"e13\", \"risk\": \"safe\", \"reason\": \"Selecting claim type is reversible categorization.\"}, {\"id\": \"e14\", \"risk\": \"safe\", \"reason\": \"Next button is navigation to next step of quote flow, reversible with no commitment.\"}]}",
       "usage": {
         "prompt_tokens": 860,
-        "completion_tokens": 3729,
-        "total_tokens": 4589,
-        "cached_tokens": 384
+        "completion_tokens": 1311,
+        "total_tokens": 2171,
+        "cached_tokens": 0
       },
-      "latency_ms": 12546
+      "latency_ms": 4140
     }
   ]
 }

@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:56:00.472Z",
+  "recorded_at": "2026-10-29T11:18:12.196Z",
   "layout": "b",
   "step": "cover",
   "attempts": [
     {
       "request_sha256": "49388b3e6d88c926d2e2d6b6c8fc1a5e607fa807e9f52304aad9c3ddb7593d31",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is a quote parameter, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover selection configures the quote, no commitment outside session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess choice is a quote calculation input, reversible.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"No-claims discount selection is factual input for pricing, no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference for quote calculation only, not payment details or commitment.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration confirming truth and completeness requires user's own judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user judgement and permission.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Navigation link to go back, no data submission or external effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submits information to request a quote, an external action the user should be aware of.\"}]}",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is an input to calculate the quote, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover is a quote option selection, reversible with no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess is a quote parameter choice, reversible with no external effect.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Years of no-claims discount is factual input for pricing, reversible within the session.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference informs the quote only, not actual payment details or financial commitment.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Declaration that information is true and complete is a legal attestation requiring user's judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to receive marketing offers requires explicit user judgement and permission.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is navigation only, with no data submission or external effect.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submit action requests an insurance quote, an external effect the user should know about.\"}]}",
       "usage": {
         "prompt_tokens": 730,
-        "completion_tokens": 910,
-        "total_tokens": 1640,
-        "cached_tokens": 640
+        "completion_tokens": 1037,
+        "total_tokens": 1767,
+        "cached_tokens": 384
       },
-      "latency_ms": 3089
+      "latency_ms": 3458
     }
   ]
 }
