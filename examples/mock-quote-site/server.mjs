@@ -51,6 +51,17 @@ const usherCheck = (intent) =>
 // session id -> { driver, vehicle, cover, result, health: { about, cover, declaration, result } }; the oldest go past MAX_SESSIONS
 const sessions = new Map();
 const MAX_SESSIONS = 5000;
+// quote reference -> { product, dob, result }: what "Find your quote" looks up, in memory only (a
+// demo; the oldest go past MAX_QUOTES, and all of them on restart).
+const quotes = new Map();
+const MAX_QUOTES = 5000;
+function keepQuote(product, dob, result) {
+  if (quotes.size >= MAX_QUOTES) quotes.delete(quotes.keys().next().value);
+  quotes.set(result.reference, { product, dob, result });
+  return result;
+}
+const originOf = (req) => SITE_ORIGIN ?? `http://${req.headers.host}`;
+const retrieveUrl = (req, reference) => `${originOf(req)}/retrieve?reference=${encodeURIComponent(reference)}`;
 
 // ---------------------------------------------------------------------------
 // Form definitions. One definition drives both layouts: variant "b" renames
@@ -278,7 +289,8 @@ function renderHome() {
 <ul class="products">
 <li><a href="/health/about"><strong>Health insurance</strong><span>Private medical insurance: a quick quote in three steps</span></a></li>
 <li><a href="/quote/driver"><strong>Car insurance</strong><span>A car insurance quote in three steps</span></a></li>
-</ul>`,
+</ul>
+<p>Already have a quote? <a href="/retrieve">Find your quote</a>.</p>`,
   );
 }
 
@@ -386,6 +398,7 @@ function renderHealthResult(state) {
   <p class="valid">This quote is valid for 30 days, until ${esc(r.validUntil)}.</p>
 </div>
 <p class="note">This is a made-up price from a demo site. Nothing has been bought. Before cover starts, Brightwater would ask you about your medical history directly.</p>
+<p class="note">Come back to it any time: <a href="/retrieve?reference=${encodeURIComponent(r.reference)}">find your quote</a> with your date of birth.</p>
 <p><a href="/health/about?restart=1">Start a new quote</a></p>`,
     'Health insurance',
   );
@@ -404,7 +417,42 @@ function renderResult(session) {
   <p class="valid">This quote is valid for 30 days, until ${esc(r.validUntil)}.</p>
 </div>
 <p class="note">This is a made-up price from a demo site. Nothing has been bought.</p>
+<p><a class="button primary" href="/quote/proceed">Continue to buy</a></p>
+<p class="note">Come back to it any time: <a href="/retrieve?reference=${encodeURIComponent(r.reference)}">find your quote</a> with your date of birth.</p>
 <p><a href="/quote/driver?restart=1">Start a new quote</a></p>`,
+    'Car insurance',
+  );
+}
+
+// Find your quote: the reference and the date of birth it was given for, on the person's own screen.
+function renderRetrieve(reference = '', error = '') {
+  return page(
+    'Find your quote',
+    `
+<h1>Find your quote</h1>
+<p>Enter the quote reference from your quote and your date of birth.</p>
+${error ? `<p class="error-message" role="alert">${esc(error)}</p>` : ''}
+<form method="post" action="/retrieve" class="step">
+  <div class="field"><label for="reference">Quote reference</label><input id="reference" name="reference" value="${esc(reference)}" required autocomplete="off" pattern="BWH?-[A-Za-z0-9]{8}"></div>
+  <div class="field"><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" required></div>
+  <div class="actions"><button type="submit" class="primary">Find my quote</button></div>
+</form>`,
+  );
+}
+
+// The car journey's next step after a quote: where a real insurer would take payment. A demo wall.
+function renderProceed(session) {
+  const r = session.result;
+  return page(
+    'Buy this policy',
+    `
+<h1>Buy this policy</h1>
+<div class="quote">
+  <p>Car insurance, £${r.annual.toFixed(2)} a year</p>
+  <p class="ref">Quote reference <strong>${esc(r.reference)}</strong></p>
+</div>
+<div class="demo-wall" role="note"><strong>This is where Brightwater would ask for payment.</strong> It is a demo site: nothing can be bought here, and nothing has been.</div>
+<p><a href="/quote/result">Back to your quote</a></p>`,
     'Car insurance',
   );
 }
@@ -543,6 +591,19 @@ const server = createServer(async (req, res) => {
 
     if (section === 'static' && req.method === 'GET') return serveStatic(res, key);
 
+    if (url.pathname === '/retrieve' && req.method === 'GET') return html(res, renderRetrieve(url.searchParams.get('reference') ?? ''));
+    if (url.pathname === '/retrieve' && req.method === 'POST') {
+      const form = new URLSearchParams(await body(req));
+      const reference = (form.get('reference') ?? '').trim().toUpperCase();
+      const found = quotes.get(reference);
+      // The same answer whether the reference or the date is wrong: neither is confirmed alone.
+      if (!found || found.dob !== (form.get('dob') ?? '').trim()) return html(res, renderRetrieve(reference, 'We could not find a quote with that reference and date of birth.'), 404);
+      const journey = found.product === 'health' ? journeys.health : journeys.quote;
+      journey.state(session).result = found.result;
+      return redirect(res, `/${journey.base}/result`);
+    }
+    if (url.pathname === '/quote/proceed' && req.method === 'GET') return session.result ? html(res, renderProceed(session)) : redirect(res, '/retrieve');
+
     const journey = journeys[section];
     if (journey && key === 'result' && req.method === 'GET') {
       const state = journey.state(session);
@@ -577,7 +638,7 @@ const server = createServer(async (req, res) => {
         state[key] = values;
         if (!steps[key].final) return redirect(res, `/${journey.base}/${steps[key].next}`);
         // Consequential action: requesting a quote. Usher's server-side token check attaches here.
-        state.result = journey.base === 'health' ? healthPrice(state) : price(session);
+        state.result = journey.base === 'health' ? keepQuote('health', state.about.dob, healthPrice(state)) : keepQuote('car', session.driver.dob, price(session));
         return redirect(res, `/${journey.base}/result`);
       }
     }
@@ -614,7 +675,8 @@ const server = createServer(async (req, res) => {
         errors.push(...validate(api, k, all[k]).map((f) => `${k}.${f.name}`));
       }
       if (errors.length) return json(res, { error: 'invalid', fields: errors }, 422);
-      return json(res, api.base === 'health' ? healthPrice(all) : price(all));
+      const result = api.base === 'health' ? keepQuote('health', all.about.dob, healthPrice(all)) : keepQuote('car', all.driver.dob, price(all));
+      return json(res, { ...result, retrieve_url: retrieveUrl(req, result.reference) });
     }
 
     // The site's claim to its origin: the registry checks this file holds the site key.

@@ -20,6 +20,8 @@ USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --pre
 That runs it with Usher: the script tag, `/.well-known/usher.json`, its claim file at `/.well-known/usher-site.json`, and the server-side check on "Get my quote" (each journey's own intent) and on `POST /api/health-quote` and `POST /api/quote`.
 
 - `/__admin` switches between layouts A, B and C while it runs, to show drift and the keeper's rebuild. Layout B renames and rewords both journeys; layout C changes the car journey's controls (the health journey already uses them, so C shows it as A does).
+- `/retrieve` is "Find your quote". It takes a quote reference (`?reference=` prefills it) and the date of birth it was given for, then shows that quote. Quotes are kept in memory only. Both result pages link to it, and both `/api` results return `reference` and `retrieve_url`.
+- The car result's "Continue to buy" leads to `/quote/proceed`, a demo wall. That is where a real insurer would take payment; nothing can be bought.
 - `/help` has four forms (a site search, a callback request, a message form and a newsletter box), for choosing the form by intent. Nothing on it is processed.
 - `VARIANT=b` starts it on layout B.
 - `USHER_REQUIRE_SIGNATURE=1` refuses agent tokens without a Web Bot Auth signature.

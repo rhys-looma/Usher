@@ -108,3 +108,7 @@ button.secondary { background: #fff; color: var(--brand); border: 1px solid var(
 .products strong { display: block; font-size: 18px; color: var(--brand); }
 .products span { color: var(--muted); }
 .declaration-text { padding: 12px 16px; background: var(--bg); border-left: 4px solid var(--brand); border-radius: 4px; }
+
+a.button { display: inline-block; padding: 10px 18px; border-radius: 6px; text-decoration: none; }
+a.button.primary { background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.demo-wall { padding: 14px 16px; border: 2px dashed #6b4e00; background: #fff4d6; color: #6b4e00; border-radius: 8px; margin: 16px 0; }
