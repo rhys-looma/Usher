@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rhys-looma/usher/spec/view.schema.json",
+  "title": "Usher result view",
+  "description": "What the page at the end of a journey shows that a person wants to keep (the quote reference, the price, the documents): where each is, never what it says.",
+  "type": "object",
+  "required": ["usher_view", "origin", "path", "title", "items", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "usher_view": { "const": "0.1" },
+    "origin": { "type": "string", "pattern": "^https?://[^/]+$" },
+    "path": { "type": "string", "pattern": "^/" },
+    "title": { "type": "string", "maxLength": 200 },
+    "items": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["id", "key", "label", "kind", "locators"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^r[0-9]+$" },
+          "key": { "enum": ["result.reference", "result.price", "result.amount", "result.term", "result.date", "result.document", "result.next_step"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "kind": { "enum": ["fact", "link"] },
+          "anchor": {
+            "description": "For a fact: the page's own words just before the value (\"You pay each month:\"). The value is the text that follows them.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "locators": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["by", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "by": { "enum": ["css", "role"] },
+                "value": { "type": "string", "minLength": 1 },
+                "name": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "created_at"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["walkthrough", "compiler"] },
+        "model": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
