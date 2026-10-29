@@ -257,7 +257,10 @@ function onSubmit(event: SubmitEvent): void {
   if (!token || !lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
   const rule = el ? (lookup.rules.actions?.[el.key] ?? FLOOR[el.risk]) : 'allow';
-  if (rule === 'forbid' || (rule === 'confirm' && !confirmed)) {
+  // A token that already says the person confirmed this (they did, in the assistant's Usher card)
+  // counts as confirmed: an assistant driving a browser can't call usher.confirm().
+  const confirmedInToken = Boolean(el && claims?.confirmed?.includes(el.key));
+  if (rule === 'forbid' || (rule === 'confirm' && !confirmed && !confirmedInToken)) {
     // The site's rules: the user must confirm this first, or only the user may do it.
     event.preventDefault();
     heldKey = el?.key;
@@ -375,3 +378,32 @@ declare global {
   }
 }
 window.usher = api;
+
+// An assistant driving its own browser opens the knock's entry_url: the token in the query
+// (usher=…) is bound on load, kept for this tab's session so the journey's later pages bind it too,
+// and taken out of the address bar so it is never shared, bookmarked or logged by the site.
+const KEPT = 'usher:token';
+void (async () => {
+  const params = new URLSearchParams(location.search);
+  const given = params.get('usher');
+  if (given) {
+    params.delete('usher');
+    const rest = params.toString();
+    history.replaceState(history.state, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`);
+  }
+  let kept: string | null = null;
+  try {
+    kept = sessionStorage.getItem(KEPT);
+  } catch {
+    // Storage blocked: only the entry page is bound.
+  }
+  const candidate = given ?? kept;
+  if (!candidate || !document.forms.length) return;
+  const result = await bind(candidate);
+  try {
+    if (result.ok) sessionStorage.setItem(KEPT, candidate);
+    else if (!given) sessionStorage.removeItem(KEPT);
+  } catch {
+    // As above.
+  }
+})();
