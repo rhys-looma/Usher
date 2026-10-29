@@ -1,4 +1,4 @@
-// The front page (LU-53, LU-60): the sentence and Brightwater's app in an assistant, the twenty
+// The front page (LU-53): the sentence and Brightwater's app in an assistant, the twenty
 // minutes, what happens in between on the hosted path (six steps, in reading order with no
 // JavaScript) and what Usher keeps (as docs/security.md says it), for sites then for agents with this
 // registry's address, the viewer box, the numbers, and the interest form, which carries Usher's own

@@ -1,14 +1,26 @@
 # Ways to connect
 
-Three ways an agent can use Usher. Each one fills the same journeys with the same maps and stops for the same decisions.
+Four ways to use Usher. Each one fills the same journeys with the same maps and stops for the same decisions. The first, a site's own app, is the one a site publishes. The others are for assistants and agents that want the plan, or to run Usher themselves.
 
 The demo site, Brightwater, offers two journeys: a health insurance quote (the example everywhere in these docs) and a car insurance quote.
 
 > Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.
 
-## In an assistant: hosted
+## A site's own app
 
-Add `https://usher.run/mcp` as a remote MCP server (a custom connector). There's nothing to install, and setup for each assistant is in [hosted-mcp.md](hosted-mcp.md).
+Add the site's app, at `/mcp/<the site's host>` on the registry, as a remote MCP server (a custom connector). There's nothing to install. The app has one tool per journey the site has mapped, under the site's name and look, plus `usher_confirm` and `usher_cancel`.
+
+Usher does the fill for you:
+- It fills the safe fields on the site.
+- It shows the questions that are yours in the site's own wording, word for word.
+- It presses the site's button only as the site's rules say, with a token the site checks.
+- It hands back the result, its reference and a way to continue on the site.
+
+Usher fills the form and forgets it. A site's app runs only for a site that joined and switched it on, and acts only on that site. [site-apps.md](site-apps.md) has the owner's side.
+
+## In an assistant: the plan
+
+Add `https://usher.run/mcp` as a remote MCP server. Setup for each assistant is in [hosted-mcp.md](hosted-mcp.md).
 
 Usher gives your assistant the plan and the rules; your assistant drives its own browser.
 

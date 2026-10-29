@@ -1,6 +1,6 @@
 # Usher's cards (MCP Apps)
 
-In clients that support [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) (SEP-1865, spec revision 2026-01-26), Usher's tool results render as small cards in the chat:
+In clients that support [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) (SEP-1865, spec revision 2026-01-26), Usher's tool results render as small cards in the chat. A [site app](site-apps.md) shows them in the site's own name and look, with a small "via Usher" mark. The general `/mcp` endpoint and the local server show the same cards unbranded.
 
 - **The decision card** (`usher_fill` or `usher_confirm` paused). It shows the site and page it's for, the line "Usher is asking you, not the agent", and the site's consent wording word for word with a real checkbox for each required consent. Optional opt-ins are yes/no. The submit is named as the site names it ("Yes, press "Get my quote" for me"), with the text the site shows beside it. A missing value gets a text box. There is one **Confirm**.
 - **The ticket** (`knock`). "Admit one agent": the agent's identity, the map for the page (fields by meaning), the house rules and how long the pass is valid. It's read-only.

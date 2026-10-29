@@ -1,4 +1,4 @@
-// The front page (LU-53, LU-60): a site inside every assistant in twenty minutes. The hero and the
+// The front page (LU-53): a site inside every assistant in twenty minutes. The hero and the
 // Brightwater example as its own app in an assistant; the twenty minutes (tag, map, rules, publish,
 // quote); what happens in between on the hosted path, and what Usher keeps; for sites, then for
 // agents; the map viewer (when it is on); the numbers from the committed reports; and an interest form

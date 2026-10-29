@@ -7,8 +7,9 @@
 //   npm run demo -- 3 --once          run, print the numbers and close
 //   npm run demo -- 7 --screen 2560x1440 --zoom 1.5
 //
-// Scenes: 1 fill, 2 ticket, 3 race, 4 signup, 5 rules-hold, 6 site-sees, 7 govuk, 8 diagram.
-// Scene 1 is recorded by hand in an MCP client; the runner only resets and opens the dashboard.
+// Scenes: 1 fill, 2 ticket, 3 race, 4 signup, 5 rules-hold, 6 site-sees, 7 govuk, 8 diagram, 9 twenty.
+// Scene 1 is recorded by hand in an MCP client with Brightwater's own app (its site app, first) or
+// the general endpoint (the plan path, second); the runner only resets and opens the dashboard.
 // Live model calls: scene 4's rules preview (about $0.01), and in scenes 1 and 7 the keeper's
 // rebuild when the layout changes (a few cents), all within the registry's daily cap.
 
@@ -24,7 +25,7 @@ import { diagramCard, raceCard, refusalCard, sceneCard, ticketCard, type RaceSid
 import { DRIVER, HEALTH, PATHS, REGISTRY, SITE, currentDigest, dashboard, keeperOutcome, layout, mapByDigest, rulesFor, setLayout, timeline, waitForNewMap } from './production.ts';
 
 const SCENES = [
-  { n: 1, id: 'fill', title: 'usher_fill from an MCP client' },
+  { n: 1, id: 'fill', title: "Brightwater's app in an MCP client" },
   { n: 2, id: 'ticket', title: 'The ticket for the last knock' },
   { n: 3, id: 'race', title: 'Browser Use, with and without usher_fill' },
   { n: 4, id: 'signup', title: 'Signup and the rules editor' },
@@ -32,6 +33,7 @@ const SCENES = [
   { n: 6, id: 'site-sees', title: 'The site sees' },
   { n: 7, id: 'govuk', title: 'Try it on GOV.UK, then the form changes' },
   { n: 8, id: 'diagram', title: 'Map, knock, log' },
+  { n: 9, id: 'twenty', title: 'The twenty minutes' },
 ] as const;
 type SceneId = (typeof SCENES)[number]['id'];
 
@@ -131,10 +133,10 @@ async function fill(): Promise<void> {
   const board = await window('right');
   await board.goto(`${REGISTRY}/demo/dashboard`);
   const d = await dashboard();
-  print('1  usher_fill from an MCP client (record it by hand, in the client on the left)', {
+  print("1  Brightwater's app in an MCP client (record it by hand, in the client on the left)", {
     ...state,
-    'hosted MCP': `${REGISTRY}/mcp`,
-    'local MCP': 'npx -y @usher-run/mcp',
+    "Brightwater's app": `${REGISTRY}/mcp/${new URL(SITE).host}`,
+    'or the plan path': `${REGISTRY}/mcp (get_plan, prepare_run), or npx -y @usher-run/mcp`,
     'try': `"Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess."`,
     'or the car quote': `"Get me a car insurance quote on ${new URL(SITE).host}"`,
     'dashboard': `${REGISTRY}/demo/dashboard`,
@@ -290,7 +292,15 @@ async function diagram(): Promise<void> {
   print('8  Map, knock, log', { 'still': file, 'models': 'Muse Spark: maps, rules, explanations, rebuilds · Muse Spark Open: risk second opinion, keeper triage' });
 }
 
-const RUN: Record<SceneId, () => Promise<void>> = { fill, ticket, race, signup, 'rules-hold': rulesHold, 'site-sees': siteSees, govuk, diagram };
+/** The front page's twenty minutes, and Brightwater's own measured time from joining to publishing. */
+async function twenty(): Promise<void> {
+  const page = await window('full');
+  await page.goto(`${REGISTRY}/#twenty`);
+  const steps = await page.locator('ol.twenty h3').allTextContents();
+  print('9  The twenty minutes', { 'steps': steps.join(', '), 'Brightwater joined to published': '79.1 s of machine time, $0.10 (reports/log-2026-10-29.md)', 'the owner\'s page': `${REGISTRY}/dashboard/app (signed in)` });
+}
+
+const RUN: Record<SceneId, () => Promise<void>> = { fill, ticket, race, signup, 'rules-hold': rulesHold, 'site-sees': siteSees, govuk, diagram, twenty };
 
 try {
   for (const id of requested) {
