@@ -6,7 +6,9 @@
 //     Confirm calls usher_confirm itself and shows the result. Elsewhere, and whenever unsure, it
 //     sends the person's own short confirmation ("Confirm: declaration yes, marketing no, get my
 //     quote yes") as their message, and the agent calls usher_confirm from it.
-//   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail.
+//   - usher_confirm done: the result card. Outcome, and on a page with a result view (spec/view.md)
+//     what it shows by name (the price, the cover, the reference) with its documents as links;
+//     elsewhere the figures verbatim and a thumbnail.
 //   - knock: the "Admit one agent" ticket, read-only.
 // The text result is unchanged and is what the model reads: nothing depends on the card rendering.
 // No external resources, no network, no tracking; the card shows only the site's words and the
@@ -146,7 +148,7 @@ ${CARD_CSS}
         });
         if (value === undefined) { missing.push(q.key); return; }
         answers[q.key] = value;
-        parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
+        parts.push(q.short + ' ' + (q.kind === 'confirm_value' && q.value && typeof value === 'boolean' ? '"' + q.value + '" ' : '') + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
       if (missing.length) { msg.className = 'note warn'; msg.textContent = 'Please answer every question first.'; resize(); return; }
@@ -200,18 +202,34 @@ ${CARD_CSS}
       + '</dl></div><div class="stub"><span class="label">No.</span><b>' + esc(String(k.session).slice(-4).toUpperCase()) + '</b><span>session</span></div></div>';
   }
 
+  // A result view's items: each fact by the site's own label (the price and cover large), then the
+  // documents and next steps as links that open in the person's browser.
+  function viewRows(items) {
+    var facts = items.filter(function (i) { return i.kind === 'fact'; });
+    var links = items.filter(function (i) { return i.kind === 'link' && /^https?:/.test(i.href || ''); });
+    return (facts.length ? '<div class="view">' + facts.map(function (i) {
+      var big = i.key === 'result.price' || i.key === 'result.amount';
+      // The value without the label, when the site wrote both in one line ("Quote reference: Q-1").
+      var text = String(i.text || ''), lead = i.label.toLowerCase();
+      if (text.toLowerCase().indexOf(lead) === 0) text = text.slice(lead.length).replace(/^\\s*:?\\s*/, '');
+      return '<div class="row' + (big ? ' big' : '') + '"><span>' + esc(i.label) + '</span><b class="verbatim">' + esc(text.trim()) + '</b></div>';
+    }).join('') + '</div>' : '')
+      + (links.length ? '<ul class="docs">' + links.map(function (i) { return '<li><a href="#" data-open="' + esc(i.href) + '">' + esc(i.label) + '</a></li>'; }).join('') + '</ul>' : '');
+  }
+
   // The result: outcome, the figures as the site shows them, a thumbnail. No link to the page: it
   // would open fresh, without the person's session, somewhere else than their result.
   function resultCard(r, image) {
     var res = r.result || {}, ok = r.status === 'completed';
     var facts = res.facts || [];
+    var items = res.items || [];
     var url = res.final_url || r.final_url || '';
     root.innerHTML = '<div class="card"><p class="label">Usher</p><h1 class="title">' + esc(res.title || (ok ? 'Done' : 'Stopped')) + '</h1>'
       + (url ? '<p class="where">' + esc(where(url)) + '</p>' : '')
       + '<p class="outcome ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Completed' : esc(r.status)) + (r.reason ? ': ' + esc(r.reason) : '') + '</p>'
-      + (facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
+      + (items.length ? viewRows(items) : facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
       + (image && image.data ? '<img class="thumb" alt="The page Usher finished on" src="data:' + esc(image.mimeType || 'image/png') + ';base64,' + esc(image.data) + '">' : '')
-      + (ok && facts.length ? '<p class="note">As the site shows it, word for word</p>' : '')
+      + (ok && (items.length || facts.length) ? '<p class="note">As the site shows it, word for word</p>' : '')
       + '</div>';
     var img = root.querySelector('img');
     if (img) img.addEventListener('load', resize);

@@ -20,7 +20,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Browser, Page } from 'playwright';
-import { compilePage, composePlan, dismissConsent, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
+import { compilePage, compileResultView, composePlan, dismissConsent, type ResultView, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
 import type { Registry } from './registry.ts';
@@ -71,6 +71,8 @@ export interface WalkthroughRun {
   log: string[];
   /** Against the maps the registry serves now, per page: keys added, removed or changed. */
   diff?: { path: string; added: string[]; removed: string[]; changed: string[] }[];
+  /** The result page's view, when the run was allowed past the final step (spec/view.md). */
+  result?: ResultView;
   published_at?: string;
 }
 
@@ -179,7 +181,8 @@ export class Walkthroughs {
   /** Why a run can't start now, or null. */
   async refusal(origin: string, start: string): Promise<string | null> {
     const site = await this.storage.getSite(origin);
-    if (!site?.claim && origin !== this.o.registry.demoOrigin) return 'This site has not proved it controls its address yet.';
+    // A site Usher's admin listed (only the admin can open its dashboard) may be walked too.
+    if (!site?.claim && origin !== this.o.registry.demoOrigin && !(await this.o.registry.listedSites()).some((l) => l.origin === origin)) return 'This site has not proved it controls its address yet.';
     let url: URL;
     try {
       url = new URL(start);
@@ -243,6 +246,7 @@ export class Walkthroughs {
       await this.o.registry.addMap({ ...map, provenance: { ...map.provenance, source: 'site', verified: true } });
       await this.o.registry.verifyMap(origin, map.fingerprint.digest, 'keeper', 'owner walkthrough');
     }
+    if (run.result) await this.o.registry.putResultView(run.result);
     await this.storage.putCached('walkthrough', origin, { ...run, published_at: this.now().toISOString() });
     return run.pages.length;
   }
@@ -418,6 +422,18 @@ export class Walkthroughs {
         let form = mainForm(scan.forms);
         if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) {
           say(`${title || path}: no form to fill. The journey ends here.`);
+          // Past the final step with the person's yes: what the result page shows, as a view.
+          if (step > 1 && pressFinal) {
+            try {
+              say(`Reading the result page with ${this.o.compiler!.model}.`);
+              const built = await compileResultView(page, { chat: this.o.compiler!.chat, model: this.o.compiler!.model, source: 'walkthrough', now: this.now });
+              run.cost_usd += built.cost_usd ?? 0;
+              run.result = built.view;
+              say(built.view.items.length ? `The result page shows: ${built.view.items.map((i) => i.label).join(', ')}.` : 'Nothing on the result page to keep.');
+            } catch (err) {
+              say(`The result page could not be read: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`);
+            }
+          }
           break;
         }
         say(`Extracting ${title || path}: ${plural(form.elements.filter((e) => e.visible).length, 'visible element')}.`);

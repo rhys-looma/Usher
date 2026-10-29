@@ -4,7 +4,7 @@
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { AgentIdentity, Fingerprint, UsherMap, UsherPlan } from '@usher/core';
+import type { AgentIdentity, Fingerprint, ResultView, UsherMap, UsherPlan } from '@usher/core';
 import { RegistryClient, loadOrCreateIdentity, type KnockInput, type KnockResponse, type Resolved, type RunReport } from '@usher/registry';
 
 export interface RegistryTransport {
@@ -21,6 +21,8 @@ export interface RegistryTransport {
   getPlan(url: string): Promise<UsherPlan | null>;
   submitMap(map: UsherMap): Promise<{ digest: string; stored: boolean }>;
   reportRun(report: RunReport): Promise<{ recorded: boolean }>;
+  /** The published result view for a page (spec/view.md), or null; registries without views leave it out. */
+  resultView?(url: string): Promise<ResultView | null>;
   /** Adds events to a session's log with its token (what the agent put to its user). */
   logEvents?(eventsUrl: string, token: string, events: unknown[]): Promise<void>;
   close(): Promise<void>;

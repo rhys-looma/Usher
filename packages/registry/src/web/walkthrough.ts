@@ -141,7 +141,11 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
 ${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Agents get them from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
 ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}
-<div class="pages">${run.pages.map(section)}</div>`;
+<div class="pages">${run.pages.map(section)}</div>
+${run.result ? html`<section class="card" id="result"><div class="page-head"><h2>The result page: ${run.result.title}</h2><code>${run.result.path}</code></div>
+<p class="small">What assistants will show a person here once they have their own result, read from their page and never kept. Usher keeps where each is, not what it said in this run.</p>
+${run.result.items.length ? html`<table><thead><tr><th>Shown as</th><th>Key</th><th>Kind</th></tr></thead><tbody>${run.result.items.map((i) => html`<tr><td>${i.label}</td><td><code>${i.key}</code></td><td>${i.kind === 'link' ? 'link' : 'fact'}</td></tr>`)}</tbody></table>` : html`<p class="muted">Nothing on it to keep.</p>`}
+</section>` : ''}`;
 }
 
 /** The whole walkthrough page: live while running, the result after. */
