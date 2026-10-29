@@ -217,8 +217,9 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   await card.locator('text=Please answer every question first.').waitFor();
   await card.locator('input[data-key="person.smoker"][value="yes"]').check();
   await card.locator('button#go').click();
-  await card.locator('text=Sent as your message: Confirm: smoker yes, declaration yes, get my quote yes').waitFor();
-  const done = await client.callTool({ name: 'usher_confirm', arguments: { id: (filled.structuredContent as { id: string }).id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } });
+  // The answer is the person's own, so the confirmation repeats it: "yes" means "No is right".
+  await card.locator('text=Sent as your message: Confirm: smoker "No" yes, declaration yes, get my quote yes').waitFor();
+  const done = await client.callTool({ name: 'usher_confirm', arguments: { id: (filled.structuredContent as { id: string }).id, confirmation: 'Confirm: smoker "No" yes, declaration yes, get my quote yes' } });
   assert.equal((done.structuredContent as { status: string }).status, 'completed');
   const result = await render(html, done);
   assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month[\s\S]*Quote reference BWH-/);

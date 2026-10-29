@@ -44,6 +44,16 @@ const labeller: ChatFn = async (request) => {
     editRequests.push(JSON.stringify(request.messages));
     return { content: JSON.stringify(editAnswer), usage: { prompt_tokens: 500, completion_tokens: 80, total_tokens: 580, cached_tokens: 0 }, latency_ms: 1, response: {} };
   }
+  // The result page (spec/view.md): the price, the reference and the date the stand-in recognises.
+  if (String(request.messages[0]!.content).startsWith('You label the page at the end of a web form journey')) {
+    const asked = JSON.parse(String(request.messages[1]!.content)) as { candidates: { id: string; kind: string; label: string; text?: string }[] };
+    const pick = (test: RegExp, key: string, label: string) => {
+      const c = asked.candidates.find((x) => x.kind === 'fact' && test.test(x.text ?? x.label));
+      return c ? [{ id: c.id, key, label }] : [];
+    };
+    const items = [...pick(/a month/, 'result.price', 'A month'), ...pick(/Quote reference/, 'result.reference', 'Quote reference'), ...pick(/valid/, 'result.date', 'Valid until')];
+    return { content: JSON.stringify({ title: 'Your quote', items }), usage: { prompt_tokens: 300, completion_tokens: 60, total_tokens: 360, cached_tokens: 0 }, latency_ms: 1, response: {} };
+  }
   const user = request.messages.find((m) => m.role === 'user')!;
   const text = typeof user.content === 'string' ? user.content : user.content.map((c) => ('text' in c ? c.text : '')).join('');
   const extraction = JSON.parse(text.slice(text.indexOf('Extraction:\n') + 12)) as { page: { path: string }; elements: { id: string; kind: string; label: string; candidates: string[] }[] };
@@ -382,4 +392,17 @@ test('the chat editor: a sentence becomes proposed changes, checked, applied onl
   assert.match(await view(), /Which page do you mean\?/);
   assert.equal((await post('/dashboard/walkthrough/edit/discard', {})).status, 303);
   assert.doesNotMatch(await view(), /Which page do you mean/);
+});
+
+test('allowed past the final step, the walk reads the result page as a view, holding no values; publishing keeps it', async () => {
+  const run = await runOnce('/health/about', { pressFinal: true });
+  assert.equal(run.status, 'completed', run.reason);
+  assert.ok(run.result, run.log.join('\n'));
+  assert.deepEqual(run.result!.items.map((i) => i.key), ['result.price', 'result.reference', 'result.date']);
+  assert.ok(run.log.some((l) => /The result page shows: A month, Quote reference, Valid until/.test(l)));
+  const stored = JSON.stringify(run.result);
+  assert.doesNotMatch(stored, /BWH-|£\d/, 'no reference or price in the view');
+  assert.equal(await running.registry.resultView(site.url, run.result!.path), undefined, 'a proposal until published');
+  await walk.publish(site.url);
+  assert.deepEqual((await running.registry.resultView(site.url, run.result!.path))?.items.map((i) => i.key), ['result.price', 'result.reference', 'result.date']);
 });

@@ -148,7 +148,7 @@ ${CARD_CSS}
         });
         if (value === undefined) { missing.push(q.key); return; }
         answers[q.key] = value;
-        parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
+        parts.push(q.short + ' ' + (q.kind === 'confirm_value' && q.value && typeof value === 'boolean' ? '"' + q.value + '" ' : '') + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
       if (missing.length) { msg.className = 'note warn'; msg.textContent = 'Please answer every question first.'; resize(); return; }

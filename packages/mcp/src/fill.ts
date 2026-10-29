@@ -63,7 +63,9 @@ export function shortName(key: string, label: string, kind: DecisionKind): strin
 
 /** "Confirm: declaration yes, marketing no, get my quote yes, postcode \"WR14 1AA\"". */
 export function confirmationPhrase(decisions: Decision[]): string {
-  return `Confirm: ${decisions.map((d) => (d.kind === 'missing_value' ? `${d.short} "…"` : `${d.short} yes/no`)).join(', ')}`;
+  // An answer that is the person's alone says what they said, so "yes" plainly means "that's right":
+  // 'smoker "No" yes', never a bare 'smoker yes' that reads as "I smoke".
+  return `Confirm: ${decisions.map((d) => (d.kind === 'missing_value' ? `${d.short} "…"` : d.kind === 'confirm_value' && d.value ? `${d.short} "${d.value}" yes/no` : `${d.short} yes/no`)).join(', ')}`;
 }
 
 /** Reads the person's confirmation into answers by key; undefined for any decision it doesn't settle. */
@@ -77,7 +79,8 @@ export function parseConfirmation(text: string, decisions: Decision[]): Record<s
       const m = new RegExp(`${name}\\s*[:=]?\\s*"([^"]*)"`, 'i').exec(text);
       out[d.key] = m?.[1]?.trim() || undefined;
     } else {
-      const m = new RegExp(`\\b${name}\\s*[:=]?\\s*(yes|no|true|false|y|n)\\b`).exec(lower);
+      // The answer may sit between the name and the yes or no: 'smoker "no" yes'.
+      const m = new RegExp(`\\b${name}\\s*(?:"[^"]*"\\s*)?[:=]?\\s*(yes|no|true|false|y|n)\\b`).exec(lower);
       out[d.key] = m ? /^(yes|true|y)$/.test(m[1]!) : undefined;
     }
   }
