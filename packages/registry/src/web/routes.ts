@@ -27,7 +27,7 @@ import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, 
 import type { ThemeDeriver } from '../theme-derive.ts';
 import { CARD_HTML } from './card-page.ts';
 import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
-import { appCard, appPage } from './app.ts';
+import { APP_STYLE, appCard, appPage, nextStep, setupStrip } from './app.ts';
 import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools } from '../site-app.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
@@ -795,7 +795,9 @@ ${annotated(drawn, { anchor: 'v' })}`;
       }
       const resultPage = async (status: number, editError?: string) => {
         const run = await walk.get(origin);
-        return send(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), ...(editError && { editError }) }), { siteScript: true });
+        const setup = await this.registry.siteSetup(origin);
+        const strip = { strip: setupStrip(setup, new Date()), next: nextStep(setup), style: APP_STYLE };
+        return send(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), setup: strip, ...(editError && { editError }) }), { siteScript: true });
       };
       if (route === 'GET /dashboard/walkthrough') return await resultPage(200), true;
       // The chat editor: suggest from a sentence, then accept or discard.

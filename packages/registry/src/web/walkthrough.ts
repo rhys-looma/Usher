@@ -138,19 +138,24 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
 </section>`;
   };
   return html`<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
-${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Agents get them from then on.</span></form>` : ''}
+${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each journey becomes a tool in your assistant app, and agents get the maps from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
 ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}
 <div class="pages">${run.pages.map(section)}</div>`;
 }
 
 /** The whole walkthrough page: live while running, the result after. */
-export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string }): string {
+export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string; setup?: { strip: Raw; next: Raw | null; style: string } }): string {
+  // On the owner's page: where mapping sits in the twenty minutes, and what comes after it.
+  const after = options.setup && run?.published_at
+    ? html`<div class="card notice"><p><b>Published.</b> Each journey is a tool in your assistant app now, and agents get these maps too.${options.setup.next ? html` Next: ${options.setup.next}.` : ' Your app is published.'}</p></div>`
+    : '';
   return page(
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>
+${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher walks your journey, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
 ${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events) : resultView(run, options)}`,
-    { scripts: ['/walkthrough.js'], style: ANNOTATE_STYLE },
+    { scripts: ['/walkthrough.js'], style: ANNOTATE_STYLE + (options.setup?.style ?? '') },
   );
 }
 

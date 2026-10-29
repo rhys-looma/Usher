@@ -2,6 +2,8 @@
 
 A site owner presses **Map my site** on the dashboard. Usher opens their form in its own browser, walks it page by page the way an agent would, and proposes a map for every page. Nothing changes for agents until the owner publishes it.
 
+It is step two of the [twenty minutes](site-apps.md#the-twenty-minutes). The owner's page shows the setup strip. Once the maps are published, each journey becomes a tool in the site's assistant app, and the page points to the next step, the rules.
+
 ## Who can start one
 
 - **The owner of a joined site**, signed in to the dashboard, on the origin they proved they control. The start page must be on that origin.

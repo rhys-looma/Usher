@@ -17,7 +17,7 @@ The assistant calls Brightwater's `get_health_insurance_quote`, and Usher fills 
 The owner works from `/dashboard/app`. Its setup strip shows each step: done, with when, or a link to do it.
 
 1. **Join.** Get keys at `/sites/new`, prove the origin (a file at `/.well-known/usher-site.json` or a DNS record), and add the script tag.
-2. **Map.** The walkthrough, or compile and review: each journey's pages, every field and button by meaning. The owner publishes the maps. Maps hold structure, never values.
+2. **Map.** The [walkthrough](walkthrough.md) ("Map my site"), or compile and review: each journey's pages, every field and button by meaning. The owner publishes the maps. Maps hold structure, never values.
 3. **Rules.** Written in plain English. Muse Spark turns them into policy, which the owner confirms. The rules say which questions are the person's alone, which actions need their yes, and how often.
 4. **Look.** Usher reads the site's name, logo, colours, typeface and corners from the site's own pages. Muse Spark chooses among them, and the owner accepts or changes the result at `/dashboard/theme`. The [cards](mcp-apps.md) carry it.
 5. **Publish.** One switch. It refuses while no journey is mapped.

@@ -250,6 +250,8 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
 
   const view = await (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text();
   assert.match(view, /class="box /);
+  // Step two of the twenty minutes: the setup strip, mapping still to do until the owner publishes.
+  assert.match(view, /<ol class="strip"><li class="done">[^]*?<li class="todo"><span class="mark" aria-hidden="true"><\/span><span><a href="\/dashboard\/walkthrough">Mapped: your forms, checked by you<\/a>/);
   assert.match(view, /src="\/walkthrough\.js"/);
 
   // A correction: kept, logged as owner-verified, structure only.
@@ -269,6 +271,9 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
   const maps = await running.registry.currentMaps(site.url);
   assert.equal(maps.get('/quote/driver')?.fields.find((f) => f.id === el.id)?.key, 'custom.forename');
   assert.ok(![...maps.values()].some((m) => [...m.fields, ...m.actions].some((e) => 'box' in e)), 'published maps carry no boxes');
+  // After publishing: mapped is done, and the page points to the next step of the twenty minutes.
+  const after = await (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text();
+  assert.match(after, /<b>Published\.<\/b> Each journey is a tool in your assistant app now, and agents get these maps too\. Next: <a href="\/dashboard#rules">Rules: what assistants may do, in your words<\/a>\./);
 });
 
 test('finetune:export takes the owner\'s answer over the model\'s, and counts it', async () => {
