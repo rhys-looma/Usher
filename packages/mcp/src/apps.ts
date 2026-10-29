@@ -6,7 +6,7 @@
 //     Confirm calls usher_confirm itself and shows the result. Elsewhere, and whenever unsure, it
 //     sends the person's own short confirmation ("Confirm: declaration yes, marketing no, get my
 //     quote yes") as their message, and the agent calls usher_confirm from it.
-//   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail, a link.
+//   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail.
 //   - knock: the "Admit one agent" ticket, read-only.
 // The text result is unchanged and is what the model reads: nothing depends on the card rendering.
 // No external resources, no network, no tracking; the card shows only the site's words and the
@@ -171,6 +171,9 @@ ${CARD_CSS}
           var text = (result.content || []).filter(function (c) { return c.type === 'text'; }).map(function (c) { return c.text; }).join('\\n');
           request('ui/update-model-context', { content: [{ type: 'text', text: 'The person confirmed in the Usher card (' + phrase + ') and Usher went on. Its result:\\n' + text }] }).catch(function () {});
           render(result);
+          // The chat carries on: a short message as the person (their click), so the assistant
+          // answers with the result it now has in context. Hosts without ui/message: the card alone.
+          if (caps && caps.message) request('ui/message', { role: 'user', content: [{ type: 'text', text: 'I confirmed in the Usher card: ' + phrase.replace(/^Confirm: /, '') + '. What happened?' }] }).catch(function () {});
         }).catch(viaMessage);
       } else viaMessage();
     });
@@ -197,7 +200,8 @@ ${CARD_CSS}
       + '</dl></div><div class="stub"><span class="label">No.</span><b>' + esc(String(k.session).slice(-4).toUpperCase()) + '</b><span>session</span></div></div>';
   }
 
-  // The result: outcome, the figures as the site shows them, a thumbnail and a link.
+  // The result: outcome, the figures as the site shows them, a thumbnail. No link to the page: it
+  // would open fresh, without the person's session, somewhere else than their result.
   function resultCard(r, image) {
     var res = r.result || {}, ok = r.status === 'completed';
     var facts = res.facts || [];
@@ -207,7 +211,7 @@ ${CARD_CSS}
       + '<p class="outcome ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Completed' : esc(r.status)) + (r.reason ? ': ' + esc(r.reason) : '') + '</p>'
       + (facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
       + (image && image.data ? '<img class="thumb" alt="The page Usher finished on" src="data:' + esc(image.mimeType || 'image/png') + ';base64,' + esc(image.data) + '">' : '')
-      + (url && ok ? '<p class="note"><a href="#" data-open="' + esc(url) + '">Open the page</a> · as the site shows it, word for word</p>' : '')
+      + (ok && facts.length ? '<p class="note">As the site shows it, word for word</p>' : '')
       + '</div>';
     var img = root.querySelector('img');
     if (img) img.addEventListener('load', resize);
