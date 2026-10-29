@@ -16,7 +16,7 @@ import { testStorage } from '../../registry/test/storage-helper.ts';
 import { pickerForms } from '../../registry/src/web/picker.ts';
 
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
-const profile: Profile = { 'custom.website': 'https://shop.example', 'contact.email': 'owner@shop.example', 'message.body': 'Sent by my agent' };
+const profile: Profile = { 'custom.website': 'https://shop.example', 'contact.email': 'owner@shop.example', 'custom.looma_setup': 'maybe', 'message.body': 'Sent by my agent' };
 
 // A scripted model: chooses the form with an email box, then labels it. Never a selector.
 const asked: string[] = [];
@@ -32,10 +32,11 @@ const scripted: ChatFn = async (request: ChatRequest) => {
           elements: [
             { id: 'e1', key: 'custom.website', risk: 'safe', shown_if: null },
             { id: 'e2', key: 'contact.email', risk: 'safe', shown_if: null },
-            { id: 'e3', key: 'message.body', risk: 'safe', shown_if: null },
-            { id: 'e4', key: 'form.submit', risk: 'consequential', shown_if: null },
+            { id: 'e3', key: 'custom.looma_setup', risk: 'safe', shown_if: null },
+            { id: 'e4', key: 'message.body', risk: 'safe', shown_if: null },
+            { id: 'e5', key: 'form.submit', risk: 'consequential', shown_if: null },
           ],
-          advance_action_id: 'e4',
+          advance_action_id: 'e5',
         });
   return { content, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, latency_ms: 0, response: {} };
 };
@@ -61,6 +62,6 @@ test("an agent registers interest on Usher's own front page: knocks, asks its us
   // The picker has buttons and no fields, so it is never a candidate: the interest form is the only one.
   assert.deepEqual(asked, ['usher_labels'], 'went straight to the interest form, past the picker, and labelled it');
   assert.deepEqual(user.confirmations, ['form.submit'], 'asked its user before sending');
-  const stored = (await registry.registry.storage.readLog('interest')) as { email: string; via: string }[];
-  assert.deepEqual(stored.map((s) => [s.email, s.via]), [['owner@shop.example', 'agent']]);
+  const stored = (await registry.registry.storage.readLog('interest')) as { email: string; setup?: string; via: string }[];
+  assert.deepEqual(stored.map((s) => [s.email, s.setup, s.via]), [['owner@shop.example', 'maybe', 'agent']]);
 });
