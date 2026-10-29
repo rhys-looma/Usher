@@ -10,7 +10,7 @@ import { BudgetExceeded, toBase64Url } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
 import { visibleTo, type Registry } from '../registry.ts';
-import { Dashboard, type DashboardHooks } from './dashboard.ts';
+import { Dashboard, recordAdminAction, type DashboardHooks } from './dashboard.ts';
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
@@ -122,6 +122,9 @@ function sendText(res: ServerResponse, body: string): void {
   res.end(body);
 }
 
+const ADMIN_BANNER = (origin: string) =>
+  `<div class="card warn"><b>Signed in as Usher's admin</b> on ${origin.replace(/[<>&"]/g, '')}, with its owner's powers. Changes are logged and shown to the owner. <a href="/admin/sites">All sites</a> · <form method="post" action="/dashboard/logout" style="display:inline"><button class="secondary">Leave</button></form></div>`;
+
 function sendHtml(res: ServerResponse, status: number, body: string, options: { siteScript?: boolean } = {}): void {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
@@ -133,6 +136,7 @@ function sendHtml(res: ServerResponse, status: number, body: string, options: { 
   });
   res.end(body);
 }
+const sendHtmlPage = sendHtml;
 
 type UsherCheck = ReturnType<typeof createUsherCheck>;
 const sha256 = (s: string) => createHash('sha256').update(s).digest();
@@ -306,11 +310,20 @@ export class Web {
           200,
           page(
             'Interest',
-            html`<h1>Interest</h1><p class="lede">${list.length} from the front page's form, newest first.</p>
+            html`<h1>Interest</h1><p class="lede">${list.length} from the front page's form, newest first. <a href="/admin/sites">All sites</a>.</p>
 <div class="card"><table><thead><tr><th>When</th><th>Site</th><th>Email</th><th>Note</th><th>Sent by</th></tr></thead>
 <tbody>${list.map((i) => html`<tr><td>${when(i.ts)}</td><td>${i.site}</td><td>${i.email}</td><td>${i.note}</td><td>${i.via === 'agent' ? 'an agent' : 'a person'}</td></tr>`)}</tbody></table></div>`,
           ),
         ), true;
+      }
+      // Every site, and its dashboard with its owner's powers (logged, and shown to the owner).
+      if (route === 'GET /admin/sites') return sendHtml(res, 200, await this.adminSites()), true;
+      if (route === 'POST /admin/sites/open') {
+        const origin = ((await readForm(req)).get('origin') ?? '').trim();
+        if (!(await this.registry.storage.getSite(origin))) return sendHtml(res, 404, page('Not found', html`<h1>No such site</h1><p><a href="/admin/sites">All sites</a></p>`)), true;
+        (await this.board()).adminSignIn(res, origin);
+        await recordAdminAction(this.registry.storage, origin, 'opened the dashboard');
+        return redirect(res, '/dashboard'), true;
       }
       const trainer = this.options.training?.trainer;
       if (trainer && route === 'GET /admin/training') return res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(await trainer.status(), null, 2)), true;
@@ -375,6 +388,29 @@ export class Web {
       return (await training.trainer.report(id, token, body)) ? json(200, { ok: true }) : notFound();
     }
     return notFound();
+  }
+
+  /** /admin/sites: every registered site, with what the operator needs to pick one. */
+  private async adminSites(): Promise<string> {
+    const storage = this.registry.storage;
+    const corrections = (await storage.readLog('corrections')) as { origin?: string }[];
+    const rows = await Promise.all(
+      (await storage.listSites()).map(async (site) => {
+        const [maps, sessions] = await Promise.all([storage.mapsForOrigin(site.origin), storage.listSessions(site.origin)]);
+        const last = sessions.reduce<string | null>((m, x) => (m === null || x.created_at > m ? x.created_at : m), null);
+        return { site, maps: maps.length, sessions: sessions.length, last, corrections: corrections.filter((c) => c.origin === site.origin).length };
+      }),
+    );
+    rows.sort((a, b) => (b.last ?? b.site.created_at).localeCompare(a.last ?? a.site.created_at));
+    return page(
+      'All sites',
+      html`<h1>All sites</h1><p class="lede">${String(rows.length)} registered, most recently active first. Open one to see and change it as its owner would; every change is logged and shown to the owner. <a href="/admin">Interest</a>.</p>
+<div class="card"><table><thead><tr><th>Site</th><th>Claim</th><th>Maps</th><th>Sessions</th><th>Corrections</th><th>Last agent</th><th>Registered</th><th></th></tr></thead>
+<tbody>${rows.map(
+        (r) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`<span class="badge">${r.site.claim.method}</span>` : html`<span class="muted">not proved</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
+<td><form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${r.site.origin}"><button class="secondary">Open as owner</button></form></td></tr>`,
+      )}</tbody></table></div>`,
+    );
   }
 
   /** Self-serve signup and the lost-key path (signup.ts). */
@@ -545,36 +581,40 @@ ${annotated(drawn, { anchor: 'v' })}`;
     }
     if (route === 'POST /dashboard/logout') return board.logout(res), redirect(res, '/dashboard'), true;
 
-    const origin = board.originOf(req);
-    if (!origin) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 401, board.loginPage()), true;
+    const signedIn = board.sessionOf(req);
+    if (!signedIn) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 401, board.loginPage()), true;
+    const { origin, admin } = signedIn;
     // Nothing is shown until the site has proved it controls its origin.
     const site = await this.registry.storage.getSite(origin);
     if (!site) return board.logout(res), redirect(res, '/dashboard'), true;
+    // Usher's admin, from /admin/sites: every page says so, and every change is logged for the owner.
+    const send: typeof sendHtmlPage = admin ? (r, status, body, options) => sendHtmlPage(r, status, body.replace('<main>', `<main>${ADMIN_BANNER(origin)}`), options) : sendHtmlPage;
+    if (admin && req.method === 'POST') await recordAdminAction(this.registry.storage, origin, route.replace(/\/(s|r)_[A-Za-z0-9_-]+/, '/$1_…'));
     if (route === 'POST /dashboard/verify') {
       const reply = await this.registry.verifySiteFor(origin);
       if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
-      return sendHtml(res, 422, claimPage({ url: this.registry.url, site, fromDashboard: true, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
+      return send(res, 422, claimPage({ url: this.registry.url, site, fromDashboard: true, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
     }
-    // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else.
-    if (!site.claim) return sendHtml(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
+    // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else (except to the admin).
+    if (!site.claim && !admin) return send(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
     const walk = this.options.walkthroughs;
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
-      return sendHtml(res, 200, await board.overview(origin, html`${welcome}${card}`)), true;
+      return send(res, 200, await board.overview(origin, html`${welcome}${card}`)), true;
     }
-    if (route === 'GET /dashboard/learning') return sendHtml(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
+    if (route === 'GET /dashboard/learning') return send(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
     if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {
-      if (route === 'GET /dashboard/walkthrough/new') return sendHtml(res, 200, startForm(origin)), true;
+      if (route === 'GET /dashboard/walkthrough/new') return send(res, 200, startForm(origin)), true;
       if (route === 'POST /dashboard/walkthrough') {
         const form = await readForm(req);
         const started = await walk.start({ origin, start: (form.get('start') ?? '').trim(), values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner' });
-        if ('refused' in started) return sendHtml(res, 422, startForm(origin, started.refused)), true;
+        if ('refused' in started) return send(res, 422, startForm(origin, started.refused)), true;
         return redirect(res, '/dashboard/walkthrough'), true;
       }
       const resultPage = async (status: number, editError?: string) => {
         const run = await walk.get(origin);
-        return sendHtml(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), ...(editError && { editError }) }), { siteScript: true });
+        return send(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), ...(editError && { editError }) }), { siteScript: true });
       };
       if (route === 'GET /dashboard/walkthrough') return await resultPage(200), true;
       // The chat editor: suggest from a sentence, then accept or discard.
@@ -596,7 +636,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       if (route === 'POST /dashboard/walkthrough/correct') {
         const form = await readForm(req);
         const failure = await walk.correct(origin, form.get('path') ?? '', form.get('id') ?? '', { ...(form.get('key') && { key: form.get('key')!.trim() }), ...(form.get('risk') && { risk: form.get('risk')! }), ...(form.get('label') && { label: form.get('label')!.trim() }) });
-        if (failure) return sendHtml(res, 422, page('Map my site', html`<h1>That correction wasn't saved</h1><div class="card error">${failure}</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
+        if (failure) return send(res, 422, page('Map my site', html`<h1>That correction wasn't saved</h1><div class="card error">${failure}</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
         return redirect(res, `/dashboard/walkthrough#${encodeURIComponent(form.get('id') ?? '')}`), true;
       }
     }
@@ -604,29 +644,29 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const text = (await readForm(req)).get('text') ?? '';
       const reply = await this.registry.proposeRulesFor(origin, text);
       const notice = reply.status === 201 ? html`<div class="card notice">Proposed. Check the policy below, then confirm it to apply.</div>` : html`<div class="card error">${(reply.body as { message?: string }).message ?? 'The rules could not be turned into a policy.'}</div>`;
-      return sendHtml(res, reply.status === 201 ? 200 : 422, await board.overview(origin, notice)), true;
+      return send(res, reply.status === 201 ? 200 : 422, await board.overview(origin, notice)), true;
     }
     const confirm = /^\/dashboard\/rules\/(r_[A-Za-z0-9_-]+)\/confirm$/.exec(url.pathname);
     if (confirm && req.method === 'POST') {
       const reply = await this.registry.confirmRulesFor(origin, confirm[1]!);
-      return sendHtml(res, reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`)), true;
+      return send(res, reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`)), true;
     }
     if (route === 'POST /dashboard/explain') {
       const failure = await this.hooks.explain?.(origin);
-      return sendHtml(res, 200, await board.overview(origin, failure ? html`<div class="card error">${failure}</div>` : html`<div class="card notice">Explanations updated.</div>`)), true;
+      return send(res, 200, await board.overview(origin, failure ? html`<div class="card error">${failure}</div>` : html`<div class="card notice">Explanations updated.</div>`)), true;
     }
     const session = /^\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)(\/explain)?$/.exec(url.pathname);
     if (session && (req.method === 'GET' || session[2])) {
       if (session[2] && req.method === 'POST') await this.registry.explainSession(origin, session[1]!, true).catch(() => null);
       const body = await board.sessionPage(origin, session[1]!);
-      return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such session for ${origin}</h1>`)), true;
+      return send(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such session for ${origin}</h1>`)), true;
     }
     const map = /^\/dashboard\/maps\/(sha256(?::|%3A)[0-9a-f]{64})$/.exec(url.pathname);
     if (map && req.method === 'GET') {
       const record = await this.registry.storage.getMap(origin, decodeURIComponent(map[1]!));
-      if (!record) return sendHtml(res, 404, page('Not found', html`<h1>No such map for ${origin}</h1>`)), true;
-      return sendHtml(res, 200, mapPage(record.map, { source: record.submitted_by ? 'shared by an agent' : `built by ${record.map.provenance.compiler ?? 'Usher'}`, record, owner: true })), true;
+      if (!record) return send(res, 404, page('Not found', html`<h1>No such map for ${origin}</h1>`)), true;
+      return send(res, 200, mapPage(record.map, { source: record.submitted_by ? 'shared by an agent' : `built by ${record.map.provenance.compiler ?? 'Usher'}`, record, owner: true })), true;
     }
-    return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
+    return send(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
   }
 }
