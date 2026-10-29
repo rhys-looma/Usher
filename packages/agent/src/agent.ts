@@ -31,6 +31,7 @@ import {
   type ActionRule,
   fingerprint,
   scanScript,
+  waitForForm,
   type ChatFn,
   type MapAction,
   type MapField,
@@ -450,6 +451,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       if (r.request().isNavigationRequest() && r.frame() === page.mainFrame()) refused = r.status() >= 400;
     });
     await page.goto(options.url, { waitUntil: 'load' });
+    // A page drawn by script after load (LV's life quote) gets a few seconds to show its form.
+    if (!refused) await waitForForm(page);
     for (let step = 0; step < (options.maxPages ?? 10); step++) {
       if (refused) {
         outcome = 'failed';
