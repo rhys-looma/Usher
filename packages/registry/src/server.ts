@@ -55,6 +55,7 @@ import { DEFAULT_LOG_DIR, budgeted, compilerModel, studentModel, modelApi, openM
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
 import { Walkthroughs } from './walkthrough.ts';
+import { ThemeDeriver } from './theme-derive.ts';
 import { BasetenTraining } from './baseten.ts';
 import { Trainer } from './trainer.ts';
 import { PostgresStorage } from './postgres.ts';
@@ -170,6 +171,16 @@ const running = await startRegistry({
         logDir: production ? null : DEFAULT_LOG_DIR,
       }),
   }),
+  // A site's look for its assistant app, read from its own pages on join and on the owner's
+  // refresh, in the hosted browser; Muse Spark chooses within the same cap (code when it can't).
+  themes: (registry) =>
+    new ThemeDeriver({
+      registry,
+      browser: hostedBrowser,
+      ...(spark && { compiler: spark }),
+      spend: { today: spentToday, cap: budget },
+      allowPrivate: values['allow-private'],
+    }),
   port: Number(values.port),
   host: values.host,
   siteScript,
@@ -220,7 +231,11 @@ if (values.seed) {
   const maps = await seed(running.registry, values.seed, origin);
   console.log(`seeded ${maps.length} maps for ${origin}`);
   // The demo site's name read afresh on each start (it may have changed with the deploy); never fatal.
-  void running.registry.siteName(origin, { fresh: true }).catch(() => undefined);
+  // Then its theme, read from its pages as on any join, if it has none yet.
+  void running.registry
+    .siteName(origin, { fresh: true })
+    .catch(() => undefined)
+    .then(() => running.registry.onJoined?.(origin));
   // In production a site registers through /sites/new and proves its domain like any other.
   if (!env.USHER_DEV_SITE_ORIGIN && !production) {
     const site = await running.registry.registerSite({ origin });

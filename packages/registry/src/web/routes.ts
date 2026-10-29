@@ -24,6 +24,9 @@ import type { Trainer } from '../trainer.ts';
 import type { TrainingExample } from '@usher/core';
 import { Learning, learningPage, teachingPage } from './learning.ts';
 import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, walkthroughPage } from './walkthrough.ts';
+import type { ThemeDeriver } from '../theme-derive.ts';
+import { CARD_HTML } from './card-page.ts';
+import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
@@ -45,6 +48,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hostedMcp?: boolean;
   /** The walkthrough mapper ("Map my site"), when this registry has a model and a browser for it. */
   walkthroughs?: Walkthroughs;
+  /** Reads a site's look for its assistant app's theme ("Refresh from my site"). */
+  themes?: ThemeDeriver;
   /** Automatic retraining of the student (USHER_AUTO_TRAIN), and the secret its deployment sends to fetch the promoted adapter. */
   training?: { trainer: Trainer; secret?: string };
 }
@@ -125,14 +130,14 @@ function sendText(res: ServerResponse, body: string): void {
 const ADMIN_BANNER = (origin: string) =>
   `<div class="card warn"><b>Signed in as Usher's admin</b> on ${origin.replace(/[<>&"]/g, '')}, with its owner's powers. Changes are logged and shown to the owner. <a href="/admin/sites">All sites</a> · <form method="post" action="/dashboard/logout" style="display:inline"><button class="secondary">Leave</button></form></div>`;
 
-function sendHtml(res: ServerResponse, status: number, body: string, options: { siteScript?: boolean } = {}): void {
+function sendHtml(res: ServerResponse, status: number, body: string, options: { siteScript?: boolean; frames?: boolean } = {}): void {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Frame-Options': 'DENY',
     // One inline stylesheet and forms that post to themselves. The front page also runs Usher's
     // own site script, which talks only to this origin.
-    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;${options.siteScript ? " script-src 'self'; connect-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;${options.siteScript ? " script-src 'self'; connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
   });
   res.end(body);
 }
@@ -226,6 +231,20 @@ export class Web {
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
+    }
+    if (route === 'GET /theme.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(THEME_JS), true;
+    }
+    // The card, for the dashboard's theme preview: framed only by this registry's own pages, and
+    // there in a sandbox (no cookies, no storage, its own opaque origin).
+    if (route === 'GET /card-preview.html') {
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
+      });
+      return res.end(CARD_HTML), true;
     }
     if (route === 'GET /site.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
@@ -697,7 +716,31 @@ ${annotated(drawn, { anchor: 'v' })}`;
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
-      return send(res, 200, await board.overview(origin, html`${welcome}${card}`)), true;
+      const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : '';
+      return send(res, 200, await board.overview(origin, html`${welcome}${card}${look}`)), true;
+    }
+    const themes = this.options.themes;
+    if (themes && url.pathname.startsWith('/dashboard/theme')) {
+      const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
+      const journey = (await this.registry.journeys(origin).catch(() => []))[0];
+      const show = async (status: number, extra: Partial<Parameters<typeof themePage>[0]> = {}) =>
+        send(res, status, themePage({ origin, record: await this.registry.siteTheme(origin), name, ...(journey && { journey }), refusal: await themes.refusal(origin), busy: themes.busy(origin), ...extra }), { siteScript: true, frames: true });
+      if (route === 'GET /dashboard/theme') return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. Your cards use this look from now on.' } : url.searchParams.has('read') ? { notice: 'Usher read your site and proposed this look. Adjust anything, then accept it.' } : {}), true;
+      if (route === 'POST /dashboard/theme/refresh') {
+        const done = await themes.derive(origin);
+        if (typeof done === 'string') return await show(422, { notice: done }), true;
+        return redirect(res, '/dashboard/theme?read'), true;
+      }
+      if (route === 'POST /dashboard/theme/preview') {
+        const preview = previewOf(themeFromForm(await readForm(req), await this.registry.siteTheme(origin), name));
+        return res.writeHead('problems' in preview ? 422 : 200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(preview)), true;
+      }
+      if (route === 'POST /dashboard/theme') {
+        const checked = themeFromForm(await readForm(req), await this.registry.siteTheme(origin), name);
+        if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
+        await this.registry.approveTheme(origin, checked.theme);
+        return redirect(res, '/dashboard/theme?saved'), true;
+      }
     }
     if (route === 'GET /dashboard/learning') return send(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
     if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {

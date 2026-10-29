@@ -31,3 +31,4 @@ export * from './public-fetch.ts';
 export * from './fill.ts';
 export * from './consent.ts';
 export * from './browser-plan.ts';
+export * from './theme.ts';

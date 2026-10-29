@@ -46,6 +46,11 @@ import {
   type HttpSignatureCheck,
   RISKS,
   vocabulary,
+  cardTheme,
+  validateTheme,
+  type CardTheme,
+  type SiteTheme,
+  type ThemeProblem,
 } from '@usher/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { publicFetch } from '@usher/core/public-fetch';
@@ -132,6 +137,38 @@ export interface SiteApp {
   enabled: boolean;
   enabled_at?: string;
   tools?: Record<string, { name?: string; hidden?: boolean; description?: string }>;
+}
+
+/** What Usher found on a site's pages to choose a theme from (theme-derive.ts). Never a value anyone typed. */
+export interface ThemeCandidates {
+  /** The pages looked at (paths). */
+  pages: string[];
+  names: string[];
+  /** PNG data URLs, each captured from an element of the site's own pages. */
+  logos: string[];
+  colours: { hex: string; role: string; count: number }[];
+  fonts: { family: string; role: string }[];
+  radius_px: number | null;
+}
+
+/**
+ * A site's theme (LU-58): the one in use on its cards, the one waiting for the owner (derived from
+ * the site, or after "Refresh from my site"), and what the last derivation looked at.
+ */
+export interface SiteThemeRecord {
+  approved?: SiteTheme;
+  approved_at?: string;
+  proposed?: SiteTheme;
+  derived?: {
+    at: string;
+    ms: number;
+    /** The model that chose, or "code" when none could. */
+    by: string;
+    why?: string;
+    candidates: ThemeCandidates;
+    /** The home page as Usher saw it, every field masked, as a JPEG data URL. */
+    shot?: string;
+  };
 }
 
 /** What a site's app has been used for: connections and fills, by day. Counts only. */
@@ -823,6 +860,9 @@ export class Registry {
   /** Set by the server when a keeper runs: drift reports trigger a check of that form. */
   onDrift?: (origin: string, path: string) => void;
 
+  /** Set by the server: a site proved its origin (it has joined). Its theme is derived then. */
+  onJoined?: (origin: string) => void;
+
   /**
    * Stores a new version of a form's map and marks the old one replaced (it is kept). The new
    * version is current: it is the newest for its path.
@@ -1003,6 +1043,7 @@ export class Registry {
     const secret = `uss_${randomId(24)}`;
     const at = this.now().toISOString();
     await this.storage.putSite({ ...site, secret_sha256: sha256(secret), claim: { method, verified_at: at, checked_at: at } });
+    this.onJoined?.(origin);
     return ok({ origin, site_key: site.site_key, secret_key: secret });
   }
 
@@ -1014,6 +1055,7 @@ export class Registry {
     if (!method) return error(422, 'claim_not_found', `Neither proof was found: ${tried.map((t) => `${t.method}: ${t.result}`).join('; ')}.`, { claim: claimInstructions(site), tried });
     const at = this.now().toISOString();
     await this.storage.putSite({ ...site, claim: { method, verified_at: at, checked_at: at } });
+    this.onJoined?.(origin);
     return ok({ claimed: true, method, verified_at: at });
   }
 
@@ -1140,6 +1182,31 @@ export class Registry {
     // Ninety days of daily counts.
     for (const d of Object.keys(usage.days).sort().slice(0, -90)) delete usage.days[d];
     await this.storage.putCached('site-app-usage', origin, usage);
+  }
+
+  async siteTheme(origin: string): Promise<SiteThemeRecord> {
+    return (await this.storage.getCached<SiteThemeRecord>('site-theme', origin)) ?? {};
+  }
+
+  async putSiteTheme(origin: string, record: SiteThemeRecord): Promise<void> {
+    await this.storage.putCached('site-theme', origin, record);
+  }
+
+  /** Checks a theme and puts it in use on the site's cards (the owner accepted or adjusted it). */
+  async approveTheme(origin: string, input: unknown): Promise<{ theme: SiteTheme } | { problems: ThemeProblem[] }> {
+    const checked = validateTheme(input);
+    if ('problems' in checked) return checked;
+    const record = await this.siteTheme(origin);
+    delete record.proposed;
+    await this.putSiteTheme(origin, { ...record, approved: checked.theme, approved_at: this.now().toISOString() });
+    return checked;
+  }
+
+  /** The theme a card for this site carries, once the owner has accepted one; checked again on the way out. */
+  async cardTheme(origin: string): Promise<CardTheme | undefined> {
+    const approved = (await this.siteTheme(origin)).approved;
+    const checked = approved && validateTheme(approved);
+    return checked && 'theme' in checked ? cardTheme(checked.theme) : undefined;
   }
 
   /** A seed's policy (the demo site's): set unless the owner has confirmed their own, which a seed never replaces. */
