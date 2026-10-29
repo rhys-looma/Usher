@@ -173,6 +173,17 @@ const ADVANCE_KEYS = ['form.submit', 'search.submit', 'nav.next', 'form.purchase
 
 /** Ends a run early on purpose (the outcome and reason are already set). */
 class StopRun extends Error {}
+
+/**
+ * What the person is told when a site turns the browser away (bot protection, a block, an outage):
+ * in plain words, for customers, never a status code.
+ */
+export function refusedReason(url: string, partWay: boolean): string {
+  const host = new URL(url).host.replace(/^www\./, '');
+  return partWay
+    ? `Usher stopped part way: the ${host} website wouldn't show the next page to Usher's browser. Nothing more was filled. You can try again later, or finish on the site yourself.`
+    : `The ${host} website wouldn't let Usher's browser in just now, so nothing was filled. You can try again later, or fill in the form on the site yourself.`;
+}
 const ZERO: Usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 };
 const ms = (start: number) => Math.round(performance.now() - start);
 
@@ -428,8 +439,18 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
         }
       }
     }
+    // The site may turn the browser away at any page: the last page load's status, main frame only.
+    let refused = false;
+    page.on('response', (r) => {
+      if (r.request().isNavigationRequest() && r.frame() === page.mainFrame()) refused = r.status() >= 400;
+    });
     await page.goto(options.url, { waitUntil: 'load' });
     for (let step = 0; step < (options.maxPages ?? 10); step++) {
+      if (refused) {
+        outcome = 'failed';
+        reason = refusedReason(page.url(), step > 0);
+        throw new StopRun();
+      }
       // Usher sites carry a knock notice; elsewhere the agent can still look a map up by fingerprint.
       const knockUrl = options.noUsher || options.knock === false ? null : await page.locator('form[data-usher-knock]').first().getAttribute('data-usher-knock', { timeout: 2000 }).catch(() => null);
       if (knockUrl) await page.evaluate(() => window.usher?.ready);
@@ -437,6 +458,12 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       const scan: Scan = await page.evaluate(scanScript());
       // The likeliest form for this intent; no form with fields means the journey is over.
       const form = mainForm(scan.forms, options.intent);
+      if (!form && step === 0) {
+        // Nothing to fill on the first page is never a finished journey.
+        outcome = 'failed';
+        reason = `Usher found no form to fill at ${new URL(page.url()).host.replace(/^www\./, '')}, so nothing was filled.`;
+        throw new StopRun();
+      }
       if (!form) break;
       let fp = await fingerprint(form.elements);
       const path = new URL(page.url()).pathname;
