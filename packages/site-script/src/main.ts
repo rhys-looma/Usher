@@ -92,6 +92,16 @@ function addNotices(): void {
     note.textContent = `This form has an agent lane (Usher). Agents: knock at ${knockUrl} before filling it.`;
     note.style.cssText = 'position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important';
     f.append(note);
+    // A browser that says it is driven by automation (navigator.webdriver: Playwright, Puppeteer,
+    // Selenium) is an agent: the form says so, and the site's server asks it for a token. A
+    // deterrent, not a lock; an agent with a token is unaffected.
+    if (navigator.webdriver === true && !f.querySelector('input[name="usher_automation"]')) {
+      const flag = document.createElement('input');
+      flag.type = 'hidden';
+      flag.name = 'usher_automation';
+      flag.value = '1';
+      f.append(flag);
+    }
   }
 }
 

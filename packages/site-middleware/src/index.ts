@@ -84,8 +84,16 @@ export function tokenFrom(req: IncomingMessage, form?: URLSearchParams): string 
   return auth ?? (typeof header === 'string' && header ? header : undefined) ?? (form?.get(TOKEN_FIELD) || undefined);
 }
 
-export function identifiesAsAgent(req: IncomingMessage): boolean {
-  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent'] || hasSignature(req.headers));
+export function identifiesAsAgent(req: IncomingMessage, form?: URLSearchParams): boolean {
+  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent'] || hasSignature(req.headers)) || isAutomated(req, form);
+}
+
+/**
+ * A browser driven by automation: the site script's flag (navigator.webdriver) in the form, or a
+ * headless browser's user agent. A deterrent that makes plain automation knock, not a lock.
+ */
+export function isAutomated(req: IncomingMessage, form?: URLSearchParams): boolean {
+  return form?.get('usher_automation') === '1' || /HeadlessChrome|PhantomJS/i.test(String(req.headers['user-agent'] ?? ''));
 }
 
 // Keys fetched from the registry and kept for a while; an unknown kid triggers at most one
@@ -156,7 +164,7 @@ export function createUsherCheck(options: UsherCheckOptions) {
 
   async function check(req: IncomingMessage, opts: CheckOptions = {}): Promise<UsherCheckResult> {
     const token = tokenFrom(req, opts.form);
-    const agent = Boolean(token) || identifiesAsAgent(req) || options.isAgent?.(req) === true;
+    const agent = Boolean(token) || identifiesAsAgent(req, opts.form) || options.isAgent?.(req) === true;
     if (!agent && !opts.always) return { status: 'human' };
     if (!token) return { status: 'knock_required', reason: 'missing', message: 'Knock at the registry for a token first.' };
     try {
