@@ -19,7 +19,7 @@
 // within the registry's daily model budget.
 
 import { randomUUID } from 'node:crypto';
-import type { Browser, Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'playwright';
 import { compilePage, composePlan, dismissConsent, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
@@ -155,6 +155,20 @@ const MAX_OPTIONS = 8;
 /** Inputs, selects, text areas and chosen options: masked in every screenshot and frame. */
 /** What every walkthrough image greys out: anything that can hold or show an answer. */
 export const MASK = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]):not([type=reset]), select, textarea, label:has(input:checked), [aria-checked="true"], [aria-selected="true"]';
+
+/**
+ * A site's own pages only: Usher's browser never follows the site off its origin. And, as for the
+ * viewer and hosted MCP, every request (page, redirect, script, frame) must reach a public address.
+ */
+export async function ownPagesOnly(context: BrowserContext, origin: string): Promise<void> {
+  const verdicts = new Map<string, Promise<boolean>>();
+  await context.route('**/*', async (route) => {
+    const target = new URL(route.request().url());
+    if (route.request().isNavigationRequest() && !route.request().frame().parentFrame() && target.origin !== origin) return route.abort('blockedbyclient');
+    if (!verdicts.has(target.hostname)) verdicts.set(target.hostname, publicHost(target.hostname));
+    return (await verdicts.get(target.hostname)) ? route.continue() : route.abort('blockedbyclient');
+  });
+}
 
 /** A field's identity across scans: its name, else its id, else control and label. */
 const identityOf = (e: { name?: string; domId?: string; control?: string | null; label: string }) => e.name ?? e.domId ?? `${e.control}:${e.label}`;
@@ -381,17 +395,7 @@ export class Walkthroughs {
     const host = new URL(run.origin).host;
     const browser = await this.o.browser();
     const context = await browser.newContext({ viewport: VIEWPORT });
-    if (!this.o.allowPrivate) {
-      // A site's own pages only: the walkthrough never follows the site off its origin. And, as for the
-      // viewer and hosted MCP, every request (page, redirect, script, frame) must reach a public address.
-      const verdicts = new Map<string, Promise<boolean>>();
-      await context.route('**/*', async (route) => {
-        const target = new URL(route.request().url());
-        if (route.request().isNavigationRequest() && !route.request().frame().parentFrame() && target.origin !== run.origin) return route.abort('blockedbyclient');
-        if (!verdicts.has(target.hostname)) verdicts.set(target.hostname, publicHost(target.hostname));
-        return (await verdicts.get(target.hostname)) ? route.continue() : route.abort('blockedbyclient');
-      });
-    }
+    if (!this.o.allowPrivate) await ownPagesOnly(context, run.origin);
     const page = await context.newPage();
     // No single step may stall the run: a control that never answers is skipped.
     page.setDefaultTimeout(8_000);

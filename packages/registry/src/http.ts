@@ -13,6 +13,7 @@ import { Registry, type Reply } from './registry.ts';
 import { Web, type WebOptions } from './web/routes.ts';
 import { Keeper, type KeeperOptions } from './keeper.ts';
 import type { Walkthroughs } from './walkthrough.ts';
+import type { ThemeDeriver } from './theme-derive.ts';
 import type { Storage } from './storage.ts';
 
 const MAX_BODY = 256_000;
@@ -281,6 +282,8 @@ export interface StartOptions extends Omit<HttpOptions, 'web' | 'mcp'> {
   mcp?: (registry: Registry) => McpEndpoint;
   /** The walkthrough mapper, made once the registry exists. */
   walkthroughs?: (registry: Registry) => Walkthroughs;
+  /** Reads a site's look for its assistant app's theme, on join and on the owner's refresh. */
+  themes?: (registry: Registry) => ThemeDeriver;
   port?: number;
   host?: string;
   /** Public URL (REGISTRY_PUBLIC_URL); without one, the address the server listens on. */
@@ -332,7 +335,15 @@ export async function startRegistry(options: StartOptions): Promise<RunningRegis
   });
   const mcp = options.mcp?.(registry);
   const walkthroughs = options.web && options.walkthroughs?.(registry);
-  const web = options.web ? new Web(registry, { ...options.web, ...(mcp && { hostedMcp: true }), ...(walkthroughs && { walkthroughs }), ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
+  const themes = options.themes?.(registry);
+  if (themes) {
+    // A site that joins gets a proposed theme from its own pages, unless it has one already.
+    registry.onJoined = (origin) => void (async () => {
+      const record = await registry.siteTheme(origin);
+      if (!record.approved && !record.proposed) await themes.derive(origin);
+    })().catch(() => undefined);
+  }
+  const web = options.web ? new Web(registry, { ...options.web, ...(mcp && { hostedMcp: true }), ...(walkthroughs && { walkthroughs }), ...(themes && { themes }), ...(options.proxyHops && { proxyHops: options.proxyHops }), ...(options.chat && options.model && { chat: options.chat, model: options.model }) }) : undefined;
   const server = createServer(
     registryHandler(registry, {
       ...(options.siteScript && { siteScript: options.siteScript }),

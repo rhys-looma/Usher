@@ -34,7 +34,8 @@ body {
   background: var(--brand);
   color: var(--brand-ink);
 }
-.brand { color: inherit; font-weight: 700; font-size: 20px; text-decoration: none; }
+.brand { color: inherit; font-weight: 700; font-size: 20px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; align-self: center; }
+.brand .logo { flex: none; }
 .tag { opacity: 0.8; font-size: 14px; }
 
 main {

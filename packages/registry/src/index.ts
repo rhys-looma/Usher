@@ -12,3 +12,4 @@ export * from './web/viewer.ts';
 export * from './explain.ts';
 export * from './postgres.ts';
 export * from './keeper.ts';
+export * from './theme-derive.ts';

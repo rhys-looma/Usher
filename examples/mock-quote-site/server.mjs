@@ -241,7 +241,7 @@ function page(title, body, product = 'Health and car insurance') {
 ${REGISTRY ? `<script src="${REGISTRY}/usher.js" data-usher-registry="${REGISTRY}"${SITE_KEY ? ` data-usher-site-key="${SITE_KEY}"` : ''} defer></script>\n` : ''}</head>
 <body>
 <div class="demo-banner">Demo site for the Usher project. Brightwater Insurance is not a real insurer.</div>
-<header class="site-header"><a href="/" class="brand">Brightwater Insurance</a><span class="tag">${esc(product)}</span></header>
+<header class="site-header"><a href="/" class="brand"><svg class="logo" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="15" fill="#ffffff"/><path d="M5 17c3.3-4 6.7-4 10 0s6.7 4 10 0" fill="none" stroke="#0b6e6e" stroke-width="3" stroke-linecap="round"/><path d="M5 11.5c3.3-4 6.7-4 10 0s6.7 4 10 0" fill="none" stroke="#0b6e6e" stroke-width="2" stroke-linecap="round" opacity=".5"/></svg>Brightwater Insurance</a><span class="tag">${esc(product)}</span></header>
 <main>${body}</main>
 <script src="/static/quote.js" defer></script>
 </body>
