@@ -143,7 +143,7 @@
         "key": { "$ref": "#/$defs/key" },
         "label": { "type": "string" },
         "control": {
-          "enum": ["text", "email", "tel", "number", "date", "select", "radio", "checkbox", "textarea", "file", "password"]
+          "enum": ["text", "email", "tel", "number", "date", "select", "radio", "checkbox", "textarea", "file", "password", "buttons"]
         },
         "required": { "type": "boolean" },
         "risk": { "$ref": "#/$defs/risk" },
@@ -188,7 +188,7 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "control": { "enum": ["select", "radio"] } } },
+          "if": { "properties": { "control": { "enum": ["select", "radio", "buttons"] } } },
           "then": { "required": ["options"] }
         },
         {

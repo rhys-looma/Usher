@@ -50,7 +50,7 @@ The full, normative definition is [`map.schema.json`](map.schema.json). An annot
 | `fingerprint` | yes | Structural identity of the form (below) |
 | `form` | yes | What the form is for |
 | `groups` | no | Visible sections (fieldsets, headed blocks) |
-| `fields` | yes | Inputs, selects, radio groups, checkboxes, text areas |
+| `fields` | yes | Inputs, selects, radio groups, button choices, checkboxes, text areas |
 | `actions` | yes | Buttons and links that act on the form or move the journey |
 | `provenance` | yes | Who produced the map and whether it is verified |
 
@@ -71,12 +71,12 @@ Lookups match on `digest` first, then on signature similarity (a Jaccard score o
 | `id` | yes | Element id assigned by the extractor (`e1`, `e2`, …), stable within this map only |
 | `key` | yes | Semantic key from the [vocabulary](vocabulary.md), or `custom.<slug>` |
 | `label` | yes | The visible label, normalised whitespace |
-| `control` | yes | `text`, `email`, `tel`, `number`, `date`, `select`, `radio`, `checkbox`, `textarea`, `file`, `password` |
+| `control` | yes | `text`, `email`, `tel`, `number`, `date`, `select`, `radio`, `checkbox`, `textarea`, `file`, `password`, `buttons` |
 | `required` | yes | Whether the form requires it |
 | `risk` | yes | `safe`, `consequential` or `needs_user` (below) |
 | `sensitive` | no | `true` for payment details, passwords, government ids and medical answers. A plan never carries their values; an agent fills a medical answer only where the site's rules permit it, with the person's own answer, confirmed by them |
 | `constraints` | no | `pattern`, `min`, `max`, `min_length`, `max_length`, `format` |
-| `options` | for select/radio | `items` (value and label), `total`, `truncated` |
+| `options` | for select/radio/buttons | `items` (value and label), `total`, `truncated` |
 | `group` | no | Id of the containing group |
 | `part` | no | `day`, `month` or `year`: one part of a date split across fields (see below) |
 | `shown_if` | no | A condition; the field is only present when it holds |
@@ -147,6 +147,8 @@ Many forms ask for a date as separate day, month and year boxes or selects. Each
 It sets `part` only where a group holds two or more different parts, so a lone "Year of manufacture" stays a field of its own.
 
 **Validation.** Labels may give parts one key only within one group, each part once. A date shown as text in the site's own format (DD/MM/YYYY and the like, from the field's placeholder, its label or its pattern) is an ordinary field: the agent writes the value in that format.
+
+**Button choices.** Some sites ask a question with buttons rather than radios ("Your gender", then a Male button and a Female button). A map holds the question as one field with `control: buttons`: its locators find the buttons' container, and its options are the buttons' captions. It is a field, not actions: an agent answers it by pressing the button whose caption is the chosen option, inside that container, and only a `type="button"` button, which cannot submit the form. Extractors treat two to eight such buttons as a question when they are the only children of their container, each has a short caption that isn't a way forward (Next, Continue, Get…), and the question is the text just before them.
 
 **Lookup results.** A lookup that shows a list of results (the addresses on a postcode, say) adds a select or radio group to the page only after it runs. Maps describe the page as it loads, so that list isn't a field in the map. The lookup is an action (`lookup.address`), and an agent picks from the list when it appears; see [plan.md](plan.md) on lookups.
 
