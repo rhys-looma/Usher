@@ -91,12 +91,11 @@ test('get_plan: the plan for a browser, with the card\'s questions and the decla
   assert.equal(data.plan.known, '3 of 3 pages, to the end');
   assert.equal(data.plan.site.joined, true);
   assert.ok(data.decisions.some((d) => d.key === 'person.first_name' && d.kind === 'missing_value'));
-  // The declaration and the smoking question are the person's own to do on the page: the site
-  // refuses them from an assistant, so the card neither asks nor confirms them.
-  assert.deepEqual(data.decisions.filter((d) => d.kind !== 'missing_value').map((d) => d.key), ['form.submit']);
-  assert.ok(!data.decisions.some((d) => d.key === 'person.smoker'));
-  assert.equal(data.plan.stops.find((s) => s.key === 'consent.declaration')?.user_only, true);
-  assert.match(data.plan.stops.find((s) => s.key === 'consent.declaration')!.verbatim!, /I confirm/);
+  // Brightwater's rules: the smoking answer, the declaration and the submit on the person's yes.
+  assert.deepEqual(data.decisions.filter((d) => d.kind !== 'missing_value').map((d) => d.key), ['consent.declaration', 'form.submit']);
+  assert.ok(data.decisions.some((d) => d.key === 'person.smoker'), 'their own answer, asked');
+  assert.ok(!data.plan.stops.some((s) => s.user_only), 'nothing on this journey is refused to an assistant');
+  assert.match(data.blocks[0]!.text, /I confirm/);
   // The plan from the home page reaches the same journey for its intent.
   const fromHome = await client.callTool({ name: 'get_plan', arguments: { url: `${site.url}/`, intent: 'quote.health_insurance' } });
   assert.equal((fromHome.structuredContent as { plan: BrowserPlan }).plan.steps[0]!.url, `${site.url}/health/about`);
@@ -128,7 +127,7 @@ test('prepare_run, then the assistant\'s own browser opens entry_url, fills by t
   const data = result.structuredContent as { status: string; plan: BrowserPlan; entry_url: string; confirmed: string[] };
   assert.equal(data.status, 'ready');
   assert.equal(data.plan.problems, undefined, JSON.stringify(data.plan.problems));
-  assert.deepEqual(data.confirmed, ['form.submit'], 'the declaration is the person\'s to tick, so it is not confirmed for them');
+  assert.deepEqual(data.confirmed, ['consent.declaration', 'form.submit']);
   const entry = new URL(data.entry_url);
   assert.ok(entry.searchParams.get('usher'), 'the token is in the entry URL');
   const dobDay = data.plan.steps[0]!.fields.find((f) => f.key === 'person.dob' && f.part === 'day');
@@ -148,9 +147,7 @@ test('prepare_run, then the assistant\'s own browser opens entry_url, fills by t
     const step = data.plan.steps[i]!;
     for (const f of map.fields) {
       const placed = step.fields.find((p) => p.key === f.key && p.part === f.part);
-      // What only the person may do, they do: here, the test acts as them.
       if (f.key === 'consent.declaration') await fillField(page, f, true);
-      else if (f.key === 'person.smoker') await fillField(page, f, 'No');
       else if (placed?.value !== undefined && !f.shown_if) await fillField(page, f, placed.value);
     }
     if (step.lookups?.length) {

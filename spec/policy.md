@@ -49,15 +49,22 @@ Every element in a map has a risk, which sets a floor on its rule:
 | --- | --- |
 | `safe` | `allow` |
 | `consequential` | `confirm` |
-| `needs_user` | `forbid` |
+| `needs_user` | `confirm` |
 
-A policy can raise a rule above its floor (`allow` < `confirm` < `forbid`) but never lower it, with one exception that is the site's to make. A field that is the person's to answer may be permitted with `confirm` when it is what they say about their health (`health.*`) or whether they smoke (`person.smoker`, `partner.smoker` and their `*_stopped`): an agent then enters the person's own answer, as they gave it, and puts it back to them before anything is submitted. `allow` on such a field counts as `confirm`. Consents, passwords, card and bank details, and every action keep their floor. A validator refuses a policy that tries, for every map the registry holds for the forms it matches, and for keys with no map yet against the key's default risk in the vocabulary. When rules are applied, the floor wins anyway.
+`needs_user` means `confirm` unless the site says `forbid`: the agent shows it to the person in the site's own words (a declaration word for word, a question as the site asks it) and acts only after their yes, which the knock's `confirmed` list carries. Two exceptions hold when the policy says nothing:
+
+- **Health answers (`health.*`) and a purchase (`form.purchase`)** are `forbid` by default. A site may permit them with `confirm`; for a health answer the agent then enters the person's own answer, as they gave it.
+- **Card and bank details (`payment.*`) and a password (`account.password`)** are always `forbid`. No policy can loosen them.
+
+A policy can raise a rule above its floor (`allow` < `confirm` < `forbid`) but never lower it. `allow` on a `needs_user` element counts as `confirm`. A key that is on none of the site's maps takes its vocabulary default, so a knock confirming a health answer is refused on a site that never permits one.
+
+Brightwater, the demo site, sets `confirm` for `person.smoker`, `partner.smoker`, `consent.declaration` and `form.submit`, and `forbid` for `account.password`; health answers and card details stay forbidden by default. A validator refuses a policy that tries, for every map the registry holds for the forms it matches, and for keys with no map yet against the key's default risk in the vocabulary. When rules are applied, the floor wins anyway.
 
 ## How it is enforced
 
 - **At knock.** A form without an agent lane, or an agent that is blocked or not allowed, is refused (`403 agents_not_allowed`, `403 agent_blocked`). The knock response's `rules.actions` lists the effective rule for every element of the matched map.
 - **When the agent acts.** Before a `confirm` action, the agent asks its user and knocks again with `confirmed: ["<key>"]`, a statement signed by the agent that its user agreed. The registry refuses a `forbid` action (`403 action_forbidden`) and counts the action against its rate limits (`429 rate_limited`). The token then names the action as confirmed.
-- **In the page.** The site script holds a `confirm` action until the agent calls `window.usher.confirm(key)`, and never lets an agent submit a `forbid` action.
+- **In the page.** The site script holds a `confirm` action until the agent calls `window.usher.confirm(key)`, or the token it was opened with (an entry URL) records the person's yes, and never lets an agent submit a `forbid` action.
 - **On the server.** Tokens carry the form's `confirm` and `forbid` keys and what was `confirmed`. A server check protecting an action refuses it when it is forbidden (`reason: action_forbidden`) or needs confirmation the token does not record (`reason: confirmation_required`).
 
 ## Plain English

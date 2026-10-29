@@ -62,9 +62,11 @@ test('answers placed in the site\'s form: option labels, split dates by part, lo
   assert.ok(!JSON.stringify(view).includes('WR14 1AA'), 'the plan itself holds no values');
 });
 
-test('on a joined site, what only the person may do is user_only: not asked first, not confirmable, a stop for their own hand', async () => {
+test('on a joined site, what the site forbids to assistants is user_only: not asked first, not confirmable, a stop for their own hand', async () => {
   const { maps, plan } = await health();
-  const actions = Object.fromEntries(plan.steps.map((s) => [s.path, effectiveRules(undefined, maps.get(s.path)!, s.path).actions]));
+  // A site that forbids the smoking answer and the declaration to assistants.
+  const strict = { usher_policy: '0.1' as const, origin: 'https://brightwater.example', default: { actions: { 'person.smoker': 'forbid' as const, 'consent.declaration': 'forbid' as const } } };
+  const actions = Object.fromEntries(plan.steps.map((s) => [s.path, effectiveRules(strict, maps.get(s.path)!, s.path).actions]));
   const view = browserPlan(plan, maps, { name: 'Brightwater', joined: true, actions });
   const smoker = view.steps[0]!.fields.find((f) => f.key === 'person.smoker')!;
   assert.equal(smoker.user_only, true);

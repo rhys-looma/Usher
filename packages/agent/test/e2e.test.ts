@@ -95,8 +95,9 @@ test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote an
   ]);
   assert.equal(run.maps_submitted, 3);
   assert.ok(run.usage.prompt_tokens > 10_000);
-  assert.deepEqual(user.confirmations, ['form.submit'], 'paused once, at Get my quote');
-  assert.deepEqual(user.handoffs, ['consent.declaration', 'consent.marketing'], 'needs_user left to the user');
+  // The consents are the person's: shown to them and ticked only on their yes; then Get my quote.
+  assert.deepEqual(user.confirmations, ['consent.declaration', 'consent.marketing', 'form.submit'], 'the person\'s yes for each consent and the submit');
+  assert.deepEqual(user.handoffs, [], 'nothing taken out of the agent\'s hands');
 
   // The session shows every action by semantic key, and no values.
   const log = await session(run.session!);
@@ -116,7 +117,8 @@ test('Agent A (Muse Spark), no maps yet: reads each page, completes the quote an
   // One knock per page, and one more before "Get my quote", stating the user confirmed it.
   assert.equal(actions.filter((a) => a === 'registry:knock').length, 4);
   assert.equal(log.events.filter((e) => e.action === 'knock').at(-1)!.detail?.confirmed, 'form.submit');
-  assert.ok(actions.includes('site:handoff:consent.declaration') && actions.includes('site:check:consent.declaration'));
+  // The declaration ticked by the agent on the person's yes, not handed over.
+  assert.ok(actions.includes('site:check:consent.declaration') && !actions.includes('site:handoff:consent.declaration'));
   // The agent asked its user, told the page, then submitted.
   assert.deepEqual(actions.slice(-3), ['site:confirm:form.submit', 'site:submit:form.submit', 'agent:run']);
   assert.ok(!actions.some((a) => a.includes('person.claims.date')), 'conditional claim fields skipped');
@@ -244,9 +246,9 @@ test('Brightwater Health in layouts A, B and C: the smoker answer as the person 
       runs[`Agent A, Spark, health ${layout.toUpperCase()}`] = run;
       assert.equal(run.outcome, 'completed', `${layout}: ${run.reason} ${JSON.stringify(run.pages)} ${run.final_url}`);
       assert.match(run.final_url, /\/health\/result$/);
-      for (const a of ['fill:person.dob', 'press:lookup.address', 'fill:cover.who', 'handoff:person.smoker', 'fill:cover.level', 'fill:cover.excess', 'fill:policy.start_date', 'handoff:consent.declaration']) assert.ok(actions.includes(a), `${layout}: ${a} in ${actions.join(' ')}`);
+      for (const a of ['fill:person.dob', 'press:lookup.address', 'fill:cover.who', 'fill:person.smoker', 'fill:cover.level', 'fill:cover.excess', 'fill:policy.start_date', 'fill:consent.declaration']) assert.ok(actions.includes(a), `${layout}: ${a} in ${actions.join(' ')}`);
       assert.ok(!actions.some((a) => a.includes('health.')), 'no medical question');
-      assert.deepEqual(user.confirmations, ['form.submit'], 'asked before Get my quote');
+      assert.deepEqual(user.confirmations, ['person.smoker', 'consent.declaration', 'form.submit'], 'the smoker answer, the declaration and Get my quote, each on the person\'s yes');
     } finally {
       await site.setLayout('a');
     }

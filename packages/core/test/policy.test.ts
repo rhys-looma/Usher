@@ -35,7 +35,8 @@ test('rules for a form: default, then matching form entries in order', () => {
 test('effective rules: the map\'s risk is a floor the policy can only raise', () => {
   const none = effectiveRules(undefined, cover, '/quote/cover');
   assert.equal(none.actions['form.submit'], 'confirm');
-  assert.equal(none.actions['consent.declaration'], 'forbid');
+  // The person's own is confirm by default: shown to them, acted on after their yes.
+  assert.equal(none.actions['consent.declaration'], 'confirm');
   assert.equal(none.actions['policy.cover_level'], 'allow');
   const stricter = effectiveRules({ ...example, default: { actions: { 'policy.cover_level': 'confirm', 'form.submit': 'forbid' } } }, cover, '/quote/cover');
   assert.equal(stricter.actions['policy.cover_level'], 'confirm');
@@ -43,7 +44,9 @@ test('effective rules: the map\'s risk is a floor the policy can only raise', ()
   // Even a looser policy that slipped past validation can't lower a rule.
   const looser = effectiveRules({ ...example, default: { actions: { 'form.submit': 'allow', 'consent.declaration': 'allow' } } }, cover, '/quote/cover');
   assert.equal(looser.actions['form.submit'], 'confirm');
-  assert.equal(looser.actions['consent.declaration'], 'forbid');
+  assert.equal(looser.actions['consent.declaration'], 'confirm', '"allow" on the person\'s own counts as "confirm"');
+  // A site may forbid it.
+  assert.equal(effectiveRules({ ...example, default: { actions: { 'consent.declaration': 'forbid' } } }, cover, '/quote/cover').actions['consent.declaration'], 'forbid');
   assert.equal(stricterRule('allow', 'forbid'), 'forbid');
 });
 
@@ -51,10 +54,8 @@ test('validator: a policy may not loosen an action below its map risk or vocabul
   assert.deepEqual(looserRules(example, [driver, cover]), []);
   const loose: UsherPolicy = { ...example, default: { actions: { 'form.submit': 'allow' } }, forms: [{ match: { path: '/quote/*' }, actions: { 'consent.declaration': 'confirm', 'person.dob': 'confirm' } }] };
   const issues = looserRules(loose, [driver, cover]);
-  assert.deepEqual(issues.map((i) => [i.path, i.code]), [
-    ['default.actions.form.submit', 'looser_than_map'],
-    ['forms[0].actions.consent.declaration', 'looser_than_map'],
-  ]);
+  // "confirm" on the declaration is its floor now: only the submit is too loose.
+  assert.deepEqual(issues.map((i) => [i.path, i.code]), [['default.actions.form.submit', 'looser_than_map']]);
   assert.match(issues[0]!.message, /consequential .*at least "confirm", not "allow"/);
   // No map has the key: the vocabulary default applies.
   assert.equal(looserRules({ ...example, default: { actions: { 'payment.card_number': 'confirm' } }, forms: [] }, [driver])[0]?.code, 'looser_than_map');
@@ -67,7 +68,7 @@ test('agents: allow lists and block lists', () => {
   assert.equal(agentStanding({ ...example, agents: { allow: ['good'] } }, 'good'), 'allowed');
 });
 
-test('the site decides: medical answers and smoking may be permitted ("confirm"), never a consent, a password or an action', () => {
+test('the site decides: medical answers may be permitted ("confirm"); smoking and consents are confirm by default; a password, card details and actions never go lower', () => {
   const health: UsherMap = {
     ...cover,
     path: '/health/questions',
@@ -77,8 +78,9 @@ test('the site decides: medical answers and smoking may be permitted ("confirm")
     ],
     actions: cover.actions,
   };
-  // By default: the person's alone.
+  // By default: a health answer is the person's alone; whether they smoke is theirs, on their yes.
   assert.equal(effectiveRules(undefined, health, '/health/questions').actions['health.condition'], 'forbid');
+  assert.equal(effectiveRules(undefined, health, '/health/questions').actions['person.smoker'], 'confirm');
   // The site permits it: entered as the person said it, confirmed by them ("allow" counts as "confirm").
   for (const rule of ['confirm', 'allow'] as const) {
     const permitted: UsherPolicy = { ...example, default: { actions: { 'health.condition': rule, 'person.smoker': rule } }, forms: [] };
@@ -86,8 +88,8 @@ test('the site decides: medical answers and smoking may be permitted ("confirm")
     assert.deepEqual([actions['health.condition'], actions['person.smoker']], ['confirm', 'confirm'], rule);
     assert.deepEqual(looserRules(permitted, [health]), [], `${rule} passes the validator`);
   }
-  // Consents, credentials, payment details and actions stay where they are.
+  // Credentials, payment details and actions stay where they are; a consent at "confirm" is its floor.
   const tooFar: UsherPolicy = { ...example, default: { actions: { 'consent.declaration': 'confirm', 'account.password': 'confirm', 'payment.card_number': 'confirm', 'form.submit': 'allow' } }, forms: [] };
-  assert.deepEqual(looserRules(tooFar, [cover]).map((i) => i.path).sort(), ['default.actions.account.password', 'default.actions.consent.declaration', 'default.actions.form.submit', 'default.actions.payment.card_number']);
-  assert.equal(effectiveRules(tooFar, cover, '/quote/cover').actions['consent.declaration'], 'forbid');
+  assert.deepEqual(looserRules(tooFar, [cover]).map((i) => i.path).sort(), ['default.actions.account.password', 'default.actions.form.submit', 'default.actions.payment.card_number']);
+  assert.equal(effectiveRules(tooFar, cover, '/quote/cover').actions['consent.declaration'], 'confirm');
 });

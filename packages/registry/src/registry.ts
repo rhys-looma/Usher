@@ -33,6 +33,7 @@ import {
   type BrowserPlan,
   type UsherPlan,
   effectiveRules,
+  defaultRule,
   stricterRule,
   intentLabel,
   words,
@@ -635,7 +636,10 @@ export class Registry {
     const standing = agentStanding(policy, check.agentId, hosted);
     if (standing !== 'allowed') return refuse(403, 'agent_blocked', hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
-    const forbidden = confirmed.filter((k) => effective.actions[k] === 'forbid');
+    // A key on none of the site's maps takes its vocabulary default: confirming a health answer is
+    // refused on a site that never asks one.
+    const ruleOf = (k: string) => effective.actions[k] ?? defaultRule(vocabulary.entries.find((e) => e.key === k)?.default_risk ?? 'safe', k);
+    const forbidden = confirmed.filter((k) => ruleOf(k) === 'forbid');
     if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
     const limited = this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
     if (limited) return refuse(429, 'rate_limited', `${page.origin}: ${limited}`, confirmed.join(',') || 'knock');
@@ -1084,6 +1088,13 @@ export class Registry {
       if (err instanceof BudgetExceeded) return error(503, 'budget_reached', err.message);
       return error(502, 'model_error', 'The model could not be reached or failed.');
     }
+  }
+
+  /** A seed's policy (the demo site's): set unless the owner has confirmed their own, which a seed never replaces. */
+  async seedPolicy(policy: UsherPolicy, text: string): Promise<void> {
+    const current = await this.storage.getPolicy(policy.origin);
+    if (current && current.draft !== 'seed') return;
+    await this.storage.putPolicy({ policy, text, draft: 'seed', confirmed_at: this.now().toISOString() });
   }
 
   /** Applies a draft the owner has read. Nothing changes until this is called. */

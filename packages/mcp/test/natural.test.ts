@@ -159,7 +159,7 @@ test('Brightwater Health: the plain prompt and the keyed one reach the same deci
   assert.ok(done.result!.facts.some((f) => /a month/.test(f)), done.result!.facts.join(' | '));
   const taken = done.actions!.map((a) => `${a.action}:${a.key}`);
   assert.ok(taken.includes('press:lookup.address'), 'the address from the site\'s own lookup');
-  assert.ok(taken.includes('handoff:person.smoker'), 'the smoker answer entered as theirs');
+  assert.ok(taken.includes('fill:person.smoker'), 'the smoker answer entered as theirs, on their yes');
   console.log(`  health, plain prompt: decision set in ${plain.ms} ms; keyed: ${byKey.ms} ms`);
 });
 

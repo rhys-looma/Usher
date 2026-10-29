@@ -42,7 +42,10 @@ interface Rules {
   actions?: Record<string, 'allow' | 'confirm' | 'forbid'>;
 }
 
-const FLOOR: Record<Risk, 'allow' | 'confirm' | 'forbid'> = { safe: 'allow', consequential: 'confirm', needs_user: 'forbid' };
+// As core's policy.ts: the person's own needs their yes; health, card, bank and password details, and a purchase, are forbidden.
+const FLOOR: Record<Risk, 'allow' | 'confirm' | 'forbid'> = { safe: 'allow', consequential: 'confirm', needs_user: 'confirm' };
+const FORBIDDEN_BY_DEFAULT = /^(health\.|payment\.|account\.password|form\.purchase$)/;
+const defaultRule = (el: { key: string; risk: Risk }) => (el.risk === 'needs_user' && FORBIDDEN_BY_DEFAULT.test(el.key) ? 'forbid' : FLOOR[el.risk]);
 
 interface Lookup {
   match: { kind: 'exact' | 'near' | 'path' | 'none'; score: number; digest: string | null; drifted: boolean };
@@ -258,7 +261,7 @@ function onClick(event: Event): void {
 function onSubmit(event: SubmitEvent): void {
   if (!token || !lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
-  const rule = el ? (lookup.rules.actions?.[el.key] ?? FLOOR[el.risk]) : 'allow';
+  const rule = el ? (lookup.rules.actions?.[el.key] ?? defaultRule(el)) : 'allow';
   // A token from the entry URL that already says the person confirmed this (they did, in the
   // assistant's Usher card) counts as confirmed: an assistant driving a browser can't call
   // usher.confirm(). Agents that bind in script keep the hold and confirm in the page.

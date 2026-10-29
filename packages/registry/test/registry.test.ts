@@ -311,7 +311,8 @@ test('policy at knock: forbidden actions refused, rate limits counted, agents bl
   assert.equal(plain.rules.actions['consent.marketing'], 'forbid');
   const claims = decodeToken(plain.token)!.claims;
   assert.ok(claims.confirm?.includes('form.submit'));
-  assert.ok(claims.forbid?.includes('consent.declaration') && claims.forbid.includes('consent.marketing'));
+  // The declaration is the person's own: confirm by default. Marketing is forbidden by this policy.
+  assert.ok(claims.confirm?.includes('consent.declaration') && claims.forbid?.includes('consent.marketing'));
   assert.equal(claims.confirmed, undefined);
 
   const confirmed = await knockCover(client, ['form.submit']);

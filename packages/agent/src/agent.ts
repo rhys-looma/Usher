@@ -9,7 +9,7 @@
 
 import type { Browser, Locator, Page } from 'playwright';
 import {
-  FLOOR,
+  defaultRule,
   LOOKUP_FILLS,
   dateFormatOf,
   datePart,
@@ -537,7 +537,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
       let filled = 0;
       let handedOff = 0;
       // The site's rules when it has an agent lane; otherwise the map's own risk.
-      const ruleFor = (el: MapField | MapAction): ActionRule => knock?.rules.actions[el.key] ?? FLOOR[el.risk];
+      const ruleFor = (el: MapField | MapAction): ActionRule => knock?.rules.actions[el.key] ?? defaultRule(el.risk, el.key);
       // Check this page's values before touching it. Long option lists are cut to 20 in the map, so
       // read the whole list from the page (structure, not values) to check against.
       const fields: MapField[] = [];
@@ -596,7 +596,8 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           continue;
         }
         if (ruleFor(field) === 'confirm' && !(await options.user.confirm(field, page))) continue;
-        const value = profile[field.key];
+        // A consent the person said yes to is ticked: that yes is its value.
+        const value = profile[field.key] ?? (ruleFor(field) === 'confirm' && field.risk === 'needs_user' && field.control === 'checkbox' ? true : undefined);
         if (value === undefined) {
           if (field.required) throw new Error(`The profile has no ${field.key} ("${field.label}"), which is required.`);
           continue;
