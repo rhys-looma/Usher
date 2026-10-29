@@ -169,3 +169,19 @@ test('Brightwater Health: a smoker answer the person says isn\'t right stops the
   assert.match(done.reason!, /isn't their answer to "Have you smoked/);
   assert.ok(!done.actions!.some((a) => a.key === 'form.submit'), 'nothing submitted');
 });
+
+test('Brightwater Health: with only a postcode, the person chooses from the lookup\'s list of addresses', async () => {
+  const health = JSON.parse(await readFile(new URL('../../agent/profiles/test-health.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
+  const { _comment: _c, 'consent.declaration': _d2, 'address.line1': _l, ...keyed } = health;
+  const client = await connect();
+  const { reply } = await fill(client, { site: 'Brightwater', task: 'health insurance quote', values: keyed });
+  assert.equal(reply.status, 'needs_decision', JSON.stringify(reply).slice(0, 400));
+  const address = reply.decisions!.find((d) => d.key === 'address.line1') as { kind: string; label: string; options?: string[] } | undefined;
+  assert.equal(address?.kind, 'missing_value');
+  assert.equal(address?.label, 'Please select an address');
+  assert.deepEqual(address?.options, ['1 High Street', '2 High Street', '11 High Street', 'Flat 1, 1 High Street', 'The Old Forge, High Street'].map((l) => `${l}, Malvern, WR14 1AA`));
+  const next = (await client.callTool({ name: 'usher_confirm', arguments: { id: reply.id, confirmation: 'Confirm: line1 "2 High Street", smoker yes, declaration yes, get my quote yes' } })).structuredContent as Reply;
+  const done = next.status === 'needs_decision' ? ((await client.callTool({ name: 'usher_confirm', arguments: { id: next.id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } })).structuredContent as Reply) : next;
+  assert.equal(done.status, 'completed', done.reason);
+  assert.ok(done.actions!.some((a) => a.action === 'fill' && a.key === 'address.line1'), 'the address chosen from the list');
+});
