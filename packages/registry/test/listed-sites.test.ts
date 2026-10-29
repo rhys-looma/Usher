@@ -64,3 +64,17 @@ test('a journey the admin names works before any public map, and closing it refu
   assert.equal(await running.registry.joined(other), false);
   assert.equal((await running.registry.resolveTask('Life Co', 'life insurance')).status, 'not_joined');
 });
+
+test('maps built elsewhere are imported by the admin as the registry\'s own, schema-checked', async () => {
+  const [map] = (await seedMaps('mock-site')).filter((m) => m.path.startsWith('/quote/'));
+  const imported = { ...map!, origin: 'https://www.direct.insurer.example' };
+  assert.equal((await fetch(`${running.url}/admin/maps`, { method: 'POST', body: JSON.stringify({ maps: [imported] }) })).status, 401);
+  const res = await fetch(`${running.url}/admin/maps`, { method: 'POST', headers: { ...admin, 'Content-Type': 'application/json' }, body: JSON.stringify({ maps: [imported, { origin: 'nope' }] }) });
+  assert.equal(res.status, 422);
+  const body = (await res.json()) as { added: { origin: string }[]; refused: string[] };
+  assert.deepEqual(body.added.map((a) => a.origin), ['https://www.direct.insurer.example']);
+  assert.equal(body.refused.length, 1);
+  const records = await running.registry.storage.mapsForOrigin('https://www.direct.insurer.example');
+  assert.equal(records.length, 1);
+  assert.ok(visibleTo(records[0]!), 'public, not private to an agent');
+});

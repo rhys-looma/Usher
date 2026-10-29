@@ -6,7 +6,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BudgetExceeded, toBase64Url } from '@usher/core';
+import { BudgetExceeded, toBase64Url, type UsherMap } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
 import { visibleTo, type Registry } from '../registry.ts';
@@ -318,6 +318,23 @@ export class Web {
       }
       // Every site, and its dashboard with its owner's powers (logged, and shown to the owner).
       if (route === 'GET /admin/sites') return sendHtml(res, 200, await this.adminSites()), true;
+      // Maps built elsewhere (a capture mapped by Muse Spark, as for Aviva life), added as the
+      // registry's own: schema-checked, structure only. npm run maps:import sends them.
+      if (route === 'POST /admin/maps') {
+        const body = (await readJsonBody(req, 10_000_000).catch(() => null)) as { maps?: unknown[] } | null;
+        if (!Array.isArray(body?.maps)) return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'maps_required' })), true;
+        const added: { origin: string; path: string }[] = [];
+        const refused: string[] = [];
+        for (const map of body.maps) {
+          try {
+            await this.registry.addMap(map as UsherMap);
+            added.push({ origin: (map as UsherMap).origin, path: (map as UsherMap).path });
+          } catch (err) {
+            refused.push(err instanceof Error ? err.message.slice(0, 200) : String(err));
+          }
+        }
+        return res.writeHead(refused.length ? 422 : 200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ added, refused })), true;
+      }
       // A mapped site that hasn't joined, opened to hosted Usher (or closed again).
       if (route === 'POST /admin/listed') {
         const form = await readForm(req);
