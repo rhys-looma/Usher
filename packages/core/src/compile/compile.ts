@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'node:url';
 import type { Browser, Page } from 'playwright';
 import { fingerprint } from '../fingerprint.ts';
-import { scanScript, type Scan, type ScannedForm } from '../inpage.ts';
+import { scanScript, waitForForm, type Scan, type ScannedForm } from '../inpage.ts';
 import { validateLabels, type Exclusion, type LabelError, type LabelValidation, type RiskClamp } from '../labels.ts';
 import { mergeMap, type UsherMap } from '../map.ts';
 import { appendLog, redactRequest } from './log.ts';
@@ -333,6 +333,7 @@ export async function compileUrl(url: string, options: CompileOptions & { browse
   try {
     const page = await context.newPage();
     await page.goto(url, { waitUntil: 'load' });
+    await waitForForm(page);
     return await compilePage(page, options);
   } finally {
     await context.close();

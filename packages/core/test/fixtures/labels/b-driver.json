@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:51:22.944Z",
+  "recorded_at": "2026-10-29T11:08:30.379Z",
   "layout": "b",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "0cc20c1c40699d4db332c3d361b6fa120da4484467b3bd2d88dfc9c754cbe36a",
+      "request_sha256": "b1183eb78ebcd9c00be0d5ca03f784e5e3a00ef4f17dccdaae64cfd80945187f",
       "content": "{\"advance_action_id\": \"e14\", \"elements\": [{\"id\": \"e1\", \"key\": \"contact.email\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"contact.phone\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"person.title\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"person.first_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"person.last_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"address.postcode\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"address.line1\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"person.occupation\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"person.employment_status\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"person.claims.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e12\", \"key\": \"person.claims.date\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e11\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e13\", \"key\": \"person.claims.type\", \"risk\": \"safe\", \"shown_if\": {\"field_id\": \"e11\", \"op\": \"equals\", \"value\": \"yes\"}}, {\"id\": \"e14\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: driver details\"}}",
       "usage": {
-        "prompt_tokens": 6254,
-        "completion_tokens": 1099,
-        "total_tokens": 7353,
+        "prompt_tokens": 6277,
+        "completion_tokens": 1177,
+        "total_tokens": 7454,
         "cached_tokens": 0
       },
-      "latency_ms": 5241
+      "latency_ms": 5424
     }
   ]
 }

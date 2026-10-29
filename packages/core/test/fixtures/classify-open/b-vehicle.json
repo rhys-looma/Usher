@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:55:57.211Z",
+  "recorded_at": "2026-10-29T11:18:08.601Z",
   "layout": "b",
   "step": "vehicle",
   "attempts": [
     {
       "request_sha256": "9a722c838d9fbb8951ef73519926fc9cb22d0ca1d74d7c27b572a0c77682a0f9",
-      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Text entry of registration is reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Lookup button only searches and populates car details within the session.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Entering make is reversible data entry for the quote.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Entering model is reversible data entry for the quote.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Entering year is reversible data entry with no external effect.\"},{\"id\":\"e6\",\"risk\":\"safe\",\"reason\":\"Entering estimated mileage is reversible data entry.\"},{\"id\":\"e7\",\"risk\":\"safe\",\"reason\":\"Selecting usage type is a reversible choice within the form.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Selecting overnight location is a reversible choice with no external effect.\"},{\"id\":\"e9\",\"risk\":\"safe\",\"reason\":\"Answering modification question is reversible data entry.\"},{\"id\":\"e10\",\"risk\":\"safe\",\"reason\":\"Back link only navigates to previous step, reversible.\"},{\"id\":\"e11\",\"risk\":\"safe\",\"reason\":\"Next only advances to next step of quote flow, does not submit request.\"}]}",
+      "content": "{\"elements\": [{\"id\": \"e1\", \"risk\": \"safe\", \"reason\": \"Text entry for car registration, reversible with no external effect.\"}, {\"id\": \"e2\", \"risk\": \"safe\", \"reason\": \"Lookup/search action to find car details, no commitment outside session.\"}, {\"id\": \"e3\", \"risk\": \"safe\", \"reason\": \"Text entry for vehicle make, reversible data input.\"}, {\"id\": \"e4\", \"risk\": \"safe\", \"reason\": \"Text entry for vehicle model, reversible data input.\"}, {\"id\": \"e5\", \"risk\": \"safe\", \"reason\": \"Number entry for year of manufacture, reversible with no external effect.\"}, {\"id\": \"e6\", \"risk\": \"safe\", \"reason\": \"Number entry for estimated mileage, reversible data input.\"}, {\"id\": \"e7\", \"risk\": \"safe\", \"reason\": \"Radio choice for car usage, reversible selection within form.\"}, {\"id\": \"e8\", \"risk\": \"safe\", \"reason\": \"Dropdown selection for overnight location, reversible with no external effect.\"}, {\"id\": \"e9\", \"risk\": \"safe\", \"reason\": \"Radio choice about modifications, reversible selection.\"}, {\"id\": \"e10\", \"risk\": \"safe\", \"reason\": \"Navigation link to go back, reversible movement with no external effect.\"}, {\"id\": \"e11\", \"risk\": \"safe\", \"reason\": \"Submit to go to next step of quote flow, reversible navigation not yet requesting quote or committing.\"}]}",
       "usage": {
         "prompt_tokens": 736,
-        "completion_tokens": 1135,
-        "total_tokens": 1871,
-        "cached_tokens": 640
+        "completion_tokens": 1262,
+        "total_tokens": 1998,
+        "cached_tokens": 0
       },
-      "latency_ms": 3654
+      "latency_ms": 3545
     }
   ]
 }

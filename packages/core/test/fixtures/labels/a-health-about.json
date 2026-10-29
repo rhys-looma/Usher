@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:51:08.874Z",
+  "recorded_at": "2026-10-29T11:08:15.468Z",
   "layout": "a",
   "step": "health-about",
   "attempts": [
     {
-      "request_sha256": "05726bb4edbcb55f28beab13c044b6e0815b78c73d8ef27400b2334bf4699b77",
+      "request_sha256": "25d27773595223e21fc20b3e2702415352e548aeace77b1455b3a98aaac4fb8a",
       "content": "{\"advance_action_id\": \"e13\", \"elements\": [{\"id\": \"e1\", \"key\": \"person.title\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"person.first_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"person.last_name\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"person.dob\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"address.postcode\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"lookup.address\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"contact.email\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"contact.phone\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"cover.who\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e12\", \"key\": \"person.smoker\", \"risk\": \"needs_user\", \"shown_if\": null}, {\"id\": \"e13\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.health_insurance\", \"purpose\": \"Health insurance quote: about you\"}}",
       "usage": {
-        "prompt_tokens": 5967,
-        "completion_tokens": 1319,
-        "total_tokens": 7286,
+        "prompt_tokens": 6034,
+        "completion_tokens": 1179,
+        "total_tokens": 7213,
         "cached_tokens": 0
       },
-      "latency_ms": 5708
+      "latency_ms": 5535
     }
   ]
 }

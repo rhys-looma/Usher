@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:49:26.923Z",
+  "recorded_at": "2026-10-29T11:09:36.590Z",
   "layout": "a",
   "step": "driver",
   "attempts": [
     {
-      "request_sha256": "bbe015ac0d6bcd7b4b51a7a0d9a361d2c00a073fe55866357416bbafe7bdb9b8",
+      "request_sha256": "557f62537b116474ee7b5e2917ec44974853ffac3e3818f6f5efcdac37a14bdf",
       "content": "{\"form\":{\"purpose\":\"Car insurance quote: driver details (step 1 of 3)\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"address.line1\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"person.occupation\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"person.employment_status\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"person.claims.has_any\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.claims.date\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e13\",\"key\":\"person.claims.type\",\"risk\":\"safe\",\"shown_if\":{\"field_id\":\"e11\",\"op\":\"equals\",\"value\":\"yes\"}},{\"id\":\"e14\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e14\"}",
       "usage": {
-        "prompt_tokens": 6437,
+        "prompt_tokens": 6460,
         "completion_tokens": 1032,
-        "total_tokens": 7469,
-        "cached_tokens": 384
+        "total_tokens": 7492,
+        "cached_tokens": 0
       },
-      "latency_ms": 8644
+      "latency_ms": 9077
     }
   ]
 }

@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:49:39.242Z",
+  "recorded_at": "2026-10-29T11:09:51.154Z",
   "layout": "a",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "74209eeb7d87ff36cf62794cab5d251ef604fe40cb3480db474e3fc5383409c7",
-      "content": "{\"form\":{\"purpose\":\"Car insurance quote: cover details\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"policy.start_date\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"policy.cover_level\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"policy.voluntary_excess\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"policy.no_claims_years\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"policy.payment_frequency\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"consent.marketing\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e9\"}",
+      "request_sha256": "891789433dea52e29ccb731ae5f0395702127e987dbc342e095e3df4876aafe0",
+      "content": "{\"form\":{\"purpose\":\"Insurance quote: your cover details\",\"intent\":\"quote.car_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"policy.start_date\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"policy.cover_level\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"policy.voluntary_excess\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"policy.no_claims_years\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"policy.payment_frequency\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"consent.declaration\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"consent.marketing\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"nav.back\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"form.submit\",\"risk\":\"consequential\",\"shown_if\":null}],\"advance_action_id\":\"e9\"}",
       "usage": {
-        "prompt_tokens": 5029,
-        "completion_tokens": 775,
-        "total_tokens": 5804,
+        "prompt_tokens": 5052,
+        "completion_tokens": 825,
+        "total_tokens": 5877,
         "cached_tokens": 2560
       },
-      "latency_ms": 4964
+      "latency_ms": 7002
     }
   ]
 }

@@ -17,7 +17,7 @@ export function systemPrompt(vocab: Vocabulary = defaultVocabulary): string {
 A map describes one state of one web form: what each field and action means, and which actions matter. Agents use the map instead of reading the raw page. Deterministic code has already extracted every element and will locate them; your job is to label meaning only. Never output selectors, CSS, XPath, ids from the page, or any value a person might type.
 
 ## Input
-- The extraction: every field and action in document order, with an element id (e1, e2…), control type, label, whether it is required, options for selects and radio groups (first 20 plus the total), validation constraints, whether it is visible, and candidates: the vocabulary keys whose meaning is closest to it, best first, found by code.
+- The extraction: every field and action in document order, with an element id (e1, e2…), control type, label, whether it is required, options for selects, radio groups and button choices (first 20 plus the total; a buttons control is a question answered by pressing one of its buttons, so it is a field), validation constraints, whether it is visible, and candidates: the vocabulary keys whose meaning is closest to it, best first, found by code.
 - A screenshot of the form.
 
 ## Output
@@ -68,11 +68,14 @@ export function compactExtraction(form: ExtractedForm, page: { path: string; tit
       control: e.control,
       label: e.label,
       ...(e.group && { group: e.group }),
+      // One part of a date split across boxes ("dd"): the part, and candidates from its group's
+      // question ("Your date of birth"), which says what the date is.
+      ...(e.part && { part: e.part }),
       required: e.required,
       ...(e.options && { options: e.options }),
       ...(e.constraints && { constraints: e.constraints }),
       visible: e.visible,
-      candidates: shortlist({ kind: e.kind, control: e.control, label: e.label, ...(e.options && { options: e.options.items.map((o) => o.label) }), ...(e.placeholder && { placeholder: e.placeholder }), ...(e.autocomplete && { autocomplete: e.autocomplete }) }),
+      candidates: shortlist({ kind: e.kind, control: e.control, label: e.part ? `${form.groups.find((g) => g.id === e.group)?.label ?? ''} ${e.label}`.trim() : e.label, ...(e.options && { options: e.options.items.map((o) => o.label) }), ...(e.placeholder && { placeholder: e.placeholder }), ...(e.autocomplete && { autocomplete: e.autocomplete }) }),
     })),
   };
 }

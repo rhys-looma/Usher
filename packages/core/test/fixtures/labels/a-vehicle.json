@@ -1,19 +1,19 @@
 {
   "model": "muse-spark-1.3",
-  "recorded_at": "2026-10-28T20:50:57.884Z",
+  "recorded_at": "2026-10-29T11:08:03.517Z",
   "layout": "a",
   "step": "vehicle",
   "attempts": [
     {
-      "request_sha256": "9b2a354b81a0acb9f26a629a70046574c9215fe0991822c141034cb834ee12c8",
-      "content": "{\"advance_action_id\": \"e11\", \"elements\": [{\"id\": \"e1\", \"key\": \"vehicle.registration\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"lookup.vehicle\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"vehicle.make\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"vehicle.model\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"vehicle.year\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"vehicle.annual_mileage\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"vehicle.use\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"vehicle.overnight_location\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"vehicle.modifications.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: your car\"}}",
+      "request_sha256": "a7b057eeb75f64f24cdc97273b8178de562f33f036d4834a9f2386070bf17391",
+      "content": "{\"advance_action_id\": \"e11\", \"elements\": [{\"id\": \"e1\", \"key\": \"vehicle.registration\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e2\", \"key\": \"lookup.vehicle\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e3\", \"key\": \"vehicle.make\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e4\", \"key\": \"vehicle.model\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e5\", \"key\": \"vehicle.year\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e6\", \"key\": \"vehicle.annual_mileage\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e7\", \"key\": \"vehicle.use\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e8\", \"key\": \"vehicle.overnight_location\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e9\", \"key\": \"vehicle.modifications.has_any\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e10\", \"key\": \"nav.back\", \"risk\": \"safe\", \"shown_if\": null}, {\"id\": \"e11\", \"key\": \"nav.next\", \"risk\": \"safe\", \"shown_if\": null}], \"form\": {\"intent\": \"quote.car_insurance\", \"purpose\": \"Car insurance quote: vehicle details\"}}",
       "usage": {
-        "prompt_tokens": 5227,
-        "completion_tokens": 1121,
-        "total_tokens": 6348,
+        "prompt_tokens": 5250,
+        "completion_tokens": 1200,
+        "total_tokens": 6450,
         "cached_tokens": 0
       },
-      "latency_ms": 4224
+      "latency_ms": 4511
     }
   ]
 }

@@ -20,7 +20,9 @@ export type FieldControl =
   | 'checkbox'
   | 'textarea'
   | 'file'
-  | 'password';
+  | 'password'
+  /** A question answered by pressing one of a few buttons (Male / Female), each type="button". */
+  | 'buttons';
 
 export type ActionKind = 'submit' | 'button' | 'link';
 
@@ -176,6 +178,24 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       if (text) return text.slice(0, 200);
     }
     return '';
+  }
+
+  // The question before a folded date: of the few texts before it, one about a birth or a date,
+  // else the nearest.
+  function dateQuestion(form: Element): string {
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    walker.currentNode = form;
+    let nearest = '';
+    let seen = 0;
+    for (let t = walker.previousNode(); t && seen < 4; t = walker.previousNode()) {
+      if (t.parentElement?.closest(SKIP_TEXT)) continue;
+      const text = norm(t.nodeValue);
+      if (!text) continue;
+      seen++;
+      if (/birth|\bdate\b|\bdob\b/i.test(text)) return text.slice(0, 200);
+      nearest ||= text;
+    }
+    return nearest.slice(0, 200) || 'Date';
   }
 
   function scopeOf(el: Element): Element {
@@ -426,6 +446,41 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
     return /\b(carousel|slides?|slideshow)\b/i.test(el.getAttribute('aria-label') ?? '');
   }
 
+  // A question answered with buttons: two to eight type="button" buttons, the only children of
+  // their container, each with a short caption that isn't a way forward, and the question just
+  // before them ("Your gender", then Male and Female). It is one field whose options are the buttons'
+  // captions; the buttons are not actions. A button that can submit never counts.
+  const NOT_AN_ANSWER = /^(next|back|previous|continue|submit|send|save|cancel|close|search|find|get|apply|start|buy|pay|confirm|edit|remove|delete|add|show|hide|more|less|menu)\b/i;
+  const choiceGroups = new Map<Element, { question: string; buttons: HTMLButtonElement[] }>();
+  const choiceOf = new Map<Element, Element>();
+  function questionBefore(container: Element): string {
+    const named = idrefText(container, 'aria-labelledby') || norm(container.getAttribute('aria-label'));
+    if (named) return named.slice(0, 200);
+    // The sibling texts before it: the nearest that asks something ("…?"), else the nearest.
+    let nearest = '';
+    let hops = 0;
+    for (let sib = container.previousElementSibling; sib && hops < 3; sib = sib.previousElementSibling, hops++) {
+      if (sib.matches(CONTROLS) || sib.querySelector(CONTROLS)) break;
+      const text = textOf(sib);
+      if (!text) continue;
+      if (/\?$/.test(text)) return text.slice(0, 200);
+      nearest ||= text;
+    }
+    return nearest.slice(0, 200);
+  }
+  for (const container of new Set(Array.from(doc.querySelectorAll('button[type="button" i]')).map((b) => b.parentElement).filter((c): c is HTMLElement => c !== null))) {
+    if (container.closest('nav, header, footer, [role="tablist"], [role="toolbar"], [role="menu"]')) continue;
+    const kids = Array.from(container.children);
+    if (kids.length < 2 || kids.length > 8) continue;
+    if (!kids.every((k) => k.tagName === 'BUTTON' && (k.getAttribute('type') ?? '').toLowerCase() === 'button' && !k.querySelector(CONTROLS))) continue;
+    const captions = kids.map((k) => textOf(k));
+    if (captions.some((c) => !c || c.length > 40 || NOT_AN_ANSWER.test(c)) || new Set(captions).size !== captions.length) continue;
+    const question = questionBefore(container);
+    if (!question) continue;
+    choiceGroups.set(container, { question, buttons: kids as HTMLButtonElement[] });
+    for (const k of kids) choiceOf.set(k, container);
+  }
+
   // Bucket controls by owning form, in document order.
   const buckets = new Map<HTMLFormElement | null, Element[]>();
   for (const el of Array.from(doc.querySelectorAll(CONTROLS))) {
@@ -445,6 +500,22 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
     buckets.set(owner, list);
   }
 
+  // A date of birth split into day, month and year boxes, in a <form> of its own beside a page
+  // whose questions sit outside any form: one question of that page, not a form of its own. It
+  // joins the page's controls in document order, as a group named by the text before it.
+  const foldedForms = new Set<Element>();
+  const datePartWord = (el: Element) => /^(dd|mm|yy|yyyy|day|month|year)$/i.test(norm(el.getAttribute('placeholder'))) || /(^|[_\-[.])(day|month|year|dd|mm|yyyy)($|[_\-\]])/i.test(`${el.getAttribute('name') ?? ''} ${el.getAttribute('id') ?? ''}`) || /-(day|month|year)$/.test(el.getAttribute('autocomplete') ?? '');
+  if (buckets.get(null)?.some((el) => classify(el)!.kind === 'field')) {
+    for (const [form, list] of Array.from(buckets)) {
+      if (!form || list.length < 2 || list.length > 3) continue;
+      if (!list.every((el) => el.tagName !== 'BUTTON' && ['text', 'number', 'tel', 'select'].includes(classify(el)?.control ?? '') && datePartWord(el))) continue;
+      buckets.delete(form);
+      foldedForms.add(form);
+      const merged = [...buckets.get(null)!, ...list].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+      buckets.set(null, merged);
+    }
+  }
+
   const order: (HTMLFormElement | null)[] = [...Array.from(doc.forms).filter((f) => buckets.has(f))];
   const loose = buckets.get(null);
   if (loose && loose.some((el) => classify(el)!.kind === 'field')) order.push(null);
@@ -459,6 +530,17 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
     const radioContainers = new Set<Element>();
 
     function groupOf(target: Element): string | undefined {
+      // A folded date form is the group of its parts, named by the text before it.
+      const folded = target.closest('form');
+      if (folded && foldedForms.has(folded)) {
+        let id = groupIds.get(folded);
+        if (!id) {
+          id = `g${groups.length + 1}`;
+          groupIds.set(folded, id);
+          groups.push({ id, label: dateQuestion(folded) });
+        }
+        return id;
+      }
       const stop = form ?? doc.body;
       for (let g = target.parentElement?.closest(GROUPS); g && stop.contains(g) && g !== stop; g = g.parentElement?.closest(GROUPS)) {
         if (radioContainers.has(g)) continue;
@@ -475,7 +557,34 @@ export function extractForms(options: ExtractOptions = {}): Extraction {
       return undefined;
     }
 
+    const seenChoice = new Set<Element>();
     for (const el of controls) {
+      // A button that answers a question: the question, once, as a field on its container.
+      const container = choiceOf.get(el);
+      if (container) {
+        if (seenChoice.has(container)) continue;
+        seenChoice.add(container);
+        const choice = choiceGroups.get(container)!;
+        const record: ExtractedElement = {
+          id: `e${elements.length + 1}`,
+          kind: 'field',
+          tag: container.tagName.toLowerCase(),
+          control: 'buttons',
+          required: container.getAttribute('aria-required') === 'true',
+          label: choice.question,
+          labelSource: 'text',
+          box: boxOf(container),
+          visible: choice.buttons.some(isVisible),
+          options: cap(choice.buttons.map((b) => ({ value: textOf(b), label: textOf(b) }))),
+        };
+        const domId = container.getAttribute('id');
+        if (domId) record.domId = domId;
+        const group = groupOf(container);
+        if (group) record.group = group;
+        elements.push(record);
+        nodes.push(container);
+        continue;
+      }
       const kind = classify(el)!;
       let target = el;
       let label: { label: string; source: LabelSource };

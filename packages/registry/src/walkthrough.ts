@@ -526,7 +526,7 @@ export class Walkthroughs {
       const main = mainForm(scan.forms);
       return new Map((main?.elements ?? []).filter((e) => e.kind === 'field' && e.visible).map((e) => [identityOf(e), e.label]));
     };
-    const controls = form.elements.filter((e) => e.kind === 'field' && e.visible && (e.control === 'radio' || e.control === 'select') && e.options?.items.length).slice(0, MAX_CONTROLS);
+    const controls = form.elements.filter((e) => e.kind === 'field' && e.visible && (e.control === 'radio' || e.control === 'select' || e.control === 'buttons') && e.options?.items.length).slice(0, MAX_CONTROLS);
     for (const c of controls) {
       if (cancelled()) break;
       const asField = { id: c.id, key: 'custom.explore', label: c.label, control: c.control!, required: false, risk: 'safe' as const, locators: c.locators ?? [], ...(c.options && { options: c.options }) } as MapField;
@@ -604,7 +604,7 @@ export class Walkthroughs {
       if (value === undefined) continue;
       // A test answer the site has no option for: its first real option, so the journey goes on.
       const items = f.options?.items;
-      if (items?.length && (f.control === 'select' || f.control === 'radio') && !matchOption(items, value)) {
+      if (items?.length && (f.control === 'select' || f.control === 'radio' || f.control === 'buttons') && !matchOption(items, value)) {
         const first = items.find((o) => o.value !== '' && !/^(please )?(select|choose)/i.test(o.label));
         if (!first) continue;
         value = first.value;

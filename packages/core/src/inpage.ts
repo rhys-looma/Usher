@@ -67,3 +67,17 @@ export function validationErrorsScript(elements: { key: string; locators: Locato
   return readValidationErrors(locatorKit(), ${JSON.stringify(elements)});
 })()`;
 }
+
+/**
+ * Waits until the page shows a form a map could be for, with a visible field (pages drawn by
+ * script after load, such as LV's life quote), for up to `ms`. Returns at once on a page that has
+ * one; on a page that never does, after `ms`, and the caller goes on as before.
+ */
+export async function waitForForm(page: { evaluate<T>(script: string): Promise<T>; waitForTimeout(ms: number): Promise<void> }, ms = 8000): Promise<void> {
+  const { candidateForms } = await import('./forms.ts');
+  for (const end = Date.now() + ms; ; await page.waitForTimeout(250)) {
+    const scan = await page.evaluate<Scan>(scanScript()).catch(() => null);
+    if (scan && candidateForms(scan.forms).some((f) => f.elements.some((e) => e.kind === 'field' && e.visible))) return;
+    if (Date.now() >= end) return;
+  }
+}

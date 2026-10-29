@@ -432,7 +432,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     const transport: RegistryTransport = { ...base, knock: async (input) => (job.knock = await base.knock(input)) };
     job.transport = transport;
     // Lines on the result page that repeat what the user typed are theirs: never echoed back.
-    const optionKeys = new Set(plan?.inputs.filter((i) => ['select', 'radio', 'checkbox'].includes(i.control)).map((i) => i.key));
+    const optionKeys = new Set(plan?.inputs.filter((i) => ['select', 'radio', 'buttons', 'checkbox'].includes(i.control)).map((i) => i.key));
     const supplied = Object.entries(values).filter(([k, v]) => typeof v === 'string' && !optionKeys.has(k)).map(([, v]) => v as string);
     const terms = new Map<string, string | null>();
 

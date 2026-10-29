@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:55:40.539Z",
+  "recorded_at": "2026-10-29T11:18:00.603Z",
   "layout": "a",
   "step": "cover",
   "attempts": [
     {
-      "request_sha256": "756eac258e630f0262f2eb053926fd11b879474378dfab84e8051639394dabd7",
-      "content": "{\"elements\": [{\"id\": \"e1\", \"risk\": \"safe\", \"reason\": \"Entering a desired cover start date to calculate a quote is reversible with no external effect.\"}, {\"id\": \"e2\", \"risk\": \"safe\", \"reason\": \"Selecting level of cover is a configuration choice for the quote, reversible and with no commitment.\"}, {\"id\": \"e3\", \"risk\": \"safe\", \"reason\": \"Choosing voluntary excess amount is a quote parameter, reversible with no external effect.\"}, {\"id\": \"e4\", \"risk\": \"safe\", \"reason\": \"Selecting years of no-claims discount provides history for pricing, reversible and non-committal.\"}, {\"id\": \"e5\", \"risk\": \"safe\", \"reason\": \"Indicating preferred payment frequency (Annually/Monthly) for quote purposes does not enter payment details or commit to purchase.\"}, {\"id\": \"e6\", \"risk\": \"needs_user\", \"reason\": \"Legal declaration that information is true and complete requires the user's own judgement and attestation.\"}, {\"id\": \"e7\", \"risk\": \"needs_user\", \"reason\": \"Consent to receive marketing offers by email requires the user's own judgement about marketing permissions.\"}, {\"id\": \"e8\", \"risk\": \"safe\", \"reason\": \"Back link is navigation to previous step, reversible with no effect outside the session.\"}, {\"id\": \"e9\", \"risk\": \"consequential\", \"reason\": \"Submit action requests an insurance quote, sending data externally for processing - an effect the user should know about.\"}]}",
+      "request_sha256": "aa61a0c1d04b63c55a7c652613ebe04eab7ba6e3dbfafc40af67395a3e93dac3",
+      "content": "{\"elements\":[{\"id\":\"e1\",\"risk\":\"safe\",\"reason\":\"Cover start date is a quote parameter to calculate price, reversible with no external effect.\"},{\"id\":\"e2\",\"risk\":\"safe\",\"reason\":\"Level of cover selection only configures the quote, no commitment.\"},{\"id\":\"e3\",\"risk\":\"safe\",\"reason\":\"Voluntary excess choice adjusts quote calculation, reversible within session.\"},{\"id\":\"e4\",\"risk\":\"safe\",\"reason\":\"Years of no-claims discount is informational input for quoting, no external effect.\"},{\"id\":\"e5\",\"risk\":\"safe\",\"reason\":\"Payment frequency preference is for quote illustration only, no payment details or financial commitment.\"},{\"id\":\"e6\",\"risk\":\"needs_user\",\"reason\":\"Legal declaration that information is true and complete requires user's attestation and judgement.\"},{\"id\":\"e7\",\"risk\":\"needs_user\",\"reason\":\"Consent to marketing emails requires user's own judgement about data use.\"},{\"id\":\"e8\",\"risk\":\"safe\",\"reason\":\"Back link is navigation, reversible with no data submission.\"},{\"id\":\"e9\",\"risk\":\"consequential\",\"reason\":\"Submit requests an insurance quote, sending data externally for processing.\"}]}",
       "usage": {
         "prompt_tokens": 728,
-        "completion_tokens": 1258,
-        "total_tokens": 1986,
-        "cached_tokens": 640
+        "completion_tokens": 1282,
+        "total_tokens": 2010,
+        "cached_tokens": 0
       },
-      "latency_ms": 3873
+      "latency_ms": 4119
     }
   ]
 }

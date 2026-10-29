@@ -1,19 +1,19 @@
 {
   "model": "meta-models/muse-spark-open-1026",
-  "recorded_at": "2026-10-28T20:50:32.636Z",
+  "recorded_at": "2026-10-29T11:10:44.461Z",
   "layout": "b",
   "step": "health-about",
   "attempts": [
     {
-      "request_sha256": "ba54a0de7202464278586c9c93a444c5c58525d6e97539c755d34698da5b63fe",
-      "content": "{\"form\":{\"purpose\":\"Health insurance quote: your details step 1\",\"intent\":\"quote.health_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"lookup.address\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"cover.who\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.smoker\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e13\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e13\"}",
+      "request_sha256": "6fa36f5b6da9f6808f80aabe90bf785474aadfd6ffff6a71aac2df820a5c3b8c",
+      "content": "{\"form\":{\"purpose\":\"Health insurance quote: your personal details\",\"intent\":\"quote.health_insurance\"},\"elements\":[{\"id\":\"e1\",\"key\":\"contact.email\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e2\",\"key\":\"contact.phone\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e3\",\"key\":\"person.title\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e4\",\"key\":\"person.first_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e5\",\"key\":\"person.last_name\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e6\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e7\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e8\",\"key\":\"person.dob\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e9\",\"key\":\"address.postcode\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e10\",\"key\":\"lookup.address\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e11\",\"key\":\"cover.who\",\"risk\":\"safe\",\"shown_if\":null},{\"id\":\"e12\",\"key\":\"person.smoker\",\"risk\":\"needs_user\",\"shown_if\":null},{\"id\":\"e13\",\"key\":\"nav.next\",\"risk\":\"safe\",\"shown_if\":null}],\"advance_action_id\":\"e13\"}",
       "usage": {
-        "prompt_tokens": 6083,
-        "completion_tokens": 1098,
-        "total_tokens": 7181,
+        "prompt_tokens": 6150,
+        "completion_tokens": 1321,
+        "total_tokens": 7471,
         "cached_tokens": 2688
       },
-      "latency_ms": 10506
+      "latency_ms": 9190
     }
   ]
 }

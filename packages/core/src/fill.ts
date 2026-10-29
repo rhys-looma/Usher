@@ -63,6 +63,15 @@ export async function fillField(page: Page, field: MapField, value: string | boo
       }
       return true;
     }
+    case 'buttons': {
+      // A question answered by pressing one of its buttons: only a type="button" button inside the
+      // question's own container, whose caption is the option, so the answer can never submit.
+      const label = items?.find((o) => o.value === option(value))?.label ?? option(value);
+      const button = target.getByRole('button', { name: label, exact: true }).first();
+      if ((await button.getAttribute('type'))?.toLowerCase() !== 'button') throw new Error(`"${label}" for ${field.key} is not an answer button.`);
+      await button.click();
+      return true;
+    }
     case 'checkbox':
       if (value === true || (typeof value === 'string' && /^(yes|y|true)$/i.test(value))) await target.check();
       else await target.uncheck();
