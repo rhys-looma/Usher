@@ -19,6 +19,7 @@ import { registerRegistryTools, type RegistryTools } from '../../registry/src/mc
 import type { FallbackModel, RegistryTransport } from '../../agent/src/index.ts';
 import { CARD_META, registerCards } from './apps.ts';
 import { registerFillTools } from './fill.ts';
+import { registerPlanTools } from './plan.ts';
 
 export interface HostedLimits {
   /** New connections per client address an hour. */
@@ -120,9 +121,9 @@ export function siteList(joined: JoinedSite[]): string {
 }
 
 export function hostedInstructions(listed: string): string {
-  return `Hosted Usher fills forms for the person on these sites:
-${listed || '- (none yet)'}
-When the person asks for something on one of these, call usher_fill with the site and the task as they said them and their details word for word. usher_fill pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that. Show them its decisions word for word, never answer for them, and pass their reply to usher_confirm. For sites not listed, the person can run Usher locally with their own key: npx -y @usher-run/mcp`;
+  return `Usher gives you the plan and the rules for a web form; you drive your own browser. Call get_plan for the site, ask your user for its ask_first details in one go, call prepare_run with their answers, open the entry_url, fill by key in order, and stop at every stop for your user (only if you cannot drive a browser, use usher_fill instead).
+Mapped sites:
+${listed || '- (none yet)'}`;
 }
 
 export function hostedMcp(options: HostedOptions): HostedMcp {
@@ -167,7 +168,10 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
         instructions: hostedInstructions(listed),
       },
     );
-    registerRegistryTools(server, tools, { knockMeta: CARD_META });
+    // The plan path (plan.ts) replaces the registry's plain get_plan: the plan for a browser, its
+    // card, and prepare_run.
+    registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'] });
+    registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
     // Results as cards in clients with MCP Apps; Claude gets this server's dedicated origin.
     registerCards(server, { serverUrl: `${registry.url}/mcp` });
     const transport = async (): Promise<RegistryTransport> => ({
