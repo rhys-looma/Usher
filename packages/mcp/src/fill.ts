@@ -146,6 +146,18 @@ export interface FillOptions {
   perHour?: number;
   /** Tool metadata for usher_fill and usher_confirm (the card their results render as). */
   toolMeta?: Record<string, unknown>;
+  /** Register usher_fill itself (default). A site's app doesn't: its generated tools call `fill`. */
+  exposeFill?: boolean;
+}
+
+/** usher_fill's arguments, as a site app's generated tools pass them. */
+export interface FillArgs {
+  site?: string;
+  task?: string;
+  details?: string;
+  url?: string;
+  intent?: string;
+  values?: Record<string, unknown>;
 }
 
 /** The model for pages with no map, within a daily spend cap kept in ~/.usher/spend.json. */
@@ -185,7 +197,7 @@ const CONFIRM_DESCRIPTION =
   'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
 
 const describe = (job: Job) => ({ page: job.page?.url() });
-export function registerFillTools(server: McpServer, options: FillOptions): { close: () => Promise<void> } {
+export function registerFillTools(server: McpServer, options: FillOptions): { close: () => Promise<void>; fill: (args: FillArgs) => Promise<{ content: { type: 'text' | 'image'; text?: string; data?: string; mimeType?: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean }> } {
   const jobs = new Map<string, Job>();
   // Every vocabulary field the user can give up front, by name, so clients that build forms from a
   // tool's schema (rather than passing free JSON) see the keys; custom.* and the rest pass through.
@@ -347,7 +359,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     intent: z.string().optional().describe('With url: the intent, such as quote.car_insurance.'),
     values: valuesSchema.optional(),
   };
-  server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema, annotations: { title: 'Fill a form with Usher', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, ...meta }, async (args) => {
+  const fill = async (args: FillArgs) => {
     const given = args.values ?? {};
     const odd = Object.entries(given).filter(([, v]) => !['string', 'number', 'boolean'].includes(typeof v)).map(([k]) => k);
     if (odd.length) return failure(`Values must be text, numbers or true/false: ${odd.join(', ')}.`);
@@ -560,7 +572,10 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     })();
     jobs.set(job.id, job);
     return next(job);
-  });
+  };
+  if (options.exposeFill !== false) {
+    server.registerTool('usher_fill', { title: 'Fill a form with Usher', description: FILL_DESCRIPTION, inputSchema, annotations: { title: 'Fill a form with Usher', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, ...meta }, (args) => fill(args));
+  }
 
   server.registerTool(
     'usher_confirm',
@@ -627,6 +642,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   );
 
   return {
+    fill,
     async close() {
       for (const job of [...jobs.values()]) await finish(job);
       if (browser && !options.browser) await (await browser).close().catch(() => undefined);

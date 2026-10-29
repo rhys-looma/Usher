@@ -123,6 +123,24 @@ export function notJoinedMessage(origin: string): string {
 }
 
 /** A site that has joined, as agents are told about it: its name, origin and journeys. */
+/**
+ * A site's assistant app (LU-57): the hosted MCP endpoint at /mcp/<host>, scoped to that site, with
+ * tools generated from its plans. The owner switches it on, and may rename, hide or describe each
+ * journey's tool (by intent).
+ */
+export interface SiteApp {
+  enabled: boolean;
+  enabled_at?: string;
+  tools?: Record<string, { name?: string; hidden?: boolean; description?: string }>;
+}
+
+/** What a site's app has been used for: connections and fills, by day. Counts only. */
+export interface SiteAppUsage {
+  connections: number;
+  fills: number;
+  days: Record<string, { connections: number; fills: number }>;
+}
+
 export interface JoinedSite {
   name: string;
   origin: string;
@@ -1088,6 +1106,40 @@ export class Registry {
       if (err instanceof BudgetExceeded) return error(503, 'budget_reached', err.message);
       return error(502, 'model_error', 'The model could not be reached or failed.');
     }
+  }
+
+  /** The site's assistant app settings; off until the owner switches it on. */
+  async siteApp(origin: string): Promise<SiteApp> {
+    return (await this.storage.getCached<SiteApp>('site-app', origin)) ?? { enabled: false };
+  }
+
+  async setSiteApp(origin: string, app: SiteApp): Promise<SiteApp> {
+    const current = await this.siteApp(origin);
+    const next: SiteApp = { ...app, ...(app.enabled && { enabled_at: current.enabled_at ?? this.now().toISOString() }) };
+    if (!app.enabled) delete next.enabled_at;
+    await this.storage.putCached('site-app', origin, next);
+    return next;
+  }
+
+  /** An app is served only for a site that has joined (or the demo) and whose owner switched it on. */
+  async siteAppServed(origin: string): Promise<boolean> {
+    return (await this.joined(origin)) && (await this.siteApp(origin)).enabled;
+  }
+
+  async siteAppUsage(origin: string): Promise<SiteAppUsage> {
+    return (await this.storage.getCached<SiteAppUsage>('site-app-usage', origin)) ?? { connections: 0, fills: 0, days: {} };
+  }
+
+  /** Counts a connection or a fill on a site's app (no values, no identities). */
+  async countSiteApp(origin: string, what: 'connections' | 'fills'): Promise<void> {
+    const usage = await this.siteAppUsage(origin);
+    const day = this.now().toISOString().slice(0, 10);
+    usage[what]++;
+    const today = (usage.days[day] ??= { connections: 0, fills: 0 });
+    today[what]++;
+    // Ninety days of daily counts.
+    for (const d of Object.keys(usage.days).sort().slice(0, -90)) delete usage.days[d];
+    await this.storage.putCached('site-app-usage', origin, usage);
   }
 
   /** A seed's policy (the demo site's): set unless the owner has confirmed their own, which a seed never replaces. */
