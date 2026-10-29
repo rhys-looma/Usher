@@ -30,3 +30,4 @@ export * from './page-errors.ts';
 export * from './public-fetch.ts';
 export * from './fill.ts';
 export * from './consent.ts';
+export * from './browser-plan.ts';
