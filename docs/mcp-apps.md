@@ -33,6 +33,25 @@ These screenshots are from the test harness ([`packages/mcp/test/apps.test.ts`](
 - **Annotations:** `usher_confirm` is `readOnlyHint: false`, `openWorldHint: true` ("Submit with the person's answers"), so clients that ask before actions that change things outside the chat do ask. `usher_fill` is not read-only either: it presses Continue on the way.
 - **Links** in the cards (to the result page, or to the terms a consent links to) go through `ui/open-link`, so the host decides how to open them.
 - **What the card shows:** the site's own words and the user's own result. It never shows the pass (the token) or a value the user didn't supply.
+- **A site's theme (LU-58).** Once a joined site's owner accepts a theme, the cards for that site's journeys carry it as `theme` in the structured result. It is never in the text the model reads. With a theme, the card shows:
+  - a band with the site's name, its logo and a fixed "via Usher" mark;
+  - the site's accent on the button, ticks and the title's full stop;
+  - one typeface from a short list, and the corner radius;
+  - on the result card, the parts the owner chose; the headline figure always shows.
+
+  A theme is data from closed lists, never CSS or markup (`packages/core/src/theme.ts`). The card checks every value again before using it:
+  - colours as `#rrggbb`;
+  - the typeface by id, from the card's own list;
+  - the radius from its own list;
+  - the logo as a PNG `data:` URL.
+
+  Anything else means no theme at all, and a name with markup in it is shown as text. Colours are moved to the nearest readable one, separately for light and dark cards. What a card does never changes: the same questions, unticked consents, the site's wording word for word, the "Usher is asking you, not the agent" mark, the pause before submit, and the same words sent on Confirm. `packages/mcp/test/card-theme.test.ts` checks this with good and hostile themes. A completed fill's text also names the site: "Brightwater Insurance, as the site shows it: …".
+- **Where a theme comes from.** When a site joins, and when its owner presses "Refresh from my site", Usher's browser:
+  - opens the home page and the first journey's form page, on the site's own origin only;
+  - collects candidates: names; logos, each captured as a PNG of an element on those pages, only from the site's origin and at most 48 KB; the computed colours of the header, buttons and links; font names; and the buttons' corners;
+  - takes a masked screenshot of the home page.
+
+  Muse Spark then chooses among the candidates by index, under a strict schema. Without a model, or past the day's budget, code chooses. The result waits as a proposal on the owner's page at `/dashboard/theme`, which has a live preview: the real card in sandboxed frames, with example content. Nothing is used until the owner accepts it.
 
 ## Set it up
 
