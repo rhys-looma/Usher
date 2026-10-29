@@ -280,7 +280,7 @@ ${o.hosted
   ? html`<pre class="wrap">${o.url}/mcp</pre>
 <p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>
 <p class="small muted">For example, Brightwater Insurance's health quote:</p>
-<pre class="wrap">get_plan({ url: "https://brightwater.usher.run/health/about" })
+<pre class="wrap">get_plan({ url: "https://the-site.example/quote" })
 prepare_run({ url, values: { "person.first_name": "Sam", … }, confirmed: ["consent.declaration", "form.submit"] })
 // open entry_url, fill by key, stop at each stop</pre>
 <p class="small muted">No browser? <code>usher_fill</code> fills the form for you instead.</p>
