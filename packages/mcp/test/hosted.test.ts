@@ -71,9 +71,9 @@ const call = async (client: Client, name: string, args: Record<string, unknown>)
 const text = (result: Awaited<ReturnType<typeof call>>) => (result.content as { text?: string }[])[0]?.text ?? '';
 const claims = (token: string) => JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8')) as Record<string, unknown>;
 
-test('the same tools as the local server, less submit_map, plus prepare_run for the plan path', async () => {
+test('the same tools as the local server, less submit_map, plus prepare_run for the plan path and plan_status for its card', async () => {
   const names = (await (await connect()).listTools()).tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['get_map', 'get_plan', 'knock', 'prepare_run', 'report_run', 'usher_cancel', 'usher_confirm', 'usher_fill']);
+  assert.deepEqual(names, ['get_map', 'get_plan', 'knock', 'plan_status', 'prepare_run', 'report_run', 'usher_cancel', 'usher_confirm', 'usher_fill']);
 });
 
 test('usher_fill on a joined site: decisions for the user, then a session marked hosted, signed as hosted, key never stored', async () => {

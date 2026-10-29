@@ -19,7 +19,7 @@ import { registerRegistryTools, type RegistryTools } from '../../registry/src/mc
 import type { FallbackModel, RegistryTransport } from '../../agent/src/index.ts';
 import { CARD_META, registerCards } from './apps.ts';
 import { registerFillTools } from './fill.ts';
-import { registerPlanTools } from './plan.ts';
+import { PlanTickets, registerPlanTools } from './plan.ts';
 
 export interface HostedLimits {
   /** New connections per client address an hour. */
@@ -130,6 +130,8 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
   const limits = { ...HOSTED_LIMITS, ...options.limits };
   const { registry } = options;
   const connections = new Map<string, Connection>();
+  // Plans shown and prepared, across connections, so a card can close once the chat carries on.
+  const tickets = new PlanTickets();
   const opened = new RateLimiter(limits.connectionsPerAddressHour, 3_600_000);
   const perAddress = new RateLimiter(limits.requestsPerAddressMinute, 60_000);
   const perConnection = new RateLimiter(limits.requestsPerConnectionMinute, 60_000);
@@ -171,7 +173,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
     // The plan path (plan.ts) replaces the registry's plain get_plan: the plan for a browser, its
     // card, and prepare_run.
     registerRegistryTools(server, tools, { knockMeta: CARD_META, skip: ['get_plan'] });
-    registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
+    registerPlanTools(server, { registry, knock: tools.knock, meta: CARD_META, tickets: { store: tickets, connection: randomUUID() }, ...(options.fallback && { details: { chat: options.fallback.chat, model: options.fallback.model } }) });
     // Results as cards in clients with MCP Apps; Claude gets this server's dedicated origin.
     registerCards(server, { serverUrl: `${registry.url}/mcp` });
     const transport = async (): Promise<RegistryTransport> => ({

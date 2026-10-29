@@ -190,6 +190,32 @@ test('a host that passes a card\'s tool calls on (serverTools): Confirm calls us
   assert.doesNotMatch(said, /^Confirm:/, 'the agent won\'t call usher_confirm again from it');
 });
 
+test('a plan card left open while the person answers in the chat closes itself once the run is prepared there', async () => {
+  const healthValues = { 'person.title': 'Mr', 'person.first_name': 'Sam', 'person.last_name': 'Lee', 'person.dob': '14/03/1988', 'address.postcode': 'WR14 1AA', 'contact.email': 'sam@example.org', 'cover.who': 'Just me', 'cover.level': 'Standard', 'cover.excess': '£250', 'cover.hospital_list': 'Standard list', 'cover.outpatient_limit': 'Unlimited', 'policy.start_date': '01/11/2026', 'policy.payment_frequency': 'Monthly' };
+  for (const byId of [true, false]) {
+    const chat = await connect();
+    const html = ((await chat.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
+    const planned = await chat.callTool({ name: 'get_plan', arguments: { url: `${site.url}/health/about` } });
+    const planId = (planned.structuredContent as { plan_id: string }).plan_id;
+    assert.match(planId, /^p_/);
+    // The card's own calls come in on another connection, as they may in a host.
+    const page = await render(html, planned, { caps: { serverTools: {}, message: { text: {} } }, client: await connect() });
+    const card = page.frameLocator('#v');
+    await card.locator('h1:text("Before your assistant starts")').waitFor();
+    // The person answers in the chat; the assistant prepares the run, with the plan_id or, on the
+    // same connection as get_plan, without it.
+    await chat.callTool({ name: 'prepare_run', arguments: { url: `${site.url}/health/about`, values: healthValues, ...(byId && { plan_id: planId }) } });
+    await card.locator('h1:text("Answered in the chat")').waitFor({ timeout: 10_000 });
+    assert.equal(await card.locator('button#go').count(), 0, 'no questions left to answer');
+    await page.context().close();
+  }
+  // plan_status is for the card: hidden from the model, and a made-up id is unknown.
+  const tools = (await (await connect()).listTools()).tools;
+  assert.deepEqual((tools.find((t) => t.name === 'plan_status')!._meta as { ui: { visibility: string[] } }).ui.visibility, ['app']);
+  const unknown = await (await connect()).callTool({ name: 'plan_status', arguments: { plan_id: 'p_nothing' } });
+  assert.equal((unknown.structuredContent as { status: string }).status, 'unknown');
+});
+
 test('usher_confirm says what it does: it submits on the person\'s behalf', async () => {
   const tools = (await (await connect()).listTools()).tools;
   assert.deepEqual(tools.find((t) => t.name === 'usher_confirm')!.annotations, { title: 'Submit with the person\'s answers', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });

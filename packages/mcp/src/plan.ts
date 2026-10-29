@@ -8,11 +8,48 @@
 // reply: nothing is stored, logged or kept in a session.
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { confirmableStops, placeValues, type BrowserPlan, type ChatFn, type Profile } from '@usher/core';
 import type { KnockInput, KnockResponse, Registry } from '@usher/registry';
 import { mapDetails } from './details.ts';
 import { shortName, type Decision } from './fill.ts';
+
+/**
+ * Which plans have been prepared, so a card left open in the chat can tell when the person answered
+ * in the chat instead and close itself. Holds a random id, the connection, the start URL and a
+ * time: never a value. Shared across connections (a card's calls may come in on another one); an
+ * hour, then forgotten.
+ */
+export class PlanTickets {
+  private readonly open = new Map<string, { connection: string; url: string; at: number; prepared?: true }>();
+  constructor(private readonly now: () => number = Date.now) {}
+
+  issue(connection: string, url: string): string {
+    this.prune();
+    const id = `p_${randomBytes(12).toString('base64url')}`;
+    this.open.set(id, { connection, url, at: this.now() });
+    return id;
+  }
+
+  /** prepare_run ran: by the plan_id it was given, or for the same start URL on the same connection. */
+  prepared(id: string | undefined, connection: string, url: string): void {
+    const own = id ? this.open.get(id) : undefined;
+    if (own) own.prepared = true;
+    else for (const t of this.open.values()) if (t.connection === connection && t.url === url) t.prepared = true;
+  }
+
+  status(id: string): 'waiting' | 'prepared' | 'unknown' {
+    const t = this.open.get(id);
+    return !t || this.now() - t.at > HOUR ? 'unknown' : t.prepared ? 'prepared' : 'waiting';
+  }
+
+  private prune(): void {
+    const cutoff = this.now() - HOUR;
+    for (const [id, t] of this.open) if (t.at < cutoff || this.open.size > 5000) this.open.delete(id);
+  }
+}
+const HOUR = 3_600_000;
 
 export interface PlanToolOptions {
   registry: Registry;
@@ -22,6 +59,8 @@ export interface PlanToolOptions {
   details?: { chat: ChatFn; model: string };
   /** The card a plan renders as, in clients with MCP Apps. */
   meta?: Record<string, unknown>;
+  /** Plans issued and prepared, for the card's plan_status; with this connection's id. */
+  tickets?: { store: PlanTickets; connection: string };
 }
 
 export const GET_PLAN_DESCRIPTION =
@@ -77,8 +116,10 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
       const found = await options.registry.browserPlanFor(args.url, args.intent);
       if (!found) return notMapped(new URL(args.url).origin);
       const { decisions, blocks } = decisionsOf(found.view);
-      const value = { status: 'needs_decision', plan_for: 'browser', url: found.view.steps[0]!.url, intent: found.plan.intent, decisions, blocks, plan: found.view };
-      const lead = `Usher's plan for ${found.view.site.name} (${found.view.known}). Ask your user for ask_first in one go, unless the Usher card is showing it, then call prepare_run with their answers and the stops they confirm.`;
+      const url = found.view.steps[0]!.url;
+      const plan_id = options.tickets?.store.issue(options.tickets.connection, url);
+      const value = { status: 'needs_decision', plan_for: 'browser', url, intent: found.plan.intent, ...(plan_id && { plan_id }), decisions, blocks, plan: found.view };
+      const lead = `Usher's plan for ${found.view.site.name} (${found.view.known}). Ask your user for ask_first in one go, unless the Usher card is showing it, then call prepare_run with their answers and the stops they confirm${plan_id ? `, and plan_id ${plan_id}` : ''}.`;
       return { content: [{ type: 'text' as const, text: lead }, { type: 'text' as const, text: JSON.stringify(found.view) }], structuredContent: value as Record<string, unknown> };
     },
   );
@@ -94,6 +135,7 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
         values: z.record(z.string(), z.union([z.string(), z.boolean()])).optional().describe('Answers by key, from ask_first.'),
         details: z.string().optional().describe('Or the person\'s details in their own words, word for word.'),
         confirmed: z.array(z.string()).optional().describe('Stop keys the person has said yes to: consent.declaration, form.submit.'),
+        plan_id: z.string().optional().describe('The plan_id get_plan gave, so the Usher card knows your user answered in the chat.'),
       },
       annotations: { title: 'Prepare the run with the person\'s answers', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -108,6 +150,7 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
       }
       Object.assign(values, args.values ?? {});
       const placed = placeValues(found.view, found.plan, found.maps, values);
+      options.tickets?.store.prepared(args.plan_id, options.tickets.connection, found.view.steps[0]!.url);
       const confirmable = new Set(confirmableStops(found.view));
       const confirmed = (args.confirmed ?? []).filter((k) => confirmable.has(k));
       let entry: { entry_url: string; expires_at: string; session: string; confirmed: string[] } | { token_error: string } | undefined;
@@ -127,6 +170,23 @@ export function registerPlanTools(server: McpServer, options: PlanToolOptions): 
           ? 'Open entry_url in your browser, then fill each step in order by the find hints and values given, run each lookup, and stop at every stop for your user. The token is in the entry URL and lasts 10 minutes.'
           : 'Open the first step\'s url in your browser, then fill each step in order by the find hints and values given, and stop at every stop for your user.';
       return { content: [{ type: 'text' as const, text: lead }, { type: 'text' as const, text: JSON.stringify(value) }], structuredContent: value as Record<string, unknown> };
+    },
+  );
+  if (!options.tickets) return;
+  const tickets = options.tickets;
+  // For the card only: has this plan been prepared (in the chat, say) since it was shown?
+  server.registerTool(
+    'plan_status',
+    {
+      title: 'Has this plan been prepared?',
+      description: 'For the Usher card: whether prepare_run has run for this plan_id. Assistants don\'t need it.',
+      inputSchema: { plan_id: z.string() },
+      annotations: { title: 'Has this plan been prepared?', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { ui: { visibility: ['app'] }, 'openai/visibility': 'private' },
+    },
+    async (args) => {
+      const status = tickets.store.status(args.plan_id);
+      return { content: [{ type: 'text' as const, text: status }], structuredContent: { status } };
     },
   );
 }
