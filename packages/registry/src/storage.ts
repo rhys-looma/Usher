@@ -15,7 +15,7 @@ export interface MapRecord {
    * How an agent's map became verified (and public): a second, independent agent agreed with it
    * and then completed a run on the form, or the keeper rebuilt the form and got the same map.
    */
-  verification?: { by: 'agent' | 'keeper'; verifier?: string; at: string };
+  verification?: { by: 'agent' | 'keeper' | 'admin'; verifier?: string; at: string };
   /** Other agents whose own maps for this structure had the same keys, and how many differed. */
   agreements?: string[];
   disagreements?: number;
@@ -118,6 +118,8 @@ export interface Storage {
   getMap(origin: string, digest: string): Promise<MapRecord | undefined>;
   putMap(record: MapRecord): Promise<void>;
   mapsForOrigin(origin: string): Promise<MapRecord[]>;
+  /** Every origin with a map, registered or not (the admin's list). */
+  mapOrigins(): Promise<string[]>;
 
   getSite(origin: string): Promise<Site | undefined>;
   listSites(): Promise<Site[]>;
@@ -220,6 +222,11 @@ export class FileStorage implements Storage {
 
   putMap(record: MapRecord): Promise<void> {
     return this.write(this.mapFile(record.map.origin, record.digest), record);
+  }
+
+  async mapOrigins(): Promise<string[]> {
+    const dirs = await readdir(this.file('maps')).catch(() => [] as string[]);
+    return dirs.map((d) => decodeURIComponent(d)).filter((o) => /^https?:\/\//.test(o)).sort();
   }
 
   async mapsForOrigin(origin: string): Promise<MapRecord[]> {

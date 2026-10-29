@@ -111,13 +111,16 @@ const jsonRpcError = (res: ServerResponse, status: number, message: string, head
   res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message }, id: null }));
 };
 
-/** One line per joined site: "- Brightwater (its host): health insurance quote, car insurance quote." */
+/**
+ * One line per site: "- Brightwater (its host): health insurance quote, car insurance quote." A site
+ * the admin listed without its joining says so, so the assistant can tell the person.
+ */
 export function siteList(joined: JoinedSite[]): string {
-  return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}.`).join('\n');
+  return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}${j.listed ? ' (mapped by Usher; the site itself hasn\'t joined)' : ''}.`).join('\n');
 }
 
 export function hostedInstructions(listed: string): string {
-  return `Hosted Usher fills forms for the person on sites that have joined Usher:
+  return `Hosted Usher fills forms for the person on these sites:
 ${listed || '- (none yet)'}
 When the person asks for something on one of these, call usher_fill with the site and the task as they said them and their details word for word. usher_fill pauses for the person at every consent and before anything is submitted, by default: the person never has to ask for that. Show them its decisions word for word, never answer for them, and pass their reply to usher_confirm. For sites not listed, the person can run Usher locally with their own key: npx -y @usher-run/mcp`;
 }

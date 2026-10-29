@@ -108,9 +108,9 @@ ul.claims span { color:var(--muted); font-size:15px; }
 export const FAVICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#191942"/><text x="29" y="46" font-family="Georgia,serif" font-size="42" font-weight="700" fill="#fbf9f4" text-anchor="middle">U</text><circle cx="50" cy="44" r="4.5" fill="#a978ff"/></svg>')}`;
 
 /** How a map came to be trusted: verified by whom and when, or unverified and private to its agent. */
-export function verificationNote(record: { submitted_by?: string; verification?: { by: 'agent' | 'keeper'; verifier?: string; at: string }; agreements?: string[]; disagreements?: number }): Raw | string {
+export function verificationNote(record: { submitted_by?: string; verification?: { by: 'agent' | 'keeper' | 'admin'; verifier?: string; at: string }; agreements?: string[]; disagreements?: number }): Raw | string {
   if (record.verification) {
-    const who = record.verification.by === 'keeper' ? 'the keeper, which rebuilt the form and got the same map' : html`a second agent (<span class="mono">${record.verification.verifier?.slice(0, 10) ?? ''}…</span>) that agreed with it and completed a run`;
+    const who = record.verification.by === 'keeper' ? 'the keeper, which rebuilt the form and got the same map' : record.verification.by === 'admin' ? "Usher's admin, who checked it" : html`a second agent (<span class="mono">${record.verification.verifier?.slice(0, 10) ?? ''}…</span>) that agreed with it and completed a run`;
     return html`Verified ${when(record.verification.at)} by ${who}.`;
   }
   if (!record.submitted_by) return '';
