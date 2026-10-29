@@ -166,7 +166,7 @@ ${(options.scripts ?? []).map((src) => `<script src="${esc(src)}" defer></script
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
-<div class="foot-brand"><a class="brand" href="/">Usher</a><p>The front door for AI agents on web forms. Maps hold structure, never values.</p></div>
+<div class="foot-brand"><a class="brand" href="/">Usher</a><p>Your site inside every assistant, under your rules. Maps hold structure, never values.</p></div>
 <nav><a href="/dashboard">Site dashboard</a><a href="/sites/new">Get your keys</a><a href="/privacy">Privacy</a></nav>
 ${LOOMA_FOOTER}
 </div></footer>

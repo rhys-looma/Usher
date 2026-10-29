@@ -9,6 +9,12 @@ import { html, page, when, type Raw } from './html.ts';
 
 const HREF: Record<SiteSetup['steps'][number]['key'], string> = { joined: '/dashboard', mapped: '/dashboard/walkthrough', rules: '/dashboard#rules', look: '/dashboard/theme', published: '/dashboard/app#switch' };
 
+/** The first step still to do, as a link, or null once the app is published. */
+export function nextStep(setup: SiteSetup): Raw | null {
+  const next = setup.steps.find((s) => !s.done_at);
+  return next ? html`<a href="${HREF[next.key]}">${next.label}</a>` : null;
+}
+
 /** "14 min 32 s", "2 h 5 min", "3 days". */
 export function duration(ms: number): string {
   const s = Math.round(ms / 1000);
