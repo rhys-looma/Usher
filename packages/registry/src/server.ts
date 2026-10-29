@@ -34,17 +34,29 @@
 //   USHER_VERSION                   what /status calls this build (the image's git SHA, set at build)
 //   NODE_ENV=production             refuses to start without the settings a public deployment needs
 //                                   (see production.ts), and never registers or dev-claims a seeded site
+//   USHER_STUDENT_MODEL, USHER_STUDENT_URL, USHER_STUDENT_KEY
+//                                   the tuned student as the viewer's second opinion on risk (off unless set)
+//   USHER_AUTO_TRAIN=1              retrain the student on Baseten as owners correct maps (docs/finetune.md);
+//                                   needs BASETEN_TRAINING_API_KEY and REGISTRY_PUBLIC_URL. With it, the student is
+//                                   asked only once a run has been promoted.
+//   USHER_TRAINING_SECRET           what the student's deployment sends to fetch the promoted adapter
+//   USHER_STUDENT_BASETEN_MODEL     the student deployment's Baseten model id, restarted on promotion
+//   USHER_TRAINING_MONTHLY_CAP_USD, USHER_TRAINING_MIN_CORRECTIONS, USHER_TRAINING_COOLDOWN_HOURS
+//                                   the retraining's limits (default $40 a month, 10 corrections, 24 hours)
 //   USHER_DEV_SITE_ORIGIN, USHER_DEV_SITE_KEY, USHER_DEV_SECRET_KEY
 //                                   register one site with fixed keys (local development only)
 
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
+import { readFile } from 'node:fs/promises';
 import { hostedMcp } from '../../mcp/src/hosted.ts';
 import { DEFAULT_LOG_DIR, budgeted, compilerModel, studentModel, modelApi, openModel, type ChatFn, type PrivateJwk, type PublicJwk, type SpendLedger } from '@usher/core';
 import { loadDotEnv } from '../../core/src/compile/env.ts';
 import { startRegistry } from './http.ts';
 import { Walkthroughs } from './walkthrough.ts';
+import { BasetenTraining } from './baseten.ts';
+import { Trainer } from './trainer.ts';
 import { PostgresStorage } from './postgres.ts';
 import { isProduction, productionProblems, proxyHops } from './production.ts';
 import { seed } from './seed.ts';
@@ -103,6 +115,26 @@ const spark = env.MODEL_API_KEY ? { chat: capped(modelApi()), model: compilerMod
 const studentName = studentModel(env);
 const student = studentName ? { chat: capped(modelApi({ provider: 'student' })), model: studentName, student: true } : undefined;
 const open = env.BASETEN_API_KEY ? { chat: capped(modelApi({ provider: 'baseten' })), model: openModel() } : undefined;
+// Automatic retraining (USHER_AUTO_TRAIN=1): Baseten Training with its own key, never Spark Open's.
+const trainingKey = env.BASETEN_TRAINING_API_KEY?.trim();
+const publicUrl = (values.url ?? '').trim();
+if (env.USHER_AUTO_TRAIN === '1' && (!trainingKey || !publicUrl)) console.error('USHER_AUTO_TRAIN=1 needs BASETEN_TRAINING_API_KEY and REGISTRY_PUBLIC_URL; retraining is off.');
+const finetuneDir = new URL('../../../deploy/finetune/', import.meta.url);
+const trainer =
+  env.USHER_AUTO_TRAIN === '1' && trainingKey && publicUrl
+    ? new Trainer({
+        storage,
+        api: new BasetenTraining(trainingKey),
+        url: publicUrl,
+        files: async () => ({ train: await readFile(new URL('train.py', finetuneDir), 'utf8'), requirements: await readFile(new URL('requirements.txt', finetuneDir), 'utf8') }),
+        ...(env.USHER_STUDENT_BASETEN_MODEL && { studentModelId: env.USHER_STUDENT_BASETEN_MODEL }),
+        ...(env.USHER_TRAINING_MONTHLY_CAP_USD && { monthlyCapUsd: Number(env.USHER_TRAINING_MONTHLY_CAP_USD) }),
+        ...(env.USHER_TRAINING_MIN_CORRECTIONS && { minCorrections: Number(env.USHER_TRAINING_MIN_CORRECTIONS) }),
+        ...(env.USHER_TRAINING_COOLDOWN_HOURS && { cooldownHours: Number(env.USHER_TRAINING_COOLDOWN_HOURS) }),
+      })
+    : undefined;
+// With retraining on, the student gives its opinion only once an adapter has been promoted.
+const classifier = trainer && student ? () => (trainer.hasStudent() ? student : open) : (student ?? open);
 
 const explainer = values['explain-open'] ? (open ?? spark) : (spark ?? open);
 const siteScript = fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url));
@@ -163,7 +195,8 @@ const running = await startRegistry({
     // The picker refresh loads nothing once today's budget is spent.
     overBudget: async () => (await spentToday()) >= budget,
     // The viewer's second opinion on risk, from Muse Spark Open.
-    ...((student ?? open) && { classifier: (student ?? open)! }),
+    ...(classifier && { classifier }),
+    ...(trainer && { training: { trainer, ...(env.USHER_TRAINING_SECRET && { secret: env.USHER_TRAINING_SECRET }) } }),
   },
   // Muse Spark compiles maps for the viewer and turns owners' English into policy.
   ...(spark && { chat: spark.chat, model: spark.model }),
@@ -224,6 +257,8 @@ setInterval(() => {
   spendDay = today();
   void logSpend(ended, true).catch(() => undefined);
 }, 600_000).unref();
+
+trainer?.start();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {

@@ -34,6 +34,8 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
  && rm -rf /var/lib/apt/lists/* /root/.cache
 COPY spec spec
 COPY reports reports
+# train.py and its requirements, which the registry sends to a retraining job (USHER_AUTO_TRAIN).
+COPY deploy/finetune/train.py deploy/finetune/requirements.txt deploy/finetune/
 COPY packages packages
 COPY --from=build /app/packages/site-script/dist packages/site-script/dist
 COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/dist

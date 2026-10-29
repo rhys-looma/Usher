@@ -20,6 +20,8 @@ import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
 import { Viewer, mapPage, viewerPage, type ViewerOptions, type ViewerResult } from './viewer.ts';
 import type { TestValues, Walkthroughs } from '../walkthrough.ts';
+import type { Trainer } from '../trainer.ts';
+import type { TrainingExample } from '@usher/core';
 import { Learning, learningPage, teachingPage } from './learning.ts';
 import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, walkthroughPage } from './walkthrough.ts';
 
@@ -43,6 +45,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hostedMcp?: boolean;
   /** The walkthrough mapper ("Map my site"), when this registry has a model and a browser for it. */
   walkthroughs?: Walkthroughs;
+  /** Automatic retraining of the student (USHER_AUTO_TRAIN), and the secret its deployment sends to fetch the promoted adapter. */
+  training?: { trainer: Trainer; secret?: string };
 }
 
 /** "key: value" lines from the start form, held in memory for one run only. */
@@ -92,6 +96,17 @@ interface Interest {
   /** Who sent it: a person, or an agent that knocked. */
   via: 'person' | 'agent';
 }
+
+async function readJsonBody(req: IncomingMessage, limit: number): Promise<unknown> {
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > limit) throw new Error('too_large');
+  }
+  return JSON.parse(body || 'null') as unknown;
+}
+
+const bearerOf = (req: IncomingMessage) => /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1] ?? '';
 
 async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
   let body = '';
@@ -257,6 +272,7 @@ export class Web {
       res.writeHead(200, { 'Content-Type': name.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/markdown; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
       return res.end(text), true;
     }
+    if (url.pathname.startsWith('/training/') && this.options.training) return this.training(req, res, url, route, this.options.training);
     if (route === 'GET /status') {
       if (!this.options.adminKey) return false;
       // The admin cookie, or the admin key as a bearer token for monitors and curl.
@@ -280,7 +296,9 @@ export class Web {
         res.setHeader('Set-Cookie', `usher_admin=${until}.${this.signAdmin(until, await this.registry.derivedSecret('admin'))}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=43200${this.registry.url.startsWith('https://') ? '; Secure' : ''}`);
         return redirect(res, '/admin'), true;
       }
-      if (!(await this.isAdmin(req))) return sendHtml(res, route === 'GET /admin' ? 200 : 401, this.adminLogin()), true;
+      const adminBearer = bearerOf(req);
+      const byKey = Boolean(adminBearer) && timingSafeEqual(sha256(adminBearer), sha256(this.options.adminKey));
+      if (!byKey && !(await this.isAdmin(req))) return sendHtml(res, route === 'GET /admin' ? 200 : 401, this.adminLogin()), true;
       if (route === 'GET /admin') {
         const list = ((await this.registry.storage.readLog('interest')) as Interest[]).reverse();
         return sendHtml(
@@ -293,6 +311,15 @@ export class Web {
 <tbody>${list.map((i) => html`<tr><td>${when(i.ts)}</td><td>${i.site}</td><td>${i.email}</td><td>${i.note}</td><td>${i.via === 'agent' ? 'an agent' : 'a person'}</td></tr>`)}</tbody></table></div>`,
           ),
         ), true;
+      }
+      const trainer = this.options.training?.trainer;
+      if (trainer && route === 'GET /admin/training') return res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(await trainer.status(), null, 2)), true;
+      if (trainer && route === 'POST /admin/training/check') return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ what: await trainer.tick() })), true;
+      // The base set: npm run training:upload-base sends the export's examples (structure only).
+      if (trainer && route === 'POST /admin/training/base') {
+        const body = (await readJsonBody(req, 50_000_000)) as { examples?: TrainingExample[] } | null;
+        if (!Array.isArray(body?.examples)) return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'examples_required' })), true;
+        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ stored: await trainer.setBase(body.examples) })), true;
       }
       // Owners' corrections, for npm run finetune:export -- --corrections <file>: structure only.
       if (route === 'GET /admin/corrections.jsonl') {
@@ -316,6 +343,38 @@ export class Web {
       return sendHtml(res, 404, page('Not found', html`<h1>Page not found</h1>`)), true;
     }
     return false;
+  }
+
+  /**
+   * The retraining job's calls back (its run's token) and the student deployment's adapter fetch
+   * (the training secret). JSON only; 404 for anything not authorised, so nothing is given away.
+   */
+  private async training(req: IncomingMessage, res: ServerResponse, url: URL, route: string, training: NonNullable<WebOptions['training']>): Promise<boolean> {
+    const json = (status: number, body: unknown) => (res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(body)), true);
+    const notFound = () => json(404, { error: 'not_found' });
+    const token = bearerOf(req);
+    if (route === 'GET /training/student') {
+      if (!training.secret || !token || !timingSafeEqual(sha256(token), sha256(training.secret))) return notFound();
+      return json(200, await training.trainer.promotedAdapter());
+    }
+    const m = /^\/training\/runs\/([0-9A-Za-z]+)\/(files\/([a-z.]+)|previous|result)$/.exec(url.pathname);
+    if (!m) return notFound();
+    const [, id, what, name] = m as unknown as [string, string, string, string | undefined];
+    if (req.method === 'GET' && name) {
+      const body = await training.trainer.file(id, token, name);
+      if (body === null) return notFound();
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(body), true;
+    }
+    if (req.method === 'GET' && what === 'previous') {
+      const files = await training.trainer.previousAdapter(id, token);
+      return files === null ? notFound() : json(200, files);
+    }
+    if (req.method === 'POST' && what === 'result') {
+      const body = await readJsonBody(req, 100_000).catch(() => null);
+      return (await training.trainer.report(id, token, body)) ? json(200, { ok: true }) : notFound();
+    }
+    return notFound();
   }
 
   /** Self-serve signup and the lost-key path (signup.ts). */
