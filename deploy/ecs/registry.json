@@ -30,7 +30,8 @@
         { "name": "MODEL_API_KEY", "valueFrom": "${SECRET_ARN_MODEL_API_KEY}" },
         { "name": "BASETEN_API_KEY", "valueFrom": "${SECRET_ARN_BASETEN_API_KEY}" },
         { "name": "USHER_SIGNING_KEY", "valueFrom": "${SECRET_ARN_USHER_SIGNING_KEY}" },
-        { "name": "USHER_ADMIN_KEY", "valueFrom": "${SECRET_ARN_USHER_ADMIN_KEY}" }
+        { "name": "USHER_ADMIN_KEY", "valueFrom": "${SECRET_ARN_USHER_ADMIN_KEY}" },
+        { "name": "BASETEN_TRAINING_API_KEY", "valueFrom": "${SECRET_ARN_BASETEN_TRAINING_API_KEY}" }
       ],
       "healthCheck": {
         "command": ["CMD", "node", "-e", "fetch('http://'+require('os').hostname()+':4200/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],

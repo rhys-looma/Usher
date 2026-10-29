@@ -4,6 +4,7 @@ Muse Spark labels whole forms well, but most of what it does per element is rout
 
 - **No training** (built, and measured below): code proposes the candidate keys for each element (the short list), and the nearest labelled examples from other sites go into the prompt (retrieval few-shot). This works with Muse Spark Open as it is.
 - **Fine-tuning** (ready to run): a LoRA-tuned Muse Glimmer on Muse Spark's labels and site owners' corrections. The export, the training script (Modal, one H100), the serving app (vLLM) and the student's place in the compiler are built and tested. The pipeline has passed a dry run on CPU; **no GPU training has been run yet**. See [Running it](#running-it).
+- **Automatic retraining** (built, off): the registry retrains the student on Baseten as owners correct maps, and promotes a run only if it does no worse than the adapter serving. See [Automatic retraining](#automatic-retraining).
 
 ## The no-training path
 
@@ -144,6 +145,30 @@ The dry run passed on 28 October with torch 2.15, transformers 5.21, peft 0.21 a
 **Using the student.** Set `USHER_STUDENT_MODEL=usher-labeller`, `USHER_STUDENT_URL` (from `finetune:serve`) and `USHER_STUDENT_KEY`. The compiler's classifier step then asks the student about each element, with exactly the prompt and input it was trained on (`packages/core/src/compile/student.ts`, which the export also uses), in place of Muse Spark Open's whole-form opinion. As with Spark Open, the stricter risk is kept, so the student can only make a map more careful. `npm run compile -- <url> --classify` and the registry's map viewer use it when the flag is set. **It is off in production**, and should stay off until `npm run finetune:eval -- --model usher-labeller --provider student` beats Spark Open with the short list on the held-out set.
 
 No Fireworks key was available on 28 October, so the Fireworks route below is described, not configured.
+
+## Automatic retraining
+
+With `USHER_AUTO_TRAIN=1` the registry retrains the student itself, on Baseten (`packages/registry/src/trainer.ts`). Once an hour it counts owners' corrections made since the last run that used its set. It starts a run only when:
+
+- there are at least 10 new corrections (`USHER_TRAINING_MIN_CORRECTIONS`);
+- the last run started at least 24 hours ago (`USHER_TRAINING_COOLDOWN_HOURS`);
+- the month's GPU spend plus the next run's estimate (the last run's cost, or 45 minutes before there is one) stays within $40 (`USHER_TRAINING_MONTHLY_CAP_USD`).
+
+**A run.** The training set is the base set plus every owner correction in the registry's log, built with the same code as the export (`packages/core/src/compile/training-set.ts`): owners' answers win, and train and eval are split by form. The base set is the export's model labels from the compiler log, sent once with `npm run training:upload-base -- <registry URL>` (admin key from the environment). The registry starts a job on one H100 through Baseten's Training API, with the base weights mounted from `hf://meta-models/Muse-Glimmer-30B` and cached by Baseten. The job fetches `train.py`, its requirements and its data from the registry with a token good for that run only, then runs `train.py --baseten`:
+
+1. Trains the LoRA adapter (the settings below) and saves it to `$BT_CHECKPOINT_DIR`, which Baseten keeps.
+2. Scores the new adapter and the adapter serving now on the same held-out examples: valid JSON, and agreement on key and on risk.
+3. Posts the scores back to the registry.
+
+**The gate.** The registry promotes the run only if its answers are valid JSON at least 90% of the time and it is no worse than the adapter serving on both key and risk. The first run has nothing to beat, so it must agree on at least 60% of keys and 80% of risks. A run still going after two hours is stopped. A failed run's corrections count towards the next one; a rejected run's do not, so the next run waits for 10 more.
+
+**Serving.** One Baseten deployment serves every run (`deploy/baseten/student`, pushed once with `scripts/baseten-student.sh`). At each start it asks the registry which run is promoted (`GET /training/student`, with `USHER_TRAINING_SECRET`), downloads that adapter, and starts vLLM with it. On promotion the registry deactivates and reactivates the deployment, so its next start loads the new adapter. It scales to zero when idle. With retraining on, the compiler asks the student only once a run has been promoted; until then Muse Spark Open gives the second opinion. As always, the stricter risk is kept.
+
+**Cost.** Baseten bills an H100 at $0.10833 a minute (about $6.50 an hour). A run on today's set (about 600 examples) should take 20 to 30 minutes, about $2 to $4; the job's own start and finish times are what the registry counts against the cap. Serving costs the same rate while the deployment is up, and nothing once it has scaled to zero.
+
+**What has not been checked.** No job has run on Baseten yet. Before turning it on, run one by hand and check that Muse Glimmer 30B trains on one H100 at these settings (bf16 with gradient checkpointing; it may need a smaller batch), how long it takes, and that the deployment starts with the adapter.
+
+**Status.** `GET /admin/training` (admin key) lists runs, the promoted run, pending corrections and the month's spend. `POST /admin/training/check` runs the hourly check now. `/learning` shows the promoted run's held-out scores.
 
 ## Tuning Muse Glimmer with LoRA
 

@@ -20,12 +20,15 @@ export type ViewerResult =
   | { ok: true; map: UsherMap; cached: boolean; model: string; cost_usd: number | null; ms: number; flags?: RiskFlag[] }
   | { ok: false; reason: ViewerFailure; message: string };
 
+type Classifier = { chat: ChatFn; model: string; student?: boolean };
+
 export interface ViewerOptions {
   storage: Storage;
   chat?: ChatFn;
   model?: string;
   /** A second opinion on risk (Muse Spark Open); disagreements keep the stricter risk and are shown. */
-  classifier?: { chat: ChatFn; model: string; student?: boolean };
+  /** The second opinion on risk; a function when it can change while running (the student, once an adapter is promoted). */
+  classifier?: Classifier | (() => Classifier | undefined);
   /** Allow localhost and private networks (for local demos). */
   allowPrivate?: boolean;
   /** The forms anyone can pick (picker.ts). */
@@ -208,7 +211,8 @@ export class Viewer {
       }
       if (!this.options.chat || !this.options.model) return fail('no_model', 'No model is set up here to read pages yet.');
       try {
-        const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model, ...(this.options.classifier && { classifier: this.options.classifier }) });
+        const classifier = typeof this.options.classifier === 'function' ? this.options.classifier() : this.options.classifier;
+        const result = await compilePage(tab, { chat: this.options.chat, model: this.options.model, ...(classifier && { classifier }) });
         const flags = result.classifier && !('error' in result.classifier) ? result.classifier.flags : undefined;
         await this.options.storage.putCached('viewer-labels', result.map.fingerprint.digest, { labels: result.labels, model: result.model, created_at: result.map.provenance.created_at } satisfies CachedLabels);
         return { ok: true, map: result.map, cached: false, model: result.model, cost_usd: result.cost_usd, ms: Math.round(performance.now() - started), ...(flags && { flags }) };

@@ -40,6 +40,7 @@
     "finetune:serve": "node scripts/finetune.mjs serve",
     "finetune:stop": "node scripts/finetune.mjs stop",
     "finetune:eval": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/finetune-eval.ts",
+    "training:upload-base": "node scripts/training-upload-base.mjs",
     "keys:disagreements": "node --disable-warning=ExperimentalWarning --import tsx packages/core/scripts/key-disagreements.ts",
     "benchmark": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/scripts/benchmark.ts",
     "dryrun": "node scripts/dryrun/run.mjs"

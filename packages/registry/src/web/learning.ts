@@ -8,6 +8,7 @@
 
 import { readFile } from 'node:fs/promises';
 import type { Storage } from '../storage.ts';
+import type { TrainingRun } from '../trainer.ts';
 import { html, page, type Raw } from './html.ts';
 
 const ROOT = new URL('../../../../', import.meta.url);
@@ -15,7 +16,7 @@ const ROOT = new URL('../../../../', import.meta.url);
 /** reports/learning.json: what the export and the training runs last said. */
 export interface LearningReport {
   dataset?: { generated: string; unique: number; train: number; eval: number; forms: number; owner_verified: number };
-  student?: { stage: 'none' | 'dry_run' | 'trained' | 'serving'; date: string; detail: string };
+  student?: { stage: 'none' | 'dry_run' | 'training' | 'trained' | 'serving'; date: string; detail: string };
 }
 
 export interface LearningCounters {
@@ -43,7 +44,11 @@ export class Learning {
     const value = (async () => {
       const sites = await this.storage.listSites();
       const maps = (await Promise.all(sites.map((s) => this.storage.mapsForOrigin(s.origin)))).reduce((n, m) => n + m.length, 0);
-      return { maps, sites: sites.length, corrections: (await this.storage.readLog('corrections')).length, report: await readLearningReport() };
+      const report = await readLearningReport();
+      // Automatic retraining, once it has run, says how far the student has got.
+      const training = await this.storage.getCached<{ runs: TrainingRun[]; promoted: string | null }>('training', 'state');
+      const student = training && retrainedStudent(training);
+      return { maps, sites: sites.length, corrections: (await this.storage.readLog('corrections')).length, report: student ? { ...report, student } : report };
     })();
     this.cached = { at: Date.now(), value };
     value.catch(() => (this.cached = undefined));
@@ -76,10 +81,26 @@ ol.steps-text li { margin:6px 0; }
 export const LOOP_PARAGRAPH =
   'Usher maps a form once, with Muse Spark, and every agent uses that map. Site owners check it in a walkthrough of their own form, and each correction they make is kept as an owner-verified label: structure only, never anything typed. Those labels lead the training set for a small open-weights model, Muse Glimmer tuned with LoRA, which gives a second opinion on how risky each field is. Where the two disagree, Usher keeps the stricter answer, so the student can make the maps more careful but never less.';
 
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** The student's stage from the retraining runs: the promoted one, else the latest. */
+function retrainedStudent(training: { runs: TrainingRun[]; promoted: string | null }): LearningReport['student'] | undefined {
+  const promoted = training.runs.find((r) => r.id === training.promoted);
+  if (promoted?.result) {
+    const { new: n } = promoted.result;
+    return { stage: 'serving', date: (promoted.finished_at ?? promoted.started_at).slice(0, 10), detail: `Retrained on ${promoted.data.train} examples, ${promoted.data.owner_verified} of them owner-verified; on held-out forms it agrees on ${pct(n.key)} of keys and ${pct(n.risk)} of risks` };
+  }
+  const last = training.runs.at(-1);
+  if (!last) return undefined;
+  const what = last.status === 'running' ? 'A retraining run is under way' : last.status === 'rejected' ? 'The last retraining run did no better, so it was not used' : 'The last retraining run did not finish';
+  return { stage: 'training', date: last.started_at.slice(0, 10), detail: what };
+}
+
 function studentLine(report: LearningReport): { value: string; detail: string } {
   const s = report.student;
   if (!s || s.stage === 'none') return { value: 'Not yet', detail: 'The training pipeline is built; no run yet.' };
   if (s.stage === 'dry_run') return { value: 'Dry run', detail: `${s.detail} (${s.date}). Not trained on a GPU yet.` };
+  if (s.stage === 'training') return { value: 'Training', detail: `${s.detail} (${s.date}). Not serving yet.` };
   if (s.stage === 'trained') return { value: 'Trained', detail: `${s.detail} (${s.date}). Not serving yet.` };
   return { value: 'Serving', detail: `${s.detail} (${s.date}).` };
 }

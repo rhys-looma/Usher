@@ -1,0 +1,44 @@
+# The student's deployment on Baseten: vLLM serving Muse Glimmer with the promoted LoRA adapter,
+# behind an OpenAI-compatible endpoint the registry calls as the "student" provider
+# (USHER_STUDENT_URL = https://model-<id>.api.baseten.co/environments/production/sync).
+#
+# One deployment for every run: at each start it asks the registry which run is promoted and loads
+# that adapter, and the registry restarts it when a new run is promoted. Pushed once with
+# scripts/baseten-student.sh, which fills in the registry's URL. Scale to zero when idle
+# (min replicas 0 in the deployment's autoscaling settings): it costs nothing until asked.
+model_name: usher-labeller
+model_metadata:
+  tags:
+    - openai-compatible
+
+base_image:
+  image: vllm/vllm-openai:v0.22.1
+
+weights:
+  - source: "hf://meta-models/Muse-Glimmer-30B@main"
+    mount_location: "/app/models/base"
+
+docker_server:
+  start_command: python3 /app/data/start.py
+  readiness_endpoint: /health
+  liveness_endpoint: /health
+  predict_endpoint: /v1/chat/completions
+  server_port: 8000
+
+environment_variables:
+  # Filled in by scripts/baseten-student.sh from deploy/ecs/config.env.
+  USHER_REGISTRY_URL: REGISTRY_URL_PLACEHOLDER
+
+resources:
+  accelerator: H100
+  use_gpu: true
+
+# The same value as the registry's USHER_TRAINING_SECRET: it lets this deployment fetch the
+# promoted adapter's files, and nothing else.
+secrets:
+  usher_training_secret: null
+
+runtime:
+  predict_concurrency: 16
+  health_checks:
+    startup_threshold_seconds: 900
