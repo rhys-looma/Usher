@@ -38,6 +38,37 @@ export interface PlanInput {
   steps: string[];
 }
 
+export interface PlanResume {
+  /** A path on the plan's origin. */
+  url: string;
+  label: string;
+  /** What the page asks the person, in words ("your quote reference", "your date of birth"). */
+  asks: string[];
+  reference_param?: string;
+}
+
+/** A resume entry in its one allowed shape, or null: a path on the origin, short words, a plain parameter name. */
+export function checkResume(input: unknown): PlanResume | null {
+  const r = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const url = typeof r.url === 'string' ? r.url.trim() : '';
+  const label = typeof r.label === 'string' ? r.label.trim() : '';
+  const asks = Array.isArray(r.asks) ? r.asks.filter((a): a is string => typeof a === 'string' && a.trim().length > 0 && a.length <= 60).map((a) => a.trim()) : [];
+  if (!/^\/[^\s\/\\][^\s\\]*$|^\/$/.test(url) || url.length > 200 || !label || label.length > 80 || asks.length > 4) return null;
+  const param = typeof r.reference_param === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(r.reference_param) ? r.reference_param : undefined;
+  return { url, label, asks, ...(param && { reference_param: param }) };
+}
+
+/**
+ * Where the person continues on the site with a result's reference: the resume page, with the
+ * reference in its query when the site prefills it. Always on the origin.
+ */
+export function resumeUrl(origin: string, resume: PlanResume, reference?: string): string {
+  const url = new URL(resume.url, origin);
+  if (url.origin !== origin) throw new Error('resume url leaves the origin');
+  if (reference && resume.reference_param) url.searchParams.set(resume.reference_param, reference);
+  return url.toString();
+}
+
 export interface UsherPlan {
   usher_plan: '0.1';
   origin: string;
@@ -49,6 +80,11 @@ export interface UsherPlan {
   consequential: { path: string; key: string; label: string; risk: Risk }[];
   /** Lookup actions on the way: run before filling the fields they fill (LOOKUP_FILLS). */
   lookups?: { path: string; key: string; label: string }[];
+  /**
+   * How the person picks the result up on the site afterwards, when the site says (optional): its
+   * own page for it, what that page asks them, and the query parameter that prefills the reference.
+   */
+  resume?: PlanResume;
   /** Whether the chain reaches a page with no form (the end), rather than an unmapped step. */
   complete: boolean;
   /** Where the chain stopped, when it is not complete. */

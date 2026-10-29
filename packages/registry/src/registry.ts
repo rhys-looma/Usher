@@ -48,6 +48,8 @@ import {
   vocabulary,
   cardTheme,
   validateTheme,
+  checkResume,
+  type PlanResume,
   type CardTheme,
   type SiteTheme,
   type ThemeProblem,
@@ -1184,6 +1186,28 @@ export class Registry {
     await this.storage.putCached('site-app-usage', origin, usage);
   }
 
+  /** How a site's journeys are picked up afterwards, by intent (the plan's optional resume). */
+  async siteResume(origin: string): Promise<Record<string, PlanResume>> {
+    return (await this.storage.getCached<Record<string, PlanResume>>('site-resume', origin)) ?? {};
+  }
+
+  /** Sets (or, with null, clears) a journey's resume page; refused unless it is a path on the origin with short words. */
+  async setSiteResume(origin: string, intent: string, input: unknown): Promise<PlanResume | null> {
+    const all = await this.siteResume(origin);
+    const resume = input === null ? null : checkResume(input);
+    if (input !== null && !resume) throw new Error('A resume page is a path on the site, a short label and at most four short asks.');
+    if (resume) all[intent] = resume;
+    else delete all[intent];
+    await this.storage.putCached('site-resume', origin, all);
+    return resume;
+  }
+
+  private async withResume(plan: UsherPlan | null): Promise<UsherPlan | null> {
+    if (!plan?.intent) return plan;
+    const resume = checkResume((await this.siteResume(plan.origin))[plan.intent]);
+    return resume ? { ...plan, resume } : plan;
+  }
+
   async siteTheme(origin: string): Promise<SiteThemeRecord> {
     return (await this.storage.getCached<SiteThemeRecord>('site-theme', origin)) ?? {};
   }
@@ -1250,7 +1274,7 @@ export class Registry {
       return error(400, 'invalid_request', 'Expected ?url= with the first page of the journey.');
     }
     const maps = await this.currentMaps(page.origin);
-    const plan = composePlan(page.pathname, maps);
+    const plan = await this.withResume(composePlan(page.pathname, maps));
     if (!plan) return error(404, 'not_found', `No map for ${page.origin}${page.pathname} yet: knock, or read the page.`);
     // Each input the person alone answers carries the site's rule for it, so an agent knows before
     // it knocks whether the site permits it to enter the person's own answer.
@@ -1288,7 +1312,7 @@ export class Registry {
         start = listed?.journeys.find((j) => !intent || j.intent === intent)?.start ?? null;
       }
     }
-    const plan = start ? composePlan(start, maps) : null;
+    const plan = await this.withResume(start ? composePlan(start, maps) : null);
     if (!plan) {
       const key = `${url.origin}|${intent ?? ''}`;
       const seen = (await this.storage.getCached<{ origin: string; intent: string | null; asks: number; last: string }>('plan-asks', key)) ?? { origin: url.origin, intent: intent ?? null, asks: 0, last: '' };
