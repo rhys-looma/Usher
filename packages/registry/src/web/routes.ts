@@ -373,7 +373,7 @@ export class Web {
       }
       if (route === 'POST /admin/sites/open') {
         const origin = ((await readForm(req)).get('origin') ?? '').trim();
-        if (!(await this.registry.storage.getSite(origin))) return sendHtml(res, 404, page('Not found', html`<h1>No such site</h1><p><a href="/admin/sites">All sites</a></p>`)), true;
+        if (!(await this.registry.storage.getSite(origin)) && !(await this.adminMayOpen(origin))) return sendHtml(res, 404, page('Not found', html`<h1>No such site</h1><p><a href="/admin/sites">All sites</a></p>`)), true;
         (await this.board()).adminSignIn(res, origin);
         await recordAdminAction(this.registry.storage, origin, 'opened the dashboard');
         return redirect(res, '/dashboard'), true;
@@ -443,6 +443,12 @@ export class Web {
     return notFound();
   }
 
+  /** An origin with no site record the admin may still open: it is listed, or Usher has maps of it. */
+  private async adminMayOpen(origin: string): Promise<boolean> {
+    if ((await this.registry.listedSites()).some((l) => l.origin === origin)) return true;
+    return (await this.registry.storage.mapsForOrigin(origin)).length > 0;
+  }
+
   /** /admin/sites: every registered site, with what the operator needs to pick one. */
   private async adminSites(message?: string, ok = false): Promise<string> {
     const storage = this.registry.storage;
@@ -484,7 +490,8 @@ ${mapped.length ? mapped.map(
 <label>Its intent <input name="intent" value="${m.listing?.journeys[0]?.intent ?? ''}" placeholder="quote.life_insurance"></label>
 <label><input type="checkbox" name="publish" value="1"${m.private ? ' checked' : ''}> Publish the maps agents built here</label>
 <button>${m.listing ? 'Update listing' : 'Open to hosted Usher'}</button></form>
-${m.listing ? html`<form method="post" action="/admin/listed/remove"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}</div>`,
+<form method="post" action="/admin/sites/open" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Open as owner: maps and sessions</button></form>
+${m.listing ? html`<form method="post" action="/admin/listed/remove" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}</div>`,
       ) : html`<p class="muted">None.</p>`}
 <h3>List a site with no maps yet</h3>
 <form method="post" action="/admin/listed" class="card stack">
@@ -669,17 +676,19 @@ ${annotated(drawn, { anchor: 'v' })}`;
     const { origin, admin } = signedIn;
     // Nothing is shown until the site has proved it controls its origin.
     const site = await this.registry.storage.getSite(origin);
-    if (!site) return board.logout(res), redirect(res, '/dashboard'), true;
+    // The admin may also open a site that has maps but never registered (one listed for hosted Usher).
+    const unregistered = !site && admin && (await this.adminMayOpen(origin));
+    if (!site && !unregistered) return board.logout(res), redirect(res, '/dashboard'), true;
     // Usher's admin, from /admin/sites: every page says so, and every change is logged for the owner.
     const send: typeof sendHtmlPage = admin ? (r, status, body, options) => sendHtmlPage(r, status, body.replace('<main>', `<main>${ADMIN_BANNER(origin)}`), options) : sendHtmlPage;
     if (admin && req.method === 'POST') await recordAdminAction(this.registry.storage, origin, route.replace(/\/(s|r)_[A-Za-z0-9_-]+/, '/$1_…'));
-    if (route === 'POST /dashboard/verify') {
+    if (route === 'POST /dashboard/verify' && site) {
       const reply = await this.registry.verifySiteFor(origin);
       if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
       return send(res, 422, claimPage({ url: this.registry.url, site, fromDashboard: true, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
     }
     // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else (except to the admin).
-    if (!site.claim && !admin) return send(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
+    if (site && !site.claim && !admin) return send(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
     const walk = this.options.walkthroughs;
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
