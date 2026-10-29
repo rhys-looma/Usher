@@ -179,7 +179,9 @@ export class Walkthroughs {
   /** Why a run can't start now, or null. */
   async refusal(origin: string, start: string): Promise<string | null> {
     const site = await this.storage.getSite(origin);
-    if (!site?.claim && origin !== this.o.registry.demoOrigin) return 'This site has not proved it controls its address yet.';
+    // A site Usher's admin listed (only the admin can open its dashboard) may be walked too, read-only:
+    // the walk stops before the final step there (start).
+    if (!site?.claim && origin !== this.o.registry.demoOrigin && !(await this.o.registry.listedSites()).some((l) => l.origin === origin)) return 'This site has not proved it controls its address yet.';
     let url: URL;
     try {
       url = new URL(start);
@@ -208,7 +210,11 @@ export class Walkthroughs {
     this.live.set(run.id, live);
     // The owner's values or the generated person, for this run only.
     const values: TestValues = { ...(input.generated ? { ...TEST_PERSON, 'policy.start_date': testStartDate(this.now()) } : {}), ...(input.values ?? {}) };
-    void this.walk(live, values, input.pressFinal).finally(() => this.live.delete(run.id));
+    // Usher never submits to a site that hasn't joined: on a listed site the walk maps every page
+    // and stops before the final step, whatever was ticked.
+    const joined = Boolean((await this.storage.getSite(input.origin))?.claim) || input.origin === this.o.registry.demoOrigin;
+    if (input.pressFinal && !joined) run.log.push('This site has not joined Usher, so the walk stops before the final step: Usher never submits to it.');
+    void this.walk(live, values, input.pressFinal && joined).finally(() => this.live.delete(run.id));
     return { id: run.id };
   }
 

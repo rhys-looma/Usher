@@ -383,3 +383,13 @@ test('the chat editor: a sentence becomes proposed changes, checked, applied onl
   assert.equal((await post('/dashboard/walkthrough/edit/discard', {})).status, 303);
   assert.doesNotMatch(await view(), /Which page do you mean/);
 });
+
+test('on a listed site that hasn\'t joined, the walk never presses the final step, whatever was ticked', async () => {
+  const origin = 'http://127.0.0.1:9';
+  await running.registry.setListed(origin, { name: 'Unjoined', journeys: [] });
+  const started = await walk.start({ origin, start: `${origin}/quote`, generated: true, pressFinal: true, by: 'operator' });
+  assert.ok('id' in started, 'refused' in started ? started.refused : '');
+  const run = await finished(origin);
+  assert.ok(run.log.some((l) => /has not joined Usher, so the walk stops before the final step/.test(l)), run.log.join('\n'));
+  await running.registry.setListed(origin, null);
+});
