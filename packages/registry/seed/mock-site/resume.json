@@ -1,0 +1,20 @@
+{
+  "quote.health_insurance": {
+    "url": "/retrieve",
+    "label": "Find your quote",
+    "asks": [
+      "your quote reference",
+      "your date of birth"
+    ],
+    "reference_param": "reference"
+  },
+  "quote.car_insurance": {
+    "url": "/retrieve",
+    "label": "Find your quote",
+    "asks": [
+      "your quote reference",
+      "your date of birth"
+    ],
+    "reference_param": "reference"
+  }
+}

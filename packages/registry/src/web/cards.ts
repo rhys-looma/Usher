@@ -35,6 +35,8 @@ export const CARD_CSS = `
 .uc input[type=text], .uc select { width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); border-radius:var(--radius,0); padding:7px 9px; margin-top:6px; }
 .uc button { font:inherit; font-weight:600; background:var(--btn,var(--rule)); color:var(--btn-ink,var(--card)); border:0; border-radius:var(--radius,0); padding:10px 18px; cursor:pointer; margin-top:12px; }
 .uc button:disabled { opacity:.5; cursor:default; }
+.uc a.button { display:inline-block; font-weight:600; background:var(--btn,var(--rule)); color:var(--btn-ink,var(--card)); border-radius:var(--radius,0); padding:10px 18px; margin-top:12px; text-decoration:none; }
+.uc .ref { margin:10px 0 0; font-size:14px; color:var(--muted); }.uc .ref b { color:var(--ink); letter-spacing:.04em; }
 .uc .note { font-size:12.5px; color:var(--muted); margin:8px 0 0; }
 .uc .warn { color:var(--user); }
 .uc .ticket { display:grid; grid-template-columns:minmax(0,1fr) 92px; padding:0; }

@@ -131,3 +131,22 @@ test('the result card shows the parts the theme chooses; the headline and "via U
   assert.equal(await ticket.locator('text=Admit one agent').count(), 1);
   assert.equal(await ticket.locator('input, button').count(), 0);
 });
+
+test('the result card: the reference, and "Continue on" only for a page on the result\'s own site, opened by the host', async () => {
+  const origin = 'https://brightwater.example';
+  const withContinue = (url: string) => ({ structuredContent: { ...samples.result.structuredContent, result: { ...(samples.result.structuredContent.result as object), facts: ['£66.92 a month', 'Quote reference BWH-1A2B3C4D'], reference: 'BWH-1A2B3C4D', continue: { url, label: 'Find your quote', site: 'brightwater.example', asks: ['your quote reference', 'your date of birth'] } } } });
+  const page = await render(withContinue(`${origin}/retrieve?reference=BWH-1A2B3C4D`), good);
+  const card = page.frameLocator('#v');
+  assert.equal(await card.locator('.ref b').textContent(), 'BWH-1A2B3C4D');
+  assert.equal(await card.locator('a.button').textContent(), 'Continue on Brightwater Insurance');
+  assert.match((await card.locator('.note').first().textContent()) ?? '', /Find your quote asks for your quote reference and your date of birth/);
+  await card.locator('a.button').click();
+  await page.waitForFunction("window.msgs.some(function (m) { return m.method === 'ui/open-link'; })");
+  const opened = ((await page.evaluate('window.msgs')) as { method?: string; params?: { url: string } }[]).find((m) => m.method === 'ui/open-link')!;
+  assert.equal(opened.params!.url, `${origin}/retrieve?reference=BWH-1A2B3C4D`);
+  for (const url of ['https://evil.example/retrieve', 'javascript:alert(1)']) {
+    const other = (await render(withContinue(url))).frameLocator('#v');
+    assert.equal(await other.locator('a.button').count(), 0, url);
+    assert.equal(await other.locator('.ref b').textContent(), 'BWH-1A2B3C4D');
+  }
+});

@@ -5,7 +5,7 @@
 // compiled on request. placeValues puts the person's answers against each field, in the site's
 // own format, for the assistant to type; the values live only in what it returns.
 
-import { LOOKUP_FILLS, type UsherPlan } from './plan.ts';
+import { LOOKUP_FILLS, resumeUrl, type UsherPlan } from './plan.ts';
 import { preflight, type Profile, type PreflightProblem } from './preflight.ts';
 import { dateFormatOf, datePart, formatDate, matchOption } from './values.ts';
 import type { Locator } from './locators.ts';
@@ -80,6 +80,8 @@ export interface BrowserPlan {
   steps: PlanStepView[];
   stops: PlanStop[];
   token: string;
+  /** Where the person picks the result up on the site afterwards, when the site says: the page, and what it asks them. */
+  resume?: { url: string; label: string; asks: string[]; reference_param?: string };
   /** From prepare_run: anything in the answers the site won't accept, by key. */
   problems?: Pick<PreflightProblem, 'key' | 'label' | 'message' | 'expected'>[];
 }
@@ -226,6 +228,7 @@ export function browserPlan(plan: UsherPlan, maps: Map<string, UsherMap>, ctx: B
     token: ctx.joined
       ? `${ctx.name} has joined Usher: call knock with the first step's url (prepare_run does it for you once your user has confirmed) and open the entry_url it returns, which carries the token for this session. The site refuses the final step without it.`
       : `${ctx.name} has not joined Usher: there is no token. Usher mapped it read-only; you fill it in your user's own browser session. Usher's defaults are the rules.`,
+    ...(plan.resume && { resume: { ...plan.resume, url: resumeUrl(plan.origin, plan.resume) } }),
   };
 }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { composePlan, preflight, type UsherMap } from '../src/index.ts';
+import { browserPlan, checkResume, composePlan, preflight, resumeUrl, type UsherMap } from '../src/index.ts';
 import { planSchemaErrors } from '../src/schemas.ts';
 
 const seedDir = new URL('../../registry/seed/mock-site/', import.meta.url);
@@ -72,4 +72,18 @@ test('a site search: the query is free text and search.submit is a safe way forw
   const plan = composePlan('/search', new Map([['/search', search]]))!;
   assert.equal(plan.steps[0]!.advance?.key, 'search.submit');
   assert.deepEqual(plan.consequential, [], 'nothing for the user to confirm');
+});
+
+test('resume: a plan may say where the person picks the result up on the site; only a path on its origin', () => {
+  const resume = checkResume({ url: '/retrieve', label: 'Find your quote', asks: ['your quote reference', 'your date of birth'], reference_param: 'reference', extra: 'dropped' })!;
+  assert.deepEqual(resume, { url: '/retrieve', label: 'Find your quote', asks: ['your quote reference', 'your date of birth'], reference_param: 'reference' });
+  const plan = { ...composePlan('/health/about', maps)!, resume };
+  assert.equal(planSchemaErrors(plan), null);
+  assert.equal(resumeUrl('https://brightwater.example', resume, 'BWH-1A2B3C4D'), 'https://brightwater.example/retrieve?reference=BWH-1A2B3C4D');
+  assert.equal(resumeUrl('https://brightwater.example', { url: resume.url, label: resume.label, asks: resume.asks }, 'BWH-1A2B3C4D'), 'https://brightwater.example/retrieve');
+  assert.equal(browserPlan(plan, maps, { name: 'Brightwater', joined: true }).resume?.url, `${plan.origin}/retrieve`);
+  for (const url of ['https://evil.example/x', '//evil.example/x', '/\\evil.example', 'retrieve', '/a b', `/${'x'.repeat(200)}`]) assert.equal(checkResume({ ...resume, url }), null, url);
+  assert.equal(checkResume({ ...resume, asks: ['a', 'b', 'c', 'd', 'e'] }), null);
+  assert.equal(checkResume({ ...resume, reference_param: 'a&b=c' })!.reference_param, undefined);
+  assert.notEqual(planSchemaErrors({ ...plan, resume: { url: 'https://evil.example', label: 'x', asks: [] } }), null);
 });

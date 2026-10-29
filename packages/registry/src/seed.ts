@@ -21,6 +21,9 @@ export async function seed(registry: Registry, name: string, origin: string): Pr
   // The seed's policy, unless the site's owner has set their own since (a seeded one is replaced).
   const policy = await readFile(new URL(`${name}/policy.json`, SEED_DIR), 'utf8').then((t) => JSON.parse(t) as UsherPolicy, () => undefined);
   if (policy) await registry.seedPolicy({ ...policy, origin }, SEED_RULES);
+  // How each journey is picked up afterwards on the site (the plans' resume), as the seed says.
+  const resume = await readFile(new URL(`${name}/resume.json`, SEED_DIR), 'utf8').then((t) => JSON.parse(t) as Record<string, unknown>, () => undefined);
+  for (const [intent, entry] of Object.entries(resume ?? {})) await registry.setSiteResume(origin, intent, entry);
   // The demo site's assistant app is on, unless its owner has set it otherwise.
   if (policy && !(await registry.storage.getCached('site-app', origin))) await registry.setSiteApp(origin, { enabled: true });
   return maps;

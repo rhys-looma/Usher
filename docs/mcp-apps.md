@@ -32,6 +32,10 @@ These screenshots are from the test harness ([`packages/mcp/test/apps.test.ts`](
 - **The same information without cards.** The text result of a paused fill starts with a plain listing: each decision with its exact wording in quotation marks, the site's text beside the submit, and the form of reply ("Confirm: declaration yes/no, marketing yes/no, get my quote yes/no"). The structured result carries the decisions with a `short` name each, and `confirmation_form`.
 - **Annotations:** `usher_confirm` is `readOnlyHint: false`, `openWorldHint: true` ("Submit with the person's answers"), so clients that ask before actions that change things outside the chat do ask. `usher_fill` is not read-only either: it presses Continue on the way.
 - **Links** in the cards (to the result page, or to the terms a consent links to) go through `ui/open-link`, so the host decides how to open them.
+- **Finishable results.** When a fill completes, Usher reads the result's reference from the site's own words, for example "Quote reference BWH-1A2B3C4D". Where the plan has a `resume` page, the result also carries `continue`: the site's page with the reference filled in, and what that page asks for.
+  - **On the card:** the reference, and a "Continue on <site>" button. The host opens it with `ui/open-link`. The card refuses a link to any site other than the result's own.
+  - **In text:** "Reference: …" and "To continue on <site>, your user opens <url> (it asks for …)".
+  - **What the person does:** they finish on the site in their own browser, giving anything else it asks, such as their date of birth, themselves.
 - **What the card shows:** the site's own words and the user's own result. It never shows the pass (the token) or a value the user didn't supply.
 - **A site's theme (LU-58).** Once a joined site's owner accepts a theme, the cards for that site's journeys carry it as `theme` in the structured result. It is never in the text the model reads. With a theme, the card shows:
   - a band with the site's name, its logo and a fixed "via Usher" mark;

@@ -6,7 +6,8 @@
 //     Confirm calls usher_confirm itself and shows the result. Elsewhere, and whenever unsure, it
 //     sends the person's own short confirmation ("Confirm: declaration yes, marketing no, get my
 //     quote yes") as their message, and the agent calls usher_confirm from it.
-//   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail.
+//   - usher_confirm done: the result card. Outcome, the figures verbatim, a thumbnail, and where
+//     the site says how: the reference and "Continue on <site>", opened through the host.
 //   - knock: the "Admit one agent" ticket, read-only.
 // A result for a site with a theme (core theme.ts) carries it as `theme`: the card then shows the
 // site's name, logo and colours in a band with a fixed "via Usher" mark, and its typeface and
@@ -257,10 +258,18 @@ ${CARD_CSS}
     if (brand && brand.fields.indexOf('more_facts') < 0) facts = facts.slice(0, 1);
     if (brand && brand.fields.indexOf('thumbnail') < 0) image = null;
     var url = res.final_url || r.final_url || '';
+    // Continue on the site: only a page on the result's own site, opened by the host (ui/open-link).
+    var cont = res['continue'], onward = '';
+    if (cont && typeof cont.url === 'string' && /^https?:\\/\\//.test(cont.url) && url) {
+      try { if (new URL(cont.url).origin !== new URL(url).origin) cont = null; } catch (e) { cont = null; }
+    } else cont = null;
+    if (ok && cont) onward = '<p><a class="button" href="#" data-open="' + esc(cont.url) + '">Continue on ' + esc(brand ? brand.name : cont.site) + '</a></p>'
+      + (cont.asks && cont.asks.length ? '<p class="note">' + esc(cont.label) + ' asks for ' + esc(cont.asks.join(' and ')) + '.</p>' : '');
     root.innerHTML = '<div class="card">' + band() + '<p class="label">' + (brand ? 'Your result' : 'Usher') + '</p><h1 class="title">' + esc(res.title || (ok ? 'Done' : 'Stopped')) + '</h1>'
       + (url ? '<p class="where">' + esc(where(url)) + '</p>' : '')
       + '<p class="outcome ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Completed' : esc(r.status)) + (r.reason ? ': ' + esc(r.reason) : '') + '</p>'
       + (facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
+      + (ok && res.reference ? '<p class="ref">Reference <b>' + esc(res.reference) + '</b></p>' : '') + onward
       + (image && image.data ? '<img class="thumb" alt="The page Usher finished on" src="data:' + esc(image.mimeType || 'image/png') + ';base64,' + esc(image.data) + '">' : '')
       + (ok && facts.length ? '<p class="note">As the site shows it, word for word</p>' : '')
       + '</div>';

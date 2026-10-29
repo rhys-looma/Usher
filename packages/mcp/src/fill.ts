@@ -20,11 +20,11 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan, type CardTheme } from '@usher/core';
+import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan, type CardTheme, type PlanResume, resumeUrl } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { fillField, httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
-import { blockHash, consentBlocks, disclosureBlock, resultFacts, type Block } from './blocks.ts';
+import { blockHash, consentBlocks, disclosureBlock, referenceOf, resultFacts, type Block } from './blocks.ts';
 import { mapDetails } from './details.ts';
 
 /**
@@ -121,6 +121,8 @@ interface Job {
   expires: NodeJS.Timeout;
   started: number;
   brand?: Brand;
+  /** Where the person picks the result up on the site afterwards (the plan's resume), and the site's origin. */
+  resume?: { origin: string; page: PlanResume };
 }
 
 export interface FillOptions {
@@ -267,6 +269,30 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     await job.transport?.logEvents?.(knock.events_url, knock.token, events).catch(() => undefined);
   }
 
+  /**
+   * A finished result's reference (from the site's own words) and, where the plan says how, the
+   * site's page to continue on with it; and the plain-text lead that says so.
+   */
+  function finishing(job: Job): { result: Record<string, unknown>; lead?: string } {
+    const facts = job.outcome?.facts.map((f) => f.text) ?? [];
+    const reference = referenceOf(facts);
+    const site = job.brand?.name ?? (job.resume ? new URL(job.resume.origin).host : undefined);
+    let link: { url: string; label: string; site: string; asks: string[] } | undefined;
+    if (job.resume && site) {
+      try {
+        link = { url: resumeUrl(job.resume.origin, job.resume.page, reference), label: job.resume.page.label, site, asks: job.resume.page.asks };
+      } catch {
+        // A resume page off the origin is never offered.
+      }
+    }
+    const lines = [
+      job.brand && facts.length ? `${job.brand.name}, as the site shows it: ${facts.join(' · ')}` : '',
+      reference ? `Reference: ${reference}.` : '',
+      link ? `To continue on ${link.site}, your user opens ${link.url}${link.asks.length ? ` (it asks for ${link.asks.join(' and ')})` : ''}.` : '',
+    ].filter(Boolean);
+    return { result: { ...(reference && { reference }), ...(link && { continue: link }) }, ...(lines.length && { lead: lines.join('\n') }) };
+  }
+
   /** Waits for the job's next decision set or its end, and says which. */
   async function next(job: Job) {
     const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), stepTimeout).unref());
@@ -302,6 +328,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       const image = r.outcome === 'completed' ? job.outcome?.image : await maskedShot(job.page);
       await finish(job);
       const submitted = [...new Set(job.actions.filter((a) => a.action === 'fill' || a.action === 'handoff').map((a) => a.key))];
+      const finished = r.outcome === 'completed' && job.outcome ? finishing(job) : undefined;
       return reply(
         {
           status: r.outcome,
@@ -309,7 +336,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           ...(r.reason && { reason: r.reason }),
           ...(r.problems?.length && { problems: r.problems.map((p) => ({ key: p.key, message: p.message })) }),
           session: r.session,
-          ...(r.outcome === 'completed' && job.outcome && { result: { title: job.outcome.title, final_url: r.final_url, facts: job.outcome.facts.map((f) => f.text) } }),
+          ...(r.outcome === 'completed' && job.outcome && { result: { title: job.outcome.title, final_url: r.final_url, facts: job.outcome.facts.map((f) => f.text), ...finished?.result } }),
           final_url: r.final_url,
           ...(job.outcome?.facts.length && { blocks: job.outcome.facts }),
           // What was submitted, by key: the values themselves are never echoed back.
@@ -320,8 +347,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           elapsed_ms: Math.round(performance.now() - job.started),
         },
         image,
-        // In plain text too, the result is the site's: its name, and its figures as it shows them.
-        job.brand && r.outcome === 'completed' && job.outcome?.facts.length ? `${job.brand.name}, as the site shows it: ${job.outcome.facts.map((f) => f.text).join(' · ')}` : undefined,
+        // In plain text too, the result is the site's: its name, its figures as it shows them, and how to carry on there.
+        finished?.lead,
         job.brand,
       );
     }
@@ -460,6 +487,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     for (const q of job.planned) if (q.kind === 'confirm_value') job.proposed.set(q.key, String(values[q.key]));
     const brand = await options.brand?.(new URL(url).origin).catch(() => undefined);
     if (brand) job.brand = brand;
+    if (plan?.resume) job.resume = { origin: new URL(url).origin, page: plan.resume };
     const transport: RegistryTransport = { ...base, knock: async (input) => (job.knock = await base.knock(input)) };
     job.transport = transport;
     // Lines on the result page that repeat what the user typed are theirs: never echoed back.
