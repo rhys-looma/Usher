@@ -71,9 +71,9 @@ const call = async (client: Client, name: string, args: Record<string, unknown>)
 const text = (result: Awaited<ReturnType<typeof call>>) => (result.content as { text?: string }[])[0]?.text ?? '';
 const claims = (token: string) => JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8')) as Record<string, unknown>;
 
-test('the same tools as the local server, less submit_map', async () => {
+test('the same tools as the local server, less submit_map, plus prepare_run for the plan path', async () => {
   const names = (await (await connect()).listTools()).tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['get_map', 'get_plan', 'knock', 'report_run', 'usher_cancel', 'usher_confirm', 'usher_fill']);
+  assert.deepEqual(names, ['get_map', 'get_plan', 'knock', 'prepare_run', 'report_run', 'usher_cancel', 'usher_confirm', 'usher_fill']);
 });
 
 test('usher_fill on a joined site: decisions for the user, then a session marked hosted, signed as hosted, key never stored', async () => {
@@ -188,7 +188,8 @@ test('For agents leads with the hosted URL; the local server is one click away; 
   const fold = card.split('<details')[0]!;
   assert.ok(fold.includes('No signup. Your agent&#39;s key is its identity.') || fold.includes("No signup. Your agent's key is its identity."));
   assert.ok(fold.includes(`<pre class="wrap">${registry.url}/mcp</pre>`));
-  assert.ok(fold.includes('<p>Hosted Usher acts on sites that have joined.</p>'));
+  assert.ok(fold.includes('<p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>'));
+  assert.ok(fold.includes('No browser? <code>usher_fill</code> fills the form for you instead.'), 'usher_fill once, as the fallback');
   assert.doesNotMatch(fold, /npx|mcpServers/, 'nothing local above the fold');
   assert.match(card, /<details class="local"><summary>Running your own agent or framework\?<\/summary>[\s\S]*mcpServers[\s\S]*The local server acts on any site, with your own key\./);
   assert.match(home, /<a class="button" href="\/sites\/new">Get your keys<\/a><a class="button ghost" href="#agents">Connect an agent<\/a>/);

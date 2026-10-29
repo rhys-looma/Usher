@@ -71,6 +71,8 @@ let drifted = false;
 let token: string | null = null;
 let claims: TokenClaims | null = null;
 let state: State = 'locked';
+/** The bound token came from the entry URL (an assistant driving a browser), not window.usher.bind. */
+let fromEntryUrl = false;
 let confirmed = false;
 let heldKey: string | undefined;
 let elements = new Map<Element, MapElement>();
@@ -257,9 +259,10 @@ function onSubmit(event: SubmitEvent): void {
   if (!token || !lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
   const rule = el ? (lookup.rules.actions?.[el.key] ?? FLOOR[el.risk]) : 'allow';
-  // A token that already says the person confirmed this (they did, in the assistant's Usher card)
-  // counts as confirmed: an assistant driving a browser can't call usher.confirm().
-  const confirmedInToken = Boolean(el && claims?.confirmed?.includes(el.key));
+  // A token from the entry URL that already says the person confirmed this (they did, in the
+  // assistant's Usher card) counts as confirmed: an assistant driving a browser can't call
+  // usher.confirm(). Agents that bind in script keep the hold and confirm in the page.
+  const confirmedInToken = fromEntryUrl && Boolean(el && claims?.confirmed?.includes(el.key));
   if (rule === 'forbid' || (rule === 'confirm' && !confirmed && !confirmedInToken)) {
     // The site's rules: the user must confirm this first, or only the user may do it.
     event.preventDefault();
@@ -312,6 +315,8 @@ async function bind(candidate: string): Promise<BindResult> {
   token = candidate;
   claims = result.claims;
   confirmed = false;
+  // Set again by the entry-URL path after it binds; a bind in script is never from the URL.
+  fromEntryUrl = false;
   elements = lookup?.map ? indexElements(lookup.map) : new Map();
   setState('unlocked');
   listen();
@@ -400,6 +405,7 @@ void (async () => {
   const candidate = given ?? kept;
   if (!candidate || !document.forms.length) return;
   const result = await bind(candidate);
+  if (result.ok) fromEntryUrl = true;
   try {
     if (result.ok) sessionStorage.setItem(KEPT, candidate);
     else if (!given) sessionStorage.removeItem(KEPT);
