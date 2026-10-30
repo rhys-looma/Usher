@@ -13,12 +13,15 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY spec spec
 COPY packages packages
 COPY scripts scripts
+# The demo sites built as apps (React and Vue), bundled here.
+COPY examples/sites/apps examples/sites/apps
 RUN npm run build
 
 FROM node:20-alpine
 WORKDIR /app
 COPY examples/mock-quote-site examples/mock-quote-site
 COPY examples/sites examples/sites
+COPY --from=build /app/examples/sites/public/*.app.js examples/sites/public/
 COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/dist
 ENV PORT=4100 HOST=0.0.0.0 NODE_OPTIONS=--disable-warning=ExperimentalWarning
 EXPOSE 4100
