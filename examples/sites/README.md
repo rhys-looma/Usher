@@ -40,7 +40,7 @@ This uses Larchmont as the example; the steps are the same for every site.
 
    The walkthrough calls Muse Spark, so the registry needs `MODEL_API_KEY` in `.env`.
 
-2. On the registry, open `/sites/new` and enter Larchmont's address (`http://localhost:4301`). Keep the keys it gives you.
+2. On the registry, open `/sites/new` and enter Larchmont's address: `http` on `localhost`, port 4301. Keep the keys it gives you.
 3. On Larchmont, open `/__settings`. Enter the registry's address and the site key, and save. That is where a real owner would paste the tag into their site's admin. The site now serves the script tag and the claim file at `/.well-known/usher-site.json`, and checks tokens on each journey's last step.
 4. Back on the registry, press **Check now**. The dashboard opens, signed in.
 5. On the dashboard's app page, follow the strip:
