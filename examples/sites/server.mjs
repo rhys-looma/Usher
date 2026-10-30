@@ -1,7 +1,9 @@
 // A gaggle of fictional businesses that would want their own assistant app: a mortgage lender, an
 // energy supplier, a council, a vet, a removals firm and a restaurant (sites.mjs). Each one is its
 // own origin, so it can join Usher, be mapped and publish an app like a real site. None of them is
-// a real business. No dependencies; needs Node 20+.
+// a real business. Needs Node 20+. Each looks and is built differently: four are server pages, and
+// Kestrel (React) and Hollyhock (Vue) are apps drawn in the browser from apps/, which `npm run build`
+// bundles into public/.
 //
 // Locally, each site gets its own port:
 //
@@ -104,7 +106,7 @@ function handler(id, site) {
   arm();
   // session id -> { seen, [journey]: { [step]: values, result } }; the oldest go past MAX_SESSIONS
   const sessions = new Map();
-  const view = render(site, usher);
+  const view = render(id, site, usher);
 
   return async (req, res) => {
     try {
@@ -149,11 +151,14 @@ function handler(id, site) {
       if (!journey) return html(res, view.page('Not found', '<h1>Page not found</h1><p><a href="/">Home</a></p>'), 404);
       const state = (session[section] ??= {});
       const order = Object.keys(journey.steps);
+      // The React and Vue sites post each step with fetch and draw the answer themselves.
+      const app = Boolean(site.app) && String(req.headers.accept ?? '').includes('application/json');
+      const go = (to) => (app ? json(res, { go: to }) : redirect(res, to));
 
       if (key === 'result' && req.method === 'GET') return state.result ? html(res, view.result(section, journey, state.result)) : redirect(res, `/${section}/${order[0]}`);
       if (key === 'result' && extra === 'next' && state.result?.next) {
         if (req.method === 'GET') return html(res, view.next(section, state.result));
-        if (req.method === 'POST') return html(res, view.wall(state.result));
+        if (req.method === 'POST') return app ? json(res, { wall: state.result.next.wall }) : html(res, view.wall(state.result));
       }
       if (!key) return redirect(res, `/${section}/${order[0]}`);
 
@@ -176,14 +181,14 @@ function handler(id, site) {
       }
       const values = read(step, params);
       const errors = validate(step, values);
-      if (errors.length) return html(res, view.step(section, journey, key, values, errors), 422);
+      if (errors.length) return app ? json(res, { errors: errors.map((f) => f.name) }, 422) : html(res, view.step(section, journey, key, values, errors), 422);
       state[key] = values;
-      if (!final) return redirect(res, `/${section}/${order[order.indexOf(key) + 1]}`);
+      if (!final) return go(`/${section}/${order[order.indexOf(key) + 1]}`);
       const labels = Object.fromEntries(order.map((k) => [k, Object.fromEntries(journey.steps[k].fields.map((f) => [f.name, f.options?.find((o) => o.value === state[k][f.name])?.label ?? state[k][f.name]]))]));
       state.result = journey.result(state, labels);
       // The answers aren't needed once there's a result; only the result is kept, for the result page.
       for (const k of order) state[k] = {};
-      return redirect(res, `/${section}/result`);
+      return app ? json(res, { go: `/${section}/result`, result: state.result }) : redirect(res, `/${section}/result`);
     } catch (err) {
       if (err instanceof TooLarge) return plain(res, 413, 'That request is too large.');
       console.error(`${id}: ${err?.message ?? 'error'}`);
@@ -196,8 +201,15 @@ function handler(id, site) {
 // Rendering
 // ---------------------------------------------------------------------------
 
-function render(site, usher) {
-  const page = (title, main) => `<!doctype html>
+function render(id, site, usher) {
+  const look = site.look;
+  const journeys = Object.entries(site.journeys);
+  const first = (j) => Object.keys(j.steps)[0];
+  const start = ([key, j]) => `/${key}/${first(j)}?restart`;
+  const phone = site.contact?.phone ? `<a href="tel:${site.contact.phone.replaceAll(' ', '')}">${esc(site.contact.phone)}</a>` : '';
+  const bundle = site.app ? join(here, 'public', `${id}.app.js`) : '';
+
+  const head = (title) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -205,51 +217,149 @@ function render(site, usher) {
 <title>${esc(title)} | ${esc(site.name)}</title>
 <meta property="og:site_name" content="${esc(site.name)}">
 <link rel="stylesheet" href="/static/site.css">
+<link rel="stylesheet" href="/static/${look}.css">
 <style>:root { --brand: ${site.colour}; }</style>
-${usher.registry ? `<script src="${esc(usher.registry)}/usher.js" data-usher-registry="${esc(usher.registry)}"${usher.siteKey ? ` data-usher-site-key="${esc(usher.siteKey)}"` : ''} defer></script>\n` : ''}</head>
-<body>
-<div class="demo-banner">Demo site for the Usher project. ${esc(site.name)} is not a real business.</div>
-<header class="site-header"><a href="/" class="brand"><span class="logo" aria-hidden="true">${esc(site.short[0])}</span>${esc(site.name)}</a><span class="tag">${esc(site.tagline)}</span></header>
-<main>${main}</main>
+${site.app ? `<script src="/static/${id}.app.js" defer></script>\n` : ''}${usher.registry ? `<script src="${esc(usher.registry)}/usher.js" data-usher-registry="${esc(usher.registry)}"${usher.siteKey ? ` data-usher-site-key="${esc(usher.siteKey)}"` : ''} defer></script>\n` : ''}</head>`;
+  const banner = `<div class="demo-banner">Demo site for the Usher project. ${esc(site.name)} is not a real business.</div>`;
+
+  // Each look is its own site furniture around the same journeys.
+  const shells = {
+    bank: {
+      header: () => `<div class="utility"><div class="wrap"><span class="segment current">Personal</span><span class="segment">For brokers</span><span class="call">Call us on ${phone}</span></div></div>
+<header class="masthead"><div class="wrap"><a href="/" class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 3 12h26z" fill="currentColor"/><rect x="6" y="14" width="3" height="11" fill="currentColor"/><rect x="14.5" y="14" width="3" height="11" fill="currentColor"/><rect x="23" y="14" width="3" height="11" fill="currentColor"/><rect x="3" y="26" width="26" height="3" fill="currentColor"/></svg><span>${esc(site.short)}<small>${esc(site.tagline)}</small></span></a>
+<nav aria-label="Main"><ul>${journeys.map((e) => `<li><a href="${start(e)}">${esc(e[1].title)}</a></li>`).join('')}</ul></nav></div></header>`,
+      footer: () => `<footer class="site-footer"><div class="wrap cols">
+<div><h2>Mortgages</h2><ul>${journeys.map((e) => `<li><a href="${start(e)}">${esc(e[1].title)}</a></li>`).join('')}</ul></div>
+<div><h2>Talk to us</h2><p>${phone}<br>${esc(site.contact.hours)}</p></div>
+<div><h2>About ${esc(site.short)}</h2><p>${esc(site.footer)}</p></div>
+</div></footer>`,
+    },
+    civic: {
+      header: (crumb) => `<header class="masthead"><div class="wrap"><a href="/" class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c6 5 9 10 9 15a9 9 0 0 1-18 0c0-5 3-10 9-15z" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M16 9v21" stroke="currentColor" stroke-width="2.5"/></svg>${esc(site.name.replace(/ Council$/, ''))}<span>Council</span></a></div></header>
+<div class="service"><div class="wrap">${esc(crumb?.title ?? site.heading)}</div></div>
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li>${crumb ? `<li><a href="${start([crumb.key, crumb])}">${esc(crumb.title)}</a></li>` : ''}</ol></nav></div>`,
+      footer: () => `<footer class="site-footer"><div class="wrap"><h2 class="visually-hidden">Support links</h2><ul class="links"><li>Contact us: ${phone}</li><li>${esc(site.contact.hours)}</li></ul><p>${esc(site.footer)}</p></div></footer>`,
+    },
+    bold: {
+      header: () => `<header class="masthead"><div class="wrap"><a href="/" class="brand"><svg viewBox="0 0 40 28" aria-hidden="true"><path d="M2 4h22v16H2zM24 9h8l6 6v5H24z" fill="currentColor"/><circle cx="9" cy="22" r="4" fill="#111"/><circle cx="9" cy="22" r="2" fill="currentColor"/><circle cx="31" cy="22" r="4" fill="#111"/><circle cx="31" cy="22" r="2" fill="currentColor"/></svg>${esc(site.short.toUpperCase())}<small>${esc(site.tagline)}</small></a><a class="cta" href="tel:${site.contact.phone.replaceAll(' ', '')}">Call ${esc(site.contact.phone)}</a></div></header>`,
+      footer: () => `<footer class="site-footer"><div class="wrap"><p><strong>${esc(site.name)}</strong> · ${esc(site.contact.hours)} · ${phone}</p><p>${esc(site.footer)}</p></div></footer>`,
+    },
+    boutique: {
+      header: () => `<header class="masthead"><a href="/" class="brand">${esc(site.short)}</a><p class="tag">${esc(site.tagline)}</p>
+<nav aria-label="Main"><ul><li><a href="/#menu">Menu</a></li>${journeys.map((e) => `<li><a href="${start(e)}">${esc(e[1].title)}</a></li>`).join('')}<li><a href="/#find-us">Find us</a></li></ul></nav></header>`,
+      footer: () => `<footer class="site-footer"><p>${esc(site.contact.address)}</p><p>${phone}</p><p class="fine">${esc(site.footer)}</p></footer>`,
+    },
+  };
+
+  const page = (title, main, { crumb, aside = '', wide = false } = {}) => {
+    const shell = shells[look] ?? { header: () => '', footer: () => '' };
+    return `${head(title)}
+<body class="look-${look}">
+${banner}
+${shell.header(crumb)}
+<div class="page${aside ? ' with-aside' : ''}${wide ? ' wide' : ''}"><main id="main">${main}</main>${aside}</div>
+${shell.footer()}
 <script src="/static/site.js" defer></script>
 </body>
 </html>`;
+  };
 
-  const home = () =>
-    page(
-      site.tagline,
-      `<h1>${esc(site.name)}</h1>
-<p class="lede">${esc(site.blurb)}</p>
-<ul class="journeys">${Object.entries(site.journeys)
-        .map(([key, j]) => `<li><a href="/${key}/${Object.keys(j.steps)[0]}?restart"><strong>${esc(j.title)}</strong><span>${esc(j.summary)}</span></a></li>`)
-        .join('')}</ul>`,
-    );
+  // The React and Vue sites: the page is an empty shell and the app draws it from this data.
+  const app = (title, route) => {
+    const data = {
+      site: { name: site.name, short: site.short, tagline: site.tagline, heading: site.heading, blurb: site.blurb, footer: site.footer, contact: site.contact, rating: site.rating, practices: site.practices },
+      journeys: Object.fromEntries(journeys.map(([key, j]) => [key, { title: j.title, summary: j.summary, action: j.action, disclosure: j.disclosure, steps: j.steps }])),
+      route,
+    };
+    // Not executed (a data block), so the CSP allows it; < is escaped so it can't close the tag.
+    return `${head(title)}
+<body class="look-${look}">
+${banner}
+<script type="application/json" id="site-data">${JSON.stringify(data).replaceAll('<', '\\u003c')}</script>
+<div id="app">${existsSync(bundle) ? '' : '<p style="padding:24px">This site is an app: run <code>npm run build</code> at the repository root, then restart.</p>'}</div>
+</body>
+</html>`;
+  };
+
+  const progress = (journey, order, index) => {
+    if (order.length === 1) return `<p class="caption">${esc(journey.title)}</p>`;
+    if (look === 'bank' || look === 'bold')
+      return `<ol class="stepper" aria-label="${esc(journey.title)}: step ${index + 1} of ${order.length}">${order
+        .map((k, i) => `<li class="${i < index ? 'done' : i === index ? 'current' : ''}"${i === index ? ' aria-current="step"' : ''}><span>${i + 1}</span>${esc(journey.steps[k].title)}</li>`)
+        .join('')}</ol>`;
+    if (look === 'civic') return `<p class="caption">${esc(journey.title)} <span>Section ${index + 1} of ${order.length}</span></p>`;
+    return `<p class="caption">${esc(journey.title)} · ${index + 1} of ${order.length}</p>`;
+  };
+
+  const sidePanel = () => {
+    if (look === 'bank') return `<aside class="side"><div class="panel"><h2>${esc(site.aside.title)}</h2><ul class="ticks">${site.aside.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div><div class="panel"><h2>Prefer to talk?</h2><p>Call ${phone}<br>${esc(site.contact.hours)}</p></div></aside>`;
+    if (look === 'bold') return `<aside class="side"><div class="panel"><h2>${esc(site.aside.title)}</h2><ul class="ticks">${site.aside.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div><blockquote class="review"><p>“${esc(site.review.quote)}”</p><footer>${esc(site.review.name)}</footer></blockquote></aside>`;
+    return '';
+  };
+
+  const homes = {
+    bank: () =>
+      page(
+        site.tagline,
+        `<section class="hero"><div class="wrap"><h1>${esc(site.heading)}</h1><p class="lede">${esc(site.blurb)}</p><p class="ctas">${journeys.map((e, i) => `<a class="button${i ? ' secondary' : ''}" href="${start(e)}">${esc(e[1].title)}</a>`).join('')}</p></div></section>
+<section class="wrap features">${site.aside.points.map((p) => `<div class="feature"><h2>${esc(p)}</h2></div>`).join('')}</section>
+<section class="wrap ways"><h2>Ways we can help</h2><ul class="journeys">${journeys.map((e) => `<li><a href="${start(e)}"><strong>${esc(e[1].title)}</strong><span>${esc(e[1].summary)}</span></a></li>`).join('')}</ul></section>
+<section class="wrap"><p class="notice">${esc(site.notice)}</p></section>`,
+        { wide: true },
+      ),
+    civic: () =>
+      page(
+        site.heading,
+        `<h1>${esc(site.heading)}</h1><p class="lede">${esc(site.blurb)}</p>
+<h2>Most popular</h2><ul class="services">${journeys.map((e) => `<li><a href="${start(e)}">${esc(e[1].title)}</a><p>${esc(e[1].summary)}</p></li>`).join('')}</ul>`,
+      ),
+    bold: () =>
+      page(
+        site.tagline,
+        `<section class="hero"><div class="wrap"><h1>${esc(site.heading)}</h1><p class="lede">${esc(site.blurb)}</p>${journeys.map((e) => `<a class="button" href="${start(e)}">${esc(e[1].title)}</a>`).join(' ')}</div></section>
+<section class="wrap promise"><h2>${esc(site.aside.title)}</h2><ul class="ticks">${site.aside.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul><blockquote class="review"><p>“${esc(site.review.quote)}”</p><footer>${esc(site.review.name)}</footer></blockquote></section>`,
+        { wide: true },
+      ),
+    boutique: () =>
+      page(
+        site.tagline,
+        `<section class="hero"><h1>${esc(site.heading)}</h1><p class="lede">${esc(site.blurb)}</p>${journeys.map((e) => `<a class="button" href="${start(e)}">${esc(e[1].title)}</a>`).join(' ')}</section>
+<section id="menu" class="menu"><h2>From tonight’s menu</h2><dl>${site.menu.map(([dish, price]) => `<div><dt>${esc(dish)}</dt><dd>${esc(price)}</dd></div>`).join('')}</dl></section>
+<section id="find-us" class="find-us"><h2>Find us</h2><p>${esc(site.contact.address)}</p><ul>${site.contact.hours.map((h) => `<li>${esc(h)}</li>`).join('')}</ul></section>`,
+      ),
+  };
+
+  const home = () => (site.app ? app(site.tagline, { view: 'home' }) : homes[look]());
 
   const step = (base, journey, key, values, errors = []) => {
     const order = Object.keys(journey.steps);
     const index = order.indexOf(key);
+    if (site.app) return app(journey.steps[key].title, { view: 'step', journey: base, step: key, values });
     const s = journey.steps[key];
     const final = index === order.length - 1;
     const summary = errors.length
-      ? `<div class="error-summary" role="alert"><h2>Please check the following</h2><ul>${errors.map((f) => `<li><a href="#f-${f.name}">${esc(f.label)}</a></li>`).join('')}</ul></div>`
+      ? `<div class="error-summary" role="alert"><h2>${look === 'civic' ? 'There is a problem' : 'Please check the following'}</h2><ul>${errors.map((f) => `<li><a href="#f-${f.name}">${esc(f.label)}</a></li>`).join('')}</ul></div>`
       : '';
     return page(
       s.title,
-      `${order.length > 1 ? `<p class="progress">${esc(journey.title)}: step ${index + 1} of ${order.length}</p>` : `<p class="progress">${esc(journey.title)}</p>`}
+      `${progress(journey, order, index)}
 <h1>${esc(s.title)}</h1>
 ${summary}
 <form method="post" action="/${base}/${key}" novalidate>
 ${s.fields.map((f) => field(f, values[f.name], errors.some((e) => e.name === f.name))).join('\n')}
 ${final && journey.disclosure ? `<p class="disclosure">${esc(journey.disclosure)}</p>` : ''}
-<div class="actions">${index > 0 ? `<a class="back" href="/${base}/${order[index - 1]}">Back</a>` : ''}<button type="submit" class="primary">${esc(final ? journey.action : 'Continue')}</button></div>
+<div class="actions">${index > 0 ? `<a class="back" href="/${base}/${order[index - 1]}">Back</a>` : ''}<button type="submit" class="primary">${esc(final ? journey.action : look === 'boutique' ? 'Next' : 'Continue')}</button></div>
 </form>`,
+      { crumb: { key: base, ...journey }, aside: sidePanel() },
     );
   };
 
   const result = (base, journey, r) =>
-    page(
-      journey.title,
-      `<h1>${esc(journey.title)}</h1>
+    site.app
+      ? app(journey.title, { view: 'result', journey: base, result: r })
+      : page(
+          journey.title,
+          `<h1>${esc(journey.title)}</h1>
 <div class="result">
   <p class="headline">${esc(r.headline)}${r.headlineNote ? ` <span>${esc(r.headlineNote)}</span>` : ''}</p>
   ${r.lines.map((l) => `<p>${esc(l)}</p>`).join('')}
@@ -258,15 +368,18 @@ ${final && journey.disclosure ? `<p class="disclosure">${esc(journey.disclosure)
 ${r.next ? `<p><a class="button" href="/${base}/result/next">${esc(r.next.label)}</a></p>` : ''}
 <p class="note">A demo: nothing here is real, and nothing has been bought or booked.</p>
 <p><a href="/">Back to ${esc(site.short)}</a></p>`,
-    );
+          { crumb: { key: base, ...journey }, aside: sidePanel() },
+        );
 
   const next = (base, r) =>
-    page(
-      r.next.label,
-      `<h1>${esc(r.next.label)}</h1>
+    site.app
+      ? app(r.next.label, { view: 'next', journey: base, result: r })
+      : page(
+          r.next.label,
+          `<h1>${esc(r.next.label)}</h1>
 <p>Reference <strong>${esc(r.reference)}</strong>: ${esc(r.headline)}${r.headlineNote ? ` ${esc(r.headlineNote)}` : ''}.</p>
 <form method="post" action="/${base}/result/next"><div class="actions"><a class="back" href="/${base}/result">Back</a><button type="submit" class="primary">${esc(r.next.action)}</button></div></form>`,
-    );
+        );
 
   const wall = (r) => page('Demo', `<h1>${esc(r.next.label)}</h1><p>${esc(r.next.wall)}</p><p><a href="/">Back to ${esc(site.short)}</a></p>`);
 

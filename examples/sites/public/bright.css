@@ -1,0 +1,72 @@
+/* Kestrel (React): a challenger energy brand. Bright, rounded, tiles and a progress bar. */
+:root { --ink: #10231c; --muted: #4f6159; --line: #dfe8e3; --bg: #f3f8f5; --mint: #c8f1dc; --lime: #d6f54a; --focus: #7c5cff; }
+body { font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif; }
+.kst-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+.kst-header { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+.kst-header__inner { display: flex; align-items: center; gap: 28px; min-height: 68px; }
+.kst-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 24px; color: var(--brand); text-decoration: none; letter-spacing: -0.02em; }
+.kst-logo { width: 34px; height: 34px; }
+.kst-nav { display: flex; gap: 22px; flex: 1; }
+.kst-nav a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.kst-nav a:hover { color: var(--brand); }
+@media (max-width: 640px) { .kst-nav { display: none; } .kst-header__inner { justify-content: space-between; } }
+
+.kst-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; border: 0; border-radius: 999px; padding: 15px 30px; font: 700 17px/1 inherit; font-family: inherit; text-decoration: none; cursor: pointer; transition: transform 0.1s; }
+.kst-btn:hover { transform: translateY(-1px); }
+.kst-btn:disabled { opacity: 0.6; }
+.kst-btn--small { padding: 10px 18px; font-size: 15px; }
+.kst-link { color: var(--brand); font-weight: 700; text-decoration: none; }
+
+.kst-hero { background: radial-gradient(circle at 85% 20%, var(--lime) 0, transparent 30%), linear-gradient(135deg, var(--mint), #e9fbf1 60%); padding: 72px 0 88px; }
+.kst-hero h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.03em; max-width: 640px; margin: 8px 0 18px; }
+.kst-lede { font-size: 20px; color: var(--muted); max-width: 520px; margin: 0 0 30px; }
+.kst-rating { display: inline-block; background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 600; margin: 0; }
+.kst-rating span { color: #12a150; letter-spacing: 2px; }
+.kst-perks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: -40px; padding-bottom: 72px; }
+.kst-perk { background: #fff; border-radius: 20px; padding: 26px; box-shadow: 0 10px 30px rgba(16, 35, 28, 0.08); }
+.kst-perk h2 { font-size: 20px; margin: 0 0 6px; }
+.kst-perk p { margin: 0; color: var(--muted); }
+@media (max-width: 760px) { .kst-perks { grid-template-columns: 1fr; margin-top: 24px; } .kst-hero h1 { font-size: 40px; } }
+
+.kst-step { max-width: 760px; padding-top: 32px; padding-bottom: 72px; }
+.kst-progress { margin-bottom: 18px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.kst-progress__bar { height: 8px; background: #dbe7e0; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.kst-progress__bar div { height: 100%; background: linear-gradient(90deg, var(--brand), #21b573); border-radius: inherit; transition: width 0.3s; }
+.kst-card { background: #fff; border-radius: 24px; padding: 36px; box-shadow: 0 10px 30px rgba(16, 35, 28, 0.08); }
+.kst-card h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 24px; outline: none; }
+@media (max-width: 600px) { .kst-card { padding: 22px; border-radius: 16px; } }
+
+.kst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+.kst-field { margin: 0 0 18px; border: 0; padding: 0; min-width: 0; }
+.kst-field--radio, .kst-field--checkbox, .kst-field--textarea { grid-column: 1 / -1; }
+@media (max-width: 600px) { .kst-grid { grid-template-columns: 1fr; } }
+.kst-field > label, .kst-field legend { display: block; font-weight: 700; font-size: 15px; margin-bottom: 8px; padding: 0; }
+.kst-field input:not([type="radio"]):not([type="checkbox"]), .kst-field select, .kst-field textarea {
+  width: 100%; font: inherit; padding: 14px 16px; border: 2px solid var(--line); border-radius: 14px; background: #fbfdfc; transition: border-color 0.15s;
+}
+.kst-field input:focus, .kst-field select:focus, .kst-field textarea:focus { outline: none; border-color: var(--brand); background: #fff; }
+.kst-field--invalid input, .kst-field--invalid select { border-color: #d92d20; }
+.kst-field__error { color: #d92d20; font-weight: 700; font-size: 14px; margin: -2px 0 8px; }
+
+.kst-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kst-tile { position: relative; display: flex; align-items: center; min-height: 58px; padding: 14px 16px; border: 2px solid var(--line); border-radius: 14px; cursor: pointer; font-weight: 600; background: #fbfdfc; }
+.kst-tile input { position: absolute; opacity: 0; }
+.kst-tile.is-selected { border-color: var(--brand); background: #e9f8f0; box-shadow: 0 0 0 3px rgba(15, 107, 79, 0.15); }
+.kst-tile:has(input:focus-visible) { outline: 3px solid var(--focus); }
+.kst-check { display: flex; gap: 12px; align-items: flex-start; font-weight: 500; cursor: pointer; }
+.kst-check input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--brand); flex: none; }
+
+.kst-alert { background: #fff1f0; color: #9b1c13; border-radius: 12px; padding: 12px 16px; font-weight: 600; margin-bottom: 20px; }
+.kst-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.kst-actions .kst-btn { margin-left: auto; }
+.kst-small { font-size: 14px; color: var(--muted); }
+.kst-eyebrow { font-weight: 700; color: var(--brand); text-transform: uppercase; font-size: 13px; letter-spacing: 0.08em; margin: 0; }
+.kst-result h1 { font-size: 48px; margin: 6px 0 12px; }
+.kst-result h1 span { font-size: 18px; color: var(--muted); font-weight: 600; }
+
+.kst-footer { background: var(--ink); color: #b9c9c1; padding: 44px 0; margin-top: 40px; }
+.kst-footer__cols { display: grid; grid-template-columns: 1fr 2fr; gap: 32px; }
+.kst-footer h2 { color: #fff; font-size: 18px; margin: 0 0 8px; }
+.kst-footer a { color: var(--lime); }
+@media (max-width: 640px) { .kst-footer__cols { grid-template-columns: 1fr; } }
