@@ -1,7 +1,7 @@
-# Phase 2 with a Route 53 zone: both hosts point at CloudFront (A and AAAA aliases).
+# Phase 2 with a Route 53 zone: every host points at CloudFront (A and AAAA aliases).
 
 resource "aws_route53_record" "hosts" {
-  for_each        = var.route53_zone_id != "" && var.certificates_issued ? { for p in setproduct([var.registry_host, var.site_host], ["A", "AAAA"]) : "${p[0]} ${p[1]}" => { name = p[0], type = p[1] } } : {}
+  for_each        = var.route53_zone_id != "" && var.certificates_issued ? { for p in setproduct(concat([var.registry_host], local.site_hosts), ["A", "AAAA"]) : "${p[0]} ${p[1]}" => { name = p[0], type = p[1] } } : {}
   zone_id         = var.route53_zone_id
   name            = each.value.name
   type            = each.value.type

@@ -1,9 +1,14 @@
-# One certificate for both hosts in each region: eu-west-2 for the ALB, us-east-1 for CloudFront.
+# One certificate for every host (the registry, the demo site and the demo sites) in each region: eu-west-2 for the ALB, us-east-1 for CloudFront.
 # Validated by DNS records you add (the same records serve both).
+
+locals {
+  demo_hosts = [for s in var.demo_sites : "${s}.${var.registry_host}"]
+  site_hosts = concat([var.site_host], local.demo_hosts)
+}
 
 resource "aws_acm_certificate" "alb" {
   domain_name               = var.registry_host
-  subject_alternative_names = [var.site_host]
+  subject_alternative_names = local.site_hosts
   validation_method         = "DNS"
   lifecycle {
     create_before_destroy = true
@@ -13,7 +18,7 @@ resource "aws_acm_certificate" "alb" {
 resource "aws_acm_certificate" "cloudfront" {
   provider                  = aws.us_east_1
   domain_name               = var.registry_host
-  subject_alternative_names = [var.site_host]
+  subject_alternative_names = local.site_hosts
   validation_method         = "DNS"
   lifecycle {
     create_before_destroy = true

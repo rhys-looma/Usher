@@ -4,8 +4,8 @@ output "certificate_validation_records" {
 }
 
 output "dns_records" {
-  description = "Phase 2: both hosts point at CloudFront (made automatically when route53_zone_id is set)."
-  value       = var.certificates_issued ? { for h in [var.registry_host, var.site_host] : h => aws_cloudfront_distribution.usher[0].domain_name } : null
+  description = "Phase 2: every host points at CloudFront (made automatically when route53_zone_id is set)."
+  value       = var.certificates_issued ? { for h in concat([var.registry_host], local.site_hosts) : h => aws_cloudfront_distribution.usher[0].domain_name } : null
 }
 
 output "secrets" {
@@ -29,6 +29,7 @@ output "config_env" {
     ECS_CLUSTER=${aws_ecs_cluster.usher.name}
     REGISTRY_SERVICE=usher-registry
     SITE_SERVICE=usher-mock-site
+    DEMO_SITES_SERVICE=usher-demo-sites
     EXECUTION_ROLE_ARN=${aws_iam_role.execution.arn}
     TASK_ROLE_ARN=${aws_iam_role.task.arn}
     TASK_SUBNETS=${join(",", aws_subnet.public[*].id)}
@@ -38,5 +39,6 @@ output "config_env" {
     CONTACT_EMAIL=${var.contact_email}
     DAILY_MODEL_BUDGET_USD=${var.daily_model_budget_usd}
     MOCK_SITE_KEY=${var.mock_site_key}
+    DEMO_SITES=${join(",", var.demo_sites)}
   EOT
 }

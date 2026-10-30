@@ -3,7 +3,9 @@
 # they are stable. A deployment that fails its health checks rolls back if the service has the
 # deployment circuit breaker on (DEPLOY.md).
 #
-#   scripts/ecs-deploy.sh [tag] [registry|mock-site|both]     defaults: the current git SHA, both
+#   scripts/ecs-deploy.sh [tag] [registry|mock-site|both|demo-sites|all]     defaults: the current git SHA, both
+#
+# both is the registry and the demo site; all adds the demo sites (examples/sites) when DEMO_SITES is set.
 source "$(dirname "$0")/deploy-config.sh"
 need node git
 require AWS_ACCOUNT_ID ECS_CLUSTER REGISTRY_SERVICE SITE_SERVICE REGISTRY_HOST SITE_HOST
@@ -23,11 +25,17 @@ roll() { # template service
   echo "$2 → $arn"
 }
 services=()
-if [ "$WHICH" = registry ] || [ "$WHICH" = both ]; then roll registry "$REGISTRY_SERVICE"; services+=("$REGISTRY_SERVICE"); fi
-if [ "$WHICH" = mock-site ] || [ "$WHICH" = both ]; then roll mock-site "$SITE_SERVICE"; services+=("$SITE_SERVICE"); fi
+if [ "$WHICH" = registry ] || [ "$WHICH" = both ] || [ "$WHICH" = all ]; then roll registry "$REGISTRY_SERVICE"; services+=("$REGISTRY_SERVICE"); fi
+if [ "$WHICH" = mock-site ] || [ "$WHICH" = both ] || [ "$WHICH" = all ]; then roll mock-site "$SITE_SERVICE"; services+=("$SITE_SERVICE"); fi
+demo=()
+if [ "$WHICH" = demo-sites ] || { [ "$WHICH" = all ] && [ -n "${DEMO_SITES:-}" ]; }; then
+  require DEMO_SITES DEMO_SITES_SERVICE
+  roll demo-sites "$DEMO_SITES_SERVICE"; services+=("$DEMO_SITES_SERVICE")
+  IFS=, read -ra demo <<< "$DEMO_SITES"
+fi
 echo "waiting for ${services[*]} to be stable (a few minutes)…"
 aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "${services[@]}"
-for host in "$REGISTRY_HOST" "$SITE_HOST"; do
+for host in "$REGISTRY_HOST" "$SITE_HOST" "${demo[@]/%/.$REGISTRY_HOST}"; do
   printf 'https://%s/healthz: ' "$host"; curl -fsS --max-time 10 "https://$host/healthz" || echo "not reachable yet"; echo
 done
 echo "deployed $TAG"

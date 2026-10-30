@@ -1,6 +1,8 @@
 # Copy to terraform.tfvars (gitignored). Hosts are examples.
 registry_host = "registry.example"
 site_host     = "quote.registry.example"
+# The demo sites (examples/sites), each at <name>.<registry_host>. Leave out for none.
+# demo_sites  = ["larchmont", "kestrel", "fernbrook", "hollyhock", "packhorse", "littlefig"]
 contact_email = "hello@registry.example"
 image_tag     = "0123456789ab" # from deploy/terraform/ecr: terraform output images
 # route53_zone_id      = "Z…"   # the domain's hosted zone: DNS records made for you

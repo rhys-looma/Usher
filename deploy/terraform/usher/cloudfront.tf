@@ -1,4 +1,4 @@
-# One distribution for both hosts. Static paths are cached by what the origin says, with Host in
+# One distribution for every host. Static paths are cached by what the origin says, with Host in
 # the cache key (both hosts answer /.well-known/ differently); everything else is not cached and
 # reaches the ALB with every viewer header and CloudFront's own (CloudFront-Forwarded-Proto).
 
@@ -44,7 +44,7 @@ resource "aws_cloudfront_distribution" "usher" {
   is_ipv6_enabled = true
   http_version    = "http2and3"
   price_class     = "PriceClass_100"
-  aliases         = [var.registry_host, var.site_host]
+  aliases         = concat([var.registry_host], local.site_hosts)
   comment         = "Usher"
 
   origin {

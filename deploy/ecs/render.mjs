@@ -1,7 +1,7 @@
 // Fills a task definition template (deploy/ecs/<name>.json) from deploy/ecs/config.env, the image
 // tag and the secrets' ARNs, and prints the JSON. Every ${PLACEHOLDER} must be filled.
 //
-//   node deploy/ecs/render.mjs registry|mock-site|migrate [image tag, default the git SHA]
+//   node deploy/ecs/render.mjs registry|mock-site|migrate|demo-sites [image tag, default the git SHA]
 //
 // Secret ARNs come from SECRET_ARN_<NAME> if set, else are looked up by name (<SECRET_PREFIX>/<NAME>).
 
@@ -9,8 +9,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const [name, tag] = process.argv.slice(2);
-if (!['registry', 'mock-site', 'migrate'].includes(name ?? '')) {
-  console.error('Usage: node deploy/ecs/render.mjs registry|mock-site|migrate [image tag]');
+if (!['registry', 'mock-site', 'migrate', 'demo-sites'].includes(name ?? '')) {
+  console.error('Usage: node deploy/ecs/render.mjs registry|mock-site|migrate|demo-sites [image tag]');
   process.exit(2);
 }
 const configFile = process.env.USHER_DEPLOY_CONFIG ?? new URL('config.env', import.meta.url).pathname;

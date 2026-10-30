@@ -1,4 +1,5 @@
-# The demo quote site (fictional), with the server-side Usher check bundled in.
+# The demo quote site (fictional), with the server-side Usher check bundled in. The same image runs
+# the demo sites (examples/sites) with another command (deploy/ecs/demo-sites.json).
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -17,6 +18,7 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 COPY examples/mock-quote-site examples/mock-quote-site
+COPY examples/sites examples/sites
 COPY --from=build /app/packages/site-middleware/dist packages/site-middleware/dist
 ENV PORT=4100 HOST=0.0.0.0 NODE_OPTIONS=--disable-warning=ExperimentalWarning
 EXPOSE 4100
