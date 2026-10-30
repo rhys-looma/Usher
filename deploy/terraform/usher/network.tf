@@ -114,6 +114,14 @@ resource "aws_security_group" "demo_sites" {
   vpc_id      = aws_vpc.usher.id
 }
 
+resource "aws_vpc_security_group_egress_rule" "alb_to_demo_sites" {
+  security_group_id            = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.demo_sites.id
+  ip_protocol                  = "tcp"
+  from_port                    = 4300
+  to_port                      = 4300
+}
+
 resource "aws_vpc_security_group_ingress_rule" "demo_sites_from_alb" {
   security_group_id            = aws_security_group.demo_sites.id
   referenced_security_group_id = aws_security_group.alb.id
