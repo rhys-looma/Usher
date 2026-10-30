@@ -7,8 +7,8 @@
 //   shows or hides, which becomes shown_if, and puts the page in the state that shows the most;
 // - labels it with Muse Spark in vote mode;
 // - runs the site's lookups with the test values and records the lists they reveal (as counts);
-// - fills the fields with the test values and goes on, until the result page or a consequential
-//   action the owner didn't allow.
+// - fills the fields with the test values (and a harmless stand-in for a required field none covers)
+//   and goes on, until the result page or a consequential action the owner didn't allow.
 //
 // The result is a proposal (maps, a plan, and a masked screenshot per page with every element's box)
 // that waits for the owner to publish it.
@@ -24,7 +24,7 @@ import { compilePage, composePlan, dismissConsent, parseJsonContent, fillField, 
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
 import type { Registry } from './registry.ts';
-import { TEST_PERSON, testStartDate } from './walkthrough-persona.ts';
+import { standIn, TEST_PERSON, testStartDate } from './walkthrough-persona.ts';
 
 export type WalkthroughStatus = 'running' | 'completed' | 'stopped' | 'failed' | 'cancelled';
 export type TestValues = Record<string, string | boolean>;
@@ -613,7 +613,8 @@ export class Walkthroughs {
     let filled = 0;
     const chosen = new Map<string, string | boolean>();
     for (const f of map.fields) {
-      let value = values[f.key];
+      // A required field no test value covers gets a harmless stand-in, so the site doesn't refuse the page.
+      let value = values[f.key] ?? standIn(f, this.now());
       if (value === undefined) continue;
       // A test answer the site has no option for: its first real option, so the journey goes on.
       const items = f.options?.items;
