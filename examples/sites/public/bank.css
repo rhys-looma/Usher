@@ -1,0 +1,79 @@
+/* Larchmont: a building-society look. Navy and white, serif headings, a stepper and a side panel. */
+:root { --ink: #14213d; --muted: #4e5a70; --line: #cfd6e2; --brand-ink: #fff; --accent: #c8a25a; --bg: #fff; --tint: #eef2f8; }
+body { font-family: "Helvetica Neue", Arial, sans-serif; }
+h1, h2, .brand span, .headline { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+h1 { font-size: 34px; line-height: 1.2; margin: 0 0 20px; color: var(--brand); }
+a { color: var(--brand); }
+
+.utility { background: var(--brand); color: #c9d3e6; font-size: 13px; }
+.utility .wrap { display: flex; gap: 2px; align-items: stretch; }
+.utility .segment { padding: 8px 14px; }
+.utility .segment.current { background: #fff; color: var(--brand); font-weight: 700; }
+.utility .call { margin-left: auto; padding: 8px 0; }
+.utility a { color: #fff; font-weight: 700; text-decoration: none; }
+@media (max-width: 600px) { .utility .segment:not(.current) { display: none; } }
+
+.masthead { border-bottom: 1px solid var(--line); background: #fff; }
+.masthead .wrap { display: flex; align-items: center; gap: 32px; min-height: 76px; flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--brand); }
+.brand svg { width: 36px; height: 36px; }
+.brand span { font-size: 26px; line-height: 1; }
+.brand small { display: block; font: 11px/1.4 "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.masthead nav ul { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
+.masthead nav a { text-decoration: none; font-weight: 700; font-size: 15px; padding: 26px 0; border-bottom: 3px solid transparent; }
+.masthead nav a:hover { border-color: var(--accent); }
+
+.hero { background: linear-gradient(120deg, var(--brand) 0%, #2c5288 100%); color: #fff; padding: 64px 0 72px; }
+.hero h1 { color: #fff; font-size: 46px; max-width: 640px; }
+.hero .lede { font-size: 20px; max-width: 560px; color: #dce4f2; margin: 0 0 32px; }
+.ctas { display: flex; gap: 14px; flex-wrap: wrap; margin: 0; }
+.hero a.button { background: var(--accent); color: var(--ink); border-radius: 2px; padding: 15px 28px; }
+.hero a.button.secondary { background: transparent; color: #fff; box-shadow: inset 0 0 0 2px #fff; }
+
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-bottom: 1px solid var(--line); }
+.feature { padding: 28px 24px 28px 0; }
+.feature + .feature { border-left: 1px solid var(--line); padding-left: 24px; }
+.feature h2 { font-size: 20px; margin: 0; color: var(--brand); }
+.feature h2::before { content: ""; display: block; width: 32px; height: 3px; background: var(--accent); margin-bottom: 14px; }
+@media (max-width: 700px) { .features { grid-template-columns: 1fr; } .feature + .feature { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); } }
+
+.ways { padding: 48px 16px; }
+.ways > h2 { font-size: 28px; margin: 0 0 20px; color: var(--brand); }
+.journeys { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.journeys a { display: block; height: 100%; padding: 24px; background: var(--tint); text-decoration: none; color: var(--ink); border-top: 4px solid var(--brand); }
+.journeys a:hover { border-top-color: var(--accent); }
+.journeys strong { display: block; font: 22px/1.3 Georgia, serif; color: var(--brand); margin-bottom: 6px; }
+.journeys span { color: var(--muted); }
+.notice { border: 1px solid var(--line); padding: 16px 20px; font-size: 14px; color: var(--muted); margin: 0 0 56px; background: #fafbfd; }
+
+.page.with-aside { margin-top: 40px; }
+.stepper { list-style: none; margin: 0 0 32px; padding: 0; display: flex; gap: 0; counter-reset: s; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.stepper li { display: flex; align-items: center; gap: 10px; padding: 0 20px 14px 0; color: var(--muted); font-size: 14px; }
+.stepper li span { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; border: 2px solid var(--line); font-weight: 700; }
+.stepper li.current { color: var(--brand); font-weight: 700; }
+.stepper li.current span { background: var(--brand); border-color: var(--brand); color: #fff; }
+.stepper li.done span { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+
+.row > label, legend { font-size: 17px; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="url"], input[type="password"], select, textarea { border: 1px solid #7d889c; border-radius: 2px; padding: 12px 14px; }
+.choice.card { border-radius: 2px; min-width: 200px; background: #fff; }
+.choice.card:has(input:checked) { background: var(--tint); }
+button.primary, a.button { border-radius: 2px; padding: 14px 32px; }
+.back { font-weight: 700; }
+
+.side { display: grid; gap: 20px; }
+.panel { background: var(--tint); padding: 22px 24px; border-top: 4px solid var(--accent); }
+.panel h2 { font-size: 20px; margin: 0 0 10px; color: var(--brand); }
+.panel p { margin: 0; }
+.ticks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.ticks li { padding-left: 28px; position: relative; }
+.ticks li::before { content: "✓"; position: absolute; left: 0; color: var(--brand); font-weight: 700; }
+
+.result { border: 0; background: var(--tint); border-radius: 0; border-left: 4px solid var(--accent); }
+
+.site-footer { background: var(--brand); color: #c9d3e6; padding: 40px 0; font-size: 14px; margin-top: 40px; }
+.site-footer .cols { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 32px; }
+.site-footer h2 { color: #fff; font-size: 18px; margin: 0 0 10px; }
+.site-footer ul { list-style: none; padding: 0; margin: 0; }
+.site-footer a { color: #fff; }
+@media (max-width: 700px) { .site-footer .cols { grid-template-columns: 1fr; } .hero h1 { font-size: 34px; } }

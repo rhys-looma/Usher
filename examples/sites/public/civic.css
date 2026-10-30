@@ -1,0 +1,60 @@
+/* Fernbrook: a council service. Plain, black header, big type, a caption above the question. */
+:root { --ink: #0b0c0c; --muted: #505a5f; --line: #b1b4b6; --brand-ink: #fff; --error: #d4351c; --focus: #ffdd00; --bg: #fff; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 19px; line-height: 1.32; }
+a { color: #1d70b8; text-underline-offset: 0.15em; }
+a:visited { color: #4c2c92; }
+a:focus { background: var(--focus); color: var(--ink); outline: none; box-shadow: 0 4px var(--ink); text-decoration: none; }
+
+.wrap { max-width: 960px; padding: 0 20px; }
+.masthead { background: var(--ink); color: #fff; border-bottom: 10px solid var(--brand); }
+.masthead .wrap { padding-top: 12px; padding-bottom: 10px; }
+.brand { color: #fff !important; text-decoration: none; font-weight: 700; font-size: 26px; display: inline-flex; align-items: center; gap: 10px; }
+.brand svg { width: 30px; height: 30px; }
+.brand span { font-weight: 400; margin-left: -4px; }
+.service { border-bottom: 1px solid var(--line); }
+.service .wrap { padding-top: 14px; padding-bottom: 14px; font-weight: 700; font-size: 22px; }
+.crumbs ol { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; font-size: 16px; }
+.crumbs li + li::before { content: "›"; margin: 0 10px; color: var(--muted); }
+.crumbs a, .crumbs a:visited { color: var(--ink); }
+
+.page { max-width: 960px; margin: 30px auto 60px; padding: 0 20px; }
+main { max-width: 640px; }
+h1 { font-size: 48px; line-height: 1.04; margin: 0 0 30px; }
+h2 { font-size: 27px; margin: 40px 0 15px; }
+.lede { font-size: 24px; margin-bottom: 30px; }
+.caption { font-size: 24px; color: var(--muted); margin: 0 0 5px; }
+.caption span { display: block; font-size: 19px; }
+
+.row { margin-bottom: 30px; }
+.row > label, legend { font-weight: 700; font-size: 19px; margin-bottom: 10px; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="url"], input[type="password"], select, textarea {
+  border: 2px solid var(--ink); border-radius: 0; padding: 7px 8px; font-size: 19px; max-width: 30em;
+}
+input:focus, select:focus, textarea:focus { outline: 3px solid var(--focus); outline-offset: 0; box-shadow: inset 0 0 0 2px; }
+.choice input { width: 32px; height: 32px; accent-color: var(--ink); }
+.choice.card { border: 0; padding: 0; min-width: 0; }
+.choice.card:has(input:checked) { box-shadow: none; font-weight: 400; }
+.choices.cards { display: grid; gap: 10px; }
+.has-error { border-left: 5px solid var(--error); padding-left: 15px; }
+.error-message { font-weight: 700; }
+.error-summary { border: 5px solid var(--error); border-radius: 0; padding: 20px; }
+.error-summary h2 { font-size: 24px; margin: 0 0 15px; }
+
+.actions { justify-content: flex-start; }
+button.primary, a.button { background: #00703c; color: #fff; border-radius: 0; box-shadow: 0 2px 0 #002d18; padding: 9px 14px; font-weight: 400; font-size: 19px; }
+button.primary { margin-left: 0; }
+.back { order: 2; color: var(--ink); }
+
+.services { list-style: none; padding: 0; margin: 0; }
+.services li { border-top: 1px solid var(--line); padding: 15px 0; }
+.services li a { font-weight: 700; font-size: 22px; }
+.services li p { margin: 5px 0 0; color: var(--muted); }
+
+.result { border: 0; border-radius: 0; background: #00703c; color: #fff; text-align: center; padding: 35px; }
+.result .headline, .result .headline span, .result .ref { color: #fff; }
+.result .headline { font-size: 48px; }
+
+.site-footer { background: #f3f2f1; border-top: 1px solid var(--line); padding: 25px 0; font-size: 16px; color: var(--muted); }
+.site-footer .links { list-style: none; padding: 0; margin: 0 0 15px; display: flex; gap: 20px; flex-wrap: wrap; color: var(--ink); }
+.site-footer a { color: var(--ink); }
+@media (max-width: 640px) { h1 { font-size: 32px; } .brand { font-size: 22px; } }

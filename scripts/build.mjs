@@ -3,6 +3,7 @@
 
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -69,3 +70,28 @@ await build({
   logLevel: 'warning',
 });
 console.log('built packages/mcp/dist/cli.js');
+
+// The demo sites built as apps (examples/sites): Kestrel in React, Hollyhock in Vue. Served by
+// the sites' own server from public/, so the strict CSP holds. Skipped where the sites aren't
+// copied in (the registry's image).
+for (const [entry, out] of [
+  ['examples/sites/apps/kestrel.jsx', 'examples/sites/public/kestrel.app.js'],
+  ['examples/sites/apps/hollyhock.js', 'examples/sites/public/hollyhock.app.js'],
+]) {
+  if (!existsSync(new URL(`../${entry}`, import.meta.url))) continue;
+  await build({
+    absWorkingDir: root,
+    entryPoints: [entry],
+    outfile: out,
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    target: 'es2020',
+    minify: true,
+    jsx: 'automatic',
+    legalComments: 'none',
+    define: { 'process.env.NODE_ENV': '"production"', __VUE_OPTIONS_API__: 'false', __VUE_PROD_DEVTOOLS__: 'false', __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false' },
+    logLevel: 'warning',
+  });
+  console.log(`built ${out}`);
+}

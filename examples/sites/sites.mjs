@@ -4,6 +4,10 @@
 // Field types: text, email, tel, date, number, textarea, select, radio (card: true for card
 // radios), checkbox. showIf: [field, value] shows a field only for that answer. A journey's result(v, t)
 // gets the answers by step (v) and the same answers as the person saw them, option labels (t).
+//
+// look picks the site's design (public/<look>.css and its page furniture in server.mjs); app: 'react'
+// or 'vue' draws the site in the browser instead (apps/). The rest (heading, contact, aside, menu,
+// …) is what that design shows.
 
 const list = (...labels) => labels.map((label) => ({ value: slug(label), label }));
 const yesNo = list('Yes', 'No');
@@ -32,6 +36,12 @@ export const sites = {
     short: 'Larchmont',
     tagline: 'Mortgages',
     colour: '#1f3b63',
+    look: 'bank',
+    heading: 'A mortgage that moves with you',
+    contact: { phone: '0808 157 0192', hours: 'Monday to Friday 8am to 8pm, Saturday 9am to 1pm' },
+    notice: 'Representative example: a mortgage of £200,000 over 25 years on our 5-year fixed rate of 4.29%, then our variable rate of 6.99% for the remaining 20 years, would mean 60 payments of £1,086 and 240 payments of £1,315. The overall cost for comparison is 6.3% APRC. Rates are examples only.',
+    aside: { title: 'Why Larchmont', points: ['No effect on your credit score', 'An answer in principle in ten minutes', 'Advice from a named adviser, free'] },
+    footer: 'Larchmont Mortgages is a fictional lender. Your home may be repossessed if you do not keep up repayments on your mortgage.',
     blurb: 'Find out how much you could borrow in ten minutes, with no effect on your credit score.',
     journeys: {
       aip: {
@@ -125,6 +135,12 @@ export const sites = {
     short: 'Kestrel',
     tagline: 'Gas and electricity',
     colour: '#0f6b4f',
+    look: 'bright',
+    app: 'react',
+    heading: 'Fairer energy, switched in five minutes',
+    contact: { phone: '0808 157 0230', hours: 'Every day, 8am to 8pm' },
+    rating: { score: '4.8', reviews: '12,431' },
+    footer: 'Kestrel Energy is a fictional supplier. Prices shown are examples only.',
     blurb: 'Simple tariffs, no exit fees on variable. See your price and switch in a few minutes.',
     journeys: {
       switch: {
@@ -187,6 +203,10 @@ export const sites = {
     short: 'Fernbrook',
     tagline: 'Council services',
     colour: '#24513a',
+    look: 'civic',
+    heading: 'Council services',
+    contact: { phone: '0808 157 0263', hours: 'Monday to Friday, 9am to 5pm' },
+    footer: 'Fernbrook Borough Council is a fictional council.',
     blurb: 'Apply, pay and report it online.',
     journeys: {
       permit: {
@@ -271,11 +291,20 @@ export const sites = {
     short: 'Hollyhock',
     tagline: 'Veterinary practice',
     colour: '#7a3e6c',
+    look: 'friendly',
+    app: 'vue',
+    heading: 'Care for every paw, claw and whisker',
+    contact: { phone: '0808 157 0345', hours: 'Monday to Friday 8am to 7pm, Saturday 9am to 1pm' },
+    practices: [
+      { name: 'Fernbrook', address: '2 Orchard Row, Fernbrook' },
+      { name: 'Larkhill', address: 'Unit 4, The Maltings, Larkhill' },
+    ],
+    footer: 'Hollyhock Vets is a fictional practice. In an emergency, call your nearest out-of-hours vet.',
     blurb: 'Friendly vets in Fernbrook and Larkhill. Book online, any time.',
     journeys: {
       book: {
         title: 'Book an appointment',
-        intent: 'booking.vet_appointment',
+        intent: 'booking.appointment',
         summary: 'Check-ups, vaccinations and poorly pets.',
         action: 'Book appointment',
         disclosure: 'If your pet is having trouble breathing, is bleeding heavily or has collapsed, call us now on 0100 000 0000. Do not book online.',
@@ -319,6 +348,12 @@ export const sites = {
     short: 'Packhorse',
     tagline: 'Home removals',
     colour: '#8a4b1f',
+    look: 'bold',
+    heading: 'Moving house? We will carry the heavy stuff.',
+    contact: { phone: '0808 157 0418', hours: 'Monday to Saturday, 8am to 6pm' },
+    review: { quote: 'Three lads, one van and not a scratch on the piano. Done by lunchtime.', name: 'Joanne, moved from Fernbrook to Larkhill' },
+    aside: { title: 'The Packhorse promise', points: ['A fixed price, agreed up front', 'Our own crews, never subcontracted', 'Insured for every box'] },
+    footer: 'Packhorse Removals is a fictional company.',
     blurb: 'Family-run removals since 1987. A fixed price, no surprises.',
     journeys: {
       quote: {
@@ -379,6 +414,17 @@ export const sites = {
     short: 'Little Fig',
     tagline: 'Kitchen and wine bar',
     colour: '#a3462b',
+    look: 'boutique',
+    heading: 'Eat, drink, linger',
+    contact: { phone: '0808 157 0577', address: '14 Mill Lane, Old Town, Fernbrook', hours: ['Tuesday to Thursday, 5pm to 10pm', 'Friday and Saturday, noon to 11pm', 'Sunday, noon to 4pm'] },
+    menu: [
+      ['Sourdough, cultured butter', '4'],
+      ['Burrata, blood orange, fennel', '9'],
+      ['Charred hispi cabbage, miso, hazelnut', '8'],
+      ['Lamb shoulder, white beans, salsa verde', '16'],
+      ['Fig leaf ice cream, honeycomb', '7'],
+    ],
+    footer: 'Little Fig is a fictional restaurant.',
     blurb: 'Small plates, natural wine and a terrace in the Old Town. Open Tuesday to Sunday.',
     journeys: {
       table: {

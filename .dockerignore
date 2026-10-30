@@ -15,3 +15,4 @@ reports/*
 !reports/learning.json
 REPORT.md
 examples/sites/.settings.json
+examples/sites/public/*.app.js

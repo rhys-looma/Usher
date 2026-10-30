@@ -16,3 +16,4 @@ demo-out/
 
 # Demo sites: each site owner's local Usher settings
 examples/sites/.settings.json
+examples/sites/public/*.app.js
