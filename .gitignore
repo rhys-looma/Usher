@@ -13,3 +13,6 @@ private/
 
 # The live demo runner's stills
 demo-out/
+
+# Demo sites: each site owner's local Usher settings
+examples/sites/.settings.json

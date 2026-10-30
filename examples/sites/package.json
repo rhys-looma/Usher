@@ -1,0 +1,12 @@
+{
+  "name": "usher-demo-sites",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Six fictional businesses (a mortgage lender, an energy supplier, a council, a vet, a removals firm and a restaurant) for trying Usher's site apps and mapping. None is real.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}
