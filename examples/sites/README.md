@@ -54,7 +54,7 @@ This uses Larchmont as the example; the steps are the same for every site.
 
 ## In public
 
-Production serves all six sites from one container, each on its own host name: `larchmont.usher.run`, `kestrel.usher.run`, `fernbrook.usher.run`, `hollyhock.usher.run`, `packhorse.usher.run` and `littlefig.usher.run` (`SITE_DOMAIN=usher.run`). Joining works as above, with the production registry:
+Production serves all six sites from one container, each at its own name under the registry's host: `larchmont.`, `kestrel.`, `fernbrook.`, `hollyhock.`, `packhorse.` and `littlefig.` (`SITE_DOMAIN` is the registry's host). Joining works as above, with the production registry:
 
 - `/__settings` asks for the admin key, the one in Secrets Manager that also guards Brightwater's `/__admin`. Only the site key can be set; the registry is always the production one. Settings last until the next deploy. A claim the registry has already checked stays checked.
 - Anyone can reach the sites, so:

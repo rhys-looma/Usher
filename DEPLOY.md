@@ -314,7 +314,7 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 
 ## The demo sites
 
-Six more fictional businesses ([examples/sites](examples/sites/)), from the same image as the demo site with another command, in one task: `usher-demo-sites`, 0.25 vCPU and 0.5 GB, about $10 a month. Each is at `<name>.<registry host>` (`larchmont.usher.run`). Set `demo_sites` in `terraform.tfvars` to the names, or leave it out for none: Terraform adds the hosts to the certificate, CloudFront and DNS, two ALB rules, a security group, the task definition and the service. Then `DEMO_SITES` and `DEMO_SITES_SERVICE` in `config.env` (from `terraform output -raw config_env`), and later deploys are `scripts/ecs-deploy.sh <sha> all` (or `demo-sites`).
+Six more fictional businesses ([examples/sites](examples/sites/)), from the same image as the demo site with another command, in one task: `usher-demo-sites`, 0.25 vCPU and 0.5 GB, about $10 a month. Each is at `<name>.<registry host>` (Larchmont at `larchmont.` and the registry's host). Set `demo_sites` in `terraform.tfvars` to the names, or leave it out for none: Terraform adds the hosts to the certificate, CloudFront and DNS, two ALB rules, a security group, the task definition and the service. Then `DEMO_SITES` and `DEMO_SITES_SERVICE` in `config.env` (from `terraform output -raw config_env`), and later deploys are `scripts/ecs-deploy.sh <sha> all` (or `demo-sites`).
 
 | Variable | Meaning |
 | --- | --- |

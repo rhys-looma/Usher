@@ -9,9 +9,9 @@
 //   SITES=larchmont node server.mjs     only the sites named (comma-separated)
 //   PORT_BASE=5300 node server.mjs      another range of ports
 //
-// In public, one port serves every site by host name, <site>.<SITE_DOMAIN> (larchmont.usher.run):
+// In public, one port serves every site by host name, <site>.<SITE_DOMAIN>:
 //
-//   SITE_DOMAIN=usher.run PORT=4300 USHER_REGISTRY_URL=https://… USHER_ADMIN_KEY=… node server.mjs
+//   SITE_DOMAIN=registry.example PORT=4300 USHER_REGISTRY_URL=https://… USHER_ADMIN_KEY=… node server.mjs
 //
 // Each site's owner turns Usher on at /__settings with the site key the registry issued. That adds
 // the script tag, the claim file at /.well-known/usher-site.json, /.well-known/usher.json and the
