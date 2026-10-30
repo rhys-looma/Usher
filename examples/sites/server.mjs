@@ -1,49 +1,84 @@
 // A gaggle of fictional businesses that would want their own assistant app: a mortgage lender, an
-// energy supplier, a council, a vet, a removals firm and a restaurant (sites.mjs). Each one runs on
-// its own port, so each is its own origin: it can join Usher, be mapped and publish an app like a
-// real site. None of them is a real business. No dependencies; needs Node 20+.
+// energy supplier, a council, a vet, a removals firm and a restaurant (sites.mjs). Each one is its
+// own origin, so it can join Usher, be mapped and publish an app like a real site. None of them is
+// a real business. No dependencies; needs Node 20+.
+//
+// Locally, each site gets its own port:
 //
 //   node server.mjs                     every site, on ports 4301 to 4306
 //   SITES=larchmont node server.mjs     only the sites named (comma-separated)
 //   PORT_BASE=5300 node server.mjs      another range of ports
 //
-// Each site's owner turns Usher on at /__settings (from this machine only): the registry's address
-// and the site key it issued. That adds the script tag, the claim file at
-// /.well-known/usher-site.json, /.well-known/usher.json and the server-side token check on each
-// journey's final step. Settings are kept in .settings.json (gitignored). Or set them up front:
+// In public, one port serves every site by host name, <site>.<SITE_DOMAIN> (larchmont.usher.run):
 //
-//   USHER_REGISTRY_URL=<registry URL>   the registry, for every site
-//   USHER_SITE_KEY_LARCHMONT=usp_…      one site's key; one variable per site
+//   SITE_DOMAIN=usher.run PORT=4300 USHER_REGISTRY_URL=https://… USHER_ADMIN_KEY=… node server.mjs
+//
+// Each site's owner turns Usher on at /__settings with the site key the registry issued. That adds
+// the script tag, the claim file at /.well-known/usher-site.json, /.well-known/usher.json and the
+// server-side token check on each journey's final step. Locally, settings open from this machine
+// only, can name any registry, and are kept in .settings.json (gitignored). In public, they need
+// USHER_ADMIN_KEY, the registry is USHER_REGISTRY_URL and nothing else, and they last until the
+// next deploy. USHER_SITE_KEY_LARCHMONT=usp_… (one per site) sets a key up front.
 //
 // The token check needs the middleware built: `npm run build` at the repository root.
+//
+// Open to anyone, so: nothing to upload and no passwords; a site's host names only; small request
+// bodies; rate limits per client; sessions that expire; strict security headers; no stack traces.
 
 import { createServer } from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { sites } from './sites.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const DOMAIN = process.env.SITE_DOMAIN?.toLowerCase();
+const PUBLIC = Boolean(DOMAIN);
 const PORT_BASE = Number(process.env.PORT_BASE ?? 4301);
+const REGISTRY = process.env.USHER_REGISTRY_URL?.replace(/\/$/, '') ?? '';
+const ADMIN_KEY = process.env.USHER_ADMIN_KEY ?? '';
+// In public: CloudFront, then the load balancer (packages/registry/src/forwarded.ts).
+const HOPS = Number(process.env.TRUSTED_PROXY_HOPS ?? (PUBLIC ? 2 : 0));
 const MAX_SESSIONS = 2000;
+const SESSION_MS = 60 * 60_000;
+const MAX_BODY = 16 * 1024;
 const SETTINGS_FILE = join(here, '.settings.json');
 const MIDDLEWARE = join(here, '../../packages/site-middleware/dist/index.js');
-// site id -> { registry, siteKey }
-const saved = existsSync(SETTINGS_FILE) ? JSON.parse(await readFile(SETTINGS_FILE, 'utf8')) : {};
+// site id -> { registry, siteKey }; a file locally, memory only in public
+const saved = !PUBLIC && existsSync(SETTINGS_FILE) ? JSON.parse(await readFile(SETTINGS_FILE, 'utf8')) : {};
 const middleware = existsSync(MIDDLEWARE) ? await import(MIDDLEWARE) : null;
+if (PUBLIC && (!REGISTRY.startsWith('https://') || ADMIN_KEY.length < 16)) throw new Error('In public (SITE_DOMAIN) the sites need USHER_REGISTRY_URL on https and USHER_ADMIN_KEY.');
 
 const wanted = process.env.SITES ? process.env.SITES.split(',').map((s) => s.trim()) : Object.keys(sites);
 for (const id of wanted) if (!sites[id]) throw new Error(`No site called ${id}. The sites are: ${Object.keys(sites).join(', ')}`);
 
-Object.keys(sites).forEach((id, i) => {
-  if (wanted.includes(id)) serve(id, sites[id], PORT_BASE + i);
-});
+const limits = new Limits();
+if (PUBLIC) {
+  // host name -> handler
+  const byHost = new Map(wanted.map((id) => [`${id}.${DOMAIN}`, handler(id, sites[id])]));
+  const port = Number(process.env.PORT ?? 4300);
+  createServer((req, res) => {
+    const host = String(req.headers.host ?? '').toLowerCase().replace(/:\d+$/, '');
+    if (req.url === '/healthz') return json(res, { ok: true, sites: wanted.length });
+    const handle = byHost.get(host);
+    if (!handle) return plain(res, 421, 'Unknown site.');
+    handle(req, res);
+  }).listen(port, process.env.HOST ?? '::', () => console.log(`${wanted.length} demo sites on port ${port}, at <site>.${DOMAIN}`));
+} else {
+  Object.keys(sites).forEach((id, i) => {
+    if (!wanted.includes(id)) return;
+    const port = PORT_BASE + i;
+    createServer(handler(id, sites[id])).listen(port, process.env.HOST ?? '::', () => console.log(`${sites[id].name} (demo) on port ${port}`));
+  });
+}
 
-function serve(id, site, port) {
+/** One site's request handler. */
+function handler(id, site) {
+  const originOf = (req) => (PUBLIC ? `https://${id}.${DOMAIN}` : `http://${req.headers.host}`);
   const usher = {
-    registry: saved[id]?.registry ?? process.env.USHER_REGISTRY_URL?.replace(/\/$/, '') ?? '',
+    registry: saved[id]?.registry ?? REGISTRY,
     siteKey: saved[id]?.siteKey ?? process.env[`USHER_SITE_KEY_${id.toUpperCase()}`] ?? '',
     checks: {},
   };
@@ -55,23 +90,29 @@ function serve(id, site, port) {
         (usher.registry &&
           middleware?.createUsherCheck({
             registry: usher.registry,
+            ...(process.env.USHER_REGISTRY_INTERNAL_URL && { internalUrl: process.env.USHER_REGISTRY_INTERNAL_URL }),
             intent: j.intent,
-            origin: (req) => `http://${req.headers.host}`,
+            origin: originOf,
             ...(usher.siteKey && { siteKey: usher.siteKey }),
-            allowHttpDirectories: true,
+            // A local demo: agents' key directories may be served over http. Never in public.
+            allowHttpDirectories: !PUBLIC,
           })) ||
           null,
       ]),
     );
   };
   arm();
-  // session id -> { [journey]: { [step]: values, result } }; the oldest go past MAX_SESSIONS
+  // session id -> { seen, [journey]: { [step]: values, result } }; the oldest go past MAX_SESSIONS
   const sessions = new Map();
   const view = render(site, usher);
 
-  const server = createServer(async (req, res) => {
+  return async (req, res) => {
     try {
-      const url = new URL(req.url, `http://${req.headers.host}`);
+      headers(res, usher.registry);
+      const client = clientAddress(req);
+      if (!limits.allow(`all:${client}`, 240) || (req.method === 'POST' && !limits.allow(`post:${client}`, 40))) return plain(res, 429, 'Too many requests. Try again in a minute.');
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'POST') return plain(res, 405, 'Method not allowed.');
+      const url = new URL(req.url, 'http://site');
       const [, section, key, extra] = url.pathname.split('/');
       const { registry, siteKey } = usher;
       if (url.pathname === '/healthz') return json(res, { ok: true, site: id, usher: Boolean(registry) });
@@ -79,18 +120,23 @@ function serve(id, site, port) {
       if (url.pathname === '/.well-known/usher-site.json' && siteKey) return json(res, { usher_site: '0.1', site_key: siteKey });
       if (url.pathname === '/.well-known/usher.json' && registry) return json(res, { usher: '0.1', registry, knock_url: `${registry}/knock`, keys_url: `${registry}/.well-known/usher-keys.json` });
 
-      // The owner's settings: only from this machine, as if behind the site's own admin login.
+      // The owner's settings, as if behind the site's own admin login: locally from this machine
+      // only; in public with the admin key, a few tries an hour.
       if (section === '__settings') {
-        if (!/^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress ?? '')) return html(res, view.page('Not allowed', '<h1>Settings are only open from this machine</h1>'), 403);
+        res.setHeader('Cache-Control', 'no-store');
+        if (!PUBLIC && !/^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress ?? '')) return html(res, view.page('Not allowed', '<h1>Settings are only open from this machine</h1>'), 403);
         if (req.method === 'POST') {
+          if (PUBLIC && (!limits.allow(`settings:${client}`, 10, 3_600_000) || !limits.allow('settings', 60, 3_600_000))) return plain(res, 429, 'Too many tries. Try again later.');
           const form = new URLSearchParams(await body(req));
-          const reg = (form.get('registry') ?? '').trim().replace(/\/$/, '');
+          if (PUBLIC && !sameKey(form.get('admin_key') ?? '', ADMIN_KEY)) return html(res, view.settings(middleware, 'That admin key is not right.'), 401);
+          const reg = PUBLIC ? REGISTRY : (form.get('registry') ?? '').trim().replace(/\/$/, '');
           const key = (form.get('site_key') ?? '').trim();
-          if ((reg && !/^https?:\/\/[^\s"<>]+$/.test(reg)) || (key && !/^usp_[\w-]{1,64}$/.test(key))) return html(res, view.settings(middleware, 'That address or key does not look right.'), 422);
+          if ((reg && !/^https?:\/\/[^\s"'<>]+$/.test(reg)) || (key && !/^usp_[\w-]{1,64}$/.test(key))) return html(res, view.settings(middleware, 'That address or key does not look right.'), 422);
           Object.assign(usher, { registry: reg, siteKey: key });
           arm();
           saved[id] = { registry: reg, siteKey: key };
-          await writeFile(SETTINGS_FILE, `${JSON.stringify(saved, null, 2)}\n`);
+          if (!PUBLIC) await writeFile(SETTINGS_FILE, `${JSON.stringify(saved, null, 2)}\n`);
+          console.log(`${id}: settings saved (site key ${key ? 'set' : 'cleared'})`);
           return redirect(res, '/__settings?saved');
         }
         return html(res, view.settings(middleware, '', url.searchParams.has('saved')));
@@ -99,7 +145,7 @@ function serve(id, site, port) {
       const session = getSession(sessions, req, res);
       if (req.method === 'GET' && url.pathname === '/') return html(res, view.home());
 
-      const journey = site.journeys[section];
+      const journey = Object.hasOwn(site.journeys, section) ? site.journeys[section] : undefined;
       if (!journey) return html(res, view.page('Not found', '<h1>Page not found</h1><p><a href="/">Home</a></p>'), 404);
       const state = (session[section] ??= {});
       const order = Object.keys(journey.steps);
@@ -111,7 +157,7 @@ function serve(id, site, port) {
       }
       if (!key) return redirect(res, `/${section}/${order[0]}`);
 
-      const step = journey.steps[key];
+      const step = Object.hasOwn(journey.steps, key) ? journey.steps[key] : undefined;
       if (!step) return html(res, view.page('Not found', '<h1>Page not found</h1><p><a href="/">Home</a></p>'), 404);
       if (url.searchParams.has('restart')) for (const k of Object.keys(state)) delete state[k];
       // Each step needs the ones before it done first.
@@ -119,32 +165,31 @@ function serve(id, site, port) {
       if (missing) return redirect(res, `/${section}/${missing}`);
       const final = order.indexOf(key) === order.length - 1;
 
-      if (req.method === 'GET') return html(res, view.step(section, journey, key, state[key] ?? {}));
-      if (req.method === 'POST') {
-        const raw = await body(req);
-        const params = new URLSearchParams(raw);
-        // The final step is consequential: an agent needs a token from a knock.
-        const usherCheck = final && usher.checks[section];
-        if (usherCheck) {
-          const check = await usherCheck.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
-          if (check.status === 'knock_required') return usherCheck.reject(req, res, check, 'form.submit');
-        }
-        const values = read(step, params);
-        const errors = validate(step, values);
-        if (errors.length) return html(res, view.step(section, journey, key, values, errors), 422);
-        state[key] = values;
-        if (!final) return redirect(res, `/${section}/${order[order.indexOf(key) + 1]}`);
-        const labels = Object.fromEntries(order.map((k) => [k, Object.fromEntries(journey.steps[k].fields.map((f) => [f.name, f.options?.find((o) => o.value === state[k][f.name])?.label ?? state[k][f.name]]))]));
-        state.result = journey.result(state, labels);
-        return redirect(res, `/${section}/result`);
+      if (req.method !== 'POST') return html(res, view.step(section, journey, key, state[key] ?? {}));
+      const raw = await body(req);
+      const params = new URLSearchParams(raw);
+      // The final step is consequential: an agent needs a token from a knock.
+      const usherCheck = final && usher.checks[section];
+      if (usherCheck) {
+        const check = await usherCheck.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
+        if (check.status === 'knock_required') return usherCheck.reject(req, res, check, 'form.submit');
       }
-      html(res, view.page('Not found', '<h1>Page not found</h1>'), 404);
+      const values = read(step, params);
+      const errors = validate(step, values);
+      if (errors.length) return html(res, view.step(section, journey, key, values, errors), 422);
+      state[key] = values;
+      if (!final) return redirect(res, `/${section}/${order[order.indexOf(key) + 1]}`);
+      const labels = Object.fromEntries(order.map((k) => [k, Object.fromEntries(journey.steps[k].fields.map((f) => [f.name, f.options?.find((o) => o.value === state[k][f.name])?.label ?? state[k][f.name]]))]));
+      state.result = journey.result(state, labels);
+      // The answers aren't needed once there's a result; only the result is kept, for the result page.
+      for (const k of order) state[k] = {};
+      return redirect(res, `/${section}/result`);
     } catch (err) {
-      console.error(err);
-      if (!res.headersSent) html(res, '<h1>Something went wrong</h1>', 500);
+      if (err instanceof TooLarge) return plain(res, 413, 'That request is too large.');
+      console.error(`${id}: ${err?.message ?? 'error'}`);
+      if (!res.headersSent) plain(res, 500, 'Something went wrong.');
     }
-  });
-  server.listen(port, process.env.HOST ?? '::', () => console.log(`${site.name} (demo) on port ${port}`));
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -232,7 +277,8 @@ ${r.next ? `<p><a class="button" href="/${base}/result/next">${esc(r.next.label)
 <p class="lede">What ${esc(site.name)}'s owner would set in their site's admin. Get a site key at <code>/sites/new</code> on the registry, with this site's address.</p>
 ${saved ? '<p class="saved" role="status">Saved.</p>' : ''}${error ? `<div class="error-summary" role="alert"><h2>${esc(error)}</h2></div>` : ''}
 <form method="post" action="/__settings">
-<div class="row"><label for="registry">Registry address</label><input type="url" id="registry" name="registry" value="${esc(usher.registry)}" placeholder="https://registry.example"></div>
+${PUBLIC ? `<p>Registry: <code>${esc(REGISTRY)}</code></p>
+<div class="row"><label for="admin_key">Admin key</label><input type="password" id="admin_key" name="admin_key" autocomplete="off" required></div>` : `<div class="row"><label for="registry">Registry address</label><input type="url" id="registry" name="registry" value="${esc(usher.registry)}" placeholder="https://registry.example"></div>`}
 <div class="row"><label for="site_key">Site key</label><input type="text" id="site_key" name="site_key" value="${esc(usher.siteKey)}" placeholder="usp_…"></div>
 <div class="actions"><button type="submit" class="primary">Save</button></div>
 </form>
@@ -309,15 +355,64 @@ function validate(step, values) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** The visitor's session, in memory: gone after an hour without a visit, or when MAX_SESSIONS newer ones come. */
 function getSession(sessions, req, res) {
+  const now = Date.now();
   const sid = /(?:^|;\s*)demo_sid=([0-9a-f-]{36})/.exec(req.headers.cookie ?? '')?.[1];
-  if (sid && sessions.has(sid)) return sessions.get(sid);
+  const found = sid && sessions.get(sid);
+  if (found && now - found.seen < SESSION_MS) {
+    found.seen = now;
+    return found.data;
+  }
+  if (sid) sessions.delete(sid);
+  for (const [k, v] of sessions) if (sessions.size >= MAX_SESSIONS || now - v.seen >= SESSION_MS) sessions.delete(k); else break;
   const id = randomUUID();
-  const session = {};
-  if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
+  const session = { seen: now, data: {} };
   sessions.set(id, session);
-  res.setHeader('Set-Cookie', `demo_sid=${id}; Path=/; HttpOnly; SameSite=Lax`);
-  return session;
+  res.setHeader('Set-Cookie', `demo_sid=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MS / 1000}${PUBLIC ? '; Secure' : ''}`);
+  return session.data;
+}
+
+/** Security headers on every response. The page loads only its own files and the registry's script. */
+function headers(res, registry) {
+  const usher = registry ? ` ${registry}` : '';
+  res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self'${usher}; connect-src 'self'${usher}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  if (PUBLIC) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+}
+
+/** The client's address for rate limits, in memory only: the entry the outermost trusted proxy wrote. */
+function clientAddress(req) {
+  if (HOPS > 0) {
+    const chain = String(req.headers['x-forwarded-for'] ?? '').split(',').map((a) => a.trim()).filter(Boolean);
+    if (chain.length) return chain[Math.max(0, chain.length - HOPS)];
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
+/** Fixed-window counters: at most `max` per key per window. Old windows are dropped as they pass. */
+function Limits() {
+  const counts = new Map();
+  this.allow = (key, max, windowMs = 60_000) => {
+    const now = Date.now();
+    if (counts.size > 50_000) for (const [k, v] of counts) if (v.until <= now) counts.delete(k);
+    const entry = counts.get(key);
+    if (!entry || entry.until <= now) {
+      counts.set(key, { n: 1, until: now + windowMs });
+      return true;
+    }
+    entry.n++;
+    return entry.n <= max;
+  };
+}
+
+class TooLarge extends Error {}
+
+function sameKey(given, expected) {
+  return timingSafeEqual(createHash('sha256').update(given).digest(), createHash('sha256').update(expected).digest());
 }
 
 async function serveStatic(res, file) {
@@ -333,15 +428,24 @@ async function serveStatic(res, file) {
 }
 
 function body(req) {
+  if (Number(req.headers['content-length'] ?? 0) > MAX_BODY) return Promise.reject(new TooLarge());
   return new Promise((resolve, reject) => {
     let data = '';
     req.on('data', (chunk) => {
       data += chunk;
-      if (data.length > 1e6) req.destroy();
+      if (data.length > MAX_BODY) {
+        reject(new TooLarge());
+        req.destroy();
+      }
     });
     req.on('end', () => resolve(data));
     req.on('error', reject);
   });
+}
+
+function plain(res, status, text) {
+  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end(text);
 }
 
 function html(res, content, status = 200) {

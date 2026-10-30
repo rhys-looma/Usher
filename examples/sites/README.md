@@ -52,6 +52,20 @@ This uses Larchmont as the example; the steps are the same for every site.
 
 `/__settings` only opens from the same machine, as if it were behind the site's own admin login. Settings are kept in `.settings.json` here (gitignored). Or set them up front with `USHER_REGISTRY_URL` and `USHER_SITE_KEY_<SITE>` (for example `USHER_SITE_KEY_LARCHMONT`).
 
+## In public
+
+Production serves all six sites from one container, each on its own host name: `larchmont.usher.run`, `kestrel.usher.run`, `fernbrook.usher.run`, `hollyhock.usher.run`, `packhorse.usher.run` and `littlefig.usher.run` (`SITE_DOMAIN=usher.run`). Joining works as above, with the production registry:
+
+- `/__settings` asks for the admin key, the one in Secrets Manager that also guards Brightwater's `/__admin`. Only the site key can be set; the registry is always the production one. Settings last until the next deploy. A claim the registry has already checked stays checked.
+- Anyone can reach the sites, so:
+  - nothing to upload and no passwords;
+  - only the sites' own host names (anything else gets 421);
+  - request bodies up to 16 KB;
+  - rate limits per client: 240 requests and 40 submits a minute, and 10 tries at the settings an hour;
+  - sessions in memory for an hour, and a journey's answers dropped once its result is shown;
+  - strict security headers: CSP (only the page's own files and the registry), no framing, HSTS;
+  - no stack traces in responses.
+
 ## Adding a site
 
 A site is data in `sites.mjs`: a name, a colour and its journeys. Each journey has steps of fields, plus a `result()` that turns the answers into the result page. The server, the validation and the conditional fields come for free.
