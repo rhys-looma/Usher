@@ -27,7 +27,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/core/` | Extractor, locators, fingerprint, labels, map compiler (TypeScript) |
 | `packages/core/test/` | node:test suites; browser tests use Playwright (chromium) |
 | `examples/mock-quote-site/` | Brightwater, a fictional insurer: a health insurance quote at `/health/*` (the headline example) and a car insurance quote at `/quote/*`, three steps each, layouts A/B/C; no dependencies |
-| `examples/sites/` | Six more fictional businesses (mortgage, energy, council, vet, removals, restaurant), one origin each, to join and map as an owner (`npm run sites`); no dependencies |
+| `examples/sites/` | Six more fictional businesses (mortgage, energy, council, vet, removals, restaurant), one origin each, to join and map as an owner: a port each locally (`npm run sites`), `<name>.usher.run` in production; no dependencies |
 | `scripts/` | `test.mjs` and `record-fixtures.mjs` run with the mock site (A, B and C) started on free ports |
 | `packages/registry/` | Registry: knock, maps, sessions, policy and rules, drift; HTTP, MCP, and server-rendered pages (`src/web/`: map viewer, dashboard); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
