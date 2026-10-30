@@ -14,12 +14,12 @@ import { KEEPS, KEEPS_HEADING } from './keeps.ts';
 const ROOT = new URL('../../../../', import.meta.url);
 
 export const SENTENCE = 'Your site inside every assistant in twenty minutes. Under your rules.';
-export const SUBLINE = 'Usher: your forms as your own assistant app.';
+export const SUBLINE = 'Usher: no rebuild. Your forms as your own assistant app.';
 /** The meta and OpenGraph description. */
-export const DESCRIPTION = 'Usher puts your site inside every assistant in twenty minutes: your forms as your own app, in your name and look, run under your rules. Usher fills the form and forgets it.';
+export const DESCRIPTION = 'Usher puts your site inside every assistant in twenty minutes: the forms you already have become your own app, in your name and look, run under your rules. Nothing to rebuild. Usher fills the form and forgets it.';
 export const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 /** The one-sentence positioning, under the headline. */
-export const POSITIONING = 'Your forms become your own app in Claude, ChatGPT and any assistant that speaks MCP: your name, your look, your questions in your words. Usher fills the form and forgets it.';
+export const POSITIONING = 'Your site is already the way in. Usher turns the forms you have into your own app in Claude, ChatGPT and any assistant that speaks MCP. Nothing to rebuild: you write the rules, in plain English. Usher fills the form and forgets it.';
 /** The example the page follows: a health insurance quote on the demo site, asked in plain words. */
 export const EXAMPLE = "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.";
 const HEALTH_JOURNEY = 'Brightwater Health, 3 steps, submitted';
@@ -157,11 +157,11 @@ export interface LandingOptions {
 
 /** The twenty minutes, from the tag to a customer's quote: what the owner does at each step. */
 export const TWENTY: { title: string; what: string }[] = [
-  { title: 'Tag', what: 'Add one script tag and claim your site. Your forms stay as they are.' },
-  { title: 'Map', what: 'Usher maps your journey: every field and button by meaning, in order. Never a value. You review it and publish it.' },
-  { title: 'Rules', what: 'Say in plain English what an assistant may do and which questions are your customer\'s alone. Usher turns it into rules you confirm.' },
+  { title: 'Tag', what: 'Add one script tag and claim your site. Your pages and forms stay exactly as they are: nothing to rebuild.' },
+  { title: 'Map', what: 'Usher maps the journey you already have: every field and button by meaning, in order. Never a value. You review it and publish it.' },
+  { title: 'Rules', what: 'The part you write. Say in plain English what an assistant may do and which questions are your customer\'s alone. Usher turns it into rules you confirm.' },
   { title: 'Publish', what: 'Accept your look (your name, logo and colours, read from your site), switch your app on and add its address to Claude or ChatGPT.' },
-  { title: 'Quote', what: 'Your customer asks their assistant. Your app fills your form, puts your questions to them in your words, and hands back your quote with its reference and a way to continue on your site.' },
+  { title: 'Quote', what: 'Your customer asks their assistant. Your app fills your own form on your site, puts your questions to them in your words, and hands back your quote with its reference and a way to continue on your site.' },
 ];
 
 /** The six steps of the hosted path, told to the site that runs the form, and what Usher sees at each. */
@@ -197,14 +197,14 @@ function exampleSection(): Raw {
 <div class="step person"><p class="bubble">${EXAMPLE}</p></div>
 <div class="step said">${resultCard("Brightwater's site · ")}</div>
 </figure>
-<p class="small muted example-note">Brightwater Insurance is our demo insurer. Its app, in its name and colours, with Usher's mark small in the corner.</p>
+<p class="small muted example-note">Brightwater Insurance is our demo insurer. It rebuilt nothing: its own three-page quote form, unchanged, is now an app in its name and colours, under its rules, set in plain English. Usher's mark sits small in the corner.</p>
 </section>`;
 }
 
 /** The twenty minutes: five steps, and Brightwater's measured machine time. */
 function twentySection(): Raw {
   return html`<section id="twenty" data-reveal><h2>The twenty minutes</h2>
-<p class="lede">From a script tag to your customer's quote, inside their assistant.</p>
+<p class="lede">From a script tag to your customer's quote, inside their assistant. Your site stays as it is; what you bring is your rules.</p>
 <ol class="twenty">${TWENTY.map((t, i) => html`<li><span class="n">${String(i + 1)}</span><h3>${t.title}</h3><p>${t.what}</p></li>`)}</ol>
 <p class="small muted">Brightwater, our demo insurer, went from joined to published in 79 seconds of machine time: its three health pages mapped, its rules and its look proposed by Muse Spark. The rest of the twenty minutes is you, reading and clicking. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">How it was measured</a>.</p>
 </section>`;
@@ -301,9 +301,9 @@ ${twentySection()}
 ${howSection(o.url, Boolean(o.hosted))}
 
 <section class="grid two" id="start" data-reveal>
-<div class="card"><p class="label">For sites</p><h2>Your own app in every assistant, under your rules.</h2>
-<p class="lede">One tag, then twenty minutes. Usher hosts your app and runs it.</p>
-<ul class="owns"><li><b>Your name and look</b> on every card, read from your site and accepted by you.</li><li><b>Your questions in your words</b>, word for word, put to your customer and never answered by their assistant.</li><li><b>Your rules</b>, in plain English: what an assistant may fill, and what is your customer's alone.</li><li><b>Your tools</b>: rename, describe or hide each one, and switch your app off at any time.</li></ul>
+<div class="card"><p class="label">For sites</p><h2>Your site is the gateway. No rebuild, just your rules.</h2>
+<p class="lede">Keep the site and forms you have. One tag, then twenty minutes: Usher turns them into your own app in every assistant, hosts it and runs it.</p>
+<ul class="owns"><li><b>Your name and look</b> on every card, read from your site and accepted by you.</li><li><b>Your questions in your words</b>, word for word, put to your customer and never answered by their assistant.</li><li><b>Your rules</b>, the part you write, in plain English: what an assistant may fill, and what is your customer's alone.</li><li><b>Your tools</b>: rename, describe or hide each one, and switch your app off at any time.</li></ul>
 <pre class="wrap">${tag}</pre>
 ${siteClaims()}
 <p><a class="button" href="/sites/new">Publish your app</a></p>
@@ -530,7 +530,7 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 /* The Brightwater example under the hero, and the twenty minutes. */
 .example { margin-top:-12px; }
 .example .assistant { max-width:640px; margin:0 auto; }
-.example-note { text-align:center; margin:12px 0 0; }
+.example-note { text-align:center; max-width:640px; margin:12px auto 0; }
 .logo-mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
 .assistant .ref { margin:6px 0; font-size:14px; }
 .assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:8px; }
