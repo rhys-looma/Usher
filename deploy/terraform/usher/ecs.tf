@@ -14,6 +14,12 @@ resource "aws_cloudwatch_log_group" "site" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "demo_sites" {
+  count             = length(var.demo_sites) > 0 ? 1 : 0
+  name              = "/ecs/usher-demo-sites"
+  retention_in_days = var.log_retention_days
+}
+
 # The task definitions are the templates in deploy/ecs, the same ones scripts/ecs-deploy.sh renders.
 locals {
   template_values = merge({
@@ -29,8 +35,9 @@ locals {
     CONTACT_EMAIL          = var.contact_email
     DAILY_MODEL_BUDGET_USD = var.daily_model_budget_usd
     MOCK_SITE_KEY          = var.mock_site_key
+    DEMO_SITES             = join(",", var.demo_sites)
   }, { for k, s in aws_secretsmanager_secret.usher : "SECRET_ARN_${k}" => s.arn })
-  task = { for name in ["registry", "mock-site", "migrate"] : name => jsondecode(templatefile("${path.module}/../../ecs/${name}.json", local.template_values)) }
+  task = { for name in concat(["registry", "mock-site", "migrate"], length(var.demo_sites) > 0 ? ["demo-sites"] : []) : name => jsondecode(templatefile("${path.module}/../../ecs/${name}.json", local.template_values)) }
 }
 
 resource "aws_ecs_task_definition" "usher" {
@@ -109,4 +116,34 @@ resource "aws_ecs_service" "site" {
     ignore_changes = [task_definition]
   }
   depends_on = [aws_lb_listener_rule.site]
+}
+
+resource "aws_ecs_service" "demo_sites" {
+  count                              = var.certificates_issued && length(var.demo_sites) > 0 ? 1 : 0
+  name                               = "usher-demo-sites"
+  cluster                            = aws_ecs_cluster.usher.id
+  task_definition                    = aws_ecs_task_definition.usher["demo-sites"].arn
+  desired_count                      = 1
+  launch_type                        = "FARGATE"
+  health_check_grace_period_seconds  = 30
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+  network_configuration {
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.demo_sites.id]
+    assign_public_ip = true
+  }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.demo_sites[0].arn
+    container_name   = "demo-sites"
+    container_port   = 4300
+  }
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+  depends_on = [aws_lb_listener_rule.demo_sites]
 }

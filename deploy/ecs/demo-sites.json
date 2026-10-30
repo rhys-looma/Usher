@@ -1,0 +1,40 @@
+{
+  "family": "usher-demo-sites",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "${EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "demo-sites",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${SITE_REPO}:${IMAGE_TAG}",
+      "essential": true,
+      "command": ["node", "examples/sites/server.mjs"],
+      "portMappings": [{ "containerPort": 4300, "protocol": "tcp" }],
+      "readonlyRootFilesystem": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "4300" },
+        { "name": "SITE_DOMAIN", "value": "${REGISTRY_HOST}" },
+        { "name": "SITES", "value": "${DEMO_SITES}" },
+        { "name": "USHER_REGISTRY_URL", "value": "https://${REGISTRY_HOST}" }
+      ],
+      "secrets": [
+        { "name": "USHER_ADMIN_KEY", "valueFrom": "${SECRET_ARN_USHER_ADMIN_KEY}" }
+      ],
+      "healthCheck": {
+        "command": ["CMD", "node", "-e", "fetch('http://'+require('os').hostname()+':4300/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/ecs/usher-demo-sites", "awslogs-region": "${AWS_REGION}", "awslogs-stream-prefix": "demo-sites" }
+      }
+    }
+  ]
+}

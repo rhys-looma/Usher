@@ -19,6 +19,12 @@ variable "site_host" {
   type        = string
 }
 
+variable "demo_sites" {
+  description = "The demo sites served at <name>.<registry_host> (examples/sites), one container for all of them. Empty for none."
+  type        = list(string)
+  default     = []
+}
+
 variable "image_tag" {
   description = "The image tag pushed by deploy/terraform/ecr (the git SHA). Later deploys: scripts/ecs-deploy.sh."
   type        = string

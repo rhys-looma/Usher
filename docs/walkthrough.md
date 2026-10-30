@@ -17,6 +17,7 @@ The dashboard shows the last run and greys the button with the reason when a run
 ## What the owner gives it
 
 - **Test values, by key**, one per line (`person.first_name: Robin`), or **a generated test person**: a fixed, fictional set of answers (`packages/registry/src/walkthrough-persona.ts`). An owner's line overrides the generated answer for that key. Where a test answer matches none of a question's options, the walkthrough takes the question's first real option so the journey can go on.
+- **Stand-ins for the rest.** A required field that no test answer covers gets a harmless stand-in, so the site doesn't refuse the page: a list's first real option, the lowest number allowed, a date a fortnight away, a ticked box, `Test` (or the first of a few stock answers that fits the field's pattern). That covers a mortgage's property price, a booking's party size or a pet's name. Optional fields, files and passwords are left empty. Stand-ins stay in the run's memory like every test answer.
 - **Whether the final consequential action may be pressed.** Unticked, the run stops before it (for example before "Get my quote") and says so. Ticked, the run knocks again with that action confirmed, as an agent would, and presses it.
 
 The values live in the run's memory and nowhere else: not in storage, logs, the compiler log, screenshots, live frames or error messages. A test checks this for completed, cancelled and failed runs, against every file the registry wrote and every event it streamed.
@@ -28,7 +29,7 @@ The values live in the run's memory and nowhere else: not in storage, logs, the 
 3. **Explores branches.** For each of the first 12 radio groups and selects, it tries every option (up to 8) and records which fields each one shows. Code writes `shown_if` from what it saw; the model is not asked. It leaves the option that shows the most, so those fields are labelled too, and notes fields that only other options show.
 4. **Labels** the page with Muse Spark in vote mode (up to three runs; see `packages/core/src/compile/vote.ts`), with the masked screenshot. Each element also gets its `box`.
 5. **Runs lookups** (postcode to address list, registration to car) with the test values and records the lists they show as structure: a label and a count, never the entries. Opens comboboxes and counts their options the same way.
-6. **Fills** the safe fields with the test values, in order, respecting the conditions it found.
+6. **Fills** the safe fields with the test values (and stand-ins), in order, respecting the conditions it found.
 7. **Moves on** by the page's forward action and records `leads_to`. It stops at the result page, at the first consequential action it isn't allowed to press, after 10 pages, or when the page won't move on (the site may have refused a test value).
 
 ## What the owner sees

@@ -152,7 +152,7 @@ The registry also migrates on start. Migrations take a Postgres advisory lock, s
 ## 6. Register and deploy both services
 
 ```sh
-scripts/ecs-deploy.sh             # the current commit's images, both services; or: scripts/ecs-deploy.sh <sha> registry|mock-site|both
+scripts/ecs-deploy.sh             # the current commit's images, both services; or: scripts/ecs-deploy.sh <sha> registry|mock-site|both|demo-sites|all
 ```
 
 The script renders `deploy/ecs/registry.json` and `mock-site.json` with your account, region, image tag, hosts and secret ARNs. It registers them, updates the services, waits until both are stable, and prints each `/healthz`.
@@ -312,6 +312,20 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `USHER_ADMIN_KEY` | Required to switch the form layout at `/__admin` (the drift demo). |
 | `PORT` | 4100. |
 
+## The demo sites
+
+Six more fictional businesses ([examples/sites](examples/sites/)), from the same image as the demo site with another command, in one task: `usher-demo-sites`, 0.25 vCPU and 0.5 GB, about $10 a month. Each is at `<name>.<registry host>` (Larchmont at `larchmont.` and the registry's host). Set `demo_sites` in `terraform.tfvars` to the names, or leave it out for none: Terraform adds the hosts to the certificate, CloudFront and DNS, two ALB rules, a security group, the task definition and the service. Then `DEMO_SITES` and `DEMO_SITES_SERVICE` in `config.env` (from `terraform output -raw config_env`), and later deploys are `scripts/ecs-deploy.sh <sha> all` (or `demo-sites`).
+
+| Variable | Meaning |
+| --- | --- |
+| `SITE_DOMAIN` | The registry host. Turns on serving by host name; anything else gets 421. |
+| `SITES` | Which sites, comma-separated. |
+| `USHER_REGISTRY_URL` | The registry, on https. The only registry an owner can set. |
+| `USHER_ADMIN_KEY` | The same secret as the demo site. An owner's `/__settings` needs it to set a site key. |
+| `PORT` | 4300. |
+
+The task runs with a read-only root file system. Site keys set at `/__settings` are kept in memory until the next deploy.
+
 ## Locked down for now
 
 Everything an outsider could steer, closed for launch, to reopen one at a time:
@@ -358,6 +372,7 @@ Fargate on-demand, Linux/x86, London, one task each, all month. These are rough 
 | Registry | 1 vCPU, 2 GB | 41 |
 | Mock site | 0.25 vCPU, 0.5 GB | 10 |
 | **Both services** | | **≈ 52** |
+| Demo sites, if on | 0.25 vCPU, 0.5 GB | 10 |
 
 Not included:
 - RDS `db.t4g.micro`: about $16 a month.

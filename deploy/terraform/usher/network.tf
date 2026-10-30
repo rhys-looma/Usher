@@ -107,3 +107,24 @@ resource "aws_vpc_security_group_egress_rule" "site_out" {
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
+
+resource "aws_security_group" "demo_sites" {
+  name        = "${var.name}-demo-sites"
+  description = "Usher demo sites (examples/sites): the ALB only"
+  vpc_id      = aws_vpc.usher.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "demo_sites_from_alb" {
+  security_group_id            = aws_security_group.demo_sites.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 4300
+  to_port                      = 4300
+}
+
+# Outbound: images, and the registry for the token check.
+resource "aws_vpc_security_group_egress_rule" "demo_sites_out" {
+  security_group_id = aws_security_group.demo_sites.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}

@@ -40,3 +40,51 @@ export const TEST_PERSON: Readonly<Record<string, string | boolean>> = Object.fr
 export function testStartDate(now = new Date()): string {
   return new Date(now.getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
 }
+
+/** Stand-ins tried, in order, for a required text field with a pattern: the first the pattern accepts. */
+const PATTERNED = ['Test', 'WR14 1AA', 'AB12CDE', '1', '123456'];
+
+/**
+ * A harmless test answer for a required field that no test value covers (a mortgage's property
+ * price, a booking's party size, a pet's name), so the walk isn't refused on a page it could map.
+ * The first real option of a list, the lowest number allowed, a date a fortnight away, a ticked box.
+ * Optional fields, files and passwords are left alone. Like every test value, it stays in the run.
+ */
+export function standIn(field: { control: string; required: boolean; constraints?: { pattern?: string; min?: number | string; max?: number | string }; options?: { items: { value: string; label: string }[] } }, now = new Date()): string | boolean | undefined {
+  if (!field.required) return undefined;
+  const c = field.constraints ?? {};
+  switch (field.control) {
+    case 'select':
+    case 'radio':
+    case 'buttons':
+      return field.options?.items.find((o) => o.value !== '' && !/^(please )?(select|choose)/i.test(o.label))?.value;
+    case 'checkbox':
+      return true;
+    case 'number': {
+      const min = Number(c.min);
+      const max = Number(c.max);
+      const n = Number.isFinite(min) ? Math.max(min, 1) : 1;
+      return String(Number.isFinite(max) ? Math.min(n, max) : n);
+    }
+    case 'date': {
+      const date = testStartDate(now);
+      return typeof c.max === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.max) && c.max < date ? c.max : date;
+    }
+    case 'email':
+      return 'test@example.com';
+    case 'tel':
+      return '07700 900000';
+    case 'text':
+    case 'textarea': {
+      if (!c.pattern) return 'Test';
+      try {
+        const re = new RegExp(`^(?:${c.pattern})$`);
+        return PATTERNED.find((s) => re.test(s));
+      } catch {
+        return undefined;
+      }
+    }
+    default:
+      return undefined;
+  }
+}
