@@ -190,6 +190,7 @@ Spark Open's times are its recorded calls, made on 28 October while Baseten was 
 | [`packages/site-middleware/`](packages/site-middleware/) | The server-side check |
 | [`packages/agent/`](packages/agent/) | A reference agent, the benchmark and the demo runner |
 | [`examples/mock-quote-site/`](examples/mock-quote-site/) | Brightwater, a fictional insurer: a health insurance quote and a car insurance quote, each three steps, for development and the demo |
+| [`examples/sites/`](examples/sites/) | Six more fictional businesses to join and map yourself: a mortgage lender, an energy supplier, a council, a vet, a removals firm and a restaurant |
 
 ## Open by design
 
