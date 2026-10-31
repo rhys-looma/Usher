@@ -121,7 +121,11 @@ function handler(id, site) {
       if (url.pathname === '/healthz') return json(res, { ok: true, site: id, usher: Boolean(registry) });
       if (section === 'static' && req.method === 'GET') return serveStatic(res, key);
       if (url.pathname === '/.well-known/usher-site.json' && siteKey) return json(res, { usher_site: '0.1', site_key: siteKey });
-      if (url.pathname === '/.well-known/usher.json' && registry) return json(res, { usher: '0.1', registry, knock_url: `${registry}/knock`, keys_url: `${registry}/.well-known/usher-keys.json` });
+      if (url.pathname === '/.well-known/usher.json' && registry) {
+        // Each journey's intent, the one its token check below wants, so mappers use it too.
+        const declared = Object.entries(site.journeys).map(([key, j]) => ({ start: `/${key}/${Object.keys(j.steps)[0]}`, intent: j.intent }));
+        return json(res, { usher: '0.1', registry, knock_url: `${registry}/knock`, keys_url: `${registry}/.well-known/usher-keys.json`, journeys: declared });
+      }
 
       // The owner's settings, as if behind the site's own admin login: locally from this machine
       // only; in public with the admin key, a few tries an hour.

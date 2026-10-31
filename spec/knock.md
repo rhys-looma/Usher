@@ -24,9 +24,12 @@ A site that uses Usher publishes two things.
   "usher": "0.1",
   "registry": "https://registry.example",
   "knock_url": "https://registry.example/knock",
-  "keys_url": "https://registry.example/.well-known/usher-keys.json"
+  "keys_url": "https://registry.example/.well-known/usher-keys.json",
+  "journeys": [{ "start": "/quote/driver", "intent": "quote.car_insurance" }]
 }
 ```
+
+`journeys` is optional: where each of the site's journeys starts and its intent, the one the site's server checks tokens for. A map's intent is named by whoever compiled it, so a mapper that walks a journey gives every page of it the intent the site declares for where it started (or, if the site declares none, the first page's), and the tokens agents get on any page of that journey are for the intent the server expects.
 
 **A notice on every form**, added by the site script:
 

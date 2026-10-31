@@ -419,6 +419,9 @@ export class Walkthroughs {
     try {
       say(`Opening ${run.start}.`);
       await page.goto(run.start, { waitUntil: 'load', timeout: 30_000 });
+      const declared = await declaredJourneys(page);
+      const starts = [new URL(run.start).pathname, new URL(page.url()).pathname];
+      let intent: string | undefined;
       let session: string | undefined;
       for (let step = 1; step <= (this.o.maxPages ?? 10); step++) {
         if (live.cancelled) return await finish('cancelled', 'Cancelled by the owner.');
@@ -444,6 +447,13 @@ export class Walkthroughs {
         const compiled = await compilePage(page, { chat: this.o.compiler!.chat, model: this.o.compiler!.model, vote: true, boxes: true, logDir: this.o.logDir ?? null });
         run.cost_usd += compiled.cost_usd ?? 0;
         const map = compiled.map;
+        // One intent for the whole journey, the site's if it declares one.
+        if (step === 1) {
+          const chosen = journeyIntent(declared, starts, map.form.intent);
+          intent = chosen.intent;
+          if (intent) say(`The journey's intent: ${intent}${chosen.declared ? ', as the site declares it' : ''}.`);
+        }
+        if (intent) map.form.intent = intent;
         say(`${plural(map.fields.length + map.actions.length, 'element')} labelled in ${plural(compiled.votes?.runs ?? 1, 'run')}${compiled.votes?.disagreements ? `; the runs disagreed on ${plural(compiled.votes.disagreements, 'element')}` : ''}.`);
 
         // What each option shows becomes shown_if, written by code from what was seen.
@@ -636,6 +646,41 @@ export class Walkthroughs {
 }
 
 /** A map without its boxes: what agents are served. */
+/** A journey a site declares in its /.well-known/usher.json: where it starts, and its intent. */
+export interface DeclaredJourney {
+  start: string;
+  intent: string;
+}
+
+/**
+ * The intent of the whole journey: the one the site declares for where it starts, else the one the
+ * model named on its first page. Every page of the journey gets it, so a token from a knock on any
+ * page is for the intent the site's server checks (a model names intents in its own words, and not
+ * always the same way on every page).
+ */
+export function journeyIntent(declared: DeclaredJourney[], starts: string[], named: string | undefined): { intent: string | undefined; declared: boolean } {
+  const found = declared.find((j) => starts.includes(j.start));
+  return found ? { intent: found.intent, declared: true } : { intent: named, declared: false };
+}
+
+const INTENT = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
+
+/** The journeys the site declares (spec/knock.md), read from the page's own origin; none if it has no file. */
+async function declaredJourneys(page: Page): Promise<DeclaredJourney[]> {
+  const found: unknown = await page
+    .evaluate(async () => {
+      const res = await fetch('/.well-known/usher.json', { credentials: 'omit' });
+      return res.ok ? res.json() : null;
+    })
+    .catch(() => null);
+  const journeys = (found as { journeys?: unknown } | null)?.journeys;
+  if (!Array.isArray(journeys)) return [];
+  return journeys
+    .filter((j): j is DeclaredJourney => typeof j?.start === 'string' && j.start.startsWith('/') && typeof j?.intent === 'string' && INTENT.test(j.intent))
+    .slice(0, 50)
+    .map((j) => ({ start: j.start, intent: j.intent }));
+}
+
 export function withoutBoxes(map: UsherMap): UsherMap {
   return { ...map, fields: map.fields.map(({ box: _b, ...f }) => f), actions: map.actions.map(({ box: _b, ...a }) => a) };
 }
