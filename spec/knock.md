@@ -203,6 +203,10 @@ The script verifies the token as above against the cached keys (signature, issue
 
 A binding lasts for one page load. On a multi-step form the agent knocks on each page, passing `session`, and binds the new token.
 
+**Single-page apps.** An app that moves between steps without a page load (`history.pushState`, `replaceState`, back and forward) keeps the binding. The script follows it: once the new step is drawn, it fingerprints the form, checks for drift, looks up that path's map and applies that map's rules. A confirmation is for the step it was given on, so it is cleared. A submit made before the new step's map is known is held, then submitted again and judged by that map.
+
+**A held submit stops there.** The script listens for `submit` on the document in the capture phase. A held submit is cancelled (`preventDefault`) and goes no further (`stopImmediatePropagation`), so an app's own submit handler, which would post the form itself with `fetch`, never sees it. An app that listens for `submit` on the document in the capture phase itself, ahead of the script, must check `event.defaultPrevented` and send nothing when it is set.
+
 **The token in the entry URL.** An assistant that drives a browser can't call `window.usher.bind`. The knock response therefore also carries `entry_url`: the knocked page with `usher=<token>` in its query. The assistant opens it, and the site script:
 
 - binds the token from the query on load, as above;

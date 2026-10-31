@@ -46,7 +46,8 @@ const HOPS = Number(process.env.TRUSTED_PROXY_HOPS ?? (PUBLIC ? 2 : 0));
 const MAX_SESSIONS = 2000;
 const SESSION_MS = 60 * 60_000;
 const MAX_BODY = 16 * 1024;
-const SETTINGS_FILE = join(here, '.settings.json');
+// SITES_SETTINGS names another settings file (tests keep theirs apart from the owner's).
+const SETTINGS_FILE = process.env.SITES_SETTINGS ?? join(here, '.settings.json');
 const MIDDLEWARE = join(here, '../../packages/site-middleware/dist/index.js');
 // site id -> { registry, siteKey }; a file locally, memory only in public
 const saved = !PUBLIC && existsSync(SETTINGS_FILE) ? JSON.parse(await readFile(SETTINGS_FILE, 'utf8')) : {};
