@@ -45,7 +45,21 @@
         "usher": { "const": "0.1" },
         "registry": { "type": "string", "format": "uri" },
         "knock_url": { "type": "string", "format": "uri" },
-        "keys_url": { "type": "string", "format": "uri" }
+        "keys_url": { "type": "string", "format": "uri" },
+        "journeys": {
+          "description": "The site's journeys: where each starts and its intent, the one the site's server checks tokens for.",
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": ["start", "intent"],
+            "additionalProperties": false,
+            "properties": {
+              "start": { "type": "string", "pattern": "^/" },
+              "intent": { "$ref": "#/$defs/intent" }
+            }
+          }
+        }
       }
     },
     "signedAgentFields": {

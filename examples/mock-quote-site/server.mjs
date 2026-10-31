@@ -685,7 +685,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (REGISTRY && req.method === 'GET' && url.pathname === '/.well-known/usher.json') {
-      return json(res, { usher: '0.1', registry: REGISTRY, knock_url: `${REGISTRY}/knock`, keys_url: `${REGISTRY}/.well-known/usher-keys.json` });
+      return json(res, { usher: '0.1', registry: REGISTRY, knock_url: `${REGISTRY}/knock`, keys_url: `${REGISTRY}/.well-known/usher-keys.json`, journeys: Object.values(journeys).map((j) => ({ start: `/${j.base}/${Object.keys(j.steps)[0]}`, intent: j.intent })) });
     }
 
     // A help page with several forms, for choosing the form by intent: a site search, a newsletter

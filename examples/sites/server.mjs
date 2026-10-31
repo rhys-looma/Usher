@@ -46,7 +46,8 @@ const HOPS = Number(process.env.TRUSTED_PROXY_HOPS ?? (PUBLIC ? 2 : 0));
 const MAX_SESSIONS = 2000;
 const SESSION_MS = 60 * 60_000;
 const MAX_BODY = 16 * 1024;
-const SETTINGS_FILE = join(here, '.settings.json');
+// SITES_SETTINGS names another settings file (tests keep theirs apart from the owner's).
+const SETTINGS_FILE = process.env.SITES_SETTINGS ?? join(here, '.settings.json');
 const MIDDLEWARE = join(here, '../../packages/site-middleware/dist/index.js');
 // site id -> { registry, siteKey }; a file locally, memory only in public
 const saved = !PUBLIC && existsSync(SETTINGS_FILE) ? JSON.parse(await readFile(SETTINGS_FILE, 'utf8')) : {};
@@ -120,7 +121,11 @@ function handler(id, site) {
       if (url.pathname === '/healthz') return json(res, { ok: true, site: id, usher: Boolean(registry) });
       if (section === 'static' && req.method === 'GET') return serveStatic(res, key);
       if (url.pathname === '/.well-known/usher-site.json' && siteKey) return json(res, { usher_site: '0.1', site_key: siteKey });
-      if (url.pathname === '/.well-known/usher.json' && registry) return json(res, { usher: '0.1', registry, knock_url: `${registry}/knock`, keys_url: `${registry}/.well-known/usher-keys.json` });
+      if (url.pathname === '/.well-known/usher.json' && registry) {
+        // Each journey's intent, the one its token check below wants, so mappers use it too.
+        const declared = Object.entries(site.journeys).map(([key, j]) => ({ start: `/${key}/${Object.keys(j.steps)[0]}`, intent: j.intent }));
+        return json(res, { usher: '0.1', registry, knock_url: `${registry}/knock`, keys_url: `${registry}/.well-known/usher-keys.json`, journeys: declared });
+      }
 
       // The owner's settings, as if behind the site's own admin login: locally from this machine
       // only; in public with the admin key, a few tries an hour.

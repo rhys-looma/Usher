@@ -15,7 +15,7 @@ import { chromium, type Browser } from 'playwright';
 import type { ChatFn, UsherMap } from '@usher/core';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
 import { seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
-import { Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
+import { journeyIntent, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
 import { Viewer } from '../src/web/viewer.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
@@ -33,6 +33,9 @@ for (const l of ['b', 'c'] as const) {
     recorded.set(`${l}/quote/${step}`, new Map(labels.elements.map((e) => [e.id, e])));
   }
 }
+
+// The intent the stand-in names for a page, when a test wants it to differ from the seed maps'.
+let namedIntent: ((path: string) => string) | null = null;
 
 // The chat editor's answer, scripted by the test that uses it; the requests it got, to check.
 let editAnswer: object = { changes: [], rules: null, unclear: null };
@@ -56,7 +59,7 @@ const labeller: ChatFn = async (request) => {
     return { id: e.id, key: known?.key ?? e.candidates[0] ?? `custom.${/^[a-z]/.test(slug) ? slug : `x_${slug}`}`, risk: known?.risk ?? 'safe', shown_if: null };
   });
   const advance = elements.find((e) => ADVANCING.includes(e.key) && extraction.elements.find((x) => x.id === e.id)?.kind === 'action');
-  const content = JSON.stringify({ form: { purpose: map.form.purpose, intent: map.form.intent }, elements, advance_action_id: advance?.id ?? null });
+  const content = JSON.stringify({ form: { purpose: map.form.purpose, intent: namedIntent?.(extraction.page.path) ?? map.form.intent }, elements, advance_action_id: advance?.id ?? null });
   return { content, usage: { prompt_tokens: 1000, completion_tokens: 200, total_tokens: 1200, cached_tokens: 0 }, latency_ms: 1, response: {} };
 };
 
@@ -136,6 +139,21 @@ test('the health journey: every page, lookup lists, boxes, stops before the quot
   }
   assert.ok(run.plan, 'a plan for the journey');
   assert.ok(run.diff?.length === 3);
+});
+
+test('one intent for the whole journey: the one the site declares, whatever the model names on each page', async () => {
+  // The model names each page's intent its own way; the site declares quote.health_insurance for /health/about.
+  namedIntent = (path) => `quote.${path.split('/').pop()}_cover`;
+  try {
+    const run = await runOnce('/health/about');
+    assert.deepEqual(run.pages.map((p) => p.map.form.intent), ['quote.health_insurance', 'quote.health_insurance', 'quote.health_insurance']);
+    assert.ok(run.log.includes('The journey\'s intent: quote.health_insurance, as the site declares it.'), run.log.join(' | '));
+  } finally {
+    namedIntent = null;
+  }
+  // A site that declares nothing: the first page's intent, for every page.
+  assert.deepEqual(journeyIntent([], ['/book/pet'], 'booking.vet_appointment'), { intent: 'booking.vet_appointment', declared: false });
+  assert.deepEqual(journeyIntent([{ start: '/book/pet', intent: 'booking.appointment' }], ['/book/pet?restart', '/book/pet'], 'booking.vet_appointment'), { intent: 'booking.appointment', declared: true });
 });
 
 for (const layout of ['a', 'b', 'c'] as const) {

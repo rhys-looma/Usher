@@ -79,6 +79,10 @@ let fromEntryUrl = false;
 let confirmed = false;
 let heldKey: string | undefined;
 let elements = new Map<Element, MapElement>();
+/** The path the fingerprint and map are for. An app that moves between steps in the page changes location.pathname. */
+let mappedPath = location.pathname;
+/** Following the app to its new step: fingerprint, map and index for the new path. */
+let moving: Promise<void> | null = null;
 
 function setState(next: State): void {
   state = next;
@@ -152,6 +156,7 @@ async function currentMap(): Promise<CurrentMap | null> {
 // Fingerprints the live form and compares it with the registry's map locally. Only a mismatch
 // is reported, once per map and live form.
 async function load(): Promise<void> {
+  mappedPath = location.pathname;
   // Every form a map could be for; the likeliest first. The map may be for another of them (a
   // model chose it by an agent's intent), so the one with the map's fingerprint wins.
   const forms = extractForms().forms;
@@ -258,8 +263,27 @@ function onClick(event: Event): void {
   log('click', el);
 }
 
+// A held submit goes no further: not to the server, and not to the app's own submit handler, which
+// in a single-page app would post the form itself with fetch (and without the token).
+function hold(event: SubmitEvent): void {
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}
+
 function onSubmit(event: SubmitEvent): void {
-  if (!token || !lookup) return;
+  if (!token) return;
+  if (moving || location.pathname !== mappedPath) {
+    // The app has moved to another step and its map isn't known yet: whatever the button does, it
+    // waits for the map, then is submitted again and judged by that map's rules.
+    hold(event);
+    const f = event.target as HTMLFormElement;
+    const by = event.submitter;
+    void moved().then(() => {
+      if (f.isConnected) f.requestSubmit(by?.isConnected ? by : null);
+    });
+    return;
+  }
+  if (!lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
   const rule = el ? (lookup.rules.actions?.[el.key] ?? defaultRule(el)) : 'allow';
   // A token from the entry URL that already says the person confirmed this (they did, in the
@@ -268,7 +292,7 @@ function onSubmit(event: SubmitEvent): void {
   const confirmedInToken = fromEntryUrl && Boolean(el && claims?.confirmed?.includes(el.key));
   if (rule === 'forbid' || (rule === 'confirm' && !confirmed && !confirmedInToken)) {
     // The site's rules: the user must confirm this first, or only the user may do it.
-    event.preventDefault();
+    hold(event);
     heldKey = el?.key;
     setState('awaiting_confirmation');
     log('held', el);
@@ -304,6 +328,7 @@ export interface BindResult {
 
 async function bind(candidate: string): Promise<BindResult> {
   await ready;
+  await moved();
   if (typeof candidate !== 'string') return { ok: false, error: 'malformed' };
   // Look the map up now (an agent that found none may have just compiled and shared one).
   if (lookup?.match.kind !== 'exact') await lookupMap(candidate).catch(() => undefined);
@@ -352,6 +377,61 @@ function handoff(key: string): boolean {
   log('handoff', el);
   return true;
 }
+
+// Once the app has drawn its new step: a frame, or a moment where frames are paused (a hidden tab).
+const drawn = () => new Promise<void>((resolve) => {
+  const done = () => setTimeout(resolve, 0);
+  requestAnimationFrame(done);
+  setTimeout(done, 100);
+});
+
+// A single-page app moves between steps with history.pushState (or back and forward) and draws
+// the next step without a page load. The script follows: the new step is fingerprinted and checked
+// for drift, and with a token bound its map is looked up and its elements indexed, as on a load.
+async function follow(): Promise<void> {
+  await ready;
+  while (location.pathname !== mappedPath) {
+    await drawn();
+    lookup = null;
+    live = null;
+    others = [];
+    drifted = false;
+    elements = new Map();
+    addNotices();
+    // Sets mappedPath first, so a step with no form still counts as followed.
+    await load().catch(() => undefined);
+    if (token) {
+      await lookupMap(token).catch(() => undefined);
+      // (Set again by lookupMap.)
+      const found = lookup as Lookup | null;
+      elements = found?.map ? indexElements(found.map) : new Map();
+    }
+    setState(token ? 'unlocked' : 'locked');
+  }
+}
+
+/** Follows the app to its current step, if it has moved; resolves once the step's map is known. */
+function moved(): Promise<void> {
+  if (!moving && location.pathname !== mappedPath) {
+    // A confirmation was for the step it was given on.
+    confirmed = false;
+    heldKey = undefined;
+    lastFilled = undefined;
+    moving = follow().finally(() => {
+      moving = null;
+    });
+  }
+  return moving ?? Promise.resolve();
+}
+
+for (const method of ['pushState', 'replaceState'] as const) {
+  const original = history[method];
+  history[method] = function (this: History, ...args: Parameters<History['pushState']>) {
+    original.apply(this, args);
+    void moved();
+  };
+}
+window.addEventListener('popstate', () => void moved());
 
 const ready: Promise<void> = new Promise((resolve) => {
   const start = () => {
