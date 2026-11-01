@@ -178,6 +178,7 @@
           "additionalProperties": false,
           "properties": { "sub": { "const": "hosted" } }
         },
+        "scope": { "const": "map", "description": "A mapper's token: the site's owner mapping their own site through the registry's walkthrough. Good for any intent and action on this origin." },
         "cnf": { "type": "object", "description": "RFC 7800 confirmation: the agent's public key.", "required": ["jwk"], "properties": { "jwk": { "$ref": "#/$defs/ed25519PublicJwk" } } }
       }
     },

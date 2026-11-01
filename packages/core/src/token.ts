@@ -52,6 +52,12 @@ export interface TokenClaims {
   confirmed?: string[];
   /** RFC 8693 actor: set to { sub: "hosted" } when the registry knocked for a hosted connection. */
   act?: { sub: 'hosted' };
+  /**
+   * "map": the site's owner mapping their own site, through the registry's walkthrough (never an
+   * agent acting for a person). Good for any intent and action on this origin; the signature,
+   * origin, expiry and one use still hold.
+   */
+  scope?: 'map';
   /** The agent's public key (RFC 7800 confirmation): sites can check its request signatures. */
   cnf?: { jwk: PublicJwk };
 }
@@ -215,7 +221,7 @@ export async function verifyToken(token: string, options: VerifyOptions): Promis
   if (claims.iat > now + CLOCK_SKEW_SECONDS) return fail('not_yet_valid', 'The token was issued in the future.');
   if (options.issuers && !options.issuers.includes(claims.iss)) return fail('wrong_issuer', `Tokens from ${claims.iss} are not trusted here.`);
   if (options.origin !== undefined && claims.origin !== options.origin) return fail('wrong_origin', `The token is for ${claims.origin}, not ${options.origin}.`);
-  if (options.intent !== undefined && claims.intent !== options.intent) return fail('wrong_intent', `The token allows ${claims.intent}, not ${options.intent}.`);
+  if (options.intent !== undefined && claims.intent !== options.intent && claims.scope !== 'map') return fail('wrong_intent', `The token allows ${claims.intent}, not ${options.intent}.`);
   if (options.replay && !options.replay.accept(claims.jti, claims.exp, now)) return fail('replayed', 'This token has already been used.');
   return { ok: true, claims };
 }

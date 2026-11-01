@@ -701,16 +701,17 @@ export class Registry {
       await this.recordBlocked({ origin: page.origin, path: page.pathname, reason: code, source: 'registry', agent: check.agentId, ...(action && { action }), ...(hosted && { hosted: true as const }) });
       return error(status, code, message);
     };
-    if (!effective.agent_lane) return refuse(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
+    // The owner's walkthrough maps their own site: the site's rules for agents don't bind it.
+    if (!effective.agent_lane && !walkthrough) return refuse(403, 'agents_not_allowed', `${page.origin} does not allow agents on this form.`);
     const standing = agentStanding(policy, check.agentId, hosted);
-    if (standing !== 'allowed') return refuse(403, 'agent_blocked', hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
+    if (standing !== 'allowed' && !walkthrough) return refuse(403, 'agent_blocked', hosted && policy?.agents?.hosted === 'block' ? `${page.origin} does not allow hosted agents. Run Usher locally with your own key instead: npx -y @usher-run/mcp` : `${page.origin} does not allow this agent.`);
     const confirmed = [...new Set(knock.confirmed ?? [])];
     // A key on none of the site's maps takes its vocabulary default: confirming a health answer is
     // refused on a site that never asks one.
     const ruleOf = (k: string) => effective.actions[k] ?? defaultRule(vocabulary.entries.find((e) => e.key === k)?.default_risk ?? 'safe', k);
     const forbidden = confirmed.filter((k) => ruleOf(k) === 'forbid');
-    if (forbidden.length) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
-    const limited = this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
+    if (forbidden.length && !walkthrough) return refuse(403, 'action_forbidden', `Agents may not do ${forbidden.join(', ')} on ${page.origin}; that is for the user.`, forbidden.join(','));
+    const limited = walkthrough ? null : this.withinLimits(effective, page.origin, check.agentId, ['knock', ...confirmed]);
     if (limited) return refuse(429, 'rate_limited', `${page.origin}: ${limited}`, confirmed.join(',') || 'knock');
     const rules = knockRules(effective);
 
@@ -749,6 +750,8 @@ export class Registry {
       forbid: Object.keys(effective.actions).filter((k) => effective.actions[k] === 'forbid'),
       ...(confirmed.length && { confirmed }),
       ...(hosted && { act: { sub: 'hosted' as const } }),
+      // Only the walkthrough, which no request over HTTP can reach, gets a mapper's token.
+      ...(walkthrough && { scope: 'map' as const }),
       cnf: { jwk: check.jwk },
     };
     const token = await signToken(claims, await this.signingKey());
