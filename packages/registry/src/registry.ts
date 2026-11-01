@@ -1369,6 +1369,23 @@ export class Registry {
     return { plan, maps, view };
   }
 
+  /**
+   * Every record of a site, gone: what storage keeps for it, its hosted listing and its entries in
+   * the "asked for" list. Nothing records the purge, since that record would name the site.
+   */
+  async purgeSite(origin: string): Promise<number> {
+    let n = await this.storage.purgeOrigin(origin);
+    if ((await this.listedSites()).some((l) => l.origin === origin)) {
+      await this.setListed(origin, null);
+      n++;
+    }
+    // Its own "asked for" entries went with the rest; the index of them is shared.
+    const index = (await this.storage.getCached<string[]>('plan-asks', 'index')) ?? [];
+    const kept = index.filter((k) => !k.startsWith(`${origin}|`));
+    if (kept.length !== index.length) await this.storage.putCached('plan-asks', 'index', kept);
+    return n;
+  }
+
   /** What agents asked plans for that Usher hasn't mapped, most asked first (the admin's list). */
   async planAsks(): Promise<{ origin: string; intent: string | null; asks: number; last: string }[]> {
     const index = (await this.storage.getCached<string[]>('plan-asks', 'index')) ?? [];

@@ -104,6 +104,11 @@ export interface StoredKey {
   private_jwk: PrivateJwk;
 }
 
+/** Cached values shared across sites (by kind, or kind|key): the registry rewrites them on a purge, never deletes them whole. */
+export const SHARED_CACHE = ['listed-sites', 'plan-asks|index', 'spend', 'training', 'training-data', 'keeper', 'keeper-run', 'walkthrough-chat-spend'];
+
+const LOG_NAMES: LogName[] = ['matches', 'runs', 'drift', 'blocked', 'interest', 'corrections'];
+
 /** Append-only logs. interest: "I run a site with forms" from the front page. */
 export type LogName = 'matches' | 'runs' | 'drift' | 'blocked' | 'interest' | 'corrections';
 
@@ -149,6 +154,13 @@ export interface Storage {
   appendLog(name: LogName, record: object): Promise<void>;
   /** A log in order, optionally only one origin's entries. */
   readLog(name: LogName, origin?: string): Promise<object[]>;
+
+  /**
+   * Deletes every record of one origin: maps, the site, its rules and drafts, sessions and their
+   * events, log entries for it or naming it, and cached values keyed by it or naming it (but not
+   * the shared ones: lists across sites, spend, training). Returns how many records went.
+   */
+  purgeOrigin(origin: string): Promise<number>;
 
   close?(): Promise<void>;
 }
@@ -380,5 +392,52 @@ export class FileStorage implements Storage {
     } catch {
       return [];
     }
+  }
+
+  async purgeOrigin(origin: string): Promise<number> {
+    const gone = async (path: string) => {
+      this.cache.delete(path);
+      await rm(path, { force: true, recursive: true });
+    };
+    let n = 0;
+    const count = async (dir: string) => (await readdir(dir).catch(() => [] as string[])).length;
+    n += await count(this.file('maps', encodeURIComponent(origin)));
+    for (const path of [...this.cache.keys()].filter((k) => k.startsWith(this.file('maps', encodeURIComponent(origin))) || k.startsWith(this.file('drafts', encodeURIComponent(origin))))) this.cache.delete(path);
+    await gone(this.file('maps', encodeURIComponent(origin)));
+    n += await count(this.file('drafts', encodeURIComponent(origin)));
+    await gone(this.file('drafts', encodeURIComponent(origin)));
+    for (const path of [this.siteFile(origin), this.policyFile(origin)]) {
+      if (await this.read(path)) n++;
+      await gone(path);
+    }
+    for (const s of await this.listSessions(origin)) {
+      await this.deleteSession(s.id);
+      n++;
+    }
+    await this.serial(async () => {
+      for (const name of LOG_NAMES) {
+        const path = this.file(`${name}.jsonl`);
+        const text = await readFile(path, 'utf8').catch(() => '');
+        if (!text) continue;
+        const lines = text.split('\n').filter(Boolean);
+        const kept = lines.filter((l) => !l.includes(JSON.stringify(origin).slice(1, -1)));
+        n += lines.length - kept.length;
+        if (kept.length !== lines.length) await writeFile(path, kept.map((l) => `${l}\n`).join(''));
+      }
+    });
+    const safeKey = origin.replace(/[^A-Za-z0-9_.-]/g, '_');
+    for (const kind of await readdir(this.file('cache')).catch(() => [] as string[])) {
+      if (SHARED_CACHE.some((k) => k.replace(/[^a-z0-9-]/gi, '_') === kind)) continue;
+      for (const f of await readdir(this.file('cache', kind)).catch(() => [] as string[])) {
+        if (SHARED_CACHE.includes(`${kind}|${f.replace(/\.json$/, '')}`)) continue;
+        const path = this.file('cache', kind, f);
+        const text = await readFile(path, 'utf8').catch(() => '');
+        if (f.includes(safeKey) || text.includes(JSON.stringify(origin).slice(1, -1))) {
+          await this.serial(() => gone(path));
+          n++;
+        }
+      }
+    }
+    return n;
   }
 }
