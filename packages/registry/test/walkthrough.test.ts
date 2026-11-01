@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { promisify } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,7 +19,7 @@ import { decodeToken, generateAgentIdentity, signRequest, type ChatFn, type Ushe
 import { createUsherCheck } from '../../site-middleware/src/index.ts';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
 import { knockRequest, seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
-import { journeyIntent, onSite, ownPagesOnly, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
+import { againstPublished, journeyIntent, onSite, ownPagesOnly, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
 import { TEST_PERSON } from '../src/walkthrough-persona.ts';
 import { Viewer } from '../src/web/viewer.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
@@ -485,8 +486,18 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
   assert.match(overview, /Map my site/);
   const refused = await post('/dashboard/walkthrough', { start: 'https://elsewhere.example/', generated: '1' });
   assert.equal(refused.status, 422);
+  // Each run maps up to the final button, then asks the owner where next: the test stops it there.
+  const stopWhenAsked = async () => {
+    for (let i = 0; i < 600; i++) {
+      const now = await walk.get(site.url);
+      if (!now || now.status !== 'running') return;
+      if (now.waiting) return void walk.cancel(site.url, now.id);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  };
   const started = await post('/dashboard/walkthrough', { start: `${site.url}/quote/driver`, generated: '1', values: 'person.first_name: Quillonia' });
   assert.equal(started.status, 303);
+  void stopWhenAsked();
   const run = await walk.get(site.url);
   assert.equal(run?.status, 'running');
 
@@ -524,6 +535,37 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
   // After publishing: mapped is done, and the page points to the next step of the twenty minutes.
   const after = await (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text();
   assert.match(after, /<b>Published\.<\/b> Each journey is a tool in your assistant app now, and agents get these maps too\. Next: <a href="\/dashboard#rules">Rules: what assistants may do, in your words<\/a>\./);
+
+  // Again, now the site has maps: an update by default, and the owner's correction is kept.
+  const form = await (await fetch(`${running.url}/dashboard/walkthrough/new`, { headers: { Cookie: cookie } })).text();
+  assert.match(form, /<input type="radio" name="mode" value="update" checked> <b>Update them<\/b>/);
+  assert.ok(!form.includes('isn&#39;t published') && !form.includes("isn't published"), 'nothing unpublished to lose');
+  assert.equal((await post('/dashboard/walkthrough', { start: `${site.url}/quote/driver`, generated: '1' })).status, 303);
+  await stopWhenAsked();
+  const update = await finished(site.url);
+  assert.equal(update.mode, 'update');
+  const kept = update.pages.find((p) => p.path === '/quote/driver')!;
+  assert.ok(kept.map.fields.some((f) => f.key === 'custom.forename'), 'the correction survives the update');
+  assert.deepEqual(kept.status ?? {}, {}, 'nothing new on an unchanged page');
+  assert.match(await (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text(), /An update of your published maps:<\/b> your labels and corrections are kept, and nothing is new/);
+  // Not published yet: the start form says a new run would replace it.
+  assert.match(await (await fetch(`${running.url}/dashboard/walkthrough/new`, { headers: { Cookie: cookie } })).text(), /Your last run isn't published/);
+});
+
+test('againstPublished: matched by id or name, else label; an update keeps the published labels, a fresh run marks differences', () => {
+  const published = JSON.parse(readFileSync(new URL('../../../spec/examples/quote-driver.map.json', import.meta.url), 'utf8')) as UsherMap;
+  const first = published.fields.find((f) => f.key === 'person.first_name')!;
+  first.key = 'custom.forename';
+  first.label = 'Forename';
+  const fresh = JSON.parse(readFileSync(new URL('../../../spec/examples/quote-driver.map.json', import.meta.url), 'utf8')) as UsherMap;
+  // Something the published map never had.
+  fresh.fields.push({ ...structuredClone(fresh.fields.find((f) => f.key === 'person.last_name')!), id: 'e900', key: 'person.middle_name', label: 'Middle name', locators: [{ by: 'name', value: 'middle_name' }] });
+  const compare = structuredClone(fresh);
+  assert.deepEqual(againstPublished(compare, published, false), { [first.id]: 'changed', e900: 'new' });
+  assert.equal(againstPublished(fresh, published, true).e900, 'new');
+  const updated = fresh.fields.find((f) => f.id === first.id)!;
+  assert.deepEqual([updated.key, updated.label], ['custom.forename', 'Forename'], 'by id or name, though the label changed');
+  assert.deepEqual(againstPublished(fresh, undefined, true), {}, 'nothing published, nothing to mark');
 });
 
 test('finetune:export takes the owner\'s answer over the model\'s, and counts it', async () => {

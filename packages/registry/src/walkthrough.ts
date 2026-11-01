@@ -65,6 +65,8 @@ export interface WalkthroughPage {
   /** Lists that appeared when a lookup ran or a combobox opened: counts, not their entries. */
   lists: { label: string; options: number; via: string }[];
   leads_to?: string;
+  /** Against the published map: elements it didn't have, and (in a fresh run) ones labelled differently. */
+  status?: Record<string, 'new' | 'changed'>;
 }
 
 /** A line of the conversation: Usher's words (with its choices while it waits), or the owner's. */
@@ -105,6 +107,8 @@ export interface WalkthroughRun {
   waiting?: boolean;
   /** The owner may click the live page (the site has joined). */
   clickable?: boolean;
+  /** update: each page starts from its published map, the owner's corrections kept; fresh: Muse Spark labels everything again. */
+  mode?: 'update' | 'fresh';
   /** Against the maps the registry serves now, per page: keys added, removed or changed. */
   diff?: { path: string; added: string[]; removed: string[]; changed: string[] }[];
   published_at?: string;
@@ -303,7 +307,7 @@ export class Walkthroughs {
   }
 
   /** Starts a run; values are held in this run's memory only. */
-  async start(input: { origin: string; start: string; values?: TestValues; generated?: boolean; pressFinal: boolean; by: 'owner' | 'operator'; conversation?: boolean; admin?: boolean }): Promise<{ id: string } | { refused: string }> {
+  async start(input: { origin: string; start: string; values?: TestValues; generated?: boolean; pressFinal: boolean; by: 'owner' | 'operator'; conversation?: boolean; admin?: boolean; fresh?: boolean }): Promise<{ id: string } | { refused: string }> {
     const refused = await this.refusal(input.origin, input.start, input.admin);
     if (refused) return { refused };
     const key = `${input.origin}|${this.day()}`;
@@ -311,6 +315,9 @@ export class Walkthroughs {
     // Starts are counted apart from runs: a run that maps nothing gives its run back, never its start.
     await this.storage.putCached('walkthrough-starts', key, { n: ((await this.storage.getCached<{ n: number }>('walkthrough-starts', key))?.n ?? 0) + 1 });
     const run: WalkthroughRun = { id: `w_${randomUUID().replace(/-/g, '').slice(0, 16)}`, origin: input.origin, start: input.start, by: input.by, status: 'running', started_at: this.now().toISOString(), pages: [], cost_usd: 0, log: [] };
+    // A site with published maps is updated unless the owner asks for a fresh start.
+    run.mode = !input.fresh && (await this.o.registry.currentMaps(input.origin)).size ? 'update' : 'fresh';
+    if (run.mode === 'update') run.log.push('Updating your published maps: each page starts from its map, with your corrections; anything new is marked.');
     const joined = Boolean((await this.storage.getSite(input.origin))?.claim) || input.origin === this.o.registry.demoOrigin;
     const live: Live = { run, listeners: new Set(), cancelled: false, conversation: Boolean(input.conversation), queue: [], reading: false, reads: 0, joined, admin: Boolean(input.admin), deadline: this.now().getTime() + (input.admin ? 3 * 60 * 60_000 : (this.o.maxRunMs ?? 45 * 60_000)) };
     if (live.conversation) {
@@ -720,6 +727,7 @@ export class Walkthroughs {
       let starts = [new URL(run.start).pathname, new URL(page.url()).pathname];
       let intent: string | undefined;
       let session: string | undefined;
+      let published: Map<string, UsherMap> | undefined;
       // A journey starts on the first page, and on any page Usher goes to at the owner's word (not
       // one reached by the form's own button): each gets the intent the site declares for it.
       let newJourney = true;
@@ -796,6 +804,11 @@ export class Walkthroughs {
         run.cost_usd += compiled.cost_usd ?? 0;
         emit({ type: 'cost', usd: run.cost_usd });
         const map = compiled.map;
+        // Against the published map: in an update, its labels (the owner's corrections among them) win.
+        published ??= await this.o.registry.currentMaps(run.origin);
+        const status = againstPublished(map, published.get(path), run.mode === 'update');
+        const fresh = Object.values(status).filter((s) => s === 'new').length;
+        if (published.has(path)) say(run.mode === 'update' ? `Kept the published labels${fresh ? `; ${plural(fresh, 'element')} new since then` : ', nothing new'}.` : `Against the published map: ${plural(fresh, 'new element')}, ${plural(Object.values(status).filter((s) => s === 'changed').length, 'labelled differently', 'labelled differently')}.`);
         // One intent for the whole journey, the site's if it declares one.
         if (newJourney) {
           newJourney = false;
@@ -830,7 +843,7 @@ export class Walkthroughs {
         const filled = await this.fill(page, map, values);
         say(`Filled ${plural(filled, 'field')} with the test values.`);
 
-        const record: WalkthroughPage = { path, title, map, screenshot, width: size.width, height: size.height, conditions, unexplored: explored.unexplored, lists };
+        const record: WalkthroughPage = { path, title, map, screenshot, width: size.width, height: size.height, conditions, unexplored: explored.unexplored, lists, ...(Object.keys(status).length && { status }) };
         run.pages.push(record);
         if (live.conversation) {
           const yours = map.fields.filter((f) => f.risk === 'needs_user').length;
@@ -1047,6 +1060,43 @@ async function declaredJourneys(page: Page): Promise<DeclaredJourney[]> {
 
 export function withoutBoxes(map: UsherMap): UsherMap {
   return { ...map, fields: map.fields.map(({ box: _b, ...f }) => f), actions: map.actions.map(({ box: _b, ...a }) => a) };
+}
+
+/**
+ * Matches each element of a newly labelled page to the published map's: the same kind of element
+ * with an id or name in common, else the same label. With keep, a matched element takes the
+ * published key, risk and label (the owner's corrections among them), unless that makes the map
+ * invalid. Returns the elements the published map didn't have (new) and, without keep, those
+ * labelled differently (changed).
+ */
+export function againstPublished(map: UsherMap, published: UsherMap | undefined, keep: boolean): Record<string, 'new' | 'changed'> {
+  if (!published) return {};
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+  type El = { el: UsherMap['fields'][number] | UsherMap['actions'][number]; kind: string };
+  const all = (m: UsherMap): El[] => [...m.fields.map((el) => ({ el, kind: `field:${el.control}` })), ...m.actions.map((el) => ({ el, kind: `action:${el.kind}` }))];
+  const handles = (el: El['el']) => new Set(el.locators.filter((l) => l.by === 'id' || l.by === 'name').map((l) => `${l.by}=${l.value}`));
+  const old = all(published);
+  const used = new Set<El['el']>();
+  const before = structuredClone(map);
+  const status: Record<string, 'new' | 'changed'> = {};
+  for (const { el, kind } of all(map)) {
+    const mine = handles(el);
+    const match =
+      old.find((o) => !used.has(o.el) && o.kind === kind && [...handles(o.el)].some((h) => mine.has(h)))?.el ??
+      old.find((o) => !used.has(o.el) && o.kind === kind && norm(o.el.label) === norm(el.label))?.el;
+    if (!match) {
+      status[el.id] = 'new';
+      continue;
+    }
+    used.add(match);
+    if (keep) Object.assign(el, { key: match.key, risk: match.risk, label: match.label });
+    else if (match.key !== el.key || match.risk !== el.risk) status[el.id] = 'changed';
+  }
+  if (keep && mapSchemaErrors(map)) {
+    Object.assign(map, before);
+    return againstPublished(map, published, false);
+  }
+  return status;
 }
 
 function diffMaps(path: string, current: UsherMap | undefined, proposed: UsherMap) {
