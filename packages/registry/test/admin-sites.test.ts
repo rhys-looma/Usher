@@ -4,10 +4,12 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { UsherMap, UsherPolicy } from '@usher/core';
 import { startRegistry, type RunningRegistry } from '../src/index.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
@@ -87,3 +89,64 @@ test('the admin\'s changes are logged and shown to the owner, by action only', a
   assert.doesNotMatch(text, /marketing consent/, 'what was done, never what was typed');
   assert.doesNotMatch(text, /Signed in as Usher's admin/, 'the owner\'s own sign-in has no banner');
 });
+
+test('purge: the admin types the origin, and every record of that site goes; other sites keep theirs', async () => {
+  const r = running.registry;
+  const storage = r.storage;
+  const gone = 'http://purge-me.localhost:4190';
+  const other = claimed.origin;
+  const map = (origin: string) => ({ ...(JSON.parse(readFileSync(new URL('../../../spec/examples/quote-driver.map.json', import.meta.url), 'utf8')) as UsherMap), origin });
+  const policy = JSON.parse(readFileSync(new URL('../../../spec/examples/policy/quote.policy.json', import.meta.url), 'utf8')) as UsherPolicy;
+  for (const origin of [gone, other]) {
+    await r.addMap(map(origin));
+    await storage.putSession({ id: `s_${origin === gone ? 'gone' : 'other'}0123456789`, origin, agent: 'a'.repeat(43), intent: 'quote.car_insurance', created_at: new Date().toISOString(), events: [{ ts: new Date().toISOString(), source: 'agent', action: 'knock' }] });
+    await storage.appendLog('matches', { origin, score: 1 });
+    await storage.putCached('site-app', origin, { enabled: true });
+  }
+  await registerSite(running, gone);
+  await storage.putPolicy({ policy: { ...policy, origin: gone }, confirmed_at: new Date().toISOString() });
+  await storage.putDraft({ id: 'r_purge01', origin: gone, text: 'Be careful.', policy: { ...policy, origin: gone }, summary: '', model: 'muse-spark-1.3', created_at: new Date().toISOString(), status: 'pending' });
+  // Records that name the site without being keyed by it, and the shared lists it's in.
+  await storage.appendLog('interest', { site: gone, at: new Date().toISOString() });
+  await storage.putCached('viewer-labels', 'sha256:abc', { map: { origin: gone } });
+  await r.setListed(gone, { name: 'Purge Me', journeys: [] });
+  await r.setListed(other, { name: 'Keep Me', journeys: [] });
+  await storage.putCached('plan-asks', `${gone}|`, { origin: gone, intent: null, asks: 1, last: '' });
+  await storage.putCached('plan-asks', 'index', [`${gone}|`, `${other}|`]);
+
+  const purge = (form: Record<string, string>) => fetch(`${running.url}/admin/sites/purge`, { method: 'POST', headers: { Authorization: `Bearer ${ADMIN}` }, body: new URLSearchParams(form) });
+  assert.equal((await fetch(`${running.url}/admin/sites/purge`, { method: 'POST', body: new URLSearchParams({ origin: gone, confirm: gone }) })).status, 401, 'the admin only');
+  assert.equal((await purge({ origin: gone, confirm: 'http://purge-me.localhost' })).status, 422, 'the origin typed exactly');
+  assert.ok((await storage.mapsForOrigin(gone)).length);
+  const done = await purge({ origin: gone, confirm: gone });
+  assert.equal(done.status, 200);
+  assert.match(await done.text(), /Purged http:\/\/purge-me\.localhost:4190: \d+ records deleted/);
+
+  assert.deepEqual(await storage.mapsForOrigin(gone), []);
+  assert.equal(await storage.getSite(gone), undefined);
+  assert.equal(await storage.getPolicy(gone), undefined);
+  assert.deepEqual(await storage.listDrafts(gone), []);
+  assert.deepEqual(await storage.listSessions(gone), []);
+  assert.equal(await storage.getSession('s_gone0123456789'), undefined);
+  for (const name of ['matches', 'interest'] as const) assert.ok(!JSON.stringify(await storage.readLog(name)).includes(gone), name);
+  assert.equal(await storage.getCached('site-app', gone), undefined);
+  assert.equal(await storage.getCached('viewer-labels', 'sha256:abc'), undefined);
+  assert.equal(await storage.getCached('plan-asks', `${gone}|`), undefined);
+  assert.deepEqual(await storage.getCached('plan-asks', 'index'), [`${other}|`]);
+  assert.deepEqual((await r.listedSites()).map((l) => l.origin), [other]);
+  if (!process.env.DATABASE_URL) assert.ok(!(await everything(dir)).includes(gone), 'not a byte of it on disk');
+
+  // The other site keeps everything.
+  assert.equal((await storage.mapsForOrigin(other)).length, 1);
+  assert.equal((await storage.listSessions(other)).length, 1);
+  assert.ok(JSON.stringify(await storage.readLog('matches')).includes(other));
+  assert.deepEqual(await storage.getCached('site-app', other), { enabled: true });
+  assert.ok(await storage.getSite(other));
+});
+
+/** Every file under a directory, as text. */
+async function everything(path: string): Promise<string> {
+  const entries = await readdir(path, { withFileTypes: true }).catch(() => []);
+  const parts = await Promise.all(entries.map((e) => (e.isDirectory() ? everything(join(path, e.name)) : readFile(join(path, e.name), 'utf8').then((t) => `${e.name}\n${t}`))));
+  return parts.join('\n');
+}

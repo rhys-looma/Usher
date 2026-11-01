@@ -4,7 +4,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
 import type { PublicJwk } from '@usher/core';
-import type { LogName, MapRecord, PolicyRecord, RulesDraft, Session, SessionEvent, SessionIdentity, Site, SiteClaim, Storage, StoredKey } from './storage.ts';
+import { SHARED_CACHE, type LogName, type MapRecord, type PolicyRecord, type RulesDraft, type Session, type SessionEvent, type SessionIdentity, type Site, type SiteClaim, type Storage, type StoredKey } from './storage.ts';
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url);
 const LOG_TABLES: Record<LogName, string> = { matches: 'match_log', runs: 'run_reports', drift: 'drift_reports', blocked: 'blocked_attempts', interest: 'interest', corrections: 'corrections' };
@@ -261,6 +261,26 @@ export class PostgresStorage implements Storage {
   async readLog(name: LogName, origin?: string): Promise<object[]> {
     const where = origin ? 'WHERE origin = $1' : '';
     return (await this.rows<{ record: object }>(`SELECT record FROM ${LOG_TABLES[name]} ${where} ORDER BY id`, origin ? [origin] : [])).map((r) => r.record);
+  }
+
+  async purgeOrigin(origin: string): Promise<number> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      let n = 0;
+      const run = async (sql: string, params: unknown[]) => (n += (await client.query(sql, params)).rowCount ?? 0);
+      // Edges and session events go with their maps and sessions (ON DELETE CASCADE).
+      for (const table of ['maps', 'rule_drafts', 'policies', 'sessions', 'sites']) await run(`DELETE FROM ${table} WHERE origin = $1`, [origin]);
+      for (const table of Object.values(LOG_TABLES)) await run(`DELETE FROM ${table} WHERE origin = $1 OR strpos(record::text, $1) > 0`, [origin]);
+      await run("DELETE FROM cache WHERE NOT (kind = ANY($2) OR kind || '|' || key = ANY($2)) AND (strpos(key, $1) > 0 OR strpos(value::text, $1) > 0)", [origin, SHARED_CACHE]);
+      await client.query('COMMIT');
+      return n;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   /** For health checks. */
