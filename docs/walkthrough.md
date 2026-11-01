@@ -32,6 +32,26 @@ The values live in the run's memory and nowhere else: not in storage, logs, the 
 6. **Fills** the safe fields with the test values (and stand-ins), in order, respecting the conditions it found.
 7. **Moves on** by the page's forward action and records `leads_to`. It stops at the result page, at the first consequential action it isn't allowed to press, after 10 pages, or when the page won't move on (the site may have refused a test value).
 
+## Talking to Usher
+
+An owner's run is a conversation. Usher starts wherever the owner says (the home page is fine) and, where a walk would end, asks instead. That happens on a page with no form, at the end of a journey, where it finds no way forward, or on a page that won't move on. It offers where it can go:
+
+- **Choices.** The site's declared journeys (`/.well-known/usher.json`) first, then the page's own links, never off the site and never a page it has already seen this run.
+- **Words.** "Do the mortgage one, then the callback": Muse Spark turns them into one of four moves (a choice by id, a path on the site, finish, or wait to answer a question), and code checks the move before the browser goes anywhere. The model sees the page's path and title, the pages mapped so far, the choices and the owner's words; never a value from a form, and it never writes a selector.
+- **A click** on the live view, while Usher waits, clicks that point of the page. Only on a site that has joined: Usher never presses anything on a site that hasn't.
+
+Each mapped page is announced with its picture, and the run's model spend is shown as it goes. One run can map every journey on the site. If the owner says nothing for ten minutes, the run finishes and keeps what it mapped.
+
+**What keeps it safe.**
+- Usher's browser only goes to the site's own origin: every top-level navigation elsewhere is blocked.
+- No frame on the page can send anything but a plain read (GET) to another host, except to the registry itself (the site script's calls). This stops anyone using it as a proxy.
+- Downloads are off, and anything the site opens in another tab is closed.
+- **Limits per run:** 45 minutes and 40 messages read, one message at a time.
+- **Limits per site per day:** five starts (a run that maps nothing gives its run back, never its start) and $0.25 of messages.
+- **Limits per address an hour:** 10 starts and 60 messages.
+- **Across the registry:** four runs at once, and the owners' share of the daily model budget.
+- **Usher's admin** (signed in with the admin key) has none of the per-site, per-run, per-day or per-address limits. The run time (three hours), the registry's daily spend cap and the browser's rules still apply.
+
 ## What the owner sees
 
 - **Live.** The browser view (masked JPEG frames, about two a second) and the steps in plain words, over server-sent events. Closing the page doesn't stop the run; the result waits on the dashboard.
@@ -61,4 +81,4 @@ It starts a run on the demo site as the operator and opens `/demo/walkthrough` i
 
 - It doesn't sign in, solve a CAPTCHA, upload files or pay.
 - Fields that only appear after a choice it didn't leave selected are noted, not mapped.
-- It never follows the site off its own origin, and every request its browser makes must reach a public address (the same check as the map viewer and hosted MCP).
+- It never follows the site off its own origin, and every request its browser makes must reach a public address (the same check as the map viewer and hosted MCP). Nothing but a read leaves the site, except to the registry.

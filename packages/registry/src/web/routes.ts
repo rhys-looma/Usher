@@ -44,6 +44,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   viewer?: 'picker' | 'open';
   /** Trusted proxy hops: the visitor's address for the viewer's limits comes from X-Forwarded-For. */
   proxyHops?: number;
+  /** Per address an hour, for owners (Usher's admin has none): walkthrough starts, and messages to it (Muse Spark reads each). */
+  ownerHourly?: { walk?: number; chat?: number };
   /** What /status reports beyond storage: the version and the model spend. */
   status?: Omit<StatusSources, 'started'>;
   /** Hosted MCP is served at /mcp: the front page offers it to assistants. */
@@ -73,6 +75,10 @@ function streamRun(req: IncomingMessage, res: ServerResponse, walkthroughs: Walk
   const unsubscribe = walkthroughs.subscribe(origin, id, (e) => {
     if (e.type === 'frame') send('frame', e.data);
     else if (e.type === 'log') send('log', e.text);
+    else if (e.type === 'chat') send('chat', JSON.stringify(e.message));
+    else if (e.type === 'waiting') send('waiting', JSON.stringify(e.waiting));
+    else if (e.type === 'cost') send('cost', e.usd.toFixed(3));
+    else if (e.type === 'url') send('url', e.url);
     else {
       send('done', JSON.stringify({ status: e.status }));
       res.end();
@@ -161,6 +167,8 @@ export class Web {
   private readonly learning: Learning;
   private dashboard?: Dashboard;
   private readonly started = new Date();
+  // In memory, per address: owners' walkthrough starts and messages an hour (the admin has none).
+  private readonly ownerLimits: Record<'walk' | 'chat', RateLimiter>;
 
   constructor(
     private readonly registry: Registry,
@@ -168,6 +176,7 @@ export class Web {
   ) {
     this.viewer = new Viewer({ ...options, storage: registry.storage });
     this.learning = new Learning(registry.storage);
+    this.ownerLimits = { walk: new RateLimiter(options.ownerHourly?.walk ?? 10, 3_600_000), chat: new RateLimiter(options.ownerHourly?.chat ?? 60, 3_600_000) };
   }
 
   /** Explanations come from the registry unless the caller supplies its own. */
@@ -720,7 +729,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
     const walk = this.options.walkthroughs;
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
-      const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`), last: await walk.get(origin) }) : '';
+      const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`, admin), last: await walk.get(origin) }) : '';
       const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : '';
       const app = appCard(await this.registry.siteApp(origin), await this.registry.siteSetup(origin));
       return send(res, 200, await board.overview(origin, html`${welcome}${app}${card}${look}`)), true;
@@ -787,9 +796,12 @@ ${annotated(drawn, { anchor: 'v' })}`;
     if (route === 'GET /dashboard/learning') return send(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
     if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {
       if (route === 'GET /dashboard/walkthrough/new') return send(res, 200, startForm(origin)), true;
+      // Owners get an allowance per address an hour; Usher's admin has none.
+      const limited = (group: 'walk' | 'chat') => !admin && !this.ownerLimits[group].allow(`${group}|${clientAddress(req, this.options.proxyHops)}`);
       if (route === 'POST /dashboard/walkthrough') {
+        if (limited('walk')) return send(res, 429, startForm(origin, 'Too many walkthroughs started from this address this hour. Try again later.')), true;
         const form = await readForm(req);
-        const started = await walk.start({ origin, start: (form.get('start') ?? '').trim(), values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner' });
+        const started = await walk.start({ origin, start: (form.get('start') ?? '').trim() || `${origin}/`, values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner', conversation: true, admin });
         if ('refused' in started) return send(res, 422, startForm(origin, started.refused)), true;
         return redirect(res, '/dashboard/walkthrough'), true;
       }
@@ -814,6 +826,26 @@ ${annotated(drawn, { anchor: 'v' })}`;
       }
       if (route === 'POST /dashboard/walkthrough/edit/discard') return await walk.discardEdits(origin), redirect(res, '/dashboard/walkthrough#edit'), true;
       if (route === 'GET /dashboard/walkthrough/events') return streamRun(req, res, walk, origin, url.searchParams.get('id') ?? ''), true;
+      // The conversation: a choice, words or a click, while the run waits. Fetches get 204; forms come back here.
+      const answered = (ok: boolean) => (String(req.headers.accept ?? '').includes('application/json') ? (res.writeHead(ok ? 204 : 409), res.end()) : redirect(res, '/dashboard/walkthrough'));
+      if (route === 'POST /dashboard/walkthrough/choose') {
+        const form = await readForm(req);
+        return answered(walk.choose(origin, form.get('id') ?? '', form.get('option') ?? '')), true;
+      }
+      if (route === 'POST /dashboard/walkthrough/click') {
+        const form = await readForm(req);
+        return answered(walk.click(origin, form.get('id') ?? '', Number(form.get('x')), Number(form.get('y')))), true;
+      }
+      if (route === 'POST /dashboard/walkthrough/say') {
+        if (limited('chat')) return String(req.headers.accept ?? '').includes('application/json') ? (res.writeHead(429), res.end(), true) : (redirect(res, '/dashboard/walkthrough'), true);
+        const form = await readForm(req);
+        return answered((await walk.message(origin, form.get('id') ?? '', form.get('text') ?? '')) === null), true;
+      }
+      if (route === 'GET /dashboard/walkthrough/shot') {
+        const shot = (await walk.get(origin))?.pages[Number(url.searchParams.get('page'))]?.screenshot;
+        if (!shot) return res.writeHead(404, { 'Content-Type': 'text/plain' }), res.end('No such page.'), true;
+        return res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=600' }), res.end(Buffer.from(shot, 'base64')), true;
+      }
       if (route === 'POST /dashboard/walkthrough/cancel') return walk.cancel(origin, (await readForm(req)).get('id') ?? ''), redirect(res, '/dashboard/walkthrough'), true;
       if (route === 'POST /dashboard/walkthrough/publish') return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;
       if (route === 'POST /dashboard/walkthrough/correct') {

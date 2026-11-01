@@ -11,6 +11,8 @@
 //   USHER_RETIRED_KEYS              JSON array of earlier public JWKs, still published
 //   MODEL_API_KEY, BASETEN_API_KEY  model access; USHER_OPEN_MODEL picks the Spark Open id
 //   USHER_DAILY_MODEL_BUDGET_USD    hard daily cap on model spend (default 5)
+//   USHER_MCP_MODEL_BUDGET_USD      the hosted MCP's share of it, for anonymous agents (default 1.5)
+//   USHER_OWNER_MODEL_BUDGET_USD    owners' share: walkthroughs, their conversation, themes (default 2.5)
 //   USHER_ALLOW_PRIVATE=1           let the map viewer open private addresses, domain claims check local
 //                                   origins, and agents' key directories be served over http (local demos only)
 //   TRUSTED_PROXY_HOPS              proxies in front whose forwarded headers are trusted (default 2 in
@@ -111,6 +113,17 @@ const capped = (chat: ChatFn) => budgeted(chat, budget, ledger);
 const today = () => new Date().toISOString().slice(0, 10);
 const spentToday = () => ledger.spent(today());
 const spark = env.MODEL_API_KEY ? { chat: capped(modelApi()), model: compilerModel() } : undefined;
+// Each public way in has its own share of that budget, so none of them can spend the whole day:
+// anonymous agents through the hosted MCP can't stop owners mapping their sites, or the reverse.
+const share = (name: string, usd: number) => {
+  const own: SpendLedger = {
+    spent: async (day) => (await storage.getCached<{ usd: number }>('spend', `${name}|${day}`))?.usd ?? 0,
+    add: async (day, cost) => storage.putCached('spend', `${name}|${day}`, { usd: (await own.spent(day)) + cost }),
+  };
+  return { model: spark && { chat: budgeted(spark.chat, usd, own), model: spark.model }, spend: { today: () => own.spent(today()), cap: usd } };
+};
+const mcpShare = share('mcp', Number(env.USHER_MCP_MODEL_BUDGET_USD ?? 1.5));
+const ownerShare = share('owners', Number(env.USHER_OWNER_MODEL_BUDGET_USD ?? 2.5));
 // The tuned student as the viewer's second opinion on risk, only when USHER_STUDENT_MODEL (and its
 // endpoint) are set: off in production until a trained adapter has earned it (docs/finetune.md).
 const studentName = studentModel(env);
@@ -154,7 +167,7 @@ const running = await startRegistry({
   ...(demoOrigin && demoOrigin !== 'off' && { publicDemo: { origin: demoOrigin, keepAgents: (env.USHER_DEMO_KEEP_AGENTS ?? '').split(',').map((a) => a.trim()).filter(Boolean) } }),
   ...(env.USHER_HOSTED_MCP !== 'off' && {
     // The registry's own model for pages with no map, within the same daily cap.
-    mcp: (registry) => hostedMcp({ registry, version: env.USHER_VERSION || 'dev', browser: hostedBrowser, allowPrivate: values['allow-private'], ...(spark && { fallback: { chat: spark.chat, model: spark.model, logDir: null } }) }),
+    mcp: (registry) => hostedMcp({ registry, version: env.USHER_VERSION || 'dev', browser: hostedBrowser, allowPrivate: values['allow-private'], ...(mcpShare.model && { fallback: { chat: mcpShare.model.chat, model: mcpShare.model.model, logDir: null } }) }),
   }),
   // "Map my site": an owner's walkthrough, in the hosted browser, by Muse Spark within the same cap.
   // One run per site per UTC day; USHER_WALKTHROUGH_DAILY_LIMIT raises it for our own demo site.
@@ -163,8 +176,10 @@ const running = await startRegistry({
       new Walkthroughs({
         registry,
         browser: hostedBrowser,
-        compiler: spark,
-        spend: { today: spentToday, cap: budget },
+        compiler: ownerShare.model!,
+        spend: ownerShare.spend,
+        // Usher's admin: the whole daily cap, none of the owners' limits.
+        admin: { compiler: spark, spend: { today: spentToday, cap: budget } },
         dailyLimit: (origin) => (origin === demoOrigin ? Number(env.USHER_WALKTHROUGH_DAILY_LIMIT ?? 1) : 1),
         allowPrivate: values['allow-private'],
         // Owners' corrections are kept in storage; the file log is for local development.
@@ -177,8 +192,8 @@ const running = await startRegistry({
     new ThemeDeriver({
       registry,
       browser: hostedBrowser,
-      ...(spark && { compiler: spark }),
-      spend: { today: spentToday, cap: budget },
+      ...(ownerShare.model && { compiler: ownerShare.model }),
+      spend: ownerShare.spend,
       allowPrivate: values['allow-private'],
     }),
   port: Number(values.port),

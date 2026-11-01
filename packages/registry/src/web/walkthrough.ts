@@ -6,7 +6,7 @@
 
 import type { UsherMap } from '@usher/core';
 import { vocabulary } from '@usher/core';
-import type { EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
+import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
 import { esc, html, page, when, type Raw } from './html.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
@@ -41,7 +41,24 @@ form.correct button { padding:4px 12px; font-size:13px; }
 form.correct { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 form.correct input, form.correct select { font:inherit; font-size:13px; padding:3px 6px; }
 form.correct input[name=key] { width:15em; } form.correct input[name=label] { width:14em; }
-@media (max-width:860px) { .live { grid-template-columns:minmax(0,1fr); } }
+.live.talk { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); }
+.browser.clickable img { cursor:pointer; outline:3px solid rgba(116,52,211,.35); outline-offset:-3px; }
+.browser .hint { margin-left:auto; color:var(--accent,#7434d3); font-weight:600; }
+.chat { display:flex; flex-direction:column; gap:10px; max-height:560px; overflow:auto; padding:2px 2px 8px; }
+.msg { max-width:92%; padding:10px 14px; border-radius:14px; font-size:15px; line-height:1.45; }
+.msg p { margin:0; }
+.msg.usher { align-self:flex-start; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:4px; }
+.msg.owner { align-self:flex-end; background:var(--accent,#7434d3); color:#fff; border-bottom-right-radius:4px; }
+.msg .thumbs { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.msg .thumbs img { width:150px; max-height:110px; object-fit:cover; object-position:top; border:1px solid var(--line); border-radius:6px; }
+.msg form.choices { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.msg form.choices button { padding:6px 12px; font-size:14px; border-radius:999px; }
+.msg form.choices button:disabled { opacity:.45; cursor:default; }
+.msg.thinking { color:var(--muted); font-style:italic; }
+form.say { display:flex; gap:8px; margin-top:10px; align-items:flex-end; }
+form.say textarea { flex:1; font:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; resize:vertical; }
+.live details summary { cursor:pointer; color:var(--muted); font-size:14px; margin-top:12px; }
+@media (max-width:860px) { .live, .live.talk { grid-template-columns:minmax(0,1fr); } }
 `;
 
 /** One page's screenshot with its elements' boxes over it, and the same elements as a table. */
@@ -84,22 +101,49 @@ export function startForm(origin: string, error?: string): string {
     html`<h1>Map my site</h1>
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough">
-<label>First page of the journey<input name="start" required value="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
+<label>Where to start <span class="small muted">(your home page is fine: Usher asks where to go, and can map every form in one run)</span><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
 <label><input type="checkbox" name="generated" value="1" checked> Use a generated test person (fictional; nothing about anyone real)</label>
 <label>Or your own test answers, one per line as <code>key: value</code> (for example <code>person.first_name: Test</code>)<textarea name="values" rows="6"></textarea></label>
 <label><input type="checkbox" name="final" value="1"> Press the last button too (the one that submits), on this test run</label>
-<p class="small muted">Test answers stay in the run's memory: they are never stored, logged, sent to the model or shown in a screenshot (every input is masked), and are gone when the run ends. One run per day; it counts against the daily model budget.</p>
+<p class="small muted">Test answers stay in the run's memory: they are never stored, logged, sent to the model or shown in a screenshot (every input is masked), and are gone when the run ends. One run per day, and a run that maps nothing doesn't count; it counts against the daily model budget. While it runs you can talk to Usher, pick where it goes, or click its browser; it never leaves your site.</p>
 <button type="submit">Start</button></form>`,
   );
 }
 
 /** While it runs: masked frames and the step log, streamed; on finish the page reloads to the result. */
-export function liveView(run: WalkthroughRun, events: string): Raw {
-  return html`<div class="live" data-events="${events}" id="walkthrough-live">
+export function liveView(run: WalkthroughRun, events: string, interactive = false): Raw {
+  const steplog = html`<ol class="steplog" id="live-log">${run.log.map((l) => html`<li>${l}</li>`)}</ol>`;
+  const stop = html`<form method="post" action="/dashboard/walkthrough/cancel"><input type="hidden" name="id" value="${run.id}"><button type="submit" class="secondary">Stop</button></form>`;
+  if (!run.chat)
+    return html`<div class="live" data-events="${events}" id="walkthrough-live">
 <div class="browser"><div class="bar"><i></i><i></i><i></i><span id="live-url">${run.start}</span></div><img id="live-frame" alt="Usher's browser, inputs masked" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></div>
-<div><h2>What Usher is doing</h2><ol class="steplog" id="live-log">${run.log.map((l) => html`<li>${l}</li>`)}</ol>
-<form method="post" action="/dashboard/walkthrough/cancel"><input type="hidden" name="id" value="${run.id}"><button type="submit">Stop</button></form>
+<div><h2>What Usher is doing</h2>${steplog}
+${stop}
 <p class="small muted">You can close this page: the run carries on, and the result waits here.</p></div></div>`;
+  // The last message with choices is the one that can still be answered.
+  const open = run.waiting ? run.chat.map((m) => Boolean(m.options)).lastIndexOf(true) : -1;
+  return html`<div class="live talk" data-events="${events}" data-run="${run.id}" id="walkthrough-live"${interactive ? html` data-act="/dashboard/walkthrough"` : ''}${run.waiting ? html` data-waiting` : ''}>
+<div class="browser${interactive && run.clickable && run.waiting ? ' clickable' : ''}" id="live-browser"${interactive && run.clickable ? html` data-clickable` : ''}><div class="bar"><i></i><i></i><i></i><span id="live-url">${run.start}</span>${interactive && run.clickable ? html`<span class="hint" id="live-hint"${run.waiting ? '' : ' hidden'}>Click the page to use it</span>` : ''}</div><img id="live-frame" alt="Usher's browser, inputs masked${interactive && run.clickable ? '; while Usher waits, clicking it clicks the page' : ''}" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></div>
+<div><h2>Usher</h2>
+<p class="small muted">Model spend this run: $<span id="live-cost">${run.cost_usd.toFixed(3)}</span>. Usher reads up to 40 messages a run, within a daily allowance for your site.</p>
+<div class="chat" id="live-chat" aria-live="polite">${run.chat.map((m, i) => chatMessage(run, m, { interactive, open: i === open }))}</div>
+${interactive ? html`<form class="say" method="post" action="/dashboard/walkthrough/say" id="live-say"><input type="hidden" name="id" value="${run.id}"><textarea name="text" rows="2" maxlength="500" required placeholder="Say where to go next, or ask Usher something" aria-label="Message to Usher"></textarea><button type="submit">Send</button></form>` : ''}
+<details><summary>Step log</summary>${steplog}</details>
+${stop}
+<p class="small muted">Usher's browser stays on your site: it can't open any other address. Test answers are masked in every picture.</p></div></div>`;
+}
+
+/** One line of the conversation: words, thumbnails of the pages it's about, and its choices. */
+export function chatMessage(run: Pick<WalkthroughRun, 'id' | 'pages'>, m: ChatMessage, o: { interactive: boolean; open: boolean }): Raw {
+  const thumbs = m.pages?.filter((i) => run.pages[i]).length
+    ? html`<div class="thumbs">${m.pages.filter((i) => run.pages[i]).map((i) => html`<a href="#page-${String(i + 1)}"><img src="/dashboard/walkthrough/shot?page=${String(i)}" alt="${run.pages[i]!.title || run.pages[i]!.path}, as Usher mapped it"></a>`)}</div>`
+    : '';
+  const choices = !m.options
+    ? ''
+    : o.interactive
+      ? html`<form class="choices" method="post" action="/dashboard/walkthrough/choose"><input type="hidden" name="id" value="${run.id}">${m.options.map((c) => html`<button type="submit" name="option" value="${c.id}" title="${c.path}"${o.open ? '' : ' disabled'}>${c.label}</button>`)}<button type="submit" name="option" value="finish" class="secondary"${o.open ? '' : ' disabled'}>Finish here</button></form>`
+      : html`<p class="small muted">${m.options.map((c) => c.label).join(' · ')}</p>`;
+  return html`<div class="msg ${m.from}"><p>${m.text}</p>${thumbs}${choices}</div>`;
 }
 
 /** The finished run: each page annotated, in order, with what leads where, the diff and Publish. */
@@ -121,6 +165,12 @@ ${error ? html`<div class="card error">${error}</div>` : ''}${pending}
 <form method="post" action="/dashboard/walkthrough/edit"><p><label for="edit-text">Tell Usher what to change, for example "the smoker question is the person's own on every page" or "call the third field the policy number".</label></p>
 <p><textarea id="edit-text" name="text" rows="3" maxlength="1000" required style="width:100%"></textarea></p>
 <p><button type="submit">Suggest changes</button> <span class="small muted">Muse Spark reads the request and the map's structure; nothing changes until you accept.</span></p></form></section>`;
+}
+
+/** The conversation of a finished run, folded away above its pages. */
+function transcript(run: WalkthroughRun): Raw {
+  if (!run.chat?.length) return html``;
+  return html`<details class="card"><summary>The conversation (${String(run.chat.length)} messages)</summary><div class="chat">${run.chat.map((m) => chatMessage(run, m, { interactive: false, open: false }))}</div></details>`;
 }
 
 export function resultView(run: WalkthroughRun, options: { editable: boolean; publishAction?: string; edits?: EditProposal | null; editError?: string }): Raw {
@@ -154,7 +204,7 @@ export function walkthroughPage(run: WalkthroughRun | null, options: { editable:
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>
 ${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher walks your journey, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
-${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events) : resultView(run, options)}`,
+${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events, options.editable) : html`${transcript(run)}${resultView(run, options)}`}`,
     { scripts: ['/walkthrough.js'], style: ANNOTATE_STYLE + (options.setup?.style ?? '') },
   );
 }
@@ -177,10 +227,97 @@ export const WALKTHROUGH_JS = `(() => {
   const source = new EventSource(live.getAttribute('data-events'));
   let seen = log.children.length;
   source.addEventListener('frame', (e) => { frame.src = 'data:image/jpeg;base64,' + e.data; });
+  const address = document.getElementById('live-url');
+  source.addEventListener('url', (e) => { if (address) address.textContent = e.data; });
   source.addEventListener('log', (e) => {
     if (seen > 0) { seen--; return; }
     const li = document.createElement('li'); li.textContent = e.data; log.appendChild(li); log.scrollTop = log.scrollHeight;
   });
   source.addEventListener('done', () => { source.close(); setTimeout(() => location.reload(), 600); });
+
+  // The conversation: Usher's messages and choices arrive as events; the owner answers by choice,
+  // by words or by clicking the live page while Usher waits.
+  const chat = document.getElementById('live-chat');
+  if (!chat) return;
+  const act = live.getAttribute('data-act');
+  const runId = live.getAttribute('data-run');
+  const browser = document.getElementById('live-browser');
+  const hint = document.getElementById('live-hint');
+  let waiting = live.hasAttribute('data-waiting');
+  let thinking = null;
+  const post = (path, body) => fetch(act + path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: new URLSearchParams(Object.assign({ id: runId }, body)) });
+  const closeChoices = () => chat.querySelectorAll('form.choices button').forEach((b) => { b.disabled = true; });
+  const setWaiting = (w) => {
+    waiting = w;
+    if (hint) hint.hidden = !w;
+    if (browser && act && browser.hasAttribute('data-clickable')) browser.classList.toggle('clickable', w);
+    if (!w) closeChoices();
+  };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const render = (m) => {
+    const box = el('div', 'msg ' + m.from);
+    box.appendChild(el('p', '', m.text));
+    if (m.pages && m.pages.length) {
+      const thumbs = el('div', 'thumbs');
+      for (const i of m.pages) { const img = el('img'); img.src = '/dashboard/walkthrough/shot?page=' + i; img.alt = 'A page as Usher mapped it'; thumbs.appendChild(img); }
+      box.appendChild(thumbs);
+    }
+    if (m.options && act) {
+      closeChoices();
+      const form = el('form', 'choices');
+      for (const o of m.options.concat([{ id: 'finish', label: 'Finish here', path: '' }])) {
+        const b = el('button', o.id === 'finish' ? 'secondary' : '', o.label);
+        b.type = 'submit'; b.name = 'option'; b.value = o.id; if (o.path) b.title = o.path;
+        form.appendChild(b);
+      }
+      box.appendChild(form);
+    }
+    if (thinking && m.from === 'usher') { thinking.remove(); thinking = null; }
+    chat.appendChild(box);
+    chat.scrollTop = chat.scrollHeight;
+  };
+  source.addEventListener('chat', (e) => render(JSON.parse(e.data)));
+  source.addEventListener('waiting', (e) => setWaiting(JSON.parse(e.data)));
+  const cost = document.getElementById('live-cost');
+  source.addEventListener('cost', (e) => { if (cost) cost.textContent = e.data; });
+  chat.scrollTop = chat.scrollHeight;
+  if (!act) return;
+  chat.addEventListener('submit', (e) => {
+    if (!e.target.matches('form.choices')) return;
+    e.preventDefault();
+    const option = e.submitter && e.submitter.value;
+    if (!option || !waiting) return;
+    closeChoices();
+    post('/choose', { option });
+  });
+  const say = document.getElementById('live-say');
+  if (say) {
+    const box = say.querySelector('textarea');
+    box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); say.requestSubmit(); } });
+    say.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = box.value.trim();
+      if (!text) return;
+      box.value = '';
+      // The owner's words come back as an event; until Usher answers, say it's reading.
+      setTimeout(() => {
+        if (waiting && !thinking) { thinking = el('div', 'msg usher thinking', 'Usher is reading that…'); chat.appendChild(thinking); chat.scrollTop = chat.scrollHeight; }
+      }, 150);
+      post('/say', { text }).then((r) => {
+        if (r.status === 429 || r.status === 409) {
+          if (thinking) { thinking.remove(); thinking = null; }
+          render({ from: 'usher', text: r.status === 429 ? 'That is a lot of messages in an hour. Pick one of the choices, or wait a little.' : 'I couldn\u2019t take that message just now. Try again in a moment.' });
+        }
+      });
+    });
+  }
+  frame.addEventListener('click', (e) => {
+    if (!waiting || !frame.naturalWidth || !browser || !browser.hasAttribute('data-clickable')) return;
+    const r = frame.getBoundingClientRect();
+    const x = Math.round(((e.clientX - r.left) / r.width) * frame.naturalWidth);
+    const y = Math.round(((e.clientY - r.top) / r.height) * frame.naturalHeight);
+    setWaiting(false);
+    post('/click', { x: String(x), y: String(y) });
+  });
 })();
 `;

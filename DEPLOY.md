@@ -285,6 +285,8 @@ The cap covers every model call: map viewer compiles, the picker refresh (which 
 | `USHER_SIGNING_KEY` | required | The token signing key (`npm run keygen`). |
 | `USHER_RETIRED_KEYS` | no | JSON array of earlier public JWKs to keep publishing after a rotation, for at least 10 minutes. |
 | `USHER_DAILY_MODEL_BUDGET_USD` | required | Hard daily cap on model spend across all models. Once reached, compiles and rules stop until midnight UTC; cached maps keep working. |
+| `USHER_MCP_MODEL_BUDGET_USD` | 1.5 by default | The hosted MCP's share of that cap, for anonymous agents, so they can't spend what owners need. |
+| `USHER_OWNER_MODEL_BUDGET_USD` | 2.5 by default | Owners' share: walkthroughs, their conversation and site themes. Usher's admin uses the whole cap. |
 | `USHER_ADMIN_KEY` | required, 32+ characters | Signs in to `/admin`. |
 | `USHER_CONTACT_EMAIL` | required | Named on `/privacy` and in `/.well-known/security.txt`. |
 | `TRUSTED_PROXY_HOPS` | 2 by default | Proxies in front whose forwarded headers are trusted: CloudFront and the ALB. The client is the `X-Forwarded-For` entry this many from the right. The scheme is `CloudFront-Forwarded-Proto`, else `X-Forwarded-Proto`. Use 1 for an ALB alone; 0 trusts nothing forwarded (the default outside production). |

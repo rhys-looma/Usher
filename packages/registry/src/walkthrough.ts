@@ -13,6 +13,18 @@
 // The result is a proposal (maps, a plan, and a masked screenshot per page with every element's box)
 // that waits for the owner to publish it.
 //
+// An owner's run is a conversation. Where a walk would end (a page with no form, a journey's last
+// button, a page that won't move on) Usher stops and asks, offering the site's declared journeys and
+// the page's own links. The owner picks one, clicks the live page, or says what they want in words:
+// Muse Spark turns the words into one of those moves (a choice by id, a path on the site, finish or
+// wait); code checks it and code moves the browser. Every top-level navigation stays on the site's
+// origin, whoever asks for it, and nothing but a plain read (GET) leaves for another host, except to
+// this registry (the site script's own calls). Clicks are for sites that have joined only: Usher
+// never presses anything on a site that hasn't. A run lasts at most 45 minutes, reads the owner's
+// words at most 40 times, and only a few run at once. Usher's admin (signed in with the admin key)
+// has none of the per-site, per-run or per-day limits: only the registry's daily spend cap, the run
+// time (three hours) and the browser's rules, which are the same for everyone.
+//
 // Test values live in this run's memory only. They are never stored, logged, sent to the model or
 // put in an error message, and are dropped when the run ends. Every screenshot and every frame masks
 // inputs, selects and chosen options, so no value is in any image. One run per site per UTC day,
@@ -20,7 +32,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Browser, BrowserContext, Page } from 'playwright';
-import { compilePage, composePlan, dismissConsent, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
+import { compilePage, composePlan, costUsd, dismissConsent, parseJsonContent, fillField, generateAgentIdentity, LOOKUP_FILLS, locate, mainForm, matchOption, mapSchemaErrors, scanScript, signRequest, VIEWPORT, type AgentIdentity, type ChatFn, type MapField, type Scan, type ScannedForm, type UsherMap, type UsherPlan } from '@usher/core';
 import { publicHost } from '@usher/core/public-fetch';
 import { knockRequest } from './client.ts';
 import type { Registry } from './registry.ts';
@@ -55,6 +67,24 @@ export interface WalkthroughPage {
   leads_to?: string;
 }
 
+/** A line of the conversation: Usher's words (with its choices while it waits), or the owner's. */
+export interface ChatMessage {
+  from: 'usher' | 'owner';
+  text: string;
+  at: string;
+  /** Where Usher can go next, while it waits for the owner. */
+  options?: Choice[];
+  /** The pages this is about (indexes into the run's pages), shown as thumbnails. */
+  pages?: number[];
+}
+
+/** A place Usher can go next: a declared journey or a link on the page, always on the site. */
+export interface Choice {
+  id: string;
+  label: string;
+  path: string;
+}
+
 export interface WalkthroughRun {
   id: string;
   origin: string;
@@ -69,12 +99,28 @@ export interface WalkthroughRun {
   cost_usd: number;
   /** The step log, in plain words; never a value. */
   log: string[];
+  /** The conversation with the owner (an owner's run only). */
+  chat?: ChatMessage[];
+  /** Waiting for the owner to say where to go. */
+  waiting?: boolean;
+  /** The owner may click the live page (the site has joined). */
+  clickable?: boolean;
   /** Against the maps the registry serves now, per page: keys added, removed or changed. */
   diff?: { path: string; added: string[]; removed: string[]; changed: string[] }[];
   published_at?: string;
 }
 
-export type WalkthroughEvent = { type: 'log'; text: string } | { type: 'frame'; data: string } | { type: 'done'; status: WalkthroughStatus; reason?: string };
+export type WalkthroughEvent =
+  | { type: 'log'; text: string }
+  | { type: 'frame'; data: string }
+  | { type: 'chat'; message: ChatMessage }
+  | { type: 'waiting'; waiting: boolean }
+  | { type: 'cost'; usd: number }
+  | { type: 'url'; url: string }
+  | { type: 'done'; status: WalkthroughStatus; reason?: string };
+
+/** What the owner chose while Usher waited: a page on the site, a click on the live page, or the end. */
+type Move = { path: string } | { click: { x: number; y: number } } | { finish: true };
 
 /** A chat edit, proposed and waiting for the owner. */
 export interface EditProposal {
@@ -136,6 +182,18 @@ export interface WalkthroughOptions {
   frameMs?: number;
   /** Most pages one run walks. */
   maxPages?: number;
+  /** How long an owner's run waits for an answer before it finishes. Default ten minutes. */
+  pauseMs?: number;
+  /** The longest a run may last. Default 45 minutes. */
+  maxRunMs?: number;
+  /** Runs at once, across every site (each holds a browser). Default 4. */
+  maxLive?: number;
+  /** Starts per site per day, whatever a run gave back. Default 5. */
+  maxStarts?: number;
+  /** What one site's conversations may spend on reading the owner's words, per day (USD). Default 0.25. */
+  chatBudgetUsd?: number;
+  /** The model and budget for runs Usher's admin starts: the registry's whole daily cap, not the owners' share. */
+  admin?: { compiler: { chat: ChatFn; model: string }; spend: { today: () => Promise<number>; cap: number } };
   /** Let runs reach private addresses (local development and tests only). */
   allowPrivate?: boolean;
   /** Where corrections and compile requests are logged (the compiler log); null for none. */
@@ -147,7 +205,29 @@ interface Live {
   run: WalkthroughRun;
   listeners: Set<(e: WalkthroughEvent) => void>;
   cancelled: boolean;
+  /** An owner's run: Usher asks where a walk would end. */
+  conversation: boolean;
+  /** While Usher waits: its choices, the page it is on, and how to answer. */
+  waiting?: { options: Choice[]; at: { path: string; title: string }; resolve: (move: Move | null) => void };
+  /** Journeys the owner asked for next ("then the callback"), by path, in order. */
+  queue: string[];
+  /** What the owner said while Usher was busy, read at the next stop. */
+  pending?: string;
+  /** Muse Spark is reading the owner's words; and how many times it has this run. */
+  reading: boolean;
+  reads: number;
+  /** The site has joined, so the owner may click its pages. */
+  joined: boolean;
+  /** When the run must end, whatever it's doing. */
+  deadline: number;
+  /** Started by Usher's admin: no per-site, per-run or per-day limits. */
+  admin: boolean;
 }
+
+const MAX_CHOICES = 6;
+const MAX_STOPS = 30;
+const MAX_CHAT = 200;
+const MAX_READS = 40;
 
 const ADVANCE = ['form.submit', 'search.submit', 'nav.next', 'form.purchase'];
 const MAX_CONTROLS = 12;
@@ -160,11 +240,15 @@ export const MASK = 'input:not([type=hidden]):not([type=submit]):not([type=butto
  * A site's own pages only: Usher's browser never follows the site off its origin. And, as for the
  * viewer and hosted MCP, every request (page, redirect, script, frame) must reach a public address.
  */
-export async function ownPagesOnly(context: BrowserContext, origin: string): Promise<void> {
+export async function ownPagesOnly(context: BrowserContext, origin: string, options: { allowPrivate?: boolean; registry?: string } = {}): Promise<void> {
   const verdicts = new Map<string, Promise<boolean>>();
+  const registry = options.registry ? new URL(options.registry).origin : null;
   await context.route('**/*', async (route) => {
     const target = new URL(route.request().url());
     if (route.request().isNavigationRequest() && !route.request().frame().parentFrame() && target.origin !== origin) return route.abort('blockedbyclient');
+    // Usher's browser is no one's proxy: only reads leave the site, from any frame (the registry excepted).
+    if (target.origin !== origin && target.origin !== registry && !['GET', 'HEAD'].includes(route.request().method())) return route.abort('blockedbyclient');
+    if (options.allowPrivate) return route.continue();
     if (!verdicts.has(target.hostname)) verdicts.set(target.hostname, publicHost(target.hostname));
     return (await verdicts.get(target.hostname)) ? route.continue() : route.abort('blockedbyclient');
   });
@@ -191,7 +275,7 @@ export class Walkthroughs {
   }
 
   /** Why a run can't start now, or null. */
-  async refusal(origin: string, start: string): Promise<string | null> {
+  async refusal(origin: string, start: string, admin = false): Promise<string | null> {
     const site = await this.storage.getSite(origin);
     // A site Usher's admin listed (only the admin can open its dashboard) may be walked too, read-only:
     // the walk stops before the final step there (start).
@@ -205,28 +289,39 @@ export class Walkthroughs {
     if (url.origin !== origin) return `The start page must be on ${origin}.`;
     if (!this.o.compiler) return 'This registry has no model to label pages with.';
     if ([...this.live.values()].some((l) => l.run.origin === origin && l.run.status === 'running')) return 'A walkthrough of this site is already running.';
+    if (this.live.size >= (this.o.maxLive ?? 4)) return 'Usher is mapping several sites right now. Try again in a few minutes.';
+    const budget = admin && this.o.admin ? this.o.admin.spend : this.o.spend;
+    const spent = await budget.today();
+    if (spent + (this.o.estimateUsd ?? 0.6) > budget.cap) return `Today's model budget (${budget.cap}) can't cover a walkthrough; it resets at midnight UTC.`;
+    if (admin) return null;
+    const starts = (await this.storage.getCached<{ n: number }>('walkthrough-starts', `${origin}|${this.day()}`))?.n ?? 0;
+    if (starts >= (this.o.maxStarts ?? 5)) return `${this.o.maxStarts ?? 5} walkthroughs started today; the next can start after midnight UTC.`;
     const limit = this.o.dailyLimit?.(origin) ?? 1;
     const used = (await this.storage.getCached<{ n: number }>('walkthrough-runs', `${origin}|${this.day()}`))?.n ?? 0;
     if (used >= limit) return `One walkthrough per site per day${limit > 1 ? ` (this site: ${limit})` : ''}; the next can start after midnight UTC.`;
-    const spent = await this.o.spend.today();
-    if (spent + (this.o.estimateUsd ?? 0.6) > this.o.spend.cap) return `Today's model budget ($${this.o.spend.cap}) can't cover a walkthrough; it resets at midnight UTC.`;
     return null;
   }
 
   /** Starts a run; values are held in this run's memory only. */
-  async start(input: { origin: string; start: string; values?: TestValues; generated?: boolean; pressFinal: boolean; by: 'owner' | 'operator' }): Promise<{ id: string } | { refused: string }> {
-    const refused = await this.refusal(input.origin, input.start);
+  async start(input: { origin: string; start: string; values?: TestValues; generated?: boolean; pressFinal: boolean; by: 'owner' | 'operator'; conversation?: boolean; admin?: boolean }): Promise<{ id: string } | { refused: string }> {
+    const refused = await this.refusal(input.origin, input.start, input.admin);
     if (refused) return { refused };
     const key = `${input.origin}|${this.day()}`;
     await this.storage.putCached('walkthrough-runs', key, { n: ((await this.storage.getCached<{ n: number }>('walkthrough-runs', key))?.n ?? 0) + 1 });
+    // Starts are counted apart from runs: a run that maps nothing gives its run back, never its start.
+    await this.storage.putCached('walkthrough-starts', key, { n: ((await this.storage.getCached<{ n: number }>('walkthrough-starts', key))?.n ?? 0) + 1 });
     const run: WalkthroughRun = { id: `w_${randomUUID().replace(/-/g, '').slice(0, 16)}`, origin: input.origin, start: input.start, by: input.by, status: 'running', started_at: this.now().toISOString(), pages: [], cost_usd: 0, log: [] };
-    const live: Live = { run, listeners: new Set(), cancelled: false };
+    const joined = Boolean((await this.storage.getSite(input.origin))?.claim) || input.origin === this.o.registry.demoOrigin;
+    const live: Live = { run, listeners: new Set(), cancelled: false, conversation: Boolean(input.conversation), queue: [], reading: false, reads: 0, joined, admin: Boolean(input.admin), deadline: this.now().getTime() + (input.admin ? 3 * 60 * 60_000 : (this.o.maxRunMs ?? 45 * 60_000)) };
+    if (live.conversation) {
+      run.chat = [];
+      run.clickable = joined;
+    }
     this.live.set(run.id, live);
     // The owner's values or the generated person, for this run only.
     const values: TestValues = { ...(input.generated ? { ...TEST_PERSON, 'policy.start_date': testStartDate(this.now()) } : {}), ...(input.values ?? {}) };
     // Usher never submits to a site that hasn't joined: on a listed site the walk maps every page
     // and stops before the final step, whatever was ticked.
-    const joined = Boolean((await this.storage.getSite(input.origin))?.claim) || input.origin === this.o.registry.demoOrigin;
     if (input.pressFinal && !joined) run.log.push('This site has not joined Usher, so the walk stops before the final step: Usher never submits to it.');
     void this.walk(live, values, input.pressFinal && joined).finally(() => this.live.delete(run.id));
     return { id: run.id };
@@ -251,7 +346,207 @@ export class Walkthroughs {
     const live = this.live.get(id);
     if (!live || live.run.origin !== origin) return false;
     live.cancelled = true;
+    live.waiting?.resolve(null);
     return true;
+  }
+
+  /** The owner picks one of Usher's choices, or "finish". */
+  choose(origin: string, id: string, option: string): boolean {
+    const live = this.live.get(id);
+    if (!live || live.run.origin !== origin || !live.waiting) return false;
+    if (option === 'finish') {
+      this.post(live, { from: 'owner', text: 'Finish here.' });
+      live.waiting.resolve({ finish: true });
+      return true;
+    }
+    const choice = live.waiting.options.find((o) => o.id === option);
+    if (!choice) return false;
+    this.post(live, { from: 'owner', text: choice.label });
+    live.waiting.resolve({ path: choice.path });
+    return true;
+  }
+
+  /** The owner clicks the live page while Usher waits; the lock keeps wherever it leads on the site. */
+  click(origin: string, id: string, x: number, y: number): boolean {
+    const live = this.live.get(id);
+    if (!live || live.run.origin !== origin || !live.waiting || !live.joined) return false;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > VIEWPORT.width || y > VIEWPORT.height) return false;
+    this.post(live, { from: 'owner', text: 'Clicked the page.' });
+    live.waiting.resolve({ click: { x: Math.round(x), y: Math.round(y) } });
+    return true;
+  }
+
+  /** The owner says something. While Usher waits, Muse Spark reads it against the choices; else it waits for the next stop. */
+  async message(origin: string, id: string, text: string): Promise<string | null> {
+    const live = this.live.get(id);
+    if (!live || live.run.origin !== origin || !live.conversation) return 'That run has finished.';
+    const words = text.replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (!words) return 'Say something first.';
+    if (live.reading) return 'Usher is still reading your last message.';
+    this.post(live, { from: 'owner', text: words });
+    if (!live.admin && live.reads >= MAX_READS) {
+      this.post(live, { from: 'usher', text: "I've read as many messages as one run allows. Pick one of the choices, or start a new run tomorrow." });
+      return null;
+    }
+    if (!live.waiting) {
+      live.pending = words;
+      this.post(live, { from: 'usher', text: "Got it. I'll come back to that when I've finished this page." });
+      return null;
+    }
+    await this.understand(live, words);
+    return null;
+  }
+
+  /** The admin's runs use the registry's whole daily cap; everyone else's, the owners' share. */
+  private compilerFor(live: Live) {
+    return live.admin && this.o.admin ? this.o.admin.compiler : this.o.compiler;
+  }
+
+  /** A line of the conversation, kept on the run and sent to whoever is watching. */
+  private post(live: Live, message: Omit<ChatMessage, 'at'>): void {
+    const full: ChatMessage = { ...message, at: this.now().toISOString() };
+    const chat = (live.run.chat ??= []);
+    chat.push(full);
+    if (chat.length > MAX_CHAT) chat.splice(0, chat.length - MAX_CHAT);
+    for (const l of live.listeners) l({ type: 'chat', message: full });
+  }
+
+  /**
+   * The owner's words, read by Muse Spark against what Usher can do here. The model sees the page's
+   * path and title, the pages mapped so far, the choices and the owner's words; never a value from a
+   * form. It picks a move; code checks it (a choice that exists, a path on this site) and moves.
+   */
+  private async understand(live: Live, words: string): Promise<void> {
+    const waiting = live.waiting;
+    if (!waiting) return;
+    const compiler = this.compilerFor(live);
+    if (!compiler) return this.post(live, { from: 'usher', text: "I can't read messages on this registry. Pick one of the choices instead." });
+    const budget = live.admin && this.o.admin ? this.o.admin.spend : this.o.spend;
+    const spent = await budget.today();
+    if (spent + 0.02 > budget.cap) return this.post(live, { from: 'usher', text: "Today's model budget is spent, so I can't read messages until midnight UTC. Pick one of the choices instead." });
+    const ledger = `${live.run.origin}|${this.day()}`;
+    const siteSpent = (await this.storage.getCached<{ usd: number }>('walkthrough-chat-spend', ledger))?.usd ?? 0;
+    if (!live.admin && siteSpent >= (this.o.chatBudgetUsd ?? 0.25)) return this.post(live, { from: 'usher', text: "Your site's messages for today are used up, so I can't read more until midnight UTC. The choices and clicking still work." });
+    let answer: { reply?: string; move?: string; option?: string | null; path?: string | null; then?: string[] };
+    live.reading = true;
+    live.reads++;
+    try {
+      const recent = (live.run.chat ?? []).slice(-8).map((m) => `${m.from}: ${m.text}`);
+      const result = await compiler.chat({
+        model: compiler.model,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: MOVE_SYSTEM },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              site: live.run.origin,
+              at: waiting.at,
+              mapped: live.run.pages.map((p) => ({ path: p.path, title: p.title })),
+              choices: waiting.options,
+              recent,
+              owner_says: words,
+            }),
+          },
+        ],
+        response_format: { type: 'json_schema', json_schema: { name: 'usher_walk_move', strict: true, schema: MOVE_SCHEMA } },
+      });
+      const cost = costUsd(compiler.model, result.usage) ?? 0.01;
+      live.run.cost_usd += cost;
+      await this.storage.putCached('walkthrough-chat-spend', ledger, { usd: siteSpent + cost });
+      for (const l of live.listeners) l({ type: 'cost', usd: live.run.cost_usd });
+      answer = parseJsonContent(result.content) as typeof answer;
+    } catch {
+      return this.post(live, { from: 'usher', text: "Sorry, I couldn't read that. Pick one of the choices, or try saying it another way." });
+    } finally {
+      live.reading = false;
+    }
+    if (live.waiting !== waiting) return;
+    const reply = String(answer.reply ?? '').slice(0, 400);
+    if (reply) this.post(live, { from: 'usher', text: reply });
+    const byId = (id: string | null | undefined) => waiting.options.find((o) => o.id === id);
+    live.queue = (answer.then ?? []).map((id) => byId(id)?.path).filter((p): p is string => Boolean(p));
+    if (answer.move === 'option' && byId(answer.option)) return waiting.resolve({ path: byId(answer.option)!.path });
+    if (answer.move === 'path' && answer.path) {
+      const path = onSite(live.run.origin, answer.path);
+      if (path) return waiting.resolve({ path });
+      return this.post(live, { from: 'usher', text: "That isn't a page on your site, so I'll stay here." });
+    }
+    if (answer.move === 'finish') return waiting.resolve({ finish: true });
+  }
+
+  /** Waits for the owner: a choice, a click, words, or ten quiet minutes. A queued journey goes first. */
+  private async ask(live: Live, question: string, options: Choice[], at: { path: string; title: string }): Promise<Move | null> {
+    while (live.queue.length) {
+      const path = live.queue.shift()!;
+      const queued = options.find((o) => o.path === path);
+      if (queued) {
+        this.post(live, { from: 'usher', text: `Next, as you asked: ${queued.label}.` });
+        return { path: queued.path };
+      }
+    }
+    this.post(live, { from: 'usher', text: question, options });
+    const emit = (waiting: boolean) => {
+      live.run.waiting = waiting;
+      for (const l of live.listeners) l({ type: 'waiting', waiting });
+    };
+    emit(true);
+    const move = await new Promise<Move | null>((resolve) => {
+      const wait = Math.max(0, Math.min(this.o.pauseMs ?? 10 * 60_000, live.deadline - this.now().getTime()));
+      const timer = setTimeout(() => answer(null), wait);
+      // The first answer wins: a second choice or click arriving together finds nothing waiting.
+      const answer = (m: Move | null) => {
+        clearTimeout(timer);
+        live.waiting = undefined;
+        resolve(m);
+      };
+      live.waiting = { options, at, resolve: answer };
+      if (live.pending) {
+        const words = live.pending;
+        live.pending = undefined;
+        void this.understand(live, words);
+      }
+    });
+    live.waiting = undefined;
+    emit(false);
+    if (!move && !live.cancelled) this.post(live, { from: 'usher', text: "I haven't heard from you for a while, so I'll finish here. Everything mapped so far is kept." });
+    return move;
+  }
+
+  /** Where Usher can go from this page: the site's declared journeys first, then the page's links; never off the site, never a page already mapped. */
+  private async choices(page: Page, run: WalkthroughRun, declared: DeclaredJourney[], visited: Set<string>): Promise<Choice[]> {
+    const mapped = new Set([...run.pages.map((p) => p.path), ...visited]);
+    const here = new URL(page.url()).pathname;
+    const links = await page
+      .evaluate(() => [...document.querySelectorAll('a[href]')].map((a) => ({ href: (a as HTMLAnchorElement).href, text: (a.getAttribute('aria-label') || a.querySelector('strong, b, h1, h2, h3, h4')?.textContent || (a as HTMLElement).innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80) })))
+      .catch(() => [] as { href: string; text: string }[]);
+    const out: Choice[] = [];
+    const seen = new Set<string>();
+    const add = (href: string, label: string) => {
+      let url: URL;
+      try {
+        url = new URL(href, run.origin);
+      } catch {
+        return;
+      }
+      const key = url.pathname;
+      if (url.origin !== run.origin || !label || seen.has(key) || mapped.has(key) || key === here) return;
+      if (/^\/(__|\.well-known\/|static\/)/.test(key) || /\.(css|js|json|png|jpe?g|gif|svg|webp|ico|pdf|zip)$/i.test(key)) return;
+      seen.add(key);
+      out.push({ id: `c${out.length + 1}`, label, path: `${url.pathname}${url.search}` });
+    };
+    for (const j of declared) {
+      const link = links.find((l) => {
+        try {
+          return new URL(l.href).pathname === j.start;
+        } catch {
+          return false;
+        }
+      });
+      add(j.start, link?.text || intentWords(j.intent));
+    }
+    for (const l of links) add(l.href, l.text);
+    return out.slice(0, MAX_CHOICES);
   }
 
   /** The owner publishes the proposal: each page's map becomes the one agents get. */
@@ -394,9 +689,11 @@ export class Walkthroughs {
     };
     const host = new URL(run.origin).host;
     const browser = await this.o.browser();
-    const context = await browser.newContext({ viewport: VIEWPORT });
-    if (!this.o.allowPrivate) await ownPagesOnly(context, run.origin);
+    const context = await browser.newContext({ viewport: VIEWPORT, acceptDownloads: false });
+    await ownPagesOnly(context, run.origin, { allowPrivate: this.o.allowPrivate ?? false, registry: this.o.registry.url });
     const page = await context.newPage();
+    // One tab: anything the site opens in another is closed.
+    context.on('page', (other) => void (other !== page && other.close().catch(() => undefined)));
     // No single step may stall the run: a control that never answers is skipped.
     page.setDefaultTimeout(8_000);
     let framing = false;
@@ -423,14 +720,58 @@ export class Walkthroughs {
       const starts = [new URL(run.start).pathname, new URL(page.url()).pathname];
       let intent: string | undefined;
       let session: string | undefined;
-      for (let step = 1; step <= (this.o.maxPages ?? 10); step++) {
+      if (live.conversation) this.post(live, { from: 'usher', text: `I'm on ${new URL(page.url()).pathname} of ${host}. I'll map each form I find and ask you when I need to know where to go.` });
+      // In a conversation, where a walk would end Usher asks the owner instead: true when it has
+      // somewhere to go (and has gone), false to finish.
+      let stops = 0;
+      // Pages already seen this run (with a form or not): never offered again.
+      const visited = new Set<string>();
+      const stop = async (question: string): Promise<boolean> => {
+        visited.add(new URL(page.url()).pathname);
+        if (!live.conversation || live.cancelled || ++stops > MAX_STOPS || this.now().getTime() > live.deadline) return false;
+        const at = { path: new URL(page.url()).pathname, title: await page.title().catch(() => '') };
+        const move = await this.ask(live, question, await this.choices(page, run, declared, visited), at);
+        if (!move || 'finish' in move) return false;
+        const before = page.url();
+        if ('click' in move) {
+          await page.mouse.click(move.click.x, move.click.y).catch(() => undefined);
+          await page.waitForURL((u) => u.toString() !== before, { timeout: 5_000 }).catch(() => undefined);
+        } else {
+          await page.goto(new URL(move.path, run.origin).toString(), { waitUntil: 'load', timeout: 30_000 }).catch(() => undefined);
+        }
+        await page.waitForLoadState('load').catch(() => undefined);
+        // The lock blocks other origins; this is the belt to its braces.
+        if (new URL(page.url()).origin !== run.origin) await page.goto(before, { waitUntil: 'load' }).catch(() => undefined);
+        say(`On ${new URL(page.url()).pathname}, as the owner asked.`);
+        return true;
+      };
+      for (let step = 1; step <= (this.o.maxPages ?? (live.conversation ? 30 : 10)); step++) {
         if (live.cancelled) return await finish('cancelled', 'Cancelled by the owner.');
+        if (this.now().getTime() > live.deadline) {
+          if (live.conversation) this.post(live, { from: 'usher', text: "This run has reached its time limit, so I'll finish here. Everything mapped so far is kept." });
+          break;
+        }
         const path = new URL(page.url()).pathname;
         const title = await page.title();
+        emit({ type: 'url', url: page.url() });
+        if (live.conversation && run.pages.some((p) => p.path === path)) {
+          if (await stop(`I've already mapped ${title || path}. Where next?`)) {
+            step--;
+            continue;
+          }
+          break;
+        }
         let scan: Scan = await page.evaluate(scanScript());
         let form = mainForm(scan.forms);
         if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) {
           say(`${title || path}: no form to fill. The journey ends here.`);
+          const question = run.pages.length
+            ? `${title || path} has no form, so that journey ends here. Map another, or finish?`
+            : `${title || path} has no form to map. Where should I go?`;
+          if (await stop(question)) {
+            step--;
+            continue;
+          }
           break;
         }
         say(`Extracting ${title || path}: ${plural(form.elements.filter((e) => e.visible).length, 'visible element')}.`);
@@ -443,9 +784,11 @@ export class Walkthroughs {
         scan = await page.evaluate(scanScript());
         form = mainForm(scan.forms) ?? form;
 
-        say(`Labelling with ${this.o.compiler!.model} (vote mode).`);
-        const compiled = await compilePage(page, { chat: this.o.compiler!.chat, model: this.o.compiler!.model, vote: true, boxes: true, logDir: this.o.logDir ?? null });
+        const compiler = this.compilerFor(live)!;
+        say(`Labelling with ${compiler.model} (vote mode).`);
+        const compiled = await compilePage(page, { chat: compiler.chat, model: compiler.model, vote: true, boxes: true, logDir: this.o.logDir ?? null });
         run.cost_usd += compiled.cost_usd ?? 0;
+        emit({ type: 'cost', usd: run.cost_usd });
         const map = compiled.map;
         // One intent for the whole journey, the site's if it declares one.
         if (step === 1) {
@@ -482,13 +825,20 @@ export class Walkthroughs {
 
         const record: WalkthroughPage = { path, title, map, screenshot, width: size.width, height: size.height, conditions, unexplored: explored.unexplored, lists };
         run.pages.push(record);
+        if (live.conversation) {
+          const yours = map.fields.filter((f) => f.risk === 'needs_user').length;
+          const shows = conditions.length ? `, ${plural(conditions.length, 'answer')} that ${conditions.length === 1 ? 'shows' : 'show'} more` : '';
+          this.post(live, { from: 'usher', text: `Mapped “${title || path}”: ${plural(map.fields.length, 'field')}${yours ? `, ${yours} only the person can answer` : ''}${shows}.`, pages: [run.pages.length - 1] });
+        }
 
         const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => ADVANCE.includes(a.key));
         if (!advance) {
+          if (await stop(`I can't find a way forward from ${title || path}. Where next?`)) continue;
           await finish('stopped', `No way forward on ${path}.`);
           break;
         }
         if (advance.risk !== 'safe' && !pressFinal) {
+          if (await stop(`That journey is mapped up to “${advance.label}”, which I won't press on this run. Map another, or finish?`)) continue;
           await finish('stopped', `Stopped before "${advance.label}": pressing it wasn't allowed for this run.`);
           break;
         }
@@ -510,6 +860,7 @@ export class Walkthroughs {
         await page.waitForURL((u) => u.toString() !== before, { timeout: 15_000 }).catch(() => undefined);
         await page.waitForLoadState('load').catch(() => undefined);
         if (page.url() === before) {
+          if (await stop(`${title || path} didn't move on after “${advance.label}”: the site may have refused a test value. Try somewhere else, or finish?`)) continue;
           await finish('failed', `${path} did not move on after "${advance.label}": the site may have refused a test value.`);
           break;
         }
@@ -518,7 +869,7 @@ export class Walkthroughs {
         record.leads_to = next;
         say(`Next: ${next}.`);
       }
-      if (!ending) await finish(run.pages.length ? 'completed' : 'stopped', run.pages.length ? undefined : 'No form on the start page.');
+      if (!ending) await finish(run.pages.length ? 'completed' : 'stopped', run.pages.length ? undefined : "No form on the start page: start on a journey's first page instead. This run doesn't count towards today's.");
     } catch (err) {
       // The reason in words; never a value (fills fail by key and label only).
       await finish('failed', err instanceof Error ? err.message.split('\n')[0]!.replace(/:\s*$/, '').slice(0, 200) : 'The walkthrough failed.');
@@ -535,6 +886,12 @@ export class Walkthroughs {
       run.status = end.status;
       if (end.reason) run.reason = end.reason;
       run.finished_at = this.now().toISOString();
+      // A run that labelled nothing cost nothing: it gives back the day's walkthrough it took.
+      if (!run.pages.length && !run.cost_usd) {
+        const key = `${run.origin}|${run.started_at.slice(0, 10)}`;
+        const n = (await this.storage.getCached<{ n: number }>('walkthrough-runs', key))?.n ?? 0;
+        if (n > 0) await this.storage.putCached('walkthrough-runs', key, { n: n - 1 });
+      }
       await this.storage.putCached('walkthrough', run.origin, run);
       emit({ type: 'done', status: end.status, ...(end.reason && { reason: end.reason }) });
     }
@@ -695,4 +1052,48 @@ function diffMaps(path: string, current: UsherMap | undefined, proposed: UsherMa
     removed: [...before.keys()].filter((l) => !after.has(l)),
     changed: [...after.keys()].filter((l) => before.has(l) && before.get(l) !== after.get(l)),
   };
+}
+
+/** How a walk's conversation turns the owner's words into a move. */
+const MOVE_SYSTEM = `You help a website's owner map their site's forms with Usher. Usher's browser is paused on a page of the owner's site and is waiting for the owner to say where to go next.
+
+Choose one move from what the owner says:
+- "option": go to one of the listed choices (give its id in "option").
+- "path": go to another page on the same site the owner names (give a path starting with /, in "path").
+- "finish": the owner is done.
+- "wait": anything else, such as a question, or something unclear. Answer it or ask what they mean.
+
+If they ask for several journeys in order, take the first now and put the ids of the rest, in order, in "then".
+"reply" is one or two short, plain sentences to the owner about what you're doing. Never ask for personal details, and never repeat any.`;
+
+const MOVE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['reply', 'move', 'option', 'path', 'then'],
+  properties: {
+    reply: { type: 'string' },
+    move: { type: 'string', enum: ['option', 'path', 'finish', 'wait'] },
+    option: { type: ['string', 'null'] },
+    path: { type: ['string', 'null'] },
+    then: { type: 'array', items: { type: 'string' } },
+  },
+};
+
+/** A path on the site's own origin, or null: never another host, a protocol or a backslash trick. */
+export function onSite(origin: string, path: string): string | null {
+  if (!/^\/(?![\/\\])[^\s\\]*$/.test(path)) return null;
+  try {
+    const url = new URL(path, origin);
+    return url.origin === origin ? `${url.pathname}${url.search}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A declared journey's intent in words, for a choice with no link text: quote.mortgage → "Mortgage quote". */
+function intentWords(intent: string): string {
+  const [verb = '', ...rest] = intent.split('.');
+  const what = rest.join(' ').replace(/_/g, ' ');
+  const words = `${what} ${verb}`.trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
