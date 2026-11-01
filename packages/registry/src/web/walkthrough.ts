@@ -5,11 +5,28 @@
 // correctable inline, and a Publish button. The same annotated view serves the public picker's forms.
 
 import type { UsherMap } from '@usher/core';
-import { vocabulary } from '@usher/core';
+import { RISKS, vocabulary } from '@usher/core';
 import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
 import { esc, html, page, when, type Raw } from './html.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
+const RISK_CHOICES: Record<string, string> = {
+  safe: 'Safe: an agent may fill it',
+  consequential: 'Consequential: the agent checks with the person first',
+  needs_user: 'The person\'s: only the person gives it',
+};
+
+/** A condition in words, with the other field's label and the option's label rather than keys and values. */
+function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][number]['shown_if']>): string {
+  const field = map.fields.find((f) => f.key === c.field);
+  const name = field?.label ? `“${field.label}”` : c.field;
+  const option = (v: string) => `“${field?.options?.items.find((o) => o.value === v)?.label ?? v}”`;
+  const values = Array.isArray(c.value) ? c.value : c.value === undefined ? [] : [c.value];
+  if (c.op === 'checked') return `Shown when ${name} is ticked`;
+  if (c.op === 'filled') return `Shown when ${name} is filled in`;
+  if (c.op === 'not_equals') return `Shown unless ${name} is ${values.map(option).join(' or ')}`;
+  return `Shown when ${name} is ${values.map(option).join(' or ')}`;
+}
 
 export const ANNOTATE_STYLE = `
 .annotated { position:relative; display:inline-block; max-width:100%; border:1px solid var(--line); background:var(--card); }
@@ -35,12 +52,24 @@ table.elements td { vertical-align:top; }
 .browser img { display:block; width:100%; min-height:240px; background:#eef0f3; }
 ol.steplog { margin:0; padding-left:20px; font-size:14px; max-height:520px; overflow:auto; }
 ol.steplog li { margin:4px 0; }
-details.correct { display:inline-block; margin-left:10px; font-size:13px; } details.correct summary { cursor:pointer; color:var(--accent,#7434d3); }
-details.correct[open] { display:block; margin:8px 0 0; }
-form.correct button { padding:4px 12px; font-size:13px; }
-form.correct { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-form.correct input, form.correct select { font:inherit; font-size:13px; padding:3px 6px; }
-form.correct input[name=key] { width:15em; } form.correct input[name=label] { width:14em; }
+table.elements th, table.elements td { padding:10px 12px 10px 0; }
+table.elements .meaning { display:block; margin-top:4px; max-width:28em; }
+table.elements .note { display:block; margin-top:4px; font-size:13px; color:var(--muted); line-height:1.4; }
+table.elements tr.saved { background:rgba(15,122,61,.08); }
+table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font-weight:600; color:#0f7a3d; }
+table.elements tr.saved .saved-note { display:inline; }
+.risk { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:14px; }
+.risk .risk-dot { margin:0; }
+details.correct { margin-top:6px; font-size:14px; }
+details.correct summary { display:inline-block; cursor:pointer; list-style:none; padding:3px 12px; border:1px solid var(--line); border-radius:999px; color:var(--accent,#7434d3); font-weight:600; font-size:13px; }
+details.correct summary::-webkit-details-marker { display:none; }
+details.correct[open] summary { background:var(--accent,#7434d3); border-color:var(--accent,#7434d3); color:#fff; }
+form.correct { display:grid; gap:10px; margin-top:10px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); max-width:30em; }
+form.correct label { display:grid; gap:4px; font-size:13px; font-weight:600; }
+form.correct label small { font-weight:400; color:var(--muted); }
+form.correct input, form.correct select { font:inherit; font-size:14px; padding:6px 8px; width:100%; box-sizing:border-box; }
+form.correct .row { display:flex; gap:10px; align-items:center; }
+form.correct button { padding:6px 16px; font-size:14px; }
 .live.talk { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); }
 .browser.clickable img { cursor:pointer; outline:3px solid rgba(116,52,211,.35); outline-offset:-3px; }
 .browser .hint { margin-left:auto; color:var(--accent,#7434d3); font-weight:600; }
@@ -72,15 +101,22 @@ export function annotated(input: { map: UsherMap; screenshot: string; width: num
   const keys = vocabulary.entries.map((v) => v.key);
   const row = (e: UsherMap['fields'][number] | UsherMap['actions'][number]) => {
     const control = 'control' in e ? e.control : e.kind;
-    const condition = 'shown_if' in e && e.shown_if ? html`<br><small class="muted">shown when ${e.shown_if.field} is ${String(e.shown_if.value ?? '')}</small>` : '';
-    const leads = 'leads_to' in e && e.leads_to ? html`<br><small class="muted">leads to ${e.leads_to}</small>` : '';
+    const rowId = `${prefix}-row-${e.id}`;
+    const condition = 'shown_if' in e && e.shown_if ? html`<span class="note">${shownWhen(map, e.shown_if)}</span>` : '';
+    const leads = 'leads_to' in e && e.leads_to ? html`<span class="note">Goes on to ${e.leads_to}</span>` : '';
+    const meaning = vocabulary.entries.find((v) => v.key === e.key)?.meaning;
+    const key = html`<code>${e.key}</code>${meaning ? html`<small class="muted meaning">${meaning}</small>` : ''}`;
     const edit = options.editable
-      ? html`<code>${e.key}</code><details class="correct"><summary>Correct</summary><form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${options.editable.path}"><input type="hidden" name="id" value="${e.id}"><input name="key" value="${e.key}" list="vocab" aria-label="Key for ${e.label}"><select name="risk" aria-label="Risk for ${e.label}">${['safe', 'consequential', 'needs_user'].map((r) => html`<option value="${r}"${r === e.risk ? ' selected' : ''}>${RISK_NAMES[r]}</option>`)}</select><input name="label" value="${e.label}" aria-label="Label"><button type="submit">Save</button></form></details>`
-      : html`<code>${e.key}</code>`;
-    return html`<tr id="${prefix}-row-${e.id}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}${condition}${leads}</td><td>${control}</td><td><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</td><td>${edit}</td></tr>`;
+      ? html`<details class="correct"><summary>Edit</summary><form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${options.editable.path}"><input type="hidden" name="id" value="${e.id}"><input type="hidden" name="row" value="${rowId}">
+<label>What it is <small>A key from the vocabulary (start typing), or custom.something</small><input name="key" value="${e.key}" list="vocab" required spellcheck="false" autocomplete="off"></label>
+<label>Who decides<select name="risk">${RISKS.map((r) => html`<option value="${r}"${r === e.risk ? ' selected' : ''}>${RISK_CHOICES[r]}</option>`)}</select></label>
+<label>Label <small>What agents and people call it</small><input name="label" value="${e.label}"></label>
+<div class="row"><button type="submit">Save</button><span class="small muted">Saved to this run; agents see it once you publish.</span></div></form></details>`
+      : '';
+    return html`<tr id="${rowId}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}<span class="saved-note">Saved</span>${condition}${leads}</td><td>${control}</td><td><span class="risk"><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</span></td><td>${key}${edit}</td></tr>`;
   };
   return html`<div class="annotated"><img src="data:image/png;base64,${input.screenshot}" alt="The page as Usher saw it, inputs masked, with a box over each element it mapped" width="${input.width}" height="${input.height}">${elements.map(box)}</div>
-<table class="elements"><thead><tr><th>Element</th><th>Control</th><th>Risk</th><th>Key</th></tr></thead><tbody>${[...map.fields, ...map.actions].map(row)}</tbody></table>
+<table class="elements"><thead><tr><th>Element</th><th>Control</th><th>Risk</th><th>What it is</th></tr></thead><tbody>${[...map.fields, ...map.actions].map(row)}</tbody></table>
 ${options.editable ? html`<datalist id="vocab">${keys.map((k) => html`<option value="${k}">`)}</datalist>` : ''}`;
 }
 
@@ -219,6 +255,10 @@ export const WALKTHROUGH_JS = `(() => {
     el.addEventListener('mouseenter', on); el.addEventListener('mouseleave', off);
     el.addEventListener('focusin', on); el.addEventListener('focusout', off);
   }
+  // Back from saving a correction: mark the row that changed.
+  const saved = new URLSearchParams(location.search).get('saved');
+  const row = saved && /^[A-Za-z0-9_-]+$/.test(saved) ? document.getElementById(saved) : null;
+  if (row) { row.classList.add('saved'); row.scrollIntoView({ block: 'center' }); history.replaceState(null, '', location.pathname); }
   // The live view: masked frames and the step log over server-sent events.
   const live = document.getElementById('walkthrough-live');
   if (!live || !('EventSource' in window)) return;

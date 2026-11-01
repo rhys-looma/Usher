@@ -852,7 +852,8 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const form = await readForm(req);
         const failure = await walk.correct(origin, form.get('path') ?? '', form.get('id') ?? '', { ...(form.get('key') && { key: form.get('key')!.trim() }), ...(form.get('risk') && { risk: form.get('risk')! }), ...(form.get('label') && { label: form.get('label')!.trim() }) });
         if (failure) return send(res, 422, page('Map my site', html`<h1>That correction wasn't saved</h1><div class="card error">${failure}</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
-        return redirect(res, `/dashboard/walkthrough#${encodeURIComponent(form.get('id') ?? '')}`), true;
+        const row = /^[A-Za-z0-9_-]{1,40}$/.exec(form.get('row') ?? '')?.[0];
+        return redirect(res, row ? `/dashboard/walkthrough?saved=${row}#${row}` : '/dashboard/walkthrough'), true;
       }
     }
     if (route === 'POST /dashboard/rules') {
