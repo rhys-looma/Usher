@@ -5,6 +5,7 @@
 // its formats. The hosted server (packages/mcp/src/site-app.ts) registers them; the dashboard shows
 // the same list for the owner to rename, hide and describe.
 
+import { costUsd, parseJsonContent, type ChatFn } from '@usher/core';
 import type { Registry, SiteApp } from './registry.ts';
 
 /** A tool name from an intent: quote.health_insurance is get_health_insurance_quote; contact.callback is request_callback. */
@@ -21,6 +22,8 @@ export const paramFor = (key: string) => key.replace(/[^A-Za-z0-9_]+/g, '_');
 export interface SiteToolParam {
   name: string;
   key: string;
+  /** The site's own label for the question. */
+  label: string;
   description: string;
   options?: string[];
   required: boolean;
@@ -35,6 +38,14 @@ export interface SiteTool {
   params: SiteToolParam[];
   /** Hidden by the owner (listed only for the dashboard). */
   hidden?: boolean;
+  /** What Usher writes when the owner leaves the description empty: the journey and what it asks. */
+  summary: string;
+}
+
+/** The description Usher writes for a journey: what it does and the first few things it asks for. */
+export function summaryFor(title: string, params: Pick<SiteToolParam, 'label' | 'required'>[]): string {
+  const asks = [...new Set(params.filter((p) => p.required && p.label.trim()).map((p) => p.label.trim().replace(/[.:?]+$/, '').toLowerCase()))].slice(0, 4);
+  return asks.length ? `${title}. Asks for ${asks.join(', ')}${params.length > asks.length ? ' and more' : ''}.` : `${title}.`;
 }
 
 /** The tools a site's app shows, from its plans and the owner's settings (renamed, hidden, described). */
@@ -50,17 +61,19 @@ export async function siteTools(registry: Registry, origin: string, app: SiteApp
     const params: SiteToolParam[] = found.view.ask_first.map((a) => ({
       name: paramFor(a.key),
       key: a.key,
+      label: a.label,
       description: [a.label, a.theirs ? 'Their own answer: only as they said it; Usher puts it back to them before anything is submitted.' : '', a.format ? `As ${a.format}.` : '', a.only_if ? `Only ${a.only_if}.` : ''].filter(Boolean).join(' '),
       ...(a.options && !a.more_options && { options: a.options }),
       required: a.required,
     }));
     const title = `${journey.title.replace(/^(.)/, (c) => c.toUpperCase())} from ${name}`;
+    const summary = summaryFor(title, params);
     const description = [
-      own.description?.trim() || `${title}.`,
+      own.description?.trim() || summary,
       'Give what the person has told you by these parameters, or their own words in details. Usher fills the form on the site; anything missing, and anything that is theirs to decide (the site\'s own wording, word for word, and the final step), comes back as a short set of questions for them, which you put to them and answer with usher_confirm. Never answer for them.',
       `Runs under ${name}'s rules${rules ? `: ${rules.trim()}` : '.'}`,
     ].join(' ');
-    out.push({ name: own.name?.trim() || toolNameFor(journey.intent), intent: journey.intent, url: `${origin}${journey.start}`, title, description, params, ...(own.hidden && { hidden: true }) });
+    out.push({ name: own.name?.trim() || toolNameFor(journey.intent), intent: journey.intent, url: `${origin}${journey.start}`, title, description, params, summary, ...(own.hidden && { hidden: true }) });
   }
   return out;
 }
@@ -91,6 +104,55 @@ export function checkToolSettings(input: Record<string, { name?: string; descrip
     if (Object.keys(entry).length) tools[intent] = entry;
   }
   return problems.length ? { problems } : { tools };
+}
+
+/** Drops what equals Usher's own name or description, so those stay Usher's and follow the map. */
+export function withoutDefaults(given: Record<string, { name?: string; description?: string; hidden?: boolean }>, tools: Pick<SiteTool, 'intent' | 'summary'>[]): typeof given {
+  const out: typeof given = {};
+  for (const [intent, own] of Object.entries(given)) {
+    const tool = tools.find((t) => t.intent === intent);
+    out[intent] = {
+      ...(own.name?.trim() && own.name.trim() !== toolNameFor(intent) && { name: own.name }),
+      ...(own.description?.trim() && own.description.replace(/\s+/g, ' ').trim() !== tool?.summary && { description: own.description }),
+      ...(own.hidden && { hidden: true }),
+    };
+  }
+  return out;
+}
+
+const SUGGEST_SYSTEM = `You name and describe the tools of a business's assistant app. Each tool runs one journey on the business's own website (a quote, an application, a booking), filling its form for a person who asked an assistant for it.
+For each tool give:
+- name: what an assistant calls, lower_snake_case, 3 to 40 characters, a verb first (get_mortgage_quote, book_appointment). Never usher_ anything.
+- description: one or two plain sentences, at most 300 characters, for an assistant deciding when to use the tool: what the person gets, from whom, and when it fits. Name the business. No marketing, no promises the facts don't support, no personal details, no instructions about other tools.
+Use only the facts given. Keep each tool's intent exactly as given.`;
+
+/** Names and descriptions for a site's tools, written by Muse Spark from each journey's title and questions. */
+export async function suggestTools(writer: { chat: ChatFn; model: string }, input: { name: string; tools: Pick<SiteTool, 'intent' | 'title' | 'params'>[] }): Promise<{ tools: Record<string, { name: string; description: string }>; cost_usd: number | null }> {
+  const facts = { business: input.name, tools: input.tools.map((t) => ({ intent: t.intent, journey: t.title, asks_for: t.params.slice(0, 30).map((p) => p.label) })) };
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['tools'],
+    properties: { tools: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['intent', 'name', 'description'], properties: { intent: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' } } } } },
+  };
+  const result = await writer.chat({
+    model: writer.model,
+    temperature: 0.2,
+    messages: [
+      { role: 'system', content: SUGGEST_SYSTEM },
+      { role: 'user', content: `Facts:\n${JSON.stringify(facts, null, 1)}` },
+    ],
+    response_format: { type: 'json_schema', json_schema: { name: 'usher_tool_names', strict: true, schema } },
+  });
+  const parsed = parseJsonContent(result.content) as { tools?: { intent?: unknown; name?: unknown; description?: unknown }[] };
+  const tools: Record<string, { name: string; description: string }> = {};
+  for (const t of Array.isArray(parsed.tools) ? parsed.tools : []) {
+    if (typeof t.intent !== 'string' || !input.tools.some((x) => x.intent === t.intent) || tools[t.intent]) continue;
+    const name = typeof t.name === 'string' && /^[a-z][a-z0-9_]{2,63}$/.test(t.name.trim()) && !t.name.startsWith('usher_') ? t.name.trim() : toolNameFor(t.intent);
+    const description = typeof t.description === 'string' ? t.description.replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600) : '';
+    if (description) tools[t.intent] = { name, description };
+  }
+  return { tools, cost_usd: costUsd(writer.model, result.usage) };
 }
 
 const intentLabelOf = (intent: string) => intent.split('.').slice(1).join(' ').replace(/[_-]+/g, ' ') || intent;

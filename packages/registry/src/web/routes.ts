@@ -6,7 +6,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BudgetExceeded, toBase64Url, type UsherMap } from '@usher/core';
+import { BudgetExceeded, toBase64Url, type ChatFn, type UsherMap } from '@usher/core';
 import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
 import { visibleTo, type Registry } from '../registry.ts';
@@ -28,7 +28,7 @@ import type { ThemeDeriver } from '../theme-derive.ts';
 import { CARD_HTML } from './card-page.ts';
 import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
 import { APP_STYLE, appCard, appPage, nextStep, setupStrip } from './app.ts';
-import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools } from '../site-app.ts';
+import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools, suggestTools, withoutDefaults } from '../site-app.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   hooks?: DashboardHooks;
@@ -54,6 +54,8 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   walkthroughs?: Walkthroughs;
   /** Reads a site's look for its assistant app's theme ("Refresh from my site"). */
   themes?: ThemeDeriver;
+  /** Muse Spark, within the owners' share of the budget, to suggest tool names and descriptions. */
+  toolWriter?: { chat: ChatFn; model: string };
   /** Automatic retraining of the student (USHER_AUTO_TRAIN), and the secret its deployment sends to fetch the promoted adapter. */
   training?: { trainer: Trainer; secret?: string };
 }
@@ -737,10 +739,10 @@ ${annotated(drawn, { anchor: 'v' })}`;
     if (url.pathname === '/dashboard/app' || url.pathname.startsWith('/dashboard/app/')) {
       const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
       const endpoint = `${this.registry.url}/mcp/${new URL(origin).host}`;
-      const show = async (status: number, extra: { notice?: string; problems?: string[] } = {}) => {
+      const show = async (status: number, extra: { notice?: string; problems?: string[]; suggested?: Record<string, { name: string; description: string }> } = {}) => {
         const app = await this.registry.siteApp(origin);
         const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : html``;
-        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
+        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), canSuggest: Boolean(this.options.toolWriter), ...extra }));
       };
       if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : url.searchParams.has('saved') ? { notice: 'Tools saved. New connections get them; open ones keep theirs until they reconnect.' } : {}), true;
       if (route === 'POST /dashboard/app/switch') {
@@ -755,10 +757,21 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const app = await this.registry.siteApp(origin);
         const intents = (await this.registry.journeys(origin)).map((j) => j.intent);
         const given = Object.fromEntries(intents.map((i) => [i, { name: form.get(`name:${i}`) ?? '', description: form.get(`description:${i}`) ?? '', hidden: form.get(`hidden:${i}`) === '1' }]));
-        const checked = checkToolSettings(given, intents);
+        const checked = checkToolSettings(withoutDefaults(given, await siteTools(this.registry, origin, app, { includeHidden: true })), intents);
         if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
         await this.registry.setSiteApp(origin, { ...app, tools: checked.tools });
         return redirect(res, '/dashboard/app?saved'), true;
+      }
+      // Muse Spark's names and descriptions, shown in the boxes for the owner to check; saved only by Save tools.
+      if (route === 'POST /dashboard/app/tools/suggest') {
+        const writer = this.options.toolWriter;
+        if (!writer) return await show(404, { problems: ['Suggestions need a model, and this registry has none.'] }), true;
+        if (!admin && !this.ownerLimits.chat.allow(`chat|${clientAddress(req, this.options.proxyHops)}`)) return await show(429, { problems: ['Too many requests to Muse Spark from this address this hour. Try again later.'] }), true;
+        const tools = await siteTools(this.registry, origin, await this.registry.siteApp(origin), { includeHidden: true });
+        if (!tools.length) return await show(422, { problems: ['Map a journey first: each one becomes a tool.'] }), true;
+        const result = await suggestTools(writer, { name, tools }).catch((err: Error) => (err instanceof BudgetExceeded ? err.message : 'Muse Spark could not suggest anything just now; try again.'));
+        if (typeof result === 'string') return await show(503, { problems: [result] }), true;
+        return await show(200, { suggested: result.tools }), true;
       }
       if (route === 'GET /dashboard/app/pack.md' || route === 'GET /dashboard/app/pack.json') {
         const app = await this.registry.siteApp(origin);
