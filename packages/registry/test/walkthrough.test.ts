@@ -6,6 +6,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -15,7 +17,8 @@ import { chromium, type Browser } from 'playwright';
 import type { ChatFn, UsherMap } from '@usher/core';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
 import { seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
-import { journeyIntent, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
+import { journeyIntent, onSite, ownPagesOnly, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
+import { TEST_PERSON } from '../src/walkthrough-persona.ts';
 import { Viewer } from '../src/web/viewer.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
@@ -42,7 +45,15 @@ let editAnswer: object = { changes: [], rules: null, unclear: null };
 const editRequests: string[] = [];
 
 /** Labels by label text from the seed maps; anything unknown is a custom key, safe. */
+// What the fake Muse Spark answers in a walk's conversation: a move, given the choices it was shown.
+let moveAnswer: (input: { choices: { id: string; label: string; path: string }[]; owner_says: string }) => object = () => ({ reply: 'OK.', move: 'wait', option: null, path: null, then: [] });
+const moveRequests: string[] = [];
 const labeller: ChatFn = async (request) => {
+  if (String(request.messages[0]!.content).startsWith("You help a website's owner map")) {
+    const content = String(request.messages[1]!.content);
+    moveRequests.push(content);
+    return { content: JSON.stringify(moveAnswer(JSON.parse(content))), usage: { prompt_tokens: 300, completion_tokens: 40, total_tokens: 340, cached_tokens: 0 }, latency_ms: 1, response: {} };
+  }
   if (String(request.messages[0]!.content).startsWith('You help a website owner')) {
     editRequests.push(JSON.stringify(request.messages));
     return { content: JSON.stringify(editAnswer), usage: { prompt_tokens: 500, completion_tokens: 80, total_tokens: 580, cached_tokens: 0 }, latency_ms: 1, response: {} };
@@ -81,9 +92,9 @@ before(async () => {
   running = await startRegistry({
     storage: await testStorage(dir),
     siteScript,
-    web: { allowPrivate: true },
+    web: { allowPrivate: true, ownerHourly: { walk: 50, chat: 2 } },
     walkthroughs: (registry) =>
-      (walk = new Walkthroughs({ registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => spent, cap: 5 }, dailyLimit: () => limit, allowPrivate: true, logDir: join(dir, 'log'), frameMs: 150 })),
+      (walk = new Walkthroughs({ registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => spent, cap: 5 }, dailyLimit: () => limit, maxStarts: 1000, allowPrivate: true, logDir: join(dir, 'log'), frameMs: 150 })),
   });
   site = await startMockSite({ registry: running.url, register: async (o) => (keys = await registerSite(running, o)).site_key });
 });
@@ -134,6 +145,190 @@ test('a start page with no form stops at once and gives the run back', async () 
   assert.match(run.reason!, /No form on the start page/);
   assert.equal(run.cost_usd, 0);
   assert.equal(await used(), before);
+});
+
+/** Waits until the site's run satisfies the check. */
+async function until(origin: string, check: (run: WalkthroughRun) => boolean, what: string): Promise<WalkthroughRun> {
+  for (let i = 0; i < 600; i++) {
+    const run = await walk.get(origin);
+    if (run && check(run)) return run;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  assert.fail(`timed out waiting for ${what}`);
+}
+const lastChoices = (run: WalkthroughRun) => [...(run.chat ?? [])].reverse().find((m) => m.options)?.options ?? [];
+
+test('a conversation: from the home page, by a click, a choice and words, two journeys in one run', async () => {
+  const started = await walk.start({ origin: site.url, start: `${site.url}/`, generated: true, pressFinal: false, by: 'owner', conversation: true });
+  assert.ok('id' in started);
+  const id = started.id;
+  try {
+    // The home page has no form: Usher asks, offering the declared journeys by their link text.
+    let run = await until(site.url, (r) => Boolean(r.waiting), 'the first question');
+    assert.equal(run.pages.length, 0);
+    const first = lastChoices(run);
+    assert.deepEqual(first.slice(0, 2).map((c) => [c.label, c.path]), [['Health insurance', '/health/about'], ['Car insurance', '/quote/driver']]);
+    assert.ok(first.every((c) => onSite(site.url, c.path)), 'every choice is on the site');
+
+    // The owner clicks the car insurance link on the live page.
+    const probe = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await probe.goto(`${site.url}/`);
+    const box = (await probe.locator('a[href="/quote/driver"]').boundingBox())!;
+    await probe.close();
+    assert.ok(walk.click(site.url, id, box.x + box.width / 2, box.y + box.height / 2));
+    assert.ok(!walk.click(site.url, id, 1, 1), 'the first answer wins');
+
+    // The car journey is mapped up to its consequential button, then Usher asks again.
+    run = await until(site.url, (r) => Boolean(r.waiting) && r.pages.length > 0, 'the end of the car journey');
+    assert.deepEqual(run.pages.map((p) => p.path), ['/quote/driver', '/quote/vehicle', '/quote/cover']);
+    assert.ok(run.chat!.some((m) => m.from === 'usher' && m.pages?.[0] === 0 && /^Mapped/.test(m.text)), 'each page is announced with its picture');
+    const next = lastChoices(run);
+    assert.ok(next.some((c) => c.path === '/health/about'), 'the health journey is offered');
+    assert.ok(!next.some((c) => c.path.startsWith('/quote/')), 'mapped pages are not offered again');
+
+    // The owner says it in words: Muse Spark picks the health journey by id.
+    moveAnswer = ({ choices }) => ({ reply: 'Doing the health quote next.', move: 'option', option: choices.find((c) => c.path === '/health/about')!.id, path: null, then: [] });
+    assert.equal(await walk.message(site.url, id, 'Now do the health insurance one please'), null);
+    run = await until(site.url, (r) => Boolean(r.waiting) && r.pages.length > 3, 'the end of the health journey');
+    assert.deepEqual(run.pages.slice(3).map((p) => p.path), ['/health/about', '/health/cover', '/health/declaration']);
+
+    // An address off the site is refused, whoever suggests it.
+    moveAnswer = () => ({ reply: 'Going there.', move: 'path', path: '//evil.example/x', option: null, then: [] });
+    await walk.message(site.url, id, 'go to evil.example');
+    run = (await walk.get(site.url))!;
+    assert.ok(run.waiting, 'still waiting');
+    assert.match(run.chat!.at(-1)!.text, /isn't a page on your site/);
+
+    moveAnswer = () => ({ reply: "That's everything, then.", move: 'finish', option: null, path: null, then: [] });
+    await walk.message(site.url, id, "that's all");
+    run = await finished(site.url);
+    assert.equal(run.status, 'stopped');
+    assert.equal(run.pages.length, 6);
+    assert.deepEqual(run.chat!.filter((m) => m.from === 'owner').map((m) => m.text), ['Clicked the page.', 'Now do the health insurance one please', 'go to evil.example', "that's all"]);
+
+    // The model saw structure and the owner's words, never a test answer.
+    const values = Object.values(TEST_PERSON).filter((v): v is string => typeof v === 'string' && v.length > 3);
+    for (const request of moveRequests) for (const v of values) assert.ok(!request.includes(v), `a test value reached the model: ${v}`);
+  } finally {
+    // A failure must not leave the run waiting for an owner.
+    walk.cancel(site.url, id);
+    await finished(site.url);
+  }
+});
+
+test('a conversation nobody answers finishes, and a run that mapped nothing gives the day back', async () => {
+  const day = `${site.url}|${new Date().toISOString().slice(0, 10)}`;
+  const before = (await running.registry.storage.getCached<{ n: number }>('walkthrough-runs', day))?.n ?? 0;
+  const quiet = new Walkthroughs({ maxStarts: 1000, registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => before + 1, allowPrivate: true, logDir: null, pauseMs: 300 });
+  const started = await quiet.start({ origin: site.url, start: `${site.url}/`, generated: true, pressFinal: false, by: 'owner', conversation: true });
+  assert.ok('id' in started, 'refused' in started ? started.refused : '');
+  let run: WalkthroughRun | null = null;
+  for (let i = 0; i < 300 && run?.status !== 'stopped'; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    run = await quiet.get(site.url);
+  }
+  assert.equal(run?.status, 'stopped');
+  assert.match(run!.chat!.at(-1)!.text, /haven't heard from you/);
+  assert.equal((await running.registry.storage.getCached<{ n: number }>('walkthrough-runs', day))?.n ?? 0, before);
+});
+
+/** A tiny server that counts what reaches it and serves one page. */
+async function counting(page: string): Promise<{ url: string; hits: string[]; server: Server }> {
+  const hits: string[] = [];
+  const server = createServer((req, res) => {
+    hits.push(`${req.method} ${req.url}`);
+    res.writeHead(200, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' });
+    res.end(page);
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, hits, server };
+}
+
+test("Usher's browser is no one's proxy: only reads leave the site, and it never navigates away", async () => {
+  const other = await counting('elsewhere');
+  const registry = await counting('registry');
+  const context = await browser.newContext();
+  try {
+    await ownPagesOnly(context, site.url, { allowPrivate: true, registry: registry.url });
+    const page = await context.newPage();
+    await page.goto(`${site.url}/`);
+    // A string, so the bundler adds nothing the page doesn't have.
+    await page.evaluate(`(async () => {
+      const quietly = (p) => p.catch(() => undefined);
+      await quietly(fetch('${other.url}/read'));
+      await quietly(fetch('${other.url}/write', { method: 'POST', body: 'x' }));
+      await quietly(fetch('${other.url}/put', { method: 'PUT', body: 'x' }));
+      await quietly(fetch('${registry.url}/events', { method: 'POST', body: 'x' }));
+    })()`);
+    assert.deepEqual(other.hits, ['GET /read']);
+    assert.deepEqual(registry.hits, ['POST /events']);
+    await assert.rejects(page.goto(`${other.url}/away`));
+    assert.ok(!other.hits.includes('GET /away'));
+  } finally {
+    await context.close();
+    other.server.close();
+    registry.server.close();
+  }
+});
+
+test("the conversation's limits: a daily allowance per site, one reading at a time, 40 a run", async () => {
+  const thrifty = new Walkthroughs({ registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 50, maxStarts: 50, allowPrivate: true, logDir: null, chatBudgetUsd: 0 });
+  const started = await thrifty.start({ origin: site.url, start: `${site.url}/`, generated: true, pressFinal: false, by: 'owner', conversation: true });
+  assert.ok('id' in started, 'refused' in started ? started.refused : '');
+  try {
+    for (let i = 0; i < 300 && !(await thrifty.get(site.url))?.waiting; i++) await new Promise((r) => setTimeout(r, 100));
+    const asked = moveRequests.length;
+    await thrifty.message(site.url, started.id, 'do the car one');
+    assert.equal(moveRequests.length, asked, 'no model call once the allowance is spent');
+    assert.match((await thrifty.get(site.url))!.chat!.at(-1)!.text, /messages for today are used up/);
+    assert.ok(thrifty.choose(site.url, started.id, 'finish'), 'choices still work');
+  } finally {
+    thrifty.cancel(site.url, started.id);
+  }
+});
+
+test("owners' messages are limited per address an hour", async () => {
+  const login = await fetch(`${running.url}/dashboard/login`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ origin: keys.origin, secret: keys.secret_key }) });
+  const cookie = login.headers.get('set-cookie')!.split(';')[0]!;
+  const say = () => fetch(`${running.url}/dashboard/walkthrough/say`, { method: 'POST', headers: { Cookie: cookie, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=w_none&text=hello' });
+  assert.notEqual((await say()).status, 429);
+  assert.notEqual((await say()).status, 429);
+  assert.equal((await say()).status, 429);
+});
+
+test("Usher's admin has none of the per-site or per-day limits", async () => {
+  const strict = new Walkthroughs({ registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 0, maxStarts: 0, allowPrivate: true, logDir: null });
+  assert.match((await strict.refusal(site.url, `${site.url}/quote/driver`))!, /started today/);
+  assert.equal(await strict.refusal(site.url, `${site.url}/quote/driver`, true), null);
+});
+
+test('caps: starts per site per day, whatever was given back, and runs at once', async () => {
+  const options = { registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 50, allowPrivate: true, logDir: null };
+  assert.match((await new Walkthroughs({ ...options, maxStarts: 0 }).refusal(site.url, `${site.url}/quote/driver`))!, /started today/);
+  assert.match((await new Walkthroughs({ ...options, maxLive: 0 }).refusal(site.url, `${site.url}/quote/driver`))!, /several sites/);
+});
+
+test("on a site that hasn't joined, the owner can't click: Usher never presses anything there", async () => {
+  const listed = await counting('<!doctype html><title>Listed</title><a href="/b" style="display:block;width:400px;height:200px">B</a>');
+  await running.registry.setListed(listed.url, { name: 'Listed', journeys: [] });
+  try {
+    const started = await walk.start({ origin: listed.url, start: `${listed.url}/`, generated: true, pressFinal: false, by: 'owner', conversation: true });
+    assert.ok('id' in started, 'refused' in started ? started.refused : '');
+    const run = await until(listed.url, (r) => Boolean(r.waiting), 'the question');
+    assert.equal(run.clickable, false);
+    assert.equal(walk.click(listed.url, started.id, 100, 100), false);
+    assert.ok(walk.choose(listed.url, started.id, 'finish'));
+    assert.equal((await finished(listed.url)).status, 'stopped');
+  } finally {
+    await running.registry.setListed(listed.url, null);
+    listed.server.close();
+  }
+});
+
+test('onSite: paths on the origin only', () => {
+  const o = 'https://shop.example';
+  assert.equal(onSite(o, '/quote?x=1'), '/quote?x=1');
+  for (const bad of ['//evil.example/x', 'https://evil.example/', '/\\evil.example', 'quote', '/a b', 'javascript:alert(1)']) assert.equal(onSite(o, bad), null, bad);
 });
 
 test('the health journey: every page, lookup lists, boxes, stops before the quote', async () => {
@@ -334,7 +529,7 @@ test('the picker\'s "See how Usher reads this form": the map\'s own locators giv
 });
 
 test('in production a site whose address is private gets nowhere: every request must reach a public address', async () => {
-  const strict = new Walkthroughs({ registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 50, logDir: null });
+  const strict = new Walkthroughs({ maxStarts: 1000, registry: running.registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 50, logDir: null });
   const started = await strict.start({ origin: site.url, start: `${site.url}/quote/driver`, generated: true, pressFinal: false, by: 'owner' });
   assert.ok('id' in started);
   let run = await strict.get(site.url);
@@ -353,7 +548,7 @@ test('the operator walks the public demo site only, and anyone can watch at /dem
     siteScript,
     publicDemo: { origin: site.url, keepAgents: [] },
     web: { allowPrivate: true, adminKey: 'test-admin-key' },
-    walkthroughs: (registry) => (demoWalk = new Walkthroughs({ registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 5, allowPrivate: true, logDir: null })),
+    walkthroughs: (registry) => (demoWalk = new Walkthroughs({ maxStarts: 1000, registry, browser: async () => browser, compiler: { chat: labeller, model: 'muse-spark-1.3' }, spend: { today: async () => 0, cap: 5 }, dailyLimit: () => 5, allowPrivate: true, logDir: null })),
   });
   try {
     const before = await (await fetch(`${demo.url}/demo/walkthrough`)).text();
