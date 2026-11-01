@@ -518,7 +518,7 @@ export class Walkthroughs {
         record.leads_to = next;
         say(`Next: ${next}.`);
       }
-      if (!ending) await finish(run.pages.length ? 'completed' : 'stopped', run.pages.length ? undefined : 'No form on the start page.');
+      if (!ending) await finish(run.pages.length ? 'completed' : 'stopped', run.pages.length ? undefined : "No form on the start page: start on a journey's first page instead. This run doesn't count towards today's.");
     } catch (err) {
       // The reason in words; never a value (fills fail by key and label only).
       await finish('failed', err instanceof Error ? err.message.split('\n')[0]!.replace(/:\s*$/, '').slice(0, 200) : 'The walkthrough failed.');
@@ -535,6 +535,12 @@ export class Walkthroughs {
       run.status = end.status;
       if (end.reason) run.reason = end.reason;
       run.finished_at = this.now().toISOString();
+      // A run that labelled nothing cost nothing: it gives back the day's walkthrough it took.
+      if (!run.pages.length && !run.cost_usd) {
+        const key = `${run.origin}|${run.started_at.slice(0, 10)}`;
+        const n = (await this.storage.getCached<{ n: number }>('walkthrough-runs', key))?.n ?? 0;
+        if (n > 0) await this.storage.putCached('walkthrough-runs', key, { n: n - 1 });
+      }
       await this.storage.putCached('walkthrough', run.origin, run);
       emit({ type: 'done', status: end.status, ...(end.reason && { reason: end.reason }) });
     }

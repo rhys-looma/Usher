@@ -84,7 +84,7 @@ export function startForm(origin: string, error?: string): string {
     html`<h1>Map my site</h1>
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough">
-<label>First page of the journey<input name="start" required value="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
+<label>First page of the journey<input name="start" required placeholder="${origin}/…" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
 <label><input type="checkbox" name="generated" value="1" checked> Use a generated test person (fictional; nothing about anyone real)</label>
 <label>Or your own test answers, one per line as <code>key: value</code> (for example <code>person.first_name: Test</code>)<textarea name="values" rows="6"></textarea></label>
 <label><input type="checkbox" name="final" value="1"> Press the last button too (the one that submits), on this test run</label>

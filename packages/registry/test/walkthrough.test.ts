@@ -125,6 +125,17 @@ test('refusals: unclaimed site, start page elsewhere, the daily limit, the budge
   assert.equal(await walk.refusal(site.url, `${site.url}/quote/driver`), null);
 });
 
+test('a start page with no form stops at once and gives the run back', async () => {
+  const key = `${site.url}|${new Date().toISOString().slice(0, 10)}`;
+  const used = async () => (await running.registry.storage.getCached<{ n: number }>('walkthrough-runs', key))?.n ?? 0;
+  const before = await used();
+  const run = await runOnce('/');
+  assert.equal(run.status, 'stopped');
+  assert.match(run.reason!, /No form on the start page/);
+  assert.equal(run.cost_usd, 0);
+  assert.equal(await used(), before);
+});
+
 test('the health journey: every page, lookup lists, boxes, stops before the quote', async () => {
   const run = await runOnce('/health/about');
   assert.equal(run.status, 'stopped', run.reason);
