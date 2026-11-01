@@ -55,6 +55,9 @@ ol.steplog li { margin:4px 0; }
 table.elements th, table.elements td { padding:10px 12px 10px 0; }
 table.elements .meaning { display:block; margin-top:4px; max-width:28em; }
 table.elements .note { display:block; margin-top:4px; font-size:13px; color:var(--muted); line-height:1.4; }
+.elements .badge, .badge.new, .badge.changed { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; vertical-align:1px; }
+.badge.new { background:rgba(116,52,211,.12); color:var(--accent,#7434d3); }
+.badge.changed { background:rgba(178,106,0,.14); color:#8a5200; }
 table.elements tr.saved { background:rgba(15,122,61,.08); }
 table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font-weight:600; color:#0f7a3d; }
 table.elements tr.saved .saved-note { display:inline; }
@@ -91,7 +94,7 @@ form.say textarea { flex:1; font:inherit; font-size:15px; padding:8px 10px; bord
 `;
 
 /** One page's screenshot with its elements' boxes over it, and the same elements as a table. */
-export function annotated(input: { map: UsherMap; screenshot: string; width: number; height: number }, options: { editable?: { path: string }; anchor?: string } = {}): Raw {
+export function annotated(input: { map: UsherMap; screenshot: string; width: number; height: number }, options: { editable?: { path: string }; anchor?: string; status?: Record<string, 'new' | 'changed'> } = {}): Raw {
   const { map } = input;
   const pct = (n: number, of: number) => `${Math.max(0, Math.min(100, (n / of) * 100)).toFixed(3)}%`;
   const elements = [...map.fields, ...map.actions].filter((e) => e.box && e.box.width > 0 && e.box.height > 0);
@@ -113,7 +116,7 @@ export function annotated(input: { map: UsherMap; screenshot: string; width: num
 <label>Label <small>What agents and people call it</small><input name="label" value="${e.label}"></label>
 <div class="row"><button type="submit">Save</button><span class="small muted">Saved to this run; agents see it once you publish.</span></div></form></details>`
       : '';
-    return html`<tr id="${rowId}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}<span class="saved-note">Saved</span>${condition}${leads}</td><td>${control}</td><td><span class="risk"><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</span></td><td>${key}${edit}</td></tr>`;
+    return html`<tr id="${rowId}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}${options.status?.[e.id] ? html` <span class="badge ${options.status[e.id]!}">${options.status[e.id] === 'new' ? 'New' : 'Labelled differently'}</span>` : ''}<span class="saved-note">Saved</span>${condition}${leads}</td><td>${control}</td><td><span class="risk"><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</span></td><td>${key}${edit}</td></tr>`;
   };
   return html`<div class="annotated"><img src="data:image/png;base64,${input.screenshot}" alt="The page as Usher saw it, inputs masked, with a box over each element it mapped" width="${input.width}" height="${input.height}">${elements.map(box)}</div>
 <table class="elements"><thead><tr><th>Element</th><th>Control</th><th>Risk</th><th>What it is</th></tr></thead><tbody>${[...map.fields, ...map.actions].map(row)}</tbody></table>
@@ -130,19 +133,28 @@ ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p
 <p class="small muted">Your corrections teach the mapper: <a href="/dashboard/learning">see how</a>.</p></div>`;
 }
 
-/** The start form: the first page, the test answers, whether the last button may be pressed. */
-export function startForm(origin: string, error?: string): string {
+/** The start form: the first page, update or fresh, the test answers, whether the last button may be pressed. */
+export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean } = {}): string {
+  const mode = state.published
+    ? html`<fieldset class="mode"><legend>Your site has ${String(state.published)} published map${state.published === 1 ? '' : 's'}</legend>
+<label><input type="radio" name="mode" value="update" checked> <b>Update them</b> <span class="small muted">Each page starts from its published map, so your corrections stay. Anything new on the page is marked for you to check.</span></label>
+<label><input type="radio" name="mode" value="fresh"> <b>Start fresh</b> <span class="small muted">Muse Spark labels every page again, ignoring the published maps. What it labels differently is marked.</span></label>
+<p class="small muted">Either way, the maps agents get stay as they are until you publish.</p></fieldset>`
+    : '';
   return page(
     'Map my site',
-    html`<h1>Map my site</h1>
+    html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
 ${error ? html`<div class="card error">${error}</div>` : ''}
+${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough">
+${mode}
 <label>Where to start <span class="small muted">(your home page is fine: Usher asks where to go, and can map every form in one run)</span><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
 <label><input type="checkbox" name="generated" value="1" checked> Use a generated test person (fictional; nothing about anyone real)</label>
 <label>Or your own test answers, one per line as <code>key: value</code> (for example <code>person.first_name: Test</code>)<textarea name="values" rows="6"></textarea></label>
 <label><input type="checkbox" name="final" value="1"> Press the last button too (the one that submits), on this test run</label>
 <p class="small muted">Test answers stay in the run's memory: they are never stored, logged, sent to the model or shown in a screenshot (every input is masked), and are gone when the run ends. One run per day, and a run that maps nothing doesn't count; it counts against the daily model budget. While it runs you can talk to Usher, pick where it goes, or click its browser; it never leaves your site.</p>
 <button type="submit">Start</button></form>`,
+    { style: '.mode { border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:grid; gap:10px; } .mode legend { font-weight:600; padding:0 6px; } .mode label { display:block; } .mode label .small { display:block; margin-left:1.6em; }' },
   );
 }
 
@@ -215,7 +227,7 @@ export function resultView(run: WalkthroughRun, options: { editable: boolean; pu
     const next = p.leads_to ? pageFor(p.leads_to) : undefined;
     const diff = run.diff?.find((d) => d.path === p.path);
     return html`<section class="card" id="page-${String(i + 1)}"><div class="page-head"><h2>${String(i + 1)}. ${p.title || p.path}</h2><code>${p.path}</code><span class="small muted">${p.map.provenance.votes ? `labelled in ${p.map.provenance.votes.runs} run${p.map.provenance.votes.runs === 1 ? '' : 's'}` : ''}</span></div>
-${annotated(p, { anchor: `p${i + 1}`, ...(options.editable && { editable: { path: p.path } }) })}
+${annotated(p, { anchor: `p${i + 1}`, ...(p.status && { status: p.status }), ...(options.editable && { editable: { path: p.path } }) })}
 ${p.conditions.length ? html`<p class="small"><b>What the options show:</b> ${p.conditions.map((c) => html`"${c.label}" shows ${String(c.reveals.length)} more field${c.reveals.length === 1 ? '' : 's'}; `)}</p>` : ''}
 ${p.unexplored.length ? html`<p class="small muted"><b>Seen but not mapped in this run</b> (only another option shows them): ${p.unexplored.join(', ')}.</p>` : ''}
 ${p.lists.length ? html`<p class="small"><b>Lists that appear:</b> ${p.lists.map((l) => html`${l.via}: ${String(l.options)} entries; `)}</p>` : ''}
@@ -223,7 +235,11 @@ ${diff && (diff.added.length || diff.removed.length || diff.changed.length) ? ht
 ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexOf(next) + 1)}">${next.path}</a><img src="data:image/png;base64,${next.screenshot}" alt="Next page, ${next.path}"></p>` : p.leads_to ? html`<p class="leads">Leads to <code>${p.leads_to}</code> (the result page).</p>` : ''}
 </section>`;
   };
-  return html`<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
+  const marked = run.pages.reduce((n, p) => n + Object.keys(p.status ?? {}).length, 0);
+  const mode = run.mode === 'update'
+    ? html`<p class="small"><b>An update of your published maps:</b> your labels and corrections are kept${marked ? html`; ${String(marked)} element${marked === 1 ? ' is' : 's are'} new and marked <span class="badge new">New</span> for you to check` : ', and nothing is new'}.</p>`
+    : marked ? html`<p class="small"><b>A fresh run:</b> ${String(marked)} element${marked === 1 ? ' is' : 's are'} new or labelled differently from your published maps, and marked.</p>` : '';
+  return html`${mode}<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
 ${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each journey becomes a tool in your assistant app, and agents get the maps from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
 ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}

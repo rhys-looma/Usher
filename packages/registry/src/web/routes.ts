@@ -808,14 +808,19 @@ ${annotated(drawn, { anchor: 'v' })}`;
     }
     if (route === 'GET /dashboard/learning') return send(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
     if (walk && url.pathname.startsWith('/dashboard/walkthrough')) {
-      if (route === 'GET /dashboard/walkthrough/new') return send(res, 200, startForm(origin)), true;
+      // A site with published maps is updated by default; an unpublished run is replaced by a new one.
+      const startState = async () => {
+        const last = await walk.get(origin);
+        return { published: (await this.registry.currentMaps(origin)).size, unpublished: Boolean(last && last.status !== 'running' && last.pages.length && !last.published_at) };
+      };
+      if (route === 'GET /dashboard/walkthrough/new') return send(res, 200, startForm(origin, undefined, await startState())), true;
       // Owners get an allowance per address an hour; Usher's admin has none.
       const limited = (group: 'walk' | 'chat') => !admin && !this.ownerLimits[group].allow(`${group}|${clientAddress(req, this.options.proxyHops)}`);
       if (route === 'POST /dashboard/walkthrough') {
-        if (limited('walk')) return send(res, 429, startForm(origin, 'Too many walkthroughs started from this address this hour. Try again later.')), true;
+        if (limited('walk')) return send(res, 429, startForm(origin, 'Too many walkthroughs started from this address this hour. Try again later.', await startState())), true;
         const form = await readForm(req);
-        const started = await walk.start({ origin, start: (form.get('start') ?? '').trim() || `${origin}/`, values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner', conversation: true, admin });
-        if ('refused' in started) return send(res, 422, startForm(origin, started.refused)), true;
+        const started = await walk.start({ origin, start: (form.get('start') ?? '').trim() || `${origin}/`, values: testValues(form.get('values') ?? ''), generated: form.get('generated') === '1', pressFinal: form.get('final') === '1', by: 'owner', conversation: true, admin, fresh: form.get('mode') === 'fresh' });
+        if ('refused' in started) return send(res, 422, startForm(origin, started.refused, await startState())), true;
         return redirect(res, '/dashboard/walkthrough'), true;
       }
       const resultPage = async (status: number, editError?: string) => {
