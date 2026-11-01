@@ -220,6 +220,8 @@ const running = await startRegistry({
     status: { version: env.USHER_VERSION || 'dev', spend: { today: spentToday, cap: budget } },
     // The picker refresh loads nothing once today's budget is spent.
     overBudget: async () => (await spentToday()) >= budget,
+    // Tool names and descriptions for owners' apps, within the owners' share.
+    ...(ownerShare.model && { toolWriter: ownerShare.model }),
     // The viewer's second opinion on risk, from Muse Spark Open.
     ...(classifier && { classifier }),
     ...(trainer && { training: { trainer, ...(env.USHER_TRAINING_SECRET && { secret: env.USHER_TRAINING_SECRET }) } }),

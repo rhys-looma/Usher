@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
+import type { ChatFn } from '@usher/core';
 import { checkToolSettings, examplePrompts, seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
 import { registerSite, type SiteKeys } from './sites.ts';
 import { testStorage } from './storage-helper.ts';
@@ -18,10 +19,18 @@ let running: RunningRegistry;
 let site: MockSite;
 let keys: SiteKeys;
 let cookie: string;
+// Muse Spark's stand-in: names and describes the tools it's given, once with a name it may not use.
+const asked: string[] = [];
+const writer: ChatFn = async (request) => {
+  const facts = JSON.parse(String(request.messages.at(-1)!.content).replace(/^Facts:\n/, '')) as { business: string; tools: { intent: string; journey: string }[] };
+  asked.push(JSON.stringify(facts));
+  const tools = facts.tools.map((t, i) => ({ intent: t.intent, name: i === 0 ? `quote_${t.intent.split('.')[1]}` : 'usher_confirm', description: `${t.journey}, in a few minutes.` }));
+  return { content: JSON.stringify({ tools }), usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150, cached_tokens: 0 }, latency_ms: 1, response: null };
+};
 
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-app-'));
-  running = await startRegistry({ storage: await testStorage(dir), siteScript: fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url)), web: { allowPrivate: true } });
+  running = await startRegistry({ storage: await testStorage(dir), siteScript: fileURLToPath(new URL('../../site-script/dist/usher.js', import.meta.url)), web: { allowPrivate: true, toolWriter: { chat: writer, model: 'muse-spark-1.3' } } });
   site = await startMockSite({ registry: running.url, register: async (o) => (keys = await registerSite(running, o)).site_key });
   const login = await fetch(`${running.url}/dashboard/login`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ origin: keys.origin, secret: keys.secret_key }) });
   cookie = login.headers.get('set-cookie')!.split(';')[0]!;
@@ -57,7 +66,9 @@ test('the setup strip: each step as it is done, and the time from joining to pub
   const pageText = await (await get('/dashboard/app?published')).text();
   assert.match(pageText, /Joined to published: \d+ s/);
   assert.match(pageText, new RegExp(`${running.url}/mcp/${new URL(site.url).host}`));
-  assert.match(pageText, /name="name:quote.health_insurance"[^>]*placeholder="get_health_insurance_quote"/);
+  // Usher's own name and description are in the boxes, not greyed out behind them.
+  assert.match(pageText, /name="name:quote.health_insurance" value="get_health_insurance_quote"/);
+  assert.match(pageText, /name="description:quote.health_insurance"[^>]*>Health insurance quote from [^<]+\. Asks for title, first name, last name, [a-z ]+ and more\.</);
   assert.match(pageText, /“Get me a health insurance quote from /);
   assert.match(await (await get('/dashboard')).text(), /Manage your app/);
 
@@ -81,6 +92,28 @@ test('tools: rename, describe and hide, checked; Usher\'s own names, bad names a
   assert.equal(app.enabled, true, 'saving tools leaves the switch as it was');
   assert.deepEqual(checkToolSettings({}, ['quote.health_insurance']), { tools: {} });
   assert.deepEqual(examplePrompts('Acme', [{ title: 'Pet insurance quote from Acme', intent: 'quote.pet_insurance' }]), ['Get me a pet insurance quote from Acme.', 'I\'d like a pet insurance quote from Acme. Ask me for whatever you need, then show me the price.', 'What can Acme do for me here?']);
+});
+
+test('tools: Usher\'s own words fill the boxes; saving them unchanged keeps them Usher\'s; Muse Spark suggests, the owner saves', async () => {
+  const before = await running.registry.siteApp(site.url);
+  await running.registry.setSiteApp(site.url, { ...before, tools: {} });
+  const page = await (await get('/dashboard/app')).text();
+  const box = (intent: string, field: 'name' | 'description') => new RegExp(field === 'name' ? `name="name:${intent}" value="([^"]*)"` : `name="description:${intent}"[^>]*>([^<]*)<`).exec(page)![1]!.replace(/&#39;/g, "'");
+  const intents = ['quote.health_insurance', 'quote.car_insurance'];
+  const unchanged = Object.fromEntries(intents.flatMap((i) => [[`name:${i}`, box(i, 'name')], [`description:${i}`, box(i, 'description')]]));
+  assert.equal((await post('/dashboard/app/tools', unchanged)).status, 303);
+  assert.deepEqual((await running.registry.siteApp(site.url)).tools, {}, 'nothing stored: the names and descriptions stay Usher\'s');
+
+  const suggested = await post('/dashboard/app/tools/suggest', {});
+  assert.equal(suggested.status, 200);
+  const text = await suggested.text();
+  assert.match(text, /Muse Spark's suggestions are in the boxes/);
+  assert.match(text, /name="name:quote.health_insurance" value="quote_health_insurance"/);
+  assert.match(text, /name="name:quote.car_insurance" value="get_car_insurance_quote"/, 'a name it may not use falls back to Usher\'s');
+  assert.match(text, /Health insurance quote from [^,<]+, in a few minutes\./);
+  assert.deepEqual((await running.registry.siteApp(site.url)).tools, {}, 'a suggestion isn\'t saved');
+  assert.ok(!asked.join().match(/value|@/), 'the model sees journeys and questions, nothing anyone typed');
+  await running.registry.setSiteApp(site.url, before);
 });
 
 test('the directory pack: everything a listing asks for, from the app as it is', async () => {
