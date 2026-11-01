@@ -78,6 +78,14 @@ test('wrong origin, intent or issuer fail', async () => {
   assert.equal(await error({ issuers: ['https://registry.example'] }), 'wrong_issuer');
 });
 
+test("a mapper's token is for any intent on its origin, and nothing else about it changes", async () => {
+  const { key, keys } = await setup();
+  const mapper = await signToken(claims({ scope: 'map' }), key);
+  assert.ok((await verifyToken(mapper, { keys, now, intent: 'booking.table' })).ok);
+  assert.equal(await verifyToken(mapper, { keys, now, origin: 'http://localhost:9999' }).then((r) => !r.ok && r.error), 'wrong_origin');
+  assert.equal(await verifyToken(mapper, { keys, now: now + 3600 }).then((r) => !r.ok && r.error), 'expired');
+});
+
 test('tampered payloads and signatures fail', async () => {
   const { key, keys } = await setup();
   const token = await signToken(claims(), key);

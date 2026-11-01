@@ -184,11 +184,12 @@ Header: `{"alg":"EdDSA","typ":"usher+jwt","kid":"<key id>"}`.
 | `jti` | Unique token id |
 | `confirm`, `forbid` | Keys on the form that need the user's confirmation, and keys agents may not act on (from the policy) |
 | `confirmed` | Keys the agent stated its user confirmed, when it knocked |
+| `scope` | `"map"` on a mapper's token only: the site's owner mapping their own site through the registry's walkthrough. The registry issues it to nothing else |
 | `cnf` | `{"jwk": …}`: the agent's public key ([RFC 7800](https://www.rfc-editor.org/rfc/rfc7800) confirmation), so a site can check that requests carrying the token are signed by the agent it was issued to |
 
 The registry publishes its public keys at `/.well-known/usher-keys.json` as a JWK set: `{"keys":[{"kty":"OKP","crv":"Ed25519","x":"…","kid":"…","alg":"EdDSA","use":"sig"}]}`. Sites cache it and verify tokens offline; they refetch only when they meet an unknown `kid`. Old keys stay published until every token they signed has expired.
 
-A verifier accepts a token only when the signature verifies with the key named by `kid`, `iss` is a registry it trusts, `exp` has not passed and `iat` is not in the future (allowing 60 seconds of clock skew), `origin` is its own origin, and `intent` is the intent it protects. A server also keeps the `jti`s it has accepted until they expire and refuses a `jti` it has seen: a token is good for one consequential submit.
+A verifier accepts a token only when the signature verifies with the key named by `kid`, `iss` is a registry it trusts, `exp` has not passed and `iat` is not in the future (allowing 60 seconds of clock skew), `origin` is its own origin, and `intent` is the intent it protects, unless `scope` is `"map"`. A mapper's token is good for any intent and is not held by the site's `confirm` and `forbid` rules: it is the owner checking their own site, not an agent acting for a person. A server also keeps the `jti`s it has accepted until they expire and refuses a `jti` it has seen: a token is good for one consequential submit.
 
 ## 5. Binding a token in the page
 

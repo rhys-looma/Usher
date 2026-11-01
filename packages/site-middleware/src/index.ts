@@ -181,13 +181,14 @@ export function createUsherCheck(options: UsherCheckOptions) {
       if (!result.ok) return { status: 'knock_required', reason: result.error, message: result.message };
       const { claims } = result;
       // The site's rules travel in the token: forbidden actions, and ones the user must confirm.
+      // A mapper's token (the owner's walkthrough of their own site) is bound by neither.
       const floor = opts.action ? DEFAULT_RISK.get(opts.action) : undefined;
-      if (opts.action && (claims.forbid?.includes(opts.action) || (floor === 'needs_user' && FORBIDDEN_BY_DEFAULT.test(opts.action)))) {
+      if (claims.scope !== 'map' && opts.action && (claims.forbid?.includes(opts.action) || (floor === 'needs_user' && FORBIDDEN_BY_DEFAULT.test(opts.action)))) {
         return { status: 'knock_required', reason: 'action_forbidden', message: `Agents may not do ${opts.action} here.` };
       }
       // The person's own, or consequential: never without their yes in the token.
       const needsConfirmation = claims.confirm?.includes(opts.action ?? '') || floor === 'consequential' || floor === 'needs_user';
-      if (opts.action && needsConfirmation && !claims.confirmed?.includes(opts.action)) {
+      if (claims.scope !== 'map' && opts.action && needsConfirmation && !claims.confirmed?.includes(opts.action)) {
         return { status: 'knock_required', reason: 'confirmation_required', message: `Ask your user, then knock with confirmed: ["${opts.action}"].` };
       }
       // The signature must come from the key the token was issued to: a copied token is no use

@@ -717,9 +717,12 @@ export class Walkthroughs {
       say(`Opening ${run.start}.`);
       await page.goto(run.start, { waitUntil: 'load', timeout: 30_000 });
       const declared = await declaredJourneys(page);
-      const starts = [new URL(run.start).pathname, new URL(page.url()).pathname];
+      let starts = [new URL(run.start).pathname, new URL(page.url()).pathname];
       let intent: string | undefined;
       let session: string | undefined;
+      // A journey starts on the first page, and on any page Usher goes to at the owner's word (not
+      // one reached by the form's own button): each gets the intent the site declares for it.
+      let newJourney = true;
       if (live.conversation) this.post(live, { from: 'usher', text: `I'm on ${new URL(page.url()).pathname} of ${host}. I'll map each form I find and ask you when I need to know where to go.` });
       // In a conversation, where a walk would end Usher asks the owner instead: true when it has
       // somewhere to go (and has gone), false to finish.
@@ -743,6 +746,9 @@ export class Walkthroughs {
         // The lock blocks other origins; this is the belt to its braces.
         if (new URL(page.url()).origin !== run.origin) await page.goto(before, { waitUntil: 'load' }).catch(() => undefined);
         say(`On ${new URL(page.url()).pathname}, as the owner asked.`);
+        newJourney = true;
+        starts = [new URL(page.url()).pathname];
+        session = undefined;
         return true;
       };
       for (let step = 1; step <= (this.o.maxPages ?? (live.conversation ? 30 : 10)); step++) {
@@ -791,7 +797,8 @@ export class Walkthroughs {
         emit({ type: 'cost', usd: run.cost_usd });
         const map = compiled.map;
         // One intent for the whole journey, the site's if it declares one.
-        if (step === 1) {
+        if (newJourney) {
+          newJourney = false;
           const chosen = journeyIntent(declared, starts, map.form.intent);
           intent = chosen.intent;
           if (intent) say(`The journey's intent: ${intent}${chosen.declared ? ', as the site declares it' : ''}.`);

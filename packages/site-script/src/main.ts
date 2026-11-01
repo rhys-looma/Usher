@@ -285,7 +285,8 @@ function onSubmit(event: SubmitEvent): void {
   }
   if (!lookup) return;
   const el = elementFor(event.submitter) ?? lookup.map?.actions.find((a) => a.kind === 'submit');
-  const rule = el ? (lookup.rules.actions?.[el.key] ?? defaultRule(el)) : 'allow';
+  // A mapper's token (the owner's walkthrough of their own site) isn't held by the site's rules.
+  const rule = claims?.scope === 'map' ? 'allow' : el ? (lookup.rules.actions?.[el.key] ?? defaultRule(el)) : 'allow';
   // A token from the entry URL that already says the person confirmed this (they did, in the
   // assistant's Usher card) counts as confirmed: an assistant driving a browser can't call
   // usher.confirm(). Agents that bind in script keep the hold and confirm in the page.

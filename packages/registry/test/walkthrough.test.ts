@@ -14,9 +14,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
-import type { ChatFn, UsherMap } from '@usher/core';
+import { decodeToken, generateAgentIdentity, signRequest, type ChatFn, type UsherMap } from '@usher/core';
+import { createUsherCheck } from '../../site-middleware/src/index.ts';
 import { startMockSite, type MockSite } from '../../site-middleware/test/mock-site.ts';
-import { seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
+import { knockRequest, seedMaps, startRegistry, type RunningRegistry } from '../src/index.ts';
 import { journeyIntent, onSite, ownPagesOnly, Walkthroughs, type WalkthroughRun } from '../src/walkthrough.ts';
 import { TEST_PERSON } from '../src/walkthrough-persona.ts';
 import { Viewer } from '../src/web/viewer.ts';
@@ -191,6 +192,10 @@ test('a conversation: from the home page, by a click, a choice and words, two jo
     assert.equal(await walk.message(site.url, id, 'Now do the health insurance one please'), null);
     run = await until(site.url, (r) => Boolean(r.waiting) && r.pages.length > 3, 'the end of the health journey');
     assert.deepEqual(run.pages.slice(3).map((p) => p.path), ['/health/about', '/health/cover', '/health/declaration']);
+    // Each journey carries the intent the site declares for it, on every page, whoever chose it.
+    const declared = (await (await fetch(`${site.url}/.well-known/usher.json`)).json()) as { journeys: { start: string; intent: string }[] };
+    const intentOf = (start: string) => declared.journeys.find((j) => j.start === start)!.intent;
+    assert.deepEqual(run.pages.map((p) => p.map.form.intent), [...Array(3).fill(intentOf('/quote/driver')), ...Array(3).fill(intentOf('/health/about'))]);
 
     // An address off the site is refused, whoever suggests it.
     moveAnswer = () => ({ reply: 'Going there.', move: 'path', path: '//evil.example/x', option: null, then: [] });
@@ -323,6 +328,27 @@ test("on a site that hasn't joined, the owner can't click: Usher never presses a
     await running.registry.setListed(listed.url, null);
     listed.server.close();
   }
+});
+
+test("a mapper's token (the owner's walkthrough) is for any intent and isn't held by the site's rules; no agent gets one", async () => {
+  const usher = createUsherCheck({ registry: running.url, intent: 'quote.car_insurance', origin: site.url });
+  const identity = (await generateAgentIdentity()).identity;
+  const knock = async (as?: { walkthrough: string }) => ((await running.registry.knock(await signRequest(knockRequest({ url: `${site.url}/quote/cover`, intent: 'booking.table' }), identity), null, as)).body as { token: string }).token;
+  const status = async (token: string, action: string) => {
+    const r = await usher.check({ headers: { 'x-usher-token': token } } as never, { action });
+    return r.status === 'knock_required' ? r.reason : r.status;
+  };
+  const mapper = await knock({ walkthrough: new URL(site.url).host });
+  assert.equal(decodeToken(mapper)!.claims.scope, 'map');
+  // Another intent, a consequential action unconfirmed, and one only the person may do: all fine for the owner's mapper.
+  assert.equal(await status(mapper, 'form.submit'), 'ok');
+  assert.equal(await status(await knock({ walkthrough: new URL(site.url).host }), 'form.purchase'), 'ok');
+  // Still one use per token.
+  assert.equal(await status(mapper, 'form.submit'), 'replayed');
+  // An agent's knock, the same in every other way, gets an ordinary token.
+  const agent = await knock();
+  assert.equal(decodeToken(agent)!.claims.scope, undefined);
+  assert.equal(await status(agent, 'form.submit'), 'wrong_intent');
 });
 
 test('onSite: paths on the origin only', () => {
