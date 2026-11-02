@@ -8,6 +8,7 @@ import type { UsherMap } from '@usher/core';
 import { RISKS, vocabulary } from '@usher/core';
 import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
 import { esc, html, page, when, type Raw } from './html.ts';
+import { TOOLS_STYLE, flowStrip, stepNames, type FlowStep } from './tools.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
 const RISK_CHOICES: Record<string, string> = {
@@ -17,7 +18,7 @@ const RISK_CHOICES: Record<string, string> = {
 };
 
 /** A condition in words, with the other field's label and the option's label rather than keys and values. */
-function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][number]['shown_if']>): string {
+export function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][number]['shown_if']>): string {
   const field = map.fields.find((f) => f.key === c.field);
   const name = field?.label ? `“${field.label}”` : c.field;
   const option = (v: string) => `“${field?.options?.items.find((o) => o.value === v)?.label ?? v}”`;
@@ -226,15 +227,29 @@ export function resultView(run: WalkthroughRun, options: { editable: boolean; pu
   const section = (p: WalkthroughPage, i: number) => {
     const next = p.leads_to ? pageFor(p.leads_to) : undefined;
     const diff = run.diff?.find((d) => d.path === p.path);
-    return html`<section class="card" id="page-${String(i + 1)}"><div class="page-head"><h2>${String(i + 1)}. ${p.title || p.path}</h2><code>${p.path}</code><span class="small muted">${p.map.provenance.votes ? `labelled in ${p.map.provenance.votes.runs} run${p.map.provenance.votes.runs === 1 ? '' : 's'}` : ''}</span></div>
+    return html`<section class="card" id="page-${String(i + 1)}" data-panel><div class="page-head"><h2>${String(i + 1)}. ${stepName(p)}</h2><code>${p.path}</code><span class="small muted">${p.map.provenance.votes ? `labelled in ${p.map.provenance.votes.runs} run${p.map.provenance.votes.runs === 1 ? '' : 's'}` : ''}</span></div>
 ${annotated(p, { anchor: `p${i + 1}`, ...(p.status && { status: p.status }), ...(options.editable && { editable: { path: p.path } }) })}
 ${p.conditions.length ? html`<p class="small"><b>What the options show:</b> ${p.conditions.map((c) => html`"${c.label}" shows ${String(c.reveals.length)} more field${c.reveals.length === 1 ? '' : 's'}; `)}</p>` : ''}
 ${p.unexplored.length ? html`<p class="small muted"><b>Seen but not mapped in this run</b> (only another option shows them): ${p.unexplored.join(', ')}.</p>` : ''}
 ${p.lists.length ? html`<p class="small"><b>Lists that appear:</b> ${p.lists.map((l) => html`${l.via}: ${String(l.options)} entries; `)}</p>` : ''}
 ${diff && (diff.added.length || diff.removed.length || diff.changed.length) ? html`<p class="small"><b>Against the map agents get now:</b> ${diff.added.length ? `new: ${diff.added.join(', ')}. ` : ''}${diff.changed.length ? `changed: ${diff.changed.join(', ')}. ` : ''}${diff.removed.length ? `gone: ${diff.removed.join(', ')}.` : ''}</p>` : ''}
 ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexOf(next) + 1)}">${next.path}</a><img src="data:image/png;base64,${next.screenshot}" alt="Next page, ${next.path}"></p>` : p.leads_to ? html`<p class="leads">Leads to <code>${p.leads_to}</code> (the result page).</p>` : ''}
+<p class="step-nav">${i > 0 ? html`<a href="#page-${String(i)}">← ${stepName(run.pages[i - 1]!)}</a>` : ''}${i < run.pages.length - 1 ? html`<a class="next" href="#page-${String(i + 2)}">${stepName(run.pages[i + 1]!)} →</a>` : ''}</p>
 </section>`;
   };
+  // The run's pages by journey: one strip each, and one page open below them.
+  const journeys = new Map<string, WalkthroughPage[]>();
+  for (const p of run.pages) journeys.set(p.map.form.intent ?? p.path, [...(journeys.get(p.map.form.intent ?? p.path) ?? []), p]);
+  const names = new Map([...journeys.values()].flatMap((pages) => {
+    const short = stepNames(pages.map((p) => ({ path: p.path, purpose: p.map.form.purpose })));
+    return pages.map((p, i) => [p, short[i]!] as const);
+  }));
+  const stepName = (p: WalkthroughPage) => names.get(p) ?? p.path;
+  const flowSteps = (pages: WalkthroughPage[]): FlowStep[] => pages.map((p) => {
+    const marks = Object.keys(p.status ?? {}).length;
+    return { name: stepName(p), path: p.path, href: `#page-${run.pages.indexOf(p) + 1}`, ...(marks && { flag: `${marks} to check` }) };
+  });
+  const flows = run.pages.length > 1 ? html`<p class="small muted" style="margin:16px 0 6px">Pick a page to check it.</p>${[...journeys.values()].map((pages) => html`<div class="flow-group">${journeys.size > 1 ? html`<p>${pages[0]!.map.form.purpose.replace(/:.*$/, '')}</p>` : ''}${flowStrip(flowSteps(pages), { label: 'Pages mapped' })}</div>`)}` : '';
   const marked = run.pages.reduce((n, p) => n + Object.keys(p.status ?? {}).length, 0);
   const mode = run.mode === 'update'
     ? html`<p class="small"><b>An update of your published maps:</b> your labels and corrections are kept${marked ? html`; ${String(marked)} element${marked === 1 ? ' is' : 's are'} new and marked <span class="badge new">New</span> for you to check` : ', and nothing is new'}.</p>`
@@ -242,8 +257,8 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
   return html`${mode}<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
 ${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each journey becomes a tool in your assistant app, and agents get the maps from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
-${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}
-<div class="pages">${run.pages.map(section)}</div>`;
+${flows}<div class="pages" data-panels>${run.pages.map(section)}</div>
+${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}`;
 }
 
 /** The whole walkthrough page: live while running, the result after. */
@@ -257,7 +272,7 @@ export function walkthroughPage(run: WalkthroughRun | null, options: { editable:
     html`<h1>${options.title ?? 'Map my site'}</h1>
 ${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher walks your journey, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
 ${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events, options.editable) : html`${transcript(run)}${resultView(run, options)}`}`,
-    { scripts: ['/walkthrough.js'], style: ANNOTATE_STYLE + (options.setup?.style ?? '') },
+    { scripts: ['/panels.js', '/walkthrough.js'], style: ANNOTATE_STYLE + TOOLS_STYLE + (options.setup?.style ?? '') },
   );
 }
 
