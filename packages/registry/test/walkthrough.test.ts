@@ -380,7 +380,7 @@ test('one intent for the whole journey: the one the site declares, whatever the 
   try {
     const run = await runOnce('/health/about');
     assert.deepEqual(run.pages.map((p) => p.map.form.intent), ['quote.health_insurance', 'quote.health_insurance', 'quote.health_insurance']);
-    assert.ok(run.log.includes('The journey\'s intent: quote.health_insurance, as the site declares it.'), run.log.join(' | '));
+    assert.ok(run.log.includes('The task\'s intent: quote.health_insurance, as the site declares it.'), run.log.join(' | '));
   } finally {
     namedIntent = null;
   }
@@ -534,7 +534,7 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
   assert.ok(![...maps.values()].some((m) => [...m.fields, ...m.actions].some((e) => 'box' in e)), 'published maps carry no boxes');
   // After publishing: mapped is done, and the page points to the next step of the twenty minutes.
   const after = await (await fetch(`${running.url}/dashboard/walkthrough`, { headers: { Cookie: cookie } })).text();
-  assert.match(after, /<b>Published\.<\/b> Each journey is a tool in your assistant app now, and agents get these maps too\. Next: <a href="\/dashboard#rules">Rules: what assistants may do, in your words<\/a>\./);
+  assert.match(after, /<b>Published\.<\/b> Each one is a task in your assistant app now, and agents get these maps too\. Next: <a href="\/dashboard#rules">Rules: what assistants may do, in your words<\/a>\./);
 
   // Again, now the site has maps: an update by default, and the owner's correction is kept.
   const form = await (await fetch(`${running.url}/dashboard/walkthrough/new`, { headers: { Cookie: cookie } })).text();

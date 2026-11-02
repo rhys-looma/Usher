@@ -64,25 +64,25 @@ export function appPage(input: { origin: string; name: string; endpoint: string;
   const { app, tools } = input;
   const live = tools.filter((t) => !t.hidden);
   const switchCard = html`<div class="card" id="switch"><h2>Publish</h2>
-${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that add your endpoint can use the tools below.</p>` : html`<p><b>Off.</b> Your endpoint answers no one until you switch it on.</p>`}
+${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that add your endpoint can use the tasks below.</p>` : html`<p><b>Off.</b> Your endpoint answers no one until you switch it on.</p>`}
 <form method="post" action="/dashboard/app/switch"><input type="hidden" name="enabled" value="${app.enabled ? '0' : '1'}">${!app.enabled && !live.length ? html`<button type="submit" disabled>Publish my app</button> <span class="small muted">Map a journey first: each one becomes a tool.</span>` : html`<button type="submit"${app.enabled ? ' class="secondary"' : ''}>${app.enabled ? 'Switch my app off' : 'Publish my app'}</button>`}</form>
 <p class="small muted">${input.usage.connections} connection${input.usage.connections === 1 ? '' : 's'} and ${input.usage.fills} fill${input.usage.fills === 1 ? '' : 's'} so far.</p></div>`;
   const endpoint = html`<div class="card"><h2>Your endpoint</h2>
 <p class="endpoint"><code>${input.endpoint}</code></p>
 <ul class="small"><li><b>Claude:</b> Settings, Connectors, Add custom connector; paste the address. No sign-in is needed.</li>
 <li><b>ChatGPT:</b> Settings, Apps and connectors, Create (developer mode); paste the address, with no authentication.</li>
-<li>It serves ${input.name}'s tools alone and acts on ${new URL(input.origin).host} only.</li></ul></div>`;
-  const toolList = html`<div class="card" id="tools"><h2>Tools</h2>
-${tools.length ? html`<p class="small muted">What your app offers, one for each journey. Open a tool to name it, describe it or hide it.</p>
-<table class="small"><thead><tr><th>Tool</th><th>Assistants call it</th><th></th></tr></thead><tbody>${tools.map((t) => html`<tr><td><a href="/dashboard/tools/${t.intent}">${t.title}</a></td><td><code>${t.name}</code></td><td>${t.hidden ? html`<span class="badge plain">Hidden</span>` : ''}</td></tr>`)}</tbody></table>` : html`<p>No journeys mapped yet. <a href="/dashboard/walkthrough/new">Map my site</a>.</p>`}</div>`;
+<li>It serves ${input.name}'s tasks alone and acts on ${new URL(input.origin).host} only.</li></ul></div>`;
+  const toolList = html`<div class="card" id="tools"><h2>Tasks</h2>
+${tools.length ? html`<p class="small muted">What your app offers. Open a task to name it, describe it or hide it.</p>
+<table class="small"><thead><tr><th>Task</th><th>Assistants call it</th><th></th></tr></thead><tbody>${tools.map((t) => html`<tr><td><a href="/dashboard/tools/${t.intent}">${t.title}</a></td><td><code>${t.name}</code></td><td>${t.hidden ? html`<span class="badge plain">Hidden</span>` : ''}</td></tr>`)}</tbody></table>` : html`<p>No journeys mapped yet. <a href="/dashboard/walkthrough/new">Map my site</a>.</p>`}</div>`;
   const prompts = examplePrompts(input.name, live);
   const body = html`${dashNav('publish')}<h1>Publish as an assistant app</h1>
-<p class="lede">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your journeys as tools, on cards in your look, run by Usher under your rules.</p>
+<p class="lede">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your tasks, on cards in your look, run by Usher under your rules.</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
 ${setupStrip(input.setup, input.now)}
 ${switchCard}${endpoint}${toolList}
 ${input.look}
-<div class="card"><h2>Example prompts</h2>${prompts.length ? html`<ul class="prompts">${prompts.map((p) => html`<li>“${p}”</li>`)}</ul>` : html`<p class="muted">Once a journey is mapped.</p>`}</div>
+<div class="card"><h2>Example prompts</h2>${prompts.length ? html`<ul class="prompts">${prompts.map((p) => html`<li>“${p}”</li>`)}</ul>` : html`<p class="muted">Once a task is mapped.</p>`}</div>
 <div class="card"><h2>List it in the directories</h2><p>Everything Claude's and ChatGPT's directories ask for, filled in from your app: name, descriptions, endpoint, tools, example prompts, logo and how data is handled. Add your contact and policy links, then submit.</p>
 <p><a class="button" href="/dashboard/app/pack.md">Download the pack (Markdown)</a> <a href="/dashboard/app/pack.json">or as JSON, with the logo</a></p></div>`;
   return page('Publish as an assistant app', body, { style: APP_STYLE + TOOLS_STYLE });

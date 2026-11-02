@@ -640,7 +640,7 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
     const demoTool = /^\/demo\/dashboard\/tools\/([a-z][a-z0-9_.]*)$/.exec(url.pathname);
     if (demoTool && req.method === 'GET') {
       const body = await board.tool(demo.origin, demoTool[1]!, { step: Number(url.searchParams.get('step')) || 1, demo: true });
-      return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such tool on the demo site</h1><p><a href="/demo/dashboard">Back to the demo dashboard</a></p>`)), true;
+      return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such task on the demo site</h1><p><a href="/demo/dashboard">Back to the demo dashboard</a></p>`)), true;
     }
     const session = /^\/demo\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)$/.exec(url.pathname);
     if (session && req.method === 'GET') {
@@ -763,7 +763,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const canSuggest = Boolean(this.options.toolWriter);
       const show = async (status: number, extra: { notice?: string; problems?: string[]; suggested?: { name: string; description: string } } = {}) => {
         const body = await board.tool(origin, intent, { step, canSuggest, ...extra });
-        return send(res, body ? status : 404, body ?? page('Not found', html`<h1>No such tool on ${origin}</h1><p><a href="/dashboard#tools">Back to your tools</a></p>`));
+        return send(res, body ? status : 404, body ?? page('Not found', html`<h1>No such task on ${origin}</h1><p><a href="/dashboard#tools">Back to your tasks</a></p>`));
       };
       if (req.method === 'GET' && !toolRoute[2]) return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. New connections get it; open ones keep the old one until they reconnect.' } : {}), true;
       if (req.method !== 'POST') return await show(404), true;
@@ -780,7 +780,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const result = await suggestTools(writer, { name, tools: [tool] }).catch((err: Error) => (err instanceof BudgetExceeded ? err.message : 'Muse Spark could not suggest anything just now; try again.'));
         if (typeof result === 'string') return await show(503, { problems: [result] }), true;
         const suggested = result.tools[intent];
-        return await show(200, suggested ? { suggested } : { problems: ['Muse Spark had no suggestion for this tool; try again.'] }), true;
+        return await show(200, suggested ? { suggested } : { problems: ['Muse Spark had no suggestion for this task; try again.'] }), true;
       }
       const form = await readForm(req);
       const given = Object.fromEntries(tools.map((t) => {
@@ -804,7 +804,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       if (route === 'POST /dashboard/app/switch') {
         const on = (await readForm(req)).get('enabled') === '1';
         const app = await this.registry.siteApp(origin);
-        if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map a journey first: each one becomes a tool.'] }), true;
+        if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map your site first: each thing it maps becomes a task.'] }), true;
         await this.registry.setSiteApp(origin, { ...app, enabled: on });
         return redirect(res, on ? '/dashboard/app?published' : '/dashboard/app'), true;
       }

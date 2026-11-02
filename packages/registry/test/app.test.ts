@@ -83,6 +83,7 @@ test('the dashboard leads with tools, each down to its pages, one page open at a
   const board = await (await get('/dashboard')).text();
   assert.ok(board.indexOf('id="tools"') < board.indexOf('id="activity"') && board.indexOf('id="activity"') < board.indexOf('id="rules"'), 'tools come first');
   assert.ok(board.includes('href="/dashboard#activity"') && board.includes('href="/dashboard/app"'), 'the tabs');
+  assert.ok(board.includes('>Tasks</a>') && !board.includes('>Tools</a>'), 'in words anyone would use');
   assert.ok(board.includes('href="/dashboard/tools/quote.health_insurance"'), 'each tool opens');
   assert.ok(board.includes('/dashboard/tools/quote.health_insurance?step=3#flow'), 'and its dots lead to its pages');
   const first = await (await get('/dashboard/tools/quote.health_insurance')).text();
@@ -100,10 +101,10 @@ test('tools: rename, describe and hide, one tool at a time, checked; Usher\'s ow
   const health = '/dashboard/tools/quote.health_insurance';
   const bad = await post(health, { name: 'usher_confirm', description: 'x' });
   assert.equal(bad.status, 422);
-  assert.match(await bad.text(), /&quot;usher_confirm&quot; is one of Usher&#39;s own tools/);
+  assert.match(await bad.text(), /&quot;usher_confirm&quot; is one of Usher&#39;s own names/);
   const badName = await post(health, { name: 'Get Car!', description: 'x' });
   assert.equal(badName.status, 422);
-  assert.match(await badName.text(), /&quot;Get Car!&quot; isn&#39;t a tool name/);
+  assert.match(await badName.text(), /&quot;Get Car!&quot; isn&#39;t a valid name/);
   assert.equal((await post(health, { name: 'get_car_insurance_quote', description: 'x' })).status, 422, 'two tools with one name');
   assert.equal((await post(health, { name: 'brightwater_health_quote', description: 'A <b>health</b> quote, in two minutes.' })).status, 303);
   const car = await (await get('/dashboard/tools/quote.car_insurance')).text();

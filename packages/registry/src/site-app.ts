@@ -95,9 +95,9 @@ export function checkToolSettings(input: Record<string, { name?: string; descrip
     const name = (own.name ?? '').trim();
     const description = (own.description ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
     const effective = name || toolNameFor(intent);
-    if (name && !/^[a-z][a-z0-9_]{2,63}$/.test(name)) problems.push(`"${name}" isn't a tool name: lower-case letters, digits and underscores, 3 to 64, starting with a letter.`);
-    else if (RESERVED.has(effective)) problems.push(`"${effective}" is one of Usher's own tools.`);
-    else if (names.has(effective)) problems.push(`Two tools would be called "${effective}".`);
+    if (name && !/^[a-z][a-z0-9_]{2,63}$/.test(name)) problems.push(`"${name}" isn't a valid name: lower-case letters, digits and underscores, 3 to 64, starting with a letter.`);
+    else if (RESERVED.has(effective)) problems.push(`"${effective}" is one of Usher's own names.`);
+    else if (names.has(effective)) problems.push(`Two tasks would be called "${effective}".`);
     names.set(effective, intent);
     if (description.length > 600) problems.push(`The description for ${intentLabelOf(intent)} is longer than 600 characters.`);
     const entry = { ...(name && { name }), ...(description && { description }), ...(own.hidden && { hidden: true }) };

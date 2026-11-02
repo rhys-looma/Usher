@@ -211,18 +211,18 @@ ${notice ?? ''}
 ${dashNav(active, { base, demo: Boolean(demo) })}
 <div data-panels data-active="${active}">
 <section id="tools" data-panel>
-<h2 style="margin-top:0">Tools</h2>
-<p class="small muted">What assistants can do on your site. Each one is a journey Usher has mapped: open it to see its pages, its rules and how it's been used.</p>
+<h2 style="margin-top:0">Tasks</h2>
+<p class="small muted">What assistants can do on your site. Open a task to see its steps, its rules and how it's been used.</p>
 <div data-live="top">${toolsList(tools, { base, published: Boolean(app.enabled), demo: Boolean(demo) })}</div>
 ${options.cards ?? ''}
-<details class="card" id="forms"><summary><b>All mapped pages</b> <span class="muted small">(${String(forms.length)}${outside ? `, ${outside} not in a tool` : ''})</span></summary>
+<details class="card" id="forms"><summary><b>All mapped pages</b> <span class="muted small">(${String(forms.length)}${outside ? `, ${outside} not in a task` : ''})</span></summary>
 <div data-live="pages"><table>
-<thead><tr><th>Page</th><th>Tool</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
+<thead><tr><th>Page</th><th>Task</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
 <tbody>${forms.length ? forms.map(({ current: r, earlier }) => {
         const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
         const check = checks.get(r.map.path);
         const tool = toolOf.get(r.map.path);
-        return html`<tr><td><code>${r.map.path}</code><br><span class="small muted">${r.map.form.purpose}</span></td><td class="small">${tool ? html`<a href="${base}/tools/${tool.tool.intent}?step=${String(tool.plan.steps.findIndex((s) => s.path === r.map.path) + 1)}#flow">${tool.tool.title.replace(/ from .*$/, '')}</a>` : html`<span class="muted">Not in a tool</span>`}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
+        return html`<tr><td><code>${r.map.path}</code><br><span class="small muted">${r.map.form.purpose}</span></td><td class="small">${tool ? html`<a href="${base}/tools/${tool.tool.intent}?step=${String(tool.plan.steps.findIndex((s) => s.path === r.map.path) + 1)}#flow">${tool.tool.title.replace(/ from .*$/, '')}</a>` : html`<span class="muted">Not in a task</span>`}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
 <td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span><br>${r.verification ? html`<span class="badge rule-allow">verified</span> ${when(r.verification.at)} by ${r.verification.by === 'keeper' ? 'the keeper' : r.verification.by === 'admin' ? "Usher's admin" : 'a second agent'}` : html`<span class="badge rule-confirm">unverified</span> served only to that agent`}` : r.map.provenance.compiler ?? r.map.provenance.source}${!demo ? html`<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a>` : visibleTo(r) ? html`<br><a href="/maps/view?origin=${encodeURIComponent(origin)}&amp;digest=${encodeURIComponent(r.digest)}">view map</a>` : ''}</td>
 <td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
 <td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
