@@ -280,10 +280,9 @@ export class Walkthroughs {
 
   /** Why a run can't start now, or null. */
   async refusal(origin: string, start: string, admin = false): Promise<string | null> {
-    const site = await this.storage.getSite(origin);
     // A site Usher's admin listed (only the admin can open its dashboard) may be walked too, read-only:
     // the walk stops before the final step there (start).
-    if (!site?.claim && origin !== this.o.registry.demoOrigin && !(await this.o.registry.listedSites()).some((l) => l.origin === origin)) return 'This site has not proved it controls its address yet.';
+    if (!(await this.o.registry.joined(origin))) return 'Verify your site first: Usher only maps a site that has proved it controls its address.';
     let url: URL;
     try {
       url = new URL(start);
@@ -560,6 +559,8 @@ export class Walkthroughs {
   async publish(origin: string): Promise<number> {
     const run = await this.storage.getCached<WalkthroughRun>('walkthrough', origin);
     if (!run || run.status === 'running' || !run.pages.length) return 0;
+    // A site's verification can be withdrawn after its run finished.
+    if (!(await this.o.registry.joined(origin))) return 0;
     for (const page of run.pages) {
       const map = withoutBoxes(page.map);
       await this.o.registry.addMap({ ...map, provenance: { ...map.provenance, source: 'site', verified: true } });

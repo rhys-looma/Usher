@@ -33,6 +33,8 @@ before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'usher-verify-'));
   registry = await startRegistry({ storage: await testStorage(join(dir, 'a')), submitLimit: 5, web: {} });
   driver = (await seedMaps('mock-site')).find((m) => m.path === '/quote/driver')!;
+  // Agents only share maps of a site that has verified its address.
+  for (const port of [4210, 4211, 4212, 4213, 4214, 4215]) await registerSite(registry, `http://localhost:${port}`);
 });
 after(async () => {
   await registry.close();
@@ -139,6 +141,7 @@ test('a poisoned map from one identity never reaches another, and an honest disa
 });
 
 test('submissions are rate limited per identity', async () => {
+  for (const port of [4220, 4221, 4222, 4320, 4321, 4398, 4399]) await registerSite(registry, `http://localhost:${port}`);
   const a = await agent(registry);
   const maps = (await seedMaps('mock-site')).map((m, i) => asAgentMap(m, `http://localhost:${4220 + i}`));
   for (const m of maps.slice(0, 3)) await a.submitMap(m);
@@ -180,4 +183,28 @@ test('the keeper verifies an agent\'s map when its own rebuild matches, and repl
   assert.equal(replaced.verification?.by, 'keeper');
   assert.equal(replaced.map.fields.find((f) => f.label.match(/first name/i))?.key, 'person.first_name', 'the honest keys');
   assert.equal((await b.knock({ url: `${site.url}/quote/driver`, fingerprint: map.fingerprint, intent: 'quote.car_insurance' })).map?.fields.find((f) => /email/i.test(f.label))?.key, 'contact.email');
+});
+
+test('no one maps a site over its head: an agent\'s map of an unverified site is refused, and nothing is kept', async () => {
+  const client = new RegistryClient(registry.url, (await generateAgentIdentity()).identity);
+  const origin = 'http://localhost:4216';
+  const map = asAgentMap(driver, origin);
+  await assert.rejects(() => client.submitMap(map), /site_not_verified/, 'never heard of it');
+  await registerSite(registry, origin, { claim: false });
+  await assert.rejects(() => client.submitMap(map), /site_not_verified/, 'registered, not verified');
+  assert.equal((await registry.registry.storage.mapsForOrigin(origin)).length, 0);
+  await registry.registry.claimForDevelopment(origin);
+  assert.equal((await client.submitMap(map)).stored, true, 'verified: now it can be shared');
+});
+
+test('maps alone don\'t make a site verified: no tick, no timer', async () => {
+  const origin = 'http://localhost:4217';
+  await registerSite(registry, origin, { claim: false });
+  await registry.registry.addMap({ ...driver, origin });
+  await registry.registry.setSiteApp(origin, { ...(await registry.registry.siteApp(origin)), enabled: true });
+  const setup = await registry.registry.siteSetup(origin);
+  assert.equal(setup.steps.find((s) => s.key === 'joined')!.done_at, undefined);
+  assert.ok(setup.steps.find((s) => s.key === 'mapped')!.done_at);
+  assert.equal(setup.join_to_publish_ms, undefined);
+  assert.equal(await registry.registry.siteAppServed(origin), false, 'and its app serves no one');
 });

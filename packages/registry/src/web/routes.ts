@@ -522,9 +522,9 @@ export class Web {
       html`<style>details.purge { margin-top:8px; } details.purge summary { cursor:pointer; color:var(--user); font-size:13px; } details.purge form { margin-top:8px; max-width:28em; } button.danger { background:var(--user); border-color:var(--user); color:#fff; }</style>
 <h1>All sites</h1><p class="lede">${String(rows.length)} registered, most recently active first. Open one to see and change it as its owner would; every change is logged and shown to the owner. <a href="/admin">Interest</a>.</p>
 ${message ? html`<div class="card ${ok ? 'notice' : 'error'}">${message}</div>` : ''}
-<div class="card"><table><thead><tr><th>Site</th><th>Claim</th><th>Maps</th><th>Sessions</th><th>Corrections</th><th>Last agent</th><th>Registered</th><th></th></tr></thead>
+<div class="card"><table><thead><tr><th>Site</th><th>Verified</th><th>Maps</th><th>Sessions</th><th>Corrections</th><th>Last agent</th><th>Registered</th><th></th></tr></thead>
 <tbody>${rows.map(
-        (r) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`<span class="badge">${r.site.claim.method}</span>` : html`<span class="muted">not proved</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
+        (r) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`Yes, by ${r.site.claim.method === 'well-known' ? 'file' : r.site.claim.method === 'dns' ? 'DNS' : 'development key'}` : html`<span class="muted">Not yet</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
 <td><form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${r.site.origin}"><button class="secondary">Open as owner</button></form><details class="purge"><summary>Purge</summary><form method="post" action="/admin/sites/purge" class="stack"><input type="hidden" name="origin" value="${r.site.origin}"><p class="small">Deletes every record of this site: maps, sessions, rules, logs, cached values and any listing. It can't be undone.</p><label>Type <code>${r.site.origin}</code> to confirm <input name="confirm" required autocomplete="off" spellcheck="false"></label><button class="danger">Purge everything</button></form></details></td></tr>`,
       )}</tbody></table></div>
 <h2 id="mapped">Mapped, not joined</h2>
@@ -804,6 +804,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       if (route === 'POST /dashboard/app/switch') {
         const on = (await readForm(req)).get('enabled') === '1';
         const app = await this.registry.siteApp(origin);
+        if (on && !(await this.registry.joined(origin))) return await show(422, { problems: ['Verify your site first: only a site that has proved it controls its address can publish.'] }), true;
         if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map your site first: each thing it maps becomes a task.'] }), true;
         await this.registry.setSiteApp(origin, { ...app, enabled: on });
         return redirect(res, on ? '/dashboard/app?published' : '/dashboard/app'), true;
@@ -900,7 +901,10 @@ ${annotated(drawn, { anchor: 'v' })}`;
         return res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=600' }), res.end(Buffer.from(shot, 'base64')), true;
       }
       if (route === 'POST /dashboard/walkthrough/cancel') return walk.cancel(origin, (await readForm(req)).get('id') ?? ''), redirect(res, '/dashboard/walkthrough'), true;
-      if (route === 'POST /dashboard/walkthrough/publish') return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;
+      if (route === 'POST /dashboard/walkthrough/publish') {
+        if (!(await this.registry.joined(origin))) return send(res, 403, page('Map my site', html`<h1>Verify your site first</h1><div class="card error">Usher only publishes maps of a site that has proved it controls its address.</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
+        return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;
+      }
       if (route === 'POST /dashboard/walkthrough/correct') {
         const form = await readForm(req);
         const failure = await walk.correct(origin, form.get('path') ?? '', form.get('id') ?? '', { ...(form.get('key') && { key: form.get('key')!.trim() }), ...(form.get('risk') && { risk: form.get('risk')! }), ...(form.get('label') && { label: form.get('label')!.trim() }) });

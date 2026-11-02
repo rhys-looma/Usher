@@ -21,6 +21,8 @@ before(async () => {
   running = await startRegistry({ storage: await testStorage(dir) });
   maps = await seed(running.registry, 'mock-site', site);
   keys = await registerSite(running, site);
+  // Agents only share maps of a site that has verified its address.
+  for (const port of [4102, 4103, 4104, 4105, 4106]) await registerSite(running, `http://localhost:${port}`);
   agent = (await generateAgentIdentity()).identity;
   client = new RegistryClient(running.url, agent);
 });
