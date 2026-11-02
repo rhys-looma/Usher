@@ -100,3 +100,31 @@ export const DEMO_JS = `(() => {
   document.addEventListener('visibilitychange', refresh);
 })();
 `;
+
+// One panel at a time, on pages that would otherwise run on and on (the dashboard's tabs, a
+// walkthrough's pages), served at /panels.js. Every link is a plain anchor, so without this script
+// the panels simply stack. The address names the panel, or anything inside it.
+export const PANELS_JS = `(() => {
+  for (const root of document.querySelectorAll('[data-panels]')) {
+    const panels = [...root.children].filter((el) => el.hasAttribute('data-panel'));
+    if (panels.length < 2) continue;
+    const links = () => [...document.querySelectorAll('[data-panel-nav] a')].filter((a) => a.hash && a.pathname === location.pathname);
+    const show = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const target = id ? document.getElementById(id) : null;
+      const open = (target && panels.find((p) => p.contains(target))) || panels.find((p) => p.id === root.getAttribute('data-active')) || panels[0];
+      for (const p of panels) p.classList.toggle('off', p !== open);
+      for (const a of links()) {
+        const here = a.hash === '#' + open.id;
+        if (here) a.setAttribute('aria-current', 'page'); else if (a.hash.length > 1) a.removeAttribute('aria-current');
+      }
+      if (target && target !== open) {
+        for (let el = target.parentElement; el && el !== open; el = el.parentElement) if (el.tagName === 'DETAILS') el.open = true;
+        target.scrollIntoView();
+      }
+    };
+    addEventListener('hashchange', show);
+    show();
+  }
+})();
+`;

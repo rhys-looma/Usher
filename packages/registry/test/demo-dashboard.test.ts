@@ -133,3 +133,14 @@ test('on the demo, each agent confirms at most five quotes an hour, whatever the
   await new RegistryClient(registry.url, (await generateAgentIdentity()).identity).knock(cover); // another agent has its own five
   assert.match((await get('/demo/dashboard')).text, /at most 5 confirmed quotes \(<code>form\.submit<\/code>\) an hour/);
 });
+
+test('a tool on the demo: its flow, read-only', async () => {
+  const board = await get('/demo/dashboard');
+  const href = /href="(\/demo\/dashboard\/tools\/[a-z_.]+)"/.exec(board.text)?.[1];
+  assert.ok(href, 'tools are listed');
+  const tool = await get(href!);
+  assert.equal(tool.status, 200);
+  assert.match(tool.text, /<ol class="flow"/);
+  assert.ok(!tool.text.includes('method="post"'), 'nothing to save');
+  assert.equal((await post(href!, { name: 'nope_nope', description: 'x' })).status, 405);
+});

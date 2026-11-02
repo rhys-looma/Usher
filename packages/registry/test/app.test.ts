@@ -66,11 +66,12 @@ test('the setup strip: each step as it is done, and the time from joining to pub
   const pageText = await (await get('/dashboard/app?published')).text();
   assert.match(pageText, /Joined to published: \d+ s/);
   assert.match(pageText, new RegExp(`${running.url}/mcp/${new URL(site.url).host}`));
-  // Usher's own name and description are in the boxes, not greyed out behind them.
-  assert.match(pageText, /name="name:quote.health_insurance" value="get_health_insurance_quote"/);
-  assert.match(pageText, /name="description:quote.health_insurance"[^>]*>Health insurance quote from [^<]+\. Asks for title, first name, last name, [a-z ]+ and more\.</);
   assert.match(pageText, /“Get me a health insurance quote from /);
   assert.match(await (await get('/dashboard')).text(), /Manage your app/);
+  // Usher's own name and description are in the boxes, not greyed out behind them.
+  const toolText = await (await get('/dashboard/tools/quote.health_insurance')).text();
+  assert.match(toolText, /name="name" value="get_health_insurance_quote"/);
+  assert.match(toolText, /name="description"[^>]*>Health insurance quote from [^<]+\. Asks for title, first name, last name, [a-z ]+ and more\.</);
 
   // Off again: the endpoint answers no one; on again, the time counts to the latest publish.
   assert.equal((await post('/dashboard/app/switch', { enabled: '0' })).status, 303);
@@ -78,18 +79,40 @@ test('the setup strip: each step as it is done, and the time from joining to pub
   await post('/dashboard/app/switch', { enabled: '1' });
 });
 
-test('tools: rename, describe and hide, checked; Usher\'s own names, bad names and duplicates refused', async () => {
-  const bad = await post('/dashboard/app/tools', { 'name:quote.health_insurance': 'usher_confirm', 'name:quote.car_insurance': 'Get Car!' });
+test('the dashboard leads with tools, each down to its pages, one page open at a time', async () => {
+  const board = await (await get('/dashboard')).text();
+  assert.ok(board.indexOf('id="tools"') < board.indexOf('id="activity"') && board.indexOf('id="activity"') < board.indexOf('id="rules"'), 'tools come first');
+  assert.ok(board.includes('href="/dashboard#activity"') && board.includes('href="/dashboard/app"'), 'the tabs');
+  assert.ok(board.includes('href="/dashboard/tools/quote.health_insurance"'), 'each tool opens');
+  assert.ok(board.includes('/dashboard/tools/quote.health_insurance?step=3#flow'), 'and its dots lead to its pages');
+  const first = await (await get('/dashboard/tools/quote.health_insurance')).text();
+  assert.ok(first.includes('<code>/health/about</code>') && first.includes('aria-current="step"'));
+  assert.match(first, /<small>\/health\/declaration<\/small>/, 'every step is in the strip');
+  assert.ok(!first.includes('<code>/health/declaration</code>'), 'only the open page is shown in full');
+  const third = await (await get('/dashboard/tools/quote.health_insurance?step=3')).text();
+  assert.ok(third.includes('<code>/health/declaration</code>') && !third.includes('<code>/health/about</code>'));
+  assert.equal((await get('/dashboard/tools/quote.nothing')).status, 404);
+  assert.equal((await fetch(`${running.url}/dashboard/tools/quote.health_insurance`)).status, 401, 'owners only');
+  assert.match(await (await get('/dashboard/app')).text(), /href="\/dashboard\/tools\/quote\.health_insurance"/, 'the publish page lists them, and leads there');
+});
+
+test('tools: rename, describe and hide, one tool at a time, checked; Usher\'s own names, bad names and duplicates refused', async () => {
+  const health = '/dashboard/tools/quote.health_insurance';
+  const bad = await post(health, { name: 'usher_confirm', description: 'x' });
   assert.equal(bad.status, 422);
-  const text = await bad.text();
-  assert.match(text, /&quot;usher_confirm&quot; is one of Usher&#39;s own tools/);
-  assert.match(text, /&quot;Get Car!&quot; isn&#39;t a tool name/);
-  assert.equal((await post('/dashboard/app/tools', { 'name:quote.health_insurance': 'get_car_insurance_quote' })).status, 422, 'two tools with one name');
-  const ok = await post('/dashboard/app/tools', { 'name:quote.health_insurance': 'brightwater_health_quote', 'description:quote.health_insurance': 'A <b>health</b> quote, in two minutes.', 'hidden:quote.car_insurance': '1' });
-  assert.equal(ok.status, 303);
+  assert.match(await bad.text(), /&quot;usher_confirm&quot; is one of Usher&#39;s own tools/);
+  const badName = await post(health, { name: 'Get Car!', description: 'x' });
+  assert.equal(badName.status, 422);
+  assert.match(await badName.text(), /&quot;Get Car!&quot; isn&#39;t a tool name/);
+  assert.equal((await post(health, { name: 'get_car_insurance_quote', description: 'x' })).status, 422, 'two tools with one name');
+  assert.equal((await post(health, { name: 'brightwater_health_quote', description: 'A <b>health</b> quote, in two minutes.' })).status, 303);
+  const car = await (await get('/dashboard/tools/quote.car_insurance')).text();
+  const box = (field: 'name' | 'description') => new RegExp(field === 'name' ? 'name="name" value="([^"]*)"' : 'name="description"[^>]*>([^<]*)<').exec(car)![1]!.replace(/&#39;/g, "'");
+  assert.equal((await post('/dashboard/tools/quote.car_insurance', { name: box('name'), description: box('description'), hidden: '1' })).status, 303);
   const app = await running.registry.siteApp(site.url);
   assert.deepEqual(app.tools, { 'quote.health_insurance': { name: 'brightwater_health_quote', description: 'A bhealth/b quote, in two minutes.' }, 'quote.car_insurance': { hidden: true } });
   assert.equal(app.enabled, true, 'saving tools leaves the switch as it was');
+  assert.equal((await post('/dashboard/tools/quote.nothing', { name: 'nothing_here', description: 'x' })).status, 404);
   assert.deepEqual(checkToolSettings({}, ['quote.health_insurance']), { tools: {} });
   assert.deepEqual(examplePrompts('Acme', [{ title: 'Pet insurance quote from Acme', intent: 'quote.pet_insurance' }]), ['Get me a pet insurance quote from Acme.', 'I\'d like a pet insurance quote from Acme. Ask me for whatever you need, then show me the price.', 'What can Acme do for me here?']);
 });
@@ -97,19 +120,17 @@ test('tools: rename, describe and hide, checked; Usher\'s own names, bad names a
 test('tools: Usher\'s own words fill the boxes; saving them unchanged keeps them Usher\'s; Muse Spark suggests, the owner saves', async () => {
   const before = await running.registry.siteApp(site.url);
   await running.registry.setSiteApp(site.url, { ...before, tools: {} });
-  const page = await (await get('/dashboard/app')).text();
-  const box = (intent: string, field: 'name' | 'description') => new RegExp(field === 'name' ? `name="name:${intent}" value="([^"]*)"` : `name="description:${intent}"[^>]*>([^<]*)<`).exec(page)![1]!.replace(/&#39;/g, "'");
-  const intents = ['quote.health_insurance', 'quote.car_insurance'];
-  const unchanged = Object.fromEntries(intents.flatMap((i) => [[`name:${i}`, box(i, 'name')], [`description:${i}`, box(i, 'description')]]));
-  assert.equal((await post('/dashboard/app/tools', unchanged)).status, 303);
+  const path = '/dashboard/tools/quote.health_insurance';
+  const page = await (await get(path)).text();
+  const box = (field: 'name' | 'description') => new RegExp(field === 'name' ? 'name="name" value="([^"]*)"' : 'name="description"[^>]*>([^<]*)<').exec(page)![1]!.replace(/&#39;/g, "'");
+  assert.equal((await post(path, { name: box('name'), description: box('description') })).status, 303);
   assert.deepEqual((await running.registry.siteApp(site.url)).tools, {}, 'nothing stored: the names and descriptions stay Usher\'s');
 
-  const suggested = await post('/dashboard/app/tools/suggest', {});
+  const suggested = await post(`${path}/suggest`, {});
   assert.equal(suggested.status, 200);
   const text = await suggested.text();
-  assert.match(text, /Muse Spark's suggestions are in the boxes/);
-  assert.match(text, /name="name:quote.health_insurance" value="quote_health_insurance"/);
-  assert.match(text, /name="name:quote.car_insurance" value="get_car_insurance_quote"/, 'a name it may not use falls back to Usher\'s');
+  assert.match(text, /Muse Spark's suggestion is in the boxes/);
+  assert.match(text, /name="name" value="quote_health_insurance"/);
   assert.match(text, /Health insurance quote from [^,<]+, in a few minutes\./);
   assert.deepEqual((await running.registry.siteApp(site.url)).tools, {}, 'a suggestion isn\'t saved');
   assert.ok(!asked.join().match(/value|@/), 'the model sees journeys and questions, nothing anyone typed');

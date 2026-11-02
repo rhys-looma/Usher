@@ -138,7 +138,7 @@ test('the owner\'s page: the proposal, a live preview of the real card, adjust a
     for (const [k, v] of Object.entries(form)) for (const x of [v].flat()) body.append(k, x);
     return fetch(`${running.url}${path}`, { method: 'POST', redirect: 'manual', headers: { Cookie: cookie }, body });
   };
-  assert.match(await (await get('/dashboard')).text(), /Your assistant app's look/);
+  assert.match(await (await get('/dashboard/app')).text(), /Your assistant app's look/);
   const pageRes = await get('/dashboard/theme');
   assert.equal(pageRes.status, 200);
   assert.match(pageRes.headers.get('content-security-policy') ?? '', /frame-src 'self'/);

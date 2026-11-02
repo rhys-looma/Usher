@@ -97,6 +97,7 @@ test('signup: keys once, the tag, a claim that fails and says why, then passes, 
   await seed(registry.registry, 'mock-site', site.url);
   await page.goto(`${registry.url}/dashboard`);
   await look(page, 'dashboard with maps');
+  await page.locator('#forms summary').click();
   await page.getByRole('link', { name: 'view map' }).first().click();
   assert.match(await look(page, 'map'), /Download the map file/);
 

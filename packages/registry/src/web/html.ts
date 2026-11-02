@@ -136,6 +136,7 @@ const STYLE = `
 ${THEME}
 main { padding-top:36px; padding-bottom:60px; }
 h1 { font-size:clamp(30px, 4.2vw, 44px); margin:0 0 12px; } h2 { font-size:24px; margin:36px 0 12px; } h3 { font-size:18px; margin:20px 0 8px; }
+.card > h2:first-child { margin-top:0; }
 p.lede { margin:0 0 24px; max-width:68ch; font-size:18px; }
 .grid { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
 .stat b { display:block; font-family:var(--serif); font-size:32px; font-weight:700; } .stat span { color:var(--muted); font-size:14px; }

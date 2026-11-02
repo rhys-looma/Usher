@@ -1,4 +1,4 @@
-// The site dashboard (LU-37): forms and maps with drift, the rules editor, agent sessions, blocked
+// The site dashboard (LU-37): tools and the pages behind them, the rules editor, agent sessions, blocked
 // attempts and explanations, for one origin only. Signed in with the site's secret key for now
 // (claiming a domain by DNS or a well-known file is a later ticket).
 
@@ -8,6 +8,7 @@ import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
 import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
+import { TOOLS_STYLE, dashNav, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
 function identityBadge(session: Session | undefined): Raw {
@@ -169,7 +170,7 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     );
   }
 
-  async overview(origin: string, notice?: Raw, demo?: DemoView): Promise<string> {
+  async overview(origin: string, notice?: Raw, demo?: DemoView, options: { cards?: Raw; active?: 'tools' | 'activity' | 'rules' } = {}): Promise<string> {
     const base = demo ? '/demo/dashboard' : '/dashboard';
     const storage = this.registry.storage;
     const [records, sessions, policy, drafts, blockedAll, explanations] = await Promise.all([
@@ -194,15 +195,42 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
       await Promise.all(forms.map(async (f) => [f.current.map.path, await storage.getCached<KeeperCheckView>('keeper-check', `${origin}|${f.current.map.path}`)] as const)),
     );
 
+    const app = await this.registry.siteApp(origin);
+    const tools = await toolViews(this.registry, origin, app, { records, sessions, blocked });
+    const toolOf = new Map(tools.flatMap((v) => v.plan.steps.map((s) => [s.path, v] as const)));
+    const outside = forms.filter((f) => !toolOf.has(f.current.map.path)).length;
+    const active = options.active ?? 'tools';
+
     return page(
       demo ? `Demo dashboard · ${origin}` : `Dashboard · ${origin}`,
       html`${demo ? LIVE_SCRIPT : html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>`}
 <h1>${origin}</h1>
-<p class="lede">${demo ? 'Agents on the demo quote form: who knocked, what they did, what was refused, and the rules they follow.' : 'Agents on your forms: who knocked, what they did, what was refused, and the rules they follow.'}</p>
+<p class="lede">${demo ? 'The demo quote site: what it offers assistants, who knocked, what they did, what was refused, and the rules they follow.' : 'What your site offers assistants, who knocked, what they did, what was refused, and the rules they follow.'}</p>
 ${demo ? demoBanner(origin) : ''}
 ${notice ?? ''}
-${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher's admin</b> <span class="muted small">(${String(adminActions.length)} most recent, newest first)</span></summary><ul class="small">${adminActions.map((a) => html`<li>${when(a.ts)}: <code>${a.action}</code></li>`)}</ul></details>` : ''}
-<div data-live="top">
+${dashNav(active, { base, demo: Boolean(demo) })}
+<div data-panels data-active="${active}">
+<section id="tools" data-panel>
+<h2 style="margin-top:0">Tools</h2>
+<p class="small muted">What assistants can do on your site. Each one is a journey Usher has mapped: open it to see its pages, its rules and how it's been used.</p>
+<div data-live="top">${toolsList(tools, { base, published: Boolean(app.enabled), demo: Boolean(demo) })}</div>
+${options.cards ?? ''}
+<details class="card" id="forms"><summary><b>All mapped pages</b> <span class="muted small">(${String(forms.length)}${outside ? `, ${outside} not in a tool` : ''})</span></summary>
+<div data-live="pages"><table>
+<thead><tr><th>Page</th><th>Tool</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
+<tbody>${forms.length ? forms.map(({ current: r, earlier }) => {
+        const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
+        const check = checks.get(r.map.path);
+        const tool = toolOf.get(r.map.path);
+        return html`<tr><td><code>${r.map.path}</code><br><span class="small muted">${r.map.form.purpose}</span></td><td class="small">${tool ? html`<a href="${base}/tools/${tool.tool.intent}?step=${String(tool.plan.steps.findIndex((s) => s.path === r.map.path) + 1)}#flow">${tool.tool.title.replace(/ from .*$/, '')}</a>` : html`<span class="muted">Not in a tool</span>`}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
+<td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span><br>${r.verification ? html`<span class="badge rule-allow">verified</span> ${when(r.verification.at)} by ${r.verification.by === 'keeper' ? 'the keeper' : r.verification.by === 'admin' ? "Usher's admin" : 'a second agent'}` : html`<span class="badge rule-confirm">unverified</span> served only to that agent`}` : r.map.provenance.compiler ?? r.map.provenance.source}${!demo ? html`<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a>` : visibleTo(r) ? html`<br><a href="/maps/view?origin=${encodeURIComponent(origin)}&amp;digest=${encodeURIComponent(r.digest)}">view map</a>` : ''}</td>
+<td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
+<td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
+      }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when Usher reads your forms or an agent shares one.</td></tr>`}</tbody></table></div></details>
+</section>
+
+<section id="activity" data-panel>
+<div data-live="bottom">
 <div class="grid">
   <div class="card stat"><b>${records.length}</b><span>forms mapped${drifted ? html`, <span class="badge rule-confirm">${drifted} drifted</span>` : ''}</span></div>
   <div class="card stat"><b>${sessions.length}</b><span>agent sessions</span></div>
@@ -218,20 +246,26 @@ ${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher'
       }
 ${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
 
-<h2 id="forms">Forms and maps</h2>
+<h2 id="sessions">Agent sessions</h2>
 <div class="card"><table>
-<thead><tr><th>Form</th><th>Purpose</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
-<tbody>${forms.length ? forms.map(({ current: r, earlier }) => {
-        const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
-        const check = checks.get(r.map.path);
-        return html`<tr><td><code>${r.map.path}</code></td><td>${r.map.form.purpose}</td><td>${r.map.fields.length} fields, ${r.map.actions.length} actions${earlier.length ? html`<br><span class="small muted">${earlier.length + 1} versions</span>` : ''}</td>
-<td class="small">${r.submitted_by ? html`shared by agent <span class="mono">${shortAgent(r.submitted_by)}</span><br>${r.verification ? html`<span class="badge rule-allow">verified</span> ${when(r.verification.at)} by ${r.verification.by === 'keeper' ? 'the keeper' : r.verification.by === 'admin' ? "Usher's admin" : 'a second agent'}` : html`<span class="badge rule-confirm">unverified</span> served only to that agent`}` : r.map.provenance.compiler ?? r.map.provenance.source}${!demo ? html`<br><a href="/dashboard/maps/${encodeURIComponent(r.digest)}">view map</a>` : visibleTo(r) ? html`<br><a href="/maps/view?origin=${encodeURIComponent(origin)}&amp;digest=${encodeURIComponent(r.digest)}">view map</a>` : ''}</td>
-<td>${r.drift ? html`<span class="badge rule-confirm">drifted</span><br><span class="small muted">similarity ${r.drift.score}, ${when(r.drift.at)}</span>` : rebuilt ? html`<span class="badge rule-allow">current</span><br><span class="small muted">changed at ${when(rebuilt.drift?.at ?? rebuilt.replaced!.at)}, rebuilt at ${when(rebuilt.replaced!.at)}</span>` : html`<span class="badge rule-allow">current</span>`}</td>
-<td class="small">${check ? html`${check.outcome}${check.review ? html` <span class="badge rule-confirm">review</span>` : ''}<br><span class="muted">${when(check.checked_at)}</span>` : html`<span class="muted">not checked</span>`}</td></tr>`;
-      }) : html`<tr><td colspan="6" class="muted">No maps yet. They appear when Usher reads your forms or an agent shares one.</td></tr>`}</tbody></table></div>
-</div>
+<thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
+<tbody>${byAgent.size ? [...byAgent].map(
+        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
+<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
+      ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
 
-<h2 id="rules">Rules</h2>
+<h2 id="blocked">Blocked attempts</h2>
+<div class="card"><table>
+<thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
+<tbody>${blocked.length ? blocked.slice(0, 50).map(
+        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent, b.hosted === true)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
+      ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>
+</div>
+${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher's admin</b> <span class="muted small">(${String(adminActions.length)} most recent, newest first)</span></summary><ul class="small">${adminActions.map((a) => html`<li>${when(a.ts)}: <code>${a.action}</code></li>`)}</ul></details>` : ''}
+</section>
+
+<section id="rules" data-panel>
+<h2 style="margin-top:0">Rules</h2>
 <div class="card">${
         policy
           ? html`${policy.text ? html`<p><b>Your rules:</b> “${policy.text}”</p>` : ''}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p>${policySummary(policy.policy, records.map((r) => r.map))}
@@ -252,24 +286,26 @@ ${
   <p><button type="submit">Propose policy</button></p>
 </form>`
       }
-
-<div data-live="bottom">
-<h2 id="sessions">Agent sessions</h2>
-<div class="card"><table>
-<thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
-<tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
-<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
-
-<h2 id="blocked">Blocked attempts</h2>
-<div class="card"><table>
-<thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
-<tbody>${blocked.length ? blocked.slice(0, 50).map(
-        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent, b.hosted === true)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>
+</section>
 </div>`,
+      { scripts: ['/panels.js'], style: TOOLS_STYLE },
     );
+  }
+
+  /** One tool's page, or null if the site has no such tool. */
+  async tool(origin: string, intent: string, input: { step: number; demo?: boolean; notice?: string; problems?: string[]; canSuggest?: boolean; suggested?: { name: string; description: string } }): Promise<string | null> {
+    const storage = this.registry.storage;
+    const [records, sessions, blockedAll, policy, app] = await Promise.all([storage.mapsForOrigin(origin), storage.listSessions(origin), storage.readLog('blocked') as Promise<BlockedEntry[]>, storage.getPolicy(origin), this.registry.siteApp(origin)]);
+    const views: ToolView[] = await toolViews(this.registry, origin, app, { records, sessions, blocked: blockedAll.filter((b) => b.origin === origin).reverse() });
+    const view = views.find((v) => v.tool.intent === intent);
+    if (!view) return null;
+    const demo = Boolean(input.demo);
+    const mapHref = (digest: string) => {
+      if (!demo) return `/dashboard/maps/${encodeURIComponent(digest)}`;
+      const record = records.find((r) => r.digest === digest);
+      return record && visibleTo(record) ? `/maps/view?origin=${encodeURIComponent(origin)}&digest=${encodeURIComponent(digest)}` : undefined;
+    };
+    return toolPage(view, { origin, step: input.step, base: demo ? '/demo/dashboard' : '/dashboard', demo, published: Boolean(app.enabled), own: app.tools?.[intent], policy: policy?.policy, mapHref, ...(input.notice && { notice: input.notice }), ...(input.problems && { problems: input.problems }), ...(input.canSuggest && { canSuggest: true }), ...(input.suggested && { suggested: input.suggested }) });
   }
 
   /** A rules preview for the demo: what was typed, and the policy, marked as not applied. */
@@ -291,7 +327,7 @@ ${policySummary(preview.policy, maps)}
     const events = [...session.events].sort((a, b) => a.ts.localeCompare(b.ts));
     return page(
       'Agent session',
-      html`${demo ? LIVE_SCRIPT : ''}<p class="muted small"><a href="${base}#sessions">${demo ? 'Demo dashboard' : 'Dashboard'}</a> · session ${session.id}</p>
+      html`${demo ? LIVE_SCRIPT : ''}${dashNav('activity', { base, demo: Boolean(demo) })}<p class="muted small"><a href="${base}#sessions">Activity</a> · session ${session.id}</p>
 <h1>Agent session</h1>
 <p class="lede">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
 ${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
@@ -299,6 +335,7 @@ ${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p c
 <div class="card" data-live="timeline"><ol class="timeline">${events.map(
         (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
       )}</ol></div>`,
+      { style: TOOLS_STYLE },
     );
   }
 }

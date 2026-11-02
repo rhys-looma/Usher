@@ -1,5 +1,6 @@
 // Screenshots of the walkthrough pages (live and finished) with the stand-in labeller, for review.
 //   node --import tsx packages/registry/test/walkthrough-shots.ts <out dir>
+import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -43,11 +44,39 @@ await page.request.post(`${running.url}/dashboard/walkthrough`, { form: { start:
 await page.goto(`${running.url}/dashboard/walkthrough`);
 await page.waitForTimeout(6000);
 await page.screenshot({ path: join(out, 'wt-live.png') });
-while ((await walk.get(site.url))?.status === 'running') await new Promise((r) => setTimeout(r, 300));
+for (;;) {
+  const run = await walk.get(site.url);
+  if (run?.status !== 'running') break;
+  // At the final button it waits for the owner: stop there, with the pages kept.
+  if (run.waiting) walk.cancel(site.url, run.id);
+  await new Promise((r) => setTimeout(r, 300));
+}
 await page.waitForTimeout(1500);
 await page.screenshot({ path: join(out, 'wt-done-live-page.png') });
 await page.goto(`${running.url}/dashboard/walkthrough`);
 await page.screenshot({ path: join(out, 'wt-result.png'), fullPage: true });
+await page.goto(`${running.url}/dashboard/walkthrough#page-2`);
+await page.screenshot({ path: join(out, 'wt-result-page-2.png'), fullPage: true });
+await page.request.post(`${running.url}/dashboard/walkthrough/publish`, { form: {} });
+const intent = (await walk.get(site.url))!.pages[0]!.map.form.intent!;
+await page.goto(`${running.url}/dashboard`);
+await page.screenshot({ path: join(out, 'board-tools.png'), fullPage: true });
+await page.goto(`${running.url}/dashboard#activity`);
+await page.screenshot({ path: join(out, 'board-activity.png'), fullPage: true });
+await page.goto(`${running.url}/dashboard#rules`);
+await page.screenshot({ path: join(out, 'board-rules.png'), fullPage: true });
+await page.goto(`${running.url}/dashboard/tools/${intent}?step=2#flow`);
+await page.screenshot({ path: join(out, 'tool.png'), fullPage: true });
+// A long journey: the strip wraps, and stays one block.
+await page.evaluate(() => { const flow = document.querySelector('ol.flow')!; const steps = [...flow.children]; for (let i = 0; i < 4; i++) for (const s of steps.slice(0, 3)) flow.insertBefore(s.cloneNode(true), flow.lastElementChild); });
+await page.screenshot({ path: join(out, 'tool-long.png') });
+await page.setViewportSize({ width: 390, height: 800 });
+await page.goto(`${running.url}/dashboard/tools/${intent}?step=2`);
+await page.screenshot({ path: join(out, 'tool-phone.png') });
+await page.goto(`${running.url}/dashboard`);
+await page.screenshot({ path: join(out, 'board-phone.png') });
+assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scroll on a phone');
+await page.setViewportSize({ width: 1280, height: 900 });
 await page.hover('.box.needs_user, .box.consequential').catch(() => undefined);
 await page.screenshot({ path: join(out, 'wt-hover.png') });
 await site.stop();

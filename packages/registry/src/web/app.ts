@@ -6,6 +6,7 @@
 import type { SiteApp, SiteAppUsage, SiteSetup } from '../registry.ts';
 import { examplePrompts, type SiteTool } from '../site-app.ts';
 import { html, page, when, type Raw } from './html.ts';
+import { TOOLS_STYLE, dashNav } from './tools.ts';
 
 const HREF: Record<SiteSetup['steps'][number]['key'], string> = { joined: '/dashboard', mapped: '/dashboard/walkthrough', rules: '/dashboard#rules', look: '/dashboard/theme', published: '/dashboard/app#switch' };
 
@@ -53,21 +54,13 @@ export const APP_STYLE = `
 .timer { margin:12px 0 0; }
 .endpoint { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .endpoint code { font-size:15px; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); word-break:break-all; }
-.tool { border-top:1px dotted var(--line); padding:12px 0; }
-.tool:first-of-type { border-top:0; }
-.tool label { display:block; margin:8px 0 0; }
-.tool label.check { display:flex; gap:8px; align-items:center; }
-.tool .journey { margin:0; font-weight:600; color:var(--ink,inherit); } .tool .journey span { font-weight:400; color:var(--muted); }
-.tool.suggested textarea, .tool.suggested input[type=text] { background:rgba(116,52,211,.06); }
 .suggested-note { padding:10px 12px; border-radius:8px; background:rgba(116,52,211,.08); }
 .tool-buttons { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.tool input[type=text] { font:inherit; padding:5px 8px; width:100%; max-width:24em; font-family:ui-monospace,monospace; }
-.tool textarea { font:inherit; width:100%; min-height:4.5em; }
 .prompts li { margin:4px 0; }
 @media (max-width:860px) { .strip { grid-template-columns:minmax(0,1fr); } }
 `;
 
-export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[]; canSuggest?: boolean; suggested?: Record<string, { name: string; description: string }> }): string {
+export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[] }): string {
   const { app, tools } = input;
   const live = tools.filter((t) => !t.hidden);
   const switchCard = html`<div class="card" id="switch"><h2>Publish</h2>
@@ -79,31 +72,18 @@ ${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that
 <ul class="small"><li><b>Claude:</b> Settings, Connectors, Add custom connector; paste the address. No sign-in is needed.</li>
 <li><b>ChatGPT:</b> Settings, Apps and connectors, Create (developer mode); paste the address, with no authentication.</li>
 <li>It serves ${input.name}'s tools alone and acts on ${new URL(input.origin).host} only.</li></ul></div>`;
-  const suggested = input.suggested ?? {};
-  const toolForm = html`<form class="card" method="post" action="/dashboard/app/tools" id="tools"><h2>Tools</h2>
-<p class="small muted">One for each journey Usher has mapped. The name is what assistants call; the description tells them when to use it. Usher has written both from the journey; change them in your own words, or ask Muse Spark for a suggestion. Hidden tools aren't offered.</p>
-${input.suggested ? html`<p class="suggested-note"><b>Muse Spark's suggestions are in the boxes.</b> Check them, change anything, then save. Nothing changes until you do.</p>` : ''}
-${tools.length ? tools.map((t) => {
-    const own = app.tools?.[t.intent];
-    const tip = suggested[t.intent];
-    return html`<div class="tool${tip ? ' suggested' : ''}">
-<p class="small muted journey">${t.title} <span>· ${t.params.length} question${t.params.length === 1 ? '' : 's'}${own?.name || own?.description ? ' · edited by you' : ''}</span></p>
-<label>Name <input type="text" name="name:${t.intent}" value="${tip?.name ?? own?.name ?? t.name}" pattern="[a-z][a-z0-9_]{2,63}" required spellcheck="false" autocomplete="off"></label>
-<label>Description<textarea name="description:${t.intent}" maxlength="600" rows="3" required>${tip?.description ?? own?.description ?? t.summary}</textarea></label>
-<label class="check"><input type="checkbox" name="hidden:${t.intent}" value="1"${t.hidden ? ' checked' : ''}> Hide this tool</label>
-<details class="small"><summary>What it asks for (${t.params.length})</summary><ul>${t.params.map((p) => html`<li><code>${p.name}</code>: ${p.description}${p.options ? html` <span class="muted">(${p.options.join(', ')})</span>` : ''}</li>`)}</ul></details>
-</div>`;
-  }) : html`<p>No journeys mapped yet. <a href="/dashboard/walkthrough/new">Map my site</a>.</p>`}
-${tools.length ? html`<p class="tool-buttons"><button type="submit">Save tools</button>${input.canSuggest ? html` <button type="submit" class="secondary" formaction="/dashboard/app/tools/suggest" formnovalidate>Suggest with Muse Spark</button>` : ''}${input.suggested ? html` <a href="/dashboard/app#tools">Discard suggestions</a>` : ''}</p>` : ''}</form>`;
+  const toolList = html`<div class="card" id="tools"><h2>Tools</h2>
+${tools.length ? html`<p class="small muted">What your app offers, one for each journey. Open a tool to name it, describe it or hide it.</p>
+<table class="small"><thead><tr><th>Tool</th><th>Assistants call it</th><th></th></tr></thead><tbody>${tools.map((t) => html`<tr><td><a href="/dashboard/tools/${t.intent}">${t.title}</a></td><td><code>${t.name}</code></td><td>${t.hidden ? html`<span class="badge plain">Hidden</span>` : ''}</td></tr>`)}</tbody></table>` : html`<p>No journeys mapped yet. <a href="/dashboard/walkthrough/new">Map my site</a>.</p>`}</div>`;
   const prompts = examplePrompts(input.name, live);
-  const body = html`<h1>Publish as an assistant app</h1>
+  const body = html`${dashNav('publish')}<h1>Publish as an assistant app</h1>
 <p class="lede">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your journeys as tools, on cards in your look, run by Usher under your rules.</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
 ${setupStrip(input.setup, input.now)}
-${switchCard}${endpoint}${toolForm}
+${switchCard}${endpoint}${toolList}
 ${input.look}
 <div class="card"><h2>Example prompts</h2>${prompts.length ? html`<ul class="prompts">${prompts.map((p) => html`<li>“${p}”</li>`)}</ul>` : html`<p class="muted">Once a journey is mapped.</p>`}</div>
 <div class="card"><h2>List it in the directories</h2><p>Everything Claude's and ChatGPT's directories ask for, filled in from your app: name, descriptions, endpoint, tools, example prompts, logo and how data is handled. Add your contact and policy links, then submit.</p>
 <p><a class="button" href="/dashboard/app/pack.md">Download the pack (Markdown)</a> <a href="/dashboard/app/pack.json">or as JSON, with the logo</a></p></div>`;
-  return page('Publish as an assistant app', body, { style: APP_STYLE });
+  return page('Publish as an assistant app', body, { style: APP_STYLE + TOOLS_STYLE });
 }
