@@ -54,7 +54,7 @@ ol.dots .tick { width:24px; text-align:center; color:var(--muted); }
 export function dashNav(active: 'tools' | 'activity' | 'rules' | 'publish' | null, options: { base?: string; demo?: boolean } = {}): Raw {
   const base = options.base ?? '/dashboard';
   const tab = (id: string, name: string, href: string) => html`<a href="${href}"${active === id ? html` aria-current="page"` : ''}>${name}</a>`;
-  return html`<nav class="dash-nav" aria-label="Dashboard" data-panel-nav>${tab('tools', 'Tools', `${base}#tools`)}${tab('activity', 'Activity', `${base}#activity`)}${tab('rules', 'Rules', `${base}#rules`)}${options.demo ? '' : html`${tab('publish', 'Publish', '/dashboard/app')}<a class="action" href="/dashboard/walkthrough/new">Map my site</a>`}</nav>`;
+  return html`<nav class="dash-nav" aria-label="Dashboard" data-panel-nav>${tab('tools', 'Tasks', `${base}#tools`)}${tab('activity', 'Activity', `${base}#activity`)}${tab('rules', 'Rules', `${base}#rules`)}${options.demo ? '' : html`${tab('publish', 'Publish', '/dashboard/app')}<a class="action" href="/dashboard/walkthrough/new">Map my site</a>`}</nav>`;
 }
 
 export interface FlowStep {
@@ -154,14 +154,14 @@ function steps(view: ToolView, base: string): FlowStep[] {
 
 /** The top of the dashboard: each tool, what state it's in, and the way down to its pages. */
 export function toolsList(views: ToolView[], options: { base: string; published: boolean; demo: boolean }): Raw {
-  if (!views.length) return html`<div class="card"><p><b>No tools yet.</b> Each journey Usher maps on your site becomes a tool assistants can call.${options.demo ? '' : html` <a href="/dashboard/walkthrough/new">Map my site</a>.`}</p></div>`;
+  if (!views.length) return html`<div class="card"><p><b>No tasks yet.</b> Each thing Usher maps on your site, like a quote or a booking, becomes a task assistants can do.${options.demo ? '' : html` <a href="/dashboard/walkthrough/new">Map my site</a>.`}</p></div>`;
   return html`${views.map((v) => {
     const href = `${options.base}/tools/${v.tool.intent}`;
     const name = v.tool.title.replace(/ from .*$/, '');
     return html`<article class="card tool-row"><div class="tool-top"><h3><a href="${href}">${name}</a></h3>${toolStatus(v, options.published)}<code>${v.tool.name}</code><a class="open" href="${href}">Open →</a></div>
 <p class="small muted clip">${v.blurb}</p>
-${flowDots(steps(v, options.base), { label: `Pages in ${name}`, complete: journeyEnd(v.plan).kind !== 'open' })}
-<p class="small muted">${plural(v.plan.steps.length, 'page')} · ${plural(v.tool.params.length, 'question')} · ${plural(v.runs.length, 'run')}${v.blocked.length ? ` · ${v.blocked.length} blocked` : ''}</p></article>`;
+${flowDots(steps(v, options.base), { label: `Steps in ${name}`, complete: journeyEnd(v.plan).kind !== 'open' })}
+<p class="small muted">${plural(v.plan.steps.length, 'step')} · ${plural(v.tool.params.length, 'question')} · ${plural(v.runs.length, 'run')}${v.blocked.length ? ` · ${v.blocked.length} blocked` : ''}</p></article>`;
   })}`;
 }
 
@@ -208,22 +208,22 @@ export function toolPage(view: ToolView, input: {
       ? html`<span class="end"><span class="n">✓</span><span><b>${finish.label}</b><small>The final step, left to the person</small></span></span>`
       : html`<span class="end"><span class="n">?</span><span><b>Not mapped yet</b><small>What comes after this page</small></span></span>`;
   const edit = input.demo ? '' : html`<form class="card tool-edit${input.suggested ? ' suggested' : ''}" method="post" action="${action}" id="edit"><h2>How assistants see it</h2>
-<p class="small muted">The name is what assistants call; the description tells them when to use it. Usher wrote these from the journey; change them in your own words, or ask Muse Spark for a suggestion.</p>
+<p class="small muted">The name is what assistants call; the description tells them when to use it. Usher wrote these from the pages; change them in your own words, or ask Muse Spark for a suggestion.</p>
 ${input.suggested ? html`<p class="suggested-note"><b>Muse Spark's suggestion is in the boxes.</b> Check it, change anything, then save. Nothing changes until you do.</p>` : ''}
 <label>Name <input type="text" name="name" value="${input.suggested?.name ?? input.own?.name ?? tool.name}" pattern="[a-z][a-z0-9_]{2,63}" required spellcheck="false" autocomplete="off"></label>
 <label>Description<textarea name="description" maxlength="600" rows="3" required>${input.suggested?.description ?? input.own?.description ?? tool.summary}</textarea></label>
-<label class="check"><input type="checkbox" name="hidden" value="1"${tool.hidden ? ' checked' : ''}> Hide this tool from assistants</label>
+<label class="check"><input type="checkbox" name="hidden" value="1"${tool.hidden ? ' checked' : ''}> Hide this task from assistants</label>
 <details class="small"><summary>What it asks for (${String(tool.params.length)})</summary><ul>${tool.params.map((p) => html`<li><code>${p.name}</code>: ${p.description}${p.options ? html` <span class="muted">(${p.options.join(', ')})</span>` : ''}</li>`)}</ul></details>
 <p class="tool-buttons"><button type="submit">Save</button>${input.canSuggest ? html` <button type="submit" class="secondary" formaction="${action}/suggest" formnovalidate>Suggest with Muse Spark</button>` : ''}${input.suggested ? html` <a href="${action}">Discard the suggestion</a>` : ''}</p></form>`;
   const sessions = view.runs.slice(0, 10);
   return page(
     `${title} · ${input.origin}`,
     html`${dashNav('tools', { base: input.base, demo: input.demo })}
-<p class="crumb small muted"><a href="${input.base}#tools">Tools</a> · ${title}</p>
+<p class="crumb small muted"><a href="${input.base}#tools">Tasks</a> · ${title}</p>
 <h1>${title}</h1>
-<p class="lede">${toolStatus(view, input.published)} <code>${tool.name}</code> · ${plural(plan.steps.length, 'page')} · ${plural(tool.params.length, 'question')}</p>
+<p class="lede">${toolStatus(view, input.published)} <code>${tool.name}</code> · ${plural(plan.steps.length, 'step')} · ${plural(tool.params.length, 'question')}</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
-<div class="flow-group" id="flow"><p>The flow</p>${flowStrip(steps(view, input.base), { label: `Pages in ${title}`, current: index, end })}</div>
+<div class="flow-group" id="flow"><p>The steps</p>${flowStrip(steps(view, input.base), { label: `Steps in ${title}`, current: index, end })}</div>
 ${stepPanel(view, index, input)}
 ${edit}
 <div class="card"><h2>How it's been used</h2>

@@ -128,7 +128,7 @@ ${options.editable ? html`<datalist id="vocab">${keys.map((k) => html`<option va
 export function walkthroughCard(input: { origin: string; refusal: string | null; last: WalkthroughRun | null }): Raw {
   const last = input.last;
   return html`<div class="card"><h2>Map my site</h2>
-<p>Usher walks your journey in its own browser with test answers, tries every option to see what each one shows, labels every page with Muse Spark (three runs where it matters), and shows you each page with what it found. Nothing is published until you say so.</p>
+<p>Usher goes through your site in its own browser with test answers, tries every option to see what each one shows, labels every page with Muse Spark (three runs where it matters), and shows you each page with what it found. Nothing is published until you say so.</p>
 ${last ? html`<p class="small">Last run ${when(last.started_at)}: <b>${last.status}</b>${last.reason ? html` (${last.reason})` : ''}, ${last.pages.length} page${last.pages.length === 1 ? '' : 's'}. <a href="/dashboard/walkthrough">See it</a>.</p>` : ''}
 ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p><p class="small muted">${input.refusal}</p>` : html`<p><a class="button" href="/dashboard/walkthrough/new">Map my site</a></p>`}
 <p class="small muted">Your corrections teach the mapper: <a href="/dashboard/learning">see how</a>.</p></div>`;
@@ -255,7 +255,7 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
     ? html`<p class="small"><b>An update of your published maps:</b> your labels and corrections are kept${marked ? html`; ${String(marked)} element${marked === 1 ? ' is' : 's are'} new and marked <span class="badge new">New</span> for you to check` : ', and nothing is new'}.</p>`
     : marked ? html`<p class="small"><b>A fresh run:</b> ${String(marked)} element${marked === 1 ? ' is' : 's are'} new or labelled differently from your published maps, and marked.</p>` : '';
   return html`${mode}<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
-${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each journey becomes a tool in your assistant app, and agents get the maps from then on.</span></form>` : ''}
+${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each one becomes a task in your assistant app, and agents get the maps from then on.</span></form>` : ''}
 <details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
 ${flows}<div class="pages" data-panels>${run.pages.map(section)}</div>
 ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}`;
@@ -265,12 +265,12 @@ ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(r
 export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string; setup?: { strip: Raw; next: Raw | null; style: string } }): string {
   // On the owner's page: where mapping sits in the twenty minutes, and what comes after it.
   const after = options.setup && run?.published_at
-    ? html`<div class="card notice"><p><b>Published.</b> Each journey is a tool in your assistant app now, and agents get these maps too.${options.setup.next ? html` Next: ${options.setup.next}.` : ' Your app is published.'}</p></div>`
+    ? html`<div class="card notice"><p><b>Published.</b> Each one is a task in your assistant app now, and agents get these maps too.${options.setup.next ? html` Next: ${options.setup.next}.` : ' Your app is published.'}</p></div>`
     : '';
   return page(
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>
-${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher walks your journey, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
+${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher goes through your site, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
 ${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events, options.editable) : html`${transcript(run)}${resultView(run, options)}`}`,
     { scripts: ['/panels.js', '/walkthrough.js'], style: ANNOTATE_STYLE + TOOLS_STYLE + (options.setup?.style ?? '') },
   );

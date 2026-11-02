@@ -778,7 +778,7 @@ export class Walkthroughs {
         let scan: Scan = await page.evaluate(scanScript());
         let form = mainForm(scan.forms);
         if (!form || !form.elements.some((e) => e.kind === 'field' && e.visible)) {
-          say(`${title || path}: no form to fill. The journey ends here.`);
+          say(`${title || path}: no form to fill. The task ends here.`);
           const question = run.pages.length
             ? `${title || path} has no form, so that journey ends here. Map another, or finish?`
             : `${title || path} has no form to map. Where should I go?`;
@@ -814,7 +814,7 @@ export class Walkthroughs {
           newJourney = false;
           const chosen = journeyIntent(declared, starts, map.form.intent);
           intent = chosen.intent;
-          if (intent) say(`The journey's intent: ${intent}${chosen.declared ? ', as the site declares it' : ''}.`);
+          if (intent) say(`The task's intent: ${intent}${chosen.declared ? ', as the site declares it' : ''}.`);
         }
         if (intent) map.form.intent = intent;
         say(`${plural(map.fields.length + map.actions.length, 'element')} labelled in ${plural(compiled.votes?.runs ?? 1, 'run')}${compiled.votes?.disagreements ? `; the runs disagreed on ${plural(compiled.votes.disagreements, 'element')}` : ''}.`);
@@ -858,7 +858,7 @@ export class Walkthroughs {
           break;
         }
         if (advance.risk !== 'safe' && !pressFinal) {
-          if (await stop(`That journey is mapped up to “${advance.label}”, which I won't press on this run. Map another, or finish?`)) continue;
+          if (await stop(`That task is mapped up to “${advance.label}”, which I won't press on this run. Map another, or finish?`)) continue;
           await finish('stopped', `Stopped before "${advance.label}": pressing it wasn't allowed for this run.`);
           break;
         }
