@@ -14,7 +14,7 @@ import { Dashboard, recordAdminAction, type DashboardHooks } from './dashboard.t
 import { html, page, when } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
-import { DEMO_JS, SITE_JS } from './site-js.ts';
+import { DEMO_JS, PANELS_JS, SITE_JS } from './site-js.ts';
 import { RateLimiter } from '../rate-limit.ts';
 import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
@@ -246,6 +246,10 @@ export class Web {
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
+    }
+    if (route === 'GET /panels.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(PANELS_JS), true;
     }
     if (route === 'GET /theme.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
@@ -631,7 +635,12 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
       const allowed = this.previewPerClient.allow(client) && this.previewOverall.allow('all');
       const reply = allowed ? await this.registry.previewRules(demo.origin, text) : { status: 429, body: { message: 'Too many previews for now; try again in an hour.' } };
       const maps = (await this.registry.mapsFor(demo.origin)).map((r) => r.map);
-      return sendHtml(res, reply.status === 200 ? 200 : reply.status, await board.overview(demo.origin, undefined, { preview: board.previewCard(text, reply, maps) }), live), true;
+      return sendHtml(res, reply.status === 200 ? 200 : reply.status, await board.overview(demo.origin, undefined, { preview: board.previewCard(text, reply, maps) }, { active: 'rules' }), live), true;
+    }
+    const demoTool = /^\/demo\/dashboard\/tools\/([a-z][a-z0-9_.]*)$/.exec(url.pathname);
+    if (demoTool && req.method === 'GET') {
+      const body = await board.tool(demo.origin, demoTool[1]!, { step: Number(url.searchParams.get('step')) || 1, demo: true });
+      return sendHtml(res, body ? 200 : 404, body ?? page('Not found', html`<h1>No such tool on the demo site</h1><p><a href="/demo/dashboard">Back to the demo dashboard</a></p>`)), true;
     }
     const session = /^\/demo\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)$/.exec(url.pathname);
     if (session && req.method === 'GET') {
@@ -739,49 +748,65 @@ ${annotated(drawn, { anchor: 'v' })}`;
     // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else (except to the admin).
     if (site && !site.claim && !admin) return send(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
     const walk = this.options.walkthroughs;
+    const boardPage = (status: number, body: string) => send(res, status, body, { siteScript: true });
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`, admin), last: await walk.get(origin) }) : '';
-      const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : '';
       const app = appCard(await this.registry.siteApp(origin), await this.registry.siteSetup(origin));
-      return send(res, 200, await board.overview(origin, html`${welcome}${app}${card}${look}`)), true;
+      return boardPage(200, await board.overview(origin, welcome || undefined, undefined, { cards: html`${card}${app}` })), true;
+    }
+    if (route === 'GET /dashboard/tools') return redirect(res, '/dashboard#tools'), true;
+    const toolRoute = /^\/dashboard\/tools\/([a-z][a-z0-9_.]*)(\/suggest)?$/.exec(url.pathname);
+    if (toolRoute) {
+      const intent = toolRoute[1]!;
+      const step = Number(url.searchParams.get('step')) || 1;
+      const canSuggest = Boolean(this.options.toolWriter);
+      const show = async (status: number, extra: { notice?: string; problems?: string[]; suggested?: { name: string; description: string } } = {}) => {
+        const body = await board.tool(origin, intent, { step, canSuggest, ...extra });
+        return send(res, body ? status : 404, body ?? page('Not found', html`<h1>No such tool on ${origin}</h1><p><a href="/dashboard#tools">Back to your tools</a></p>`));
+      };
+      if (req.method === 'GET' && !toolRoute[2]) return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. New connections get it; open ones keep the old one until they reconnect.' } : {}), true;
+      if (req.method !== 'POST') return await show(404), true;
+      const app = await this.registry.siteApp(origin);
+      const tools = await siteTools(this.registry, origin, app, { includeHidden: true });
+      const tool = tools.find((t) => t.intent === intent);
+      if (!tool) return await show(404), true;
+      // Muse Spark's name and description, shown in the boxes for the owner to check; saved only by Save.
+      if (toolRoute[2]) {
+        const writer = this.options.toolWriter;
+        if (!writer) return await show(404, { problems: ['Suggestions need a model, and this registry has none.'] }), true;
+        if (!admin && !this.ownerLimits.chat.allow(`chat|${clientAddress(req, this.options.proxyHops)}`)) return await show(429, { problems: ['Too many requests to Muse Spark from this address this hour. Try again later.'] }), true;
+        const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
+        const result = await suggestTools(writer, { name, tools: [tool] }).catch((err: Error) => (err instanceof BudgetExceeded ? err.message : 'Muse Spark could not suggest anything just now; try again.'));
+        if (typeof result === 'string') return await show(503, { problems: [result] }), true;
+        const suggested = result.tools[intent];
+        return await show(200, suggested ? { suggested } : { problems: ['Muse Spark had no suggestion for this tool; try again.'] }), true;
+      }
+      const form = await readForm(req);
+      const given = Object.fromEntries(tools.map((t) => {
+        const own = app.tools?.[t.intent];
+        return [t.intent, t.intent === intent ? { name: form.get('name') ?? '', description: form.get('description') ?? '', hidden: form.get('hidden') === '1' } : { name: own?.name ?? t.name, description: own?.description ?? t.summary, hidden: Boolean(t.hidden) }];
+      }));
+      const checked = checkToolSettings(withoutDefaults(given, tools), tools.map((t) => t.intent));
+      if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
+      await this.registry.setSiteApp(origin, { ...app, tools: checked.tools });
+      return redirect(res, `/dashboard/tools/${intent}?saved`), true;
     }
     if (url.pathname === '/dashboard/app' || url.pathname.startsWith('/dashboard/app/')) {
       const name = await this.registry.siteName(origin).catch(() => new URL(origin).host);
       const endpoint = `${this.registry.url}/mcp/${new URL(origin).host}`;
-      const show = async (status: number, extra: { notice?: string; problems?: string[]; suggested?: Record<string, { name: string; description: string }> } = {}) => {
+      const show = async (status: number, extra: { notice?: string; problems?: string[] } = {}) => {
         const app = await this.registry.siteApp(origin);
         const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : html``;
-        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), canSuggest: Boolean(this.options.toolWriter), ...extra }));
+        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
       };
-      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : url.searchParams.has('saved') ? { notice: 'Tools saved. New connections get them; open ones keep theirs until they reconnect.' } : {}), true;
+      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : {}), true;
       if (route === 'POST /dashboard/app/switch') {
         const on = (await readForm(req)).get('enabled') === '1';
         const app = await this.registry.siteApp(origin);
         if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map a journey first: each one becomes a tool.'] }), true;
         await this.registry.setSiteApp(origin, { ...app, enabled: on });
         return redirect(res, on ? '/dashboard/app?published' : '/dashboard/app'), true;
-      }
-      if (route === 'POST /dashboard/app/tools') {
-        const form = await readForm(req);
-        const app = await this.registry.siteApp(origin);
-        const intents = (await this.registry.journeys(origin)).map((j) => j.intent);
-        const given = Object.fromEntries(intents.map((i) => [i, { name: form.get(`name:${i}`) ?? '', description: form.get(`description:${i}`) ?? '', hidden: form.get(`hidden:${i}`) === '1' }]));
-        const checked = checkToolSettings(withoutDefaults(given, await siteTools(this.registry, origin, app, { includeHidden: true })), intents);
-        if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
-        await this.registry.setSiteApp(origin, { ...app, tools: checked.tools });
-        return redirect(res, '/dashboard/app?saved'), true;
-      }
-      // Muse Spark's names and descriptions, shown in the boxes for the owner to check; saved only by Save tools.
-      if (route === 'POST /dashboard/app/tools/suggest') {
-        const writer = this.options.toolWriter;
-        if (!writer) return await show(404, { problems: ['Suggestions need a model, and this registry has none.'] }), true;
-        if (!admin && !this.ownerLimits.chat.allow(`chat|${clientAddress(req, this.options.proxyHops)}`)) return await show(429, { problems: ['Too many requests to Muse Spark from this address this hour. Try again later.'] }), true;
-        const tools = await siteTools(this.registry, origin, await this.registry.siteApp(origin), { includeHidden: true });
-        if (!tools.length) return await show(422, { problems: ['Map a journey first: each one becomes a tool.'] }), true;
-        const result = await suggestTools(writer, { name, tools }).catch((err: Error) => (err instanceof BudgetExceeded ? err.message : 'Muse Spark could not suggest anything just now; try again.'));
-        if (typeof result === 'string') return await show(503, { problems: [result] }), true;
-        return await show(200, { suggested: result.tools }), true;
       }
       if (route === 'GET /dashboard/app/pack.md' || route === 'GET /dashboard/app/pack.json') {
         const app = await this.registry.siteApp(origin);
@@ -888,16 +913,16 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const text = (await readForm(req)).get('text') ?? '';
       const reply = await this.registry.proposeRulesFor(origin, text);
       const notice = reply.status === 201 ? html`<div class="card notice">Proposed. Check the policy below, then confirm it to apply.</div>` : html`<div class="card error">${(reply.body as { message?: string }).message ?? 'The rules could not be turned into a policy.'}</div>`;
-      return send(res, reply.status === 201 ? 200 : 422, await board.overview(origin, notice)), true;
+      return boardPage(reply.status === 201 ? 200 : 422, await board.overview(origin, notice, undefined, { active: 'rules' })), true;
     }
     const confirm = /^\/dashboard\/rules\/(r_[A-Za-z0-9_-]+)\/confirm$/.exec(url.pathname);
     if (confirm && req.method === 'POST') {
       const reply = await this.registry.confirmRulesFor(origin, confirm[1]!);
-      return send(res, reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`)), true;
+      return boardPage(reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`, undefined, { active: 'rules' })), true;
     }
     if (route === 'POST /dashboard/explain') {
       const failure = await this.hooks.explain?.(origin);
-      return send(res, 200, await board.overview(origin, failure ? html`<div class="card error">${failure}</div>` : html`<div class="card notice">Explanations updated.</div>`)), true;
+      return boardPage(200, await board.overview(origin, failure ? html`<div class="card error">${failure}</div>` : html`<div class="card notice">Explanations updated.</div>`, undefined, { active: 'activity' })), true;
     }
     const session = /^\/dashboard\/sessions\/(s_[A-Za-z0-9_-]+)(\/explain)?$/.exec(url.pathname);
     if (session && (req.method === 'GET' || session[2])) {

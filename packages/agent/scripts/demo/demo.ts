@@ -219,7 +219,11 @@ async function dashboard(pane: string): Promise<Page> {
   return page;
 }
 
-const scrollTo = (page: Page, selector: string) => page.locator(selector).first().evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+// The dashboard shows one tab at a time: naming a section in the address opens its tab.
+const scrollTo = (page: Page, selector: string) => page.locator(selector).first().evaluate((e) => {
+  location.hash = e.id;
+  e.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 /** A call to the site's API with no knock, as a script would make it. */
 async function unknockedApiCall(): Promise<{ status: number; body: string }> {

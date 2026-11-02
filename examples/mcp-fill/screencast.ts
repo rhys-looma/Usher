@@ -54,6 +54,7 @@ await page.getByRole('button', { name: 'Sign in' }).click();
 await page.waitForLoadState();
 await pause(1500);
 const sessions = page.locator('#sessions');
+await sessions.evaluate((e) => { location.hash = e.id; });
 await sessions.scrollIntoViewIfNeeded();
 await pause(2000);
 await page.locator(`a[href="/dashboard/sessions/${reply.session}"]`).first().click();
