@@ -380,7 +380,7 @@ test('one intent for the whole journey: the one the site declares, whatever the 
   try {
     const run = await runOnce('/health/about');
     assert.deepEqual(run.pages.map((p) => p.map.form.intent), ['quote.health_insurance', 'quote.health_insurance', 'quote.health_insurance']);
-    assert.ok(run.log.includes('The journey\'s intent: quote.health_insurance, as the site declares it.'), run.log.join(' | '));
+    assert.ok(run.log.includes('The task\'s intent: quote.health_insurance, as the site declares it.'), run.log.join(' | '));
   } finally {
     namedIntent = null;
   }
