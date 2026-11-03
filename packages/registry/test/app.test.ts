@@ -158,12 +158,15 @@ test('a task\'s page: the owner chooses what happens when it finishes; mistakes 
   const action = '/dashboard/tools/quote.health_insurance/after';
   const before = await (await get('/dashboard/tools/quote.health_insurance')).text();
   assert.match(before, /<h2>When it finishes<\/h2>/);
-  for (const title of ['Stay in the assistant', 'Tell them how to retrieve it', 'Open it on your site']) assert.ok(before.includes(`<b>${title}</b>`), title);
+  for (const title of ['Stay in the assistant', 'Send them to a page', 'Open it on your site']) assert.ok(before.includes(`<b>${title}</b>`), title);
   assert.ok(before.includes('openHandoff'), 'the steps for a developer');
 
-  const saved = await post(action, { mode: 'redirect', show: 'reference', message: 'Call us any time.', retrieve_url: '/retrieve', retrieve_label: 'Find your quote', retrieve_asks: 'your reference, your date of birth', reference_param: 'reference', redirect_url: '/usher/handoff', redirect_label: 'Open your quote' });
+  const form = new URLSearchParams({ mode: 'redirect', show: 'reference', message: 'Call us any time.', retrieve_url: '/retrieve?reference=', retrieve_label: 'Find your quote', redirect_url: '/handoff', redirect_label: 'Open your quote' });
+  form.append('ask', 'your reference');
+  form.append('ask', 'your date of birth');
+  const saved = await fetch(`${running.url}${action}`, { method: 'POST', redirect: 'manual', headers: { Cookie: cookie }, body: form });
   assert.equal(saved.status, 303);
-  assert.deepEqual((await running.registry.siteHandoffs(keys.origin))['quote.health_insurance'], { mode: 'redirect', show: 'reference', message: 'Call us any time.', resume: { url: '/retrieve', label: 'Find your quote', asks: ['your reference', 'your date of birth'], reference_param: 'reference' }, redirect: { url: '/usher/handoff', label: 'Open your quote' } });
+  assert.deepEqual((await running.registry.siteHandoffs(keys.origin))['quote.health_insurance'], { mode: 'redirect', show: 'reference', message: 'Call us any time.', resume: { url: '/retrieve', label: 'Find your quote', asks: ['your reference', 'your date of birth'], reference_param: 'reference' }, redirect: { url: '/handoff', label: 'Open your quote' } });
   assert.match(await (await get('/dashboard/tools/quote.health_insurance')).text(), /value="redirect" checked/);
 
   const bad = await post(action, { mode: 'redirect', show: 'all', redirect_url: 'https://evil.example/x', redirect_label: 'Open' });

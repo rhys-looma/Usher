@@ -604,7 +604,7 @@ const server = createServer(async (req, res) => {
     }
     // A finished run's link back: the page first, so a link preview uses nothing up; then the token,
     // checked on this server, starts a new session of our own on the person's quote.
-    if (url.pathname === '/usher/handoff' && middleware) {
+    if (url.pathname === '/handoff' && middleware) {
       if (req.method === 'GET') return middleware.sendHandoffPage(res, url.searchParams.get('token'), 'Open your quote');
       if (req.method === 'POST') {
         const opened = await journeys.health.check.openHandoff(req, new URLSearchParams(await body(req)).get('token'));

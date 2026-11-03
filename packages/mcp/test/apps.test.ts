@@ -265,7 +265,7 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   // Finishable: Brightwater's owner chose a one-time link, which opens the quote in the person's own browser.
   const finished = (done.structuredContent as { result: { reference: string; continue: { url: string; label: string; asks: string[] } } }).result;
   assert.match(finished.reference, /^BWH-[0-9A-F]{8}$/);
-  assert.match(finished.continue.url, new RegExp(`^${site.url}/usher/handoff\\?token=`));
+  assert.match(finished.continue.url, new RegExp(`^${site.url}/handoff\\?token=`));
   assert.deepEqual(finished.continue.asks, []);
   assert.match((done.content as { text?: string }[])[0]!.text ?? '', new RegExp(`Reference: ${finished.reference}\\.\\nTo continue on .*, your user opens ${finished.continue.url.replace(/[.?]/g, '\\$&')}\\.`));
   assert.equal(await result.frameLocator('#v').locator('a.button', { hasText: /^Continue on / }).count(), 1);

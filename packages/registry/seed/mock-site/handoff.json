@@ -3,7 +3,7 @@
     "mode": "redirect",
     "show": "all",
     "redirect": {
-      "url": "/usher/handoff",
+      "url": "/handoff",
       "label": "Open your quote"
     },
     "resume": {

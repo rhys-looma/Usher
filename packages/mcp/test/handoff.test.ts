@@ -98,10 +98,10 @@ test('tell them how: the reference and the site\'s own page, even when nothing e
 });
 
 test('open it on the site: in the person\'s own browser, once; a preview spends nothing', async () => {
-  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/usher/handoff', label: 'Open your quote' }, resume: RETRIEVE });
+  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/handoff', label: 'Open your quote' }, resume: RETRIEVE });
   const link = done.result.continue!;
   assert.deepEqual([link.label, link.asks], ['Open your quote', []]);
-  assert.match(link.url, new RegExp(`^${site.url}/usher/handoff\\?token=`));
+  assert.match(link.url, new RegExp(`^${site.url}/handoff\\?token=`));
 
   // A chat app fetching the link for a preview: it gets the page, and the token still works.
   const preview = await fetch(link.url);
@@ -125,15 +125,15 @@ test('open it on the site: in the person\'s own browser, once; a preview spends 
 });
 
 test('an agent\'s ordinary token opens nothing, even for the session that made the quote', async () => {
-  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/usher/handoff', label: 'Open your quote' }, resume: RETRIEVE });
+  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/handoff', label: 'Open your quote' }, resume: RETRIEVE });
   const knock = (await client.callTool({ name: 'knock', arguments: { url: `${site.url}/quote/driver`, intent: INTENT, session: done.session } })).structuredContent as { token?: string };
   assert.ok(knock.token, 'an agent token');
-  const res = await fetch(`${site.url}/usher/handoff`, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token: knock.token }) });
+  const res = await fetch(`${site.url}/handoff`, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token: knock.token }) });
   assert.deepEqual([res.status, res.headers.get('location')], [303, '/retrieve']);
 });
 
 test('a handoff token submits nothing: it is refused where an agent\'s token is needed', async () => {
-  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/usher/handoff', label: 'Open your quote' }, resume: RETRIEVE });
+  const { done } = await finish({ mode: 'redirect', show: 'all', redirect: { url: '/handoff', label: 'Open your quote' }, resume: RETRIEVE });
   const token = new URL(done.result.continue!.url).searchParams.get('token')!;
   const res = await fetch(`${site.url}/api/quote`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Usher ${token}` }, body: '{}' });
   assert.equal(res.status, 403);
@@ -150,4 +150,11 @@ test('a site that hasn\'t finished the setup: no link is signed without a redire
   assert.ok('problems' in (await registry.registry.setSiteHandoff(site.url, INTENT, { mode: 'none', message: 'x'.repeat(301) })));
   assert.ok('problems' in (await registry.registry.setSiteHandoff(site.url, INTENT, { mode: 'sideways' })));
   assert.equal((await registry.registry.finishedRun(site.url, INTENT, 's_nobody'))?.link, undefined, 'no session, no link');
+});
+
+test('the seeded route isn\'t under /usher/, which the CDN treats as static and GET-only', async () => {
+  const seeded = JSON.parse(await readFile(new URL('../../registry/seed/mock-site/handoff.json', import.meta.url), 'utf8')) as Record<string, { redirect?: { url: string } }>;
+  const cdn = await readFile(new URL('../../../deploy/terraform/usher/cloudfront.tf', import.meta.url), 'utf8');
+  assert.ok(/"\/usher\/\*"/.test(cdn), 'what this guards against');
+  for (const entry of Object.values(seeded)) assert.doesNotMatch(entry.redirect?.url ?? '', /^\/usher\//);
 });
