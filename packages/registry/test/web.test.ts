@@ -123,8 +123,8 @@ test('dashboard: a rule in English becomes policy, then applies on confirm', asy
   const id = /\/dashboard\/rules\/(r_[A-Za-z0-9_-]+)\/confirm/.exec(proposed.text)![1]!;
   const applied = await dash(`/dashboard/rules/${id}/confirm`, cookie, {});
   assert.match(applied.text, /Rules applied/);
-  assert.match(applied.text, /Your rules:<\/b> “Agents can fill in quotes, but a human confirms the submit\. Max five an hour\.”/);
-  assert.match(applied.text, /At most 5 uses of “[^”]+” an hour, for each agent\./);
+  assert.match(applied.text, /<p class="quote">“Agents can fill in quotes, but a human confirms the submit\. Max five an hour\.”<\/p>/);
+  assert.match(applied.text, /At most 5 uses of “[^”]+” an hour, for each assistant\./);
 });
 
 test('dashboard: agent sessions as timelines, blocked attempts from registry and site, drift', async () => {

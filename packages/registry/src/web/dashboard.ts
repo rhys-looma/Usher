@@ -258,7 +258,7 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
 
     const rulesPanel = policy
       ? html`<div class="card dark"><p class="mono-label">Your rules</p>${policy.text ? html`<p class="quote">“${policy.text}”</p>` : html`<p class="quote">Set as a policy, without words.</p>`}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p></div>`
-      : html`<div class="card dark"><p class="mono-label">Your rules</p><p class="quote">${demo ? 'No rules yet: Usher’s defaults apply.' : pending.length ? 'Nothing applies until you confirm a proposal.' : 'You haven’t set any rules yet. Usher’s defaults apply.'}</p>
+      : html`<div class="card dark"><p class="mono-label">Your rules</p><p class="quote">${demo ? "No rules yet: Usher's defaults apply." : pending.length ? 'Nothing applies until you confirm a proposal.' : "You haven't set any rules yet. Usher's defaults apply."}</p>
 <p class="small muted">Agents may fill in your forms. They ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p></div>`;
 
     const changeRules = demo
@@ -295,7 +295,7 @@ ${setup ? setupStrip(setup, now) : ''}
 <div class="card dark" data-live="today"><p class="mono-label">Today</p>${latest ? html`<p>${latest.text}</p><p class="small muted">${latest.model} · ${when(latest.created_at)} · <a href="${base}#activity">Activity</a></p>` : html`<p>${sessionsToday ? `${String(sessionsToday)} session${sessionsToday === 1 ? '' : 's'} so far.` : 'No agent has used your site today.'} ${explanations.length ? '' : demo ? 'Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? 'Usher writes what they did once there are sessions to read.' : ''}</p><p class="small muted"><a href="${base}#activity">Activity</a></p>`}</div>
 ${policy
       ? html`<div class="card"><p class="mono-label">Your rules</p>${policy.text ? html`<p class="quote">“${policy.text}”</p>` : html`<p>Set as a policy.</p>`}<p class="small muted">Applied ${when(policy.confirmed_at)} · <a href="${base}#rules">Rules</a></p></div>`
-      : html`<div class="card"><p class="mono-label">Your rules</p><p>${pending.length ? 'A proposal is waiting for you.' : 'None yet: Usher’s defaults apply.'}</p><p class="small muted"><a href="${base}#rules">Rules</a></p></div>`}
+      : html`<div class="card"><p class="mono-label">Your rules</p><p>${pending.length ? 'A proposal is waiting for you.' : "None yet: Usher's defaults apply."}</p><p class="small muted"><a href="${base}#rules">Rules</a></p></div>`}
 </div>
 ${demo ? '' : html`<p class="foot-line small muted">This month: ${String(thisMonth.fills)} fill${thisMonth.fills === 1 ? '' : 's'}, ${String(thisMonth.connections)} connection${thisMonth.connections === 1 ? '' : 's'} · <a href="/sites/lost">Your keys</a> · <a href="/dashboard/app#switch">${app.enabled ? 'Switch your app off' : 'Publish your app'}</a></p>`}
 ${options.cards ?? ''}
@@ -326,7 +326,7 @@ ${options.cards ?? ''}
 <div class="card dark">${
         explanations.length
           ? html`${explanations.map((e) => html`<h3><code>${e.path}</code> <span class="muted small">${e.sessions} session${e.sessions === 1 ? '' : 's'}</span></h3><p>${e.text}</p>`)}<p class="small muted">Written ${when(latest!.created_at)} by ${latest!.model}.</p>`
-          : html`<p class="muted">Nothing written yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Usher writes it once agents have used your forms.' : ''}</p>`
+          : html`<p class="muted">No explanations yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Usher writes it once agents have used your forms.' : ''}</p>`
       }
 ${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain" data-busy="Muse Spark is reading the sessions…"><button class="secondary">${explanations.length ? 'Write it again' : 'Explain recent sessions'}</button></form>` : ''}</div>
 

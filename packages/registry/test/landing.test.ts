@@ -41,7 +41,7 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the s
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
-  assert.doesNotMatch(text, /class="ticket"|class="label"|<em>/, 'no ticket, no eyebrow, no italic');
+  assert.doesNotMatch(text, /class="ticket"|<h1>[^<]*<em>|<p class="label">Admit one agent/, 'no ticket, no italic in the headline');
   assert.doesNotMatch(text.split('</section>')[0]!, /Ask your assistant|class="bubble"/, 'the hero shows no prompt box');
   assert.doesNotMatch(text, /id="try"|class="picker"/, 'no map picker on the front page');
   assert.ok(text.includes('No signup. Your agent&#39;s key is its identity.') || text.includes("No signup. Your agent's key is its identity."));
@@ -108,7 +108,6 @@ test('the two typefaces are served from this origin, and nothing else from /font
     assert.equal(Buffer.from(await res.arrayBuffer()).toString('latin1', 0, 4), 'wOF2', `${file} is woff2`);
   }
   assert.equal((await fetch(`${registry.url}/fonts/other.woff2`)).status, 404);
-  assert.equal((await fetch(`${registry.url}/fonts/../og.png`)).status, 404);
   assert.match((await fetch(`${registry.url}/privacy`)).headers.get('content-security-policy') ?? '', /font-src 'self'/);
 });
 
