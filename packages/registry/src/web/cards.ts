@@ -20,6 +20,12 @@ export const CARD_CSS = `
 .uc .where { color:var(--muted); font-size:13px; margin:0 0 10px; word-break:break-all; }
 .uc .asking { display:inline-block; font-size:12.5px; font-weight:600; background:var(--cons-bg); color:var(--cons); padding:2px 10px; border-radius:999px; margin:0 0 12px; }
 .uc .row { border-top:1px dotted var(--line); padding:10px 0; }
+.uc .progress { margin:10px 0 2px; font-size:13px; font-weight:600; color:var(--muted); }
+.uc details.section { border-top:1px solid var(--line); }
+.uc details.section > summary { display:flex; justify-content:space-between; gap:12px; padding:10px 0; font-weight:600; cursor:pointer; }
+.uc details.section > summary .count { font-weight:400; font-size:13px; color:var(--muted); white-space:nowrap; }
+.uc .yours { border-top:2px solid var(--line); margin-top:4px; padding-top:10px; }
+.uc .yours-head { margin:0 0 4px; font-weight:600; }
 .uc .row:first-of-type { border-top:0; }
 .uc label.check { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
 .uc label.check input { margin-top:3px; width:18px; height:18px; accent-color:var(--accent); flex:none; }

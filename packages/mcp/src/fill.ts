@@ -55,6 +55,8 @@ export interface Decision {
   value?: string;
   /** The decision's name in the person's own confirmation ("declaration", "get my quote"). */
   short: string;
+  /** The page it's on, in words ("About you"), for a card that groups a long form. */
+  section?: string;
 }
 
 /** A decision's name in a confirmation the person sends: the action's own words, or the key's last part. */
@@ -103,6 +105,8 @@ interface Job {
   shown: Set<string>;
   /** Decisions the plan shows for the rest of the journey. */
   planned: Decision[];
+  /** Each page's name in words, from the plan. */
+  sections?: Map<string, string>;
   pending?: Pending;
   pauses: number;
   /** Keys read from the person's details (never the values). */
@@ -137,6 +141,8 @@ export interface AfterRun {
 }
 
 export interface FillOptions {
+  /** Whether this client draws our cards. If so, the person sees the questions there, and the model is told not to repeat them. */
+  cards?: () => boolean;
   /** The site owner's choices for a finished run, with any signed link; the hosted endpoint only. */
   afterRun?: (origin: string, intent: string | null, session: string | undefined) => Promise<AfterRun | undefined>;
   /** The registry, over HTTP, signing with the key in keyFile; or `transport` instead. */
@@ -255,6 +261,11 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     });
     return `Usher is asking the person, not the agent. Show them each item below word for word, in quotation marks, and ask for their answer; never answer for them.\n\n${lines.join('\n')}\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. A reply in this form works: ${confirmationPhrase(decisions)}.`;
   };
+  /** The same set where a card shows it: one line for the person, no repeat, and the wording still to hand if they answer in the chat. */
+  const pointToCard = (job: Job, decisions: Decision[]) => {
+    const who = job.brand?.name ?? 'the site';
+    return `The card on screen is putting ${decisions.length === 1 ? 'this question' : `these ${decisions.length} questions`} to the person in ${who}'s own words. Don't list or repeat them. Say one short line, such as: "I've started this with ${who}. Fill in the card and press Confirm. Nothing is sent until you do." Then wait.\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word; never answer for them. Only if they can't see the card, or ask to answer in the chat, show each question word for word first.`;
+  };
   const failure = (text: string) => ({ isError: true, content: [{ type: 'text' as const, text }] });
 
   /** A screenshot of the page with every value masked. */
@@ -321,8 +332,10 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           {
           status: 'needs_decision',
           id: job.id,
-          instructions: 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. Never answer for them.',
-          decisions,
+          instructions: options.cards?.()
+            ? 'The card on screen shows the person these decisions: do not repeat them. Pass their reply to usher_confirm. Never answer for them.'
+            : 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. Never answer for them.',
+          decisions: job.sections ? decisions.map((d) => ({ ...d, ...(job.sections!.has(d.page) && { section: job.sections!.get(d.page)! }) })) : decisions,
           blocks,
           confirmation_form: confirmationPhrase(decisions),
           ...(job.fromDetails && { read_from_details: job.fromDetails }),
@@ -330,7 +343,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           elapsed_ms: Math.round(performance.now() - job.started),
           },
           undefined,
-          listing(decisions, blocks),
+          options.cards?.() ? pointToCard(job, decisions) : listing(decisions, blocks),
           job.brand,
         );
       }
@@ -505,6 +518,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     const brand = await options.brand?.(new URL(url).origin).catch(() => undefined);
     if (brand) job.brand = brand;
     if (plan?.resume) job.resume = { origin: new URL(url).origin, page: plan.resume };
+    // "Health insurance quote: about you" is the page "About you".
+    if (plan) job.sections = new Map(plan.steps.map((s) => [s.path, (s.purpose.includes(':') ? s.purpose.slice(s.purpose.indexOf(':') + 1) : s.purpose).trim().replace(/^(.)/, (c) => c.toUpperCase())]));
     const transport: RegistryTransport = { ...base, knock: async (input) => (job.knock = await base.knock(input)) };
     job.transport = transport;
     // Lines on the result page that repeat what the user typed are theirs: never echoed back.

@@ -79,6 +79,10 @@ To try an unpublished build, use `"command": "node", "args": ["<repo>/packages/m
 
 Turn on developer mode and create a connector for `https://usher.run/mcp` with no authentication, as in [hosted-mcp.md](hosted-mcp.md#chatgpt). ChatGPT renders the card from `_meta.ui.resourceUri` (or `openai/outputTemplate`). Confirm's answers arrive as your next message, and the model calls `usher_confirm` with them.
 
+## Cards and text
+
+A client that draws cards gets a short result: the card has the questions, and the model is told not to repeat them, with the wording still in the result if the person asks to answer in the chat. Any other client gets every question word for word as text. A client counts as drawing cards if it declares the MCP Apps extension (`io.modelcontextprotocol/ui`) or is on a short list of names. If unsure, it gets the text, so nobody misses the site's words. The registry logs each connection as `mcp_client`: the client's software name and version and whether it declares cards, nothing about the person.
+
 ## Per-client notes and quirks
 
 - **ChatGPT keeps tool descriptions per connection.** After Usher's descriptions or server instructions change (a new release, a site joining), remove the connector and add it again, or ChatGPT keeps routing by the old text.
