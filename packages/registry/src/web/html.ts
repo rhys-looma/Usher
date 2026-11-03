@@ -156,6 +156,22 @@ main label > small, main label > .hint { display:block; font-weight:400; color:v
 main label:has(> input[type=checkbox], > input[type=radio]) { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; }
 main label > input[type=checkbox], main label > input[type=radio] { flex:none; margin-top:5px; }
 form.stack { display:flex; flex-direction:column; align-items:stretch; }
+/* Usher at your side: anything the model does for you, in one floating panel, wherever you are on the page. */
+.partner { position:fixed; right:20px; bottom:20px; z-index:40; width:min(400px, calc(100vw - 32px)); background:var(--card); border:1.5px solid var(--accent); border-radius:12px; box-shadow:0 18px 50px -18px rgba(18,19,44,.55); }
+.partner > summary { display:flex; align-items:center; gap:10px; padding:12px 16px; font-weight:700; color:var(--ink); cursor:pointer; list-style:none; }
+.partner > summary::-webkit-details-marker { display:none; }
+.partner > summary::after { content:"▾"; margin-left:auto; color:var(--muted); }
+.partner:not([open]) > summary::after { content:"▴"; }
+.partner-mark { flex:none; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; display:inline-grid; place-items:center; font-size:13px; font-weight:700; }
+.partner-body { padding:0 16px 16px; max-height:min(65vh, 560px); overflow:auto; font-size:14px; }
+.partner-body .card { padding:12px; margin:0 0 10px; }
+.partner-body textarea { min-height:72px; }
+.partner-body p { margin:0 0 10px; }
+/* Waiting on the model: a turning mark, words and the seconds so far. */
+.spin { flex:none; display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; animation:spin .9s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
+p.busy { display:flex; align-items:center; gap:8px; margin:10px 0 0; font-size:14px; font-weight:600; color:var(--accent); }
 /* A dialog: opened by the browser (popover), so it needs no script and sits above any table. */
 .dialog { white-space:normal; margin:auto; padding:24px; width:min(480px, calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1.5px solid var(--rule); border-radius:6px; background:var(--card); color:var(--ink); }
 .dialog::backdrop { background:rgba(18,19,44,.5); }
@@ -179,6 +195,11 @@ export function dialog(id: string, open: { label: string; class?: string }, titl
   return html`<button type="button"${open.class ? html` class="${open.class}"` : ''} popovertarget="${id}">${open.label}</button><div id="${id}" class="dialog" popover><h2>${title}</h2>${body(cancel)}</div>`;
 }
 
+/** Usher at your side: a floating panel for what the model does for you. Folds away; stays while you read the page. */
+export function partner(title: string, body: Raw, id?: string): Raw {
+  return html`<details class="partner"${id ? html` id="${id}"` : ''} open><summary><span class="partner-mark" aria-hidden="true">U</span>${title}</summary><div class="partner-body">${body}</div></details>`;
+}
+
 export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: string[]; style?: string } = {}): string {
   return `<!doctype html>
 <html lang="en">
@@ -188,7 +209,7 @@ export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: s
 <title>${esc(title)} · Usher</title>
 <link rel="icon" href="${FAVICON}">
 <style>${STYLE}${options.style ?? ''}</style>
-${(options.scripts ?? []).map((src) => `<script src="${esc(src)}" defer></script>`).join('\n')}
+${[...(options.scripts ?? []), '/busy.js'].map((src) => `<script src="${esc(src)}" defer></script>`).join('\n')}
 </head>
 <body>
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>

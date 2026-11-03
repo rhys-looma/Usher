@@ -155,7 +155,7 @@ ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${pro
 <div class="theme-grid">
 <div>
 <div class="card">${status}${how}
-<form method="post" action="/dashboard/theme/refresh">${input.refusal ? html`<button type="submit" disabled>Refresh from my site</button> <span class="small muted">${input.refusal}</span>` : input.busy ? html`<button type="submit" disabled>Reading your site…</button>` : html`<button type="submit">Refresh from my site</button> <span class="small muted">Usher opens your home page and your form in its own browser and proposes a look. Nothing changes until you accept it.</span>`}</form>
+<form method="post" action="/dashboard/theme/refresh" data-busy="Usher is reading your site…">${input.refusal ? html`<button type="submit" disabled>Refresh from my site</button> <span class="small muted">${input.refusal}</span>` : input.busy ? html`<button type="submit" disabled>Reading your site…</button>` : html`<button type="submit">Refresh from my site</button> <span class="small muted">Usher opens your home page and your form in its own browser and proposes a look. Nothing changes until you accept it.</span>`}</form>
 </div>
 <form class="card theme-form" id="theme-form" method="post" action="/dashboard/theme">
 <label>Name on the cards<input name="name" value="${theme.name}" maxlength="60" required></label>

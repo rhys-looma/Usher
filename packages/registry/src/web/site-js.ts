@@ -104,6 +104,36 @@ export const DEMO_JS = `(() => {
 // One panel at a time, on pages that would otherwise run on and on (the dashboard's tabs, a
 // walkthrough's pages), served at /panels.js. Every link is a plain anchor, so without this script
 // the panels simply stack. The address names the panel, or anything inside it.
+/**
+ * A form with data-busy is waiting on the model: its button stops, and its words and the seconds so
+ * far show until the page changes. On a narrow screen the floating panel starts folded.
+ */
+export const BUSY_JS = `(() => {
+  if (innerWidth < 640) for (const p of document.querySelectorAll('details.partner')) if (!p.querySelector('.card')) p.open = false;
+  let timer;
+  document.addEventListener('submit', (e) => {
+    const form = e.target;
+    const words = form.getAttribute && form.getAttribute('data-busy');
+    if (!words || e.defaultPrevented) return;
+    const buttons = [...form.querySelectorAll('button')];
+    setTimeout(() => {
+      buttons.forEach((b) => { b.disabled = true; });
+      const line = document.createElement('p'); line.className = 'busy'; line.setAttribute('role', 'status');
+      const mark = document.createElement('span'); mark.className = 'spin'; mark.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span'); text.textContent = words;
+      line.append(mark, text); form.append(line);
+      const from = Date.now();
+      timer = setInterval(() => { text.textContent = words + ' ' + Math.round((Date.now() - from) / 1000) + ' s'; }, 1000);
+    }, 0);
+  });
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    clearInterval(timer);
+    document.querySelectorAll('p.busy').forEach((p) => p.remove());
+    document.querySelectorAll('form[data-busy] button').forEach((b) => { b.disabled = false; });
+  });
+})();`;
+
 export const PANELS_JS = `(() => {
   for (const root of document.querySelectorAll('[data-panels]')) {
     const panels = [...root.children].filter((el) => el.hasAttribute('data-panel'));

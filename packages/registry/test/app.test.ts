@@ -2,6 +2,7 @@
 // the endpoint, each tool's name, description and visibility (checked), example prompts and the
 // directory pack, on the owner's dashboard.
 
+import { chromium } from 'playwright';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -174,4 +175,34 @@ test('a task\'s page: the owner chooses what happens when it finishes; mistakes 
   assert.match(await bad.text(), /must be a path on your site/);
   await fetch(`${running.url}${action}`, { method: 'POST', redirect: 'manual', body: new URLSearchParams({ mode: 'none' }) });
   assert.equal((await running.registry.siteHandoffs(keys.origin))['quote.health_insurance']!.mode, 'redirect', 'not without signing in');
+});
+
+test('what the model does sits in a floating panel, and shows it is working until the page changes', async () => {
+  const js = await fetch(`${running.url}/busy.js`);
+  assert.equal(js.status, 200);
+  assert.match(await js.text(), /data-busy/);
+  const rules = await (await get('/dashboard')).text();
+  assert.match(rules, /<details class="partner" open>[\s\S]*?Change your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
+  assert.match(rules, /<script src="\/busy\.js" defer><\/script>/);
+  const task = await (await get('/dashboard/tools/quote.health_insurance')).text();
+  assert.match(task, /<details class="partner" open>[\s\S]*?action="\/dashboard\/tools\/quote\.health_insurance\/suggest" data-busy=/);
+
+  const browser = await chromium.launch();
+  try {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(`${running.url}/dashboard`);
+    await page.fill('input[name=origin]', keys.origin);
+    await page.fill('input[name=secret]', keys.secret_key);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForLoadState();
+    await page.goto(`${running.url}/dashboard/tools/quote.health_insurance`);
+    // Held here, after the page's own listener, so the wait can be looked at: a page mid-navigation can't be.
+    await page.evaluate(() => window.addEventListener('submit', (e) => e.preventDefault()));
+    await page.getByRole('button', { name: 'Suggest with Muse Spark' }).click();
+    await page.locator('.partner p.busy').waitFor();
+    assert.match((await page.locator('.partner p.busy').innerText()), /Muse Spark is writing/);
+    assert.equal(await page.getByRole('button', { name: 'Suggest with Muse Spark' }).isDisabled(), true, 'it can only be pressed once');
+  } finally {
+    await browser.close();
+  }
 });

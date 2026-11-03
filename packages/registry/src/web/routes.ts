@@ -14,7 +14,7 @@ import { Dashboard, recordAdminAction, type DashboardHooks } from './dashboard.t
 import { dialog, html, page, when, type Raw } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
-import { DEMO_JS, PANELS_JS, SITE_JS } from './site-js.ts';
+import { DEMO_JS, PANELS_JS, SITE_JS, BUSY_JS } from './site-js.ts';
 import { RateLimiter } from '../rate-limit.ts';
 import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
@@ -154,9 +154,9 @@ function sendHtml(res: ServerResponse, status: number, body: string, options: { 
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Frame-Options': 'DENY',
-    // One inline stylesheet and forms that post to themselves. The front page also runs Usher's
-    // own site script, which talks only to this origin.
-    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;${options.siteScript ? " script-src 'self'; connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    // One inline stylesheet, this origin's own scripts (never inline) and forms that post to
+    // themselves. The front page also runs Usher's own site script, which talks only to this origin.
+    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; script-src 'self';${options.siteScript ? " connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
   });
   res.end(body);
 }
@@ -253,6 +253,10 @@ export class Web {
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
+    }
+    if (route === 'GET /busy.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(BUSY_JS), true;
     }
     if (route === 'GET /panels.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
