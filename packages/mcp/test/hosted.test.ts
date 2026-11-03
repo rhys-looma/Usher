@@ -183,7 +183,7 @@ test('the front page shows Brightwater\'s own app beside what happens in between
 
 test('For sites leads; For agents gives the hosted URL with the local server one click away; the hero buttons go where they say', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
-  assert.ok(home.indexOf('id="start"') < home.indexOf('<p class="label">For agents</p>'), 'sites first');
+  assert.ok(home.indexOf('id="start"') < home.indexOf('<h2>Usher gives you the plan and holds the door; you drive.</h2>'), 'sites first');
   const card = /<section id="agents"[^>]*>[\s\S]*?<\/details>/.exec(home)?.[0] ?? '';
   const fold = card.split('<details')[0]!;
   assert.ok(fold.includes('No signup. Your agent&#39;s key is its identity.') || fold.includes("No signup. Your agent's key is its identity."));

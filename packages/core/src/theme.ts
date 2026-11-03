@@ -46,7 +46,7 @@ export interface SiteTheme {
 }
 
 /** The card bodies a theme's colours sit on (cards.ts --card, light and dark). */
-export const CARD_SURFACE = { light: '#fffdf8', dark: '#1b1d3d' } as const;
+export const CARD_SURFACE = { light: '#ffffff', dark: '#0a2129' } as const;
 /** Text colours the card may put on a theme's colours. */
 const INK = { light: '#191942', dark: '#f1ede3', white: '#ffffff', black: '#12132c' } as const;
 

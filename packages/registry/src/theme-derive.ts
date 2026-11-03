@@ -218,7 +218,7 @@ export class ThemeDeriver {
     if (!candidates.pages.length) return `Usher couldn't open ${origin}.`;
     const fallbackName = await this.o.registry.siteName(origin).catch(() => new URL(origin).host);
     if (!candidates.names.includes(fallbackName)) candidates.names.push(fallbackName);
-    if (!candidates.colours.length) candidates.colours.push({ hex: '#191942', role: 'Usher default', count: 1 });
+    if (!candidates.colours.length) candidates.colours.push({ hex: '#0b2a33', role: 'Usher default', count: 1 });
 
     const code = chooseByCode(candidates);
     let choice = code;
