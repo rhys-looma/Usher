@@ -13,7 +13,7 @@ const TYPEFACE_NAMES: Record<string, string> = { system: 'System (the device\'s 
 
 /** Usher's own look, as a starting point when the site has no theme yet. */
 export function startingTheme(name: string): SiteTheme {
-  return { name, accent: '#7434d3', second: '#191942', typeface: 'system', radius: 0, result_fields: ['more_facts', 'thumbnail'] };
+  return { name, accent: '#c2452c', second: '#0b2a33', typeface: 'system', radius: 0, result_fields: ['more_facts', 'thumbnail'] };
 }
 
 /** The theme the editor shows: what is proposed, else what is in use, else Usher's own. */

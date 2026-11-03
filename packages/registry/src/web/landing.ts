@@ -148,13 +148,6 @@ export interface LandingOptions {
   hosted?: boolean;
 }
 
-/** What a site's owner gets: the way in, the say over it, and the record of it. */
-const PILLARS: { label: string; title: string; what: string }[] = [
-  { label: 'Access', title: 'A fast, trusted way in', what: 'Your forms become your own app in Claude, ChatGPT and any assistant that speaks MCP, in your name and look. Agents that drive their own browser get a map of the form and a short-lived pass. Your site stays as it is.' },
-  { label: 'Control', title: 'Your rules, enforced', what: 'Say in plain English what an agent may fill, what your customer must confirm and what is off limits. One check on your server means no valid pass, no submit. Switch it off at any time.' },
-  { label: 'Audit', title: 'Every action on the record', what: 'Each session is on your dashboard: which agent, which fields, what your customer was shown and confirmed, and what was blocked, explained in plain English. Never what anyone typed.' },
-];
-
 /** The setup, from joining to a published app: what the owner does at each step. */
 export const SETUP: { title: string; what: string }[] = [
   { title: 'Join', what: 'Get your keys, prove the site is yours and add one script tag. Usher only maps sites that have proved it.' },
@@ -184,11 +177,14 @@ function resultCard(host: string): Raw {
 <p><span class="button">Continue on Brightwater Insurance</span></p><p class="note">Find your quote asks for your quote reference and your date of birth.</p></div>`;
 }
 
-/** What the owner gets, under the hero. */
-function pillarsSection(demo: boolean): Raw {
-  return html`<section id="get" data-reveal><div class="grid three">${PILLARS.map(
-    (p) => html`<div class="card pillar"><p class="label">${p.label}</p><h2>${p.title}</h2><p>${p.what}</p>${p.label === 'Audit' && demo ? html`<p><a href="/demo/dashboard">See a live dashboard</a></p>` : ''}</div>`,
-  )}</div></section>`;
+/** The call-out under the hero: twenty minutes from joining to open to AI assistants, step by step, measured. */
+function twentySection(): Raw {
+  const steps: [string, number][] = [['Join', 1], ['Map', 15], ['Rules', 4], ['Publish', 1]];
+  return html`<aside class="twenty" aria-label="Twenty minutes from joining to open to AI assistants">
+<div class="big"><b>20 min<sup>*</sup></b><span>from joining to open to AI assistants.</span><em>No developer needed.</em></div>
+<ol class="bar" aria-label="The four steps and how long each takes">${steps.map(([title, mins]) => html`<li style="flex-grow:${String(mins)}"><b>${title}</b><span>${String(mins)} min</span></li>`)}</ol>
+<p class="proof"><sup>*</sup>On average, every step by the owner. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">The log</a>.</p>
+</aside>`;
 }
 
 /** The setup: four steps, Brightwater's measured machine time, the tag, and the help on offer. */
@@ -213,13 +209,13 @@ function setupSection(tag: string): Raw {
  * reading order; site.js only plays it (reached steps as r1…r6 on the container), and without it, or
  * with reduced motion, the last frame shows.
  */
-function howSection(url: string, hosted: boolean): Raw {
+function howSection(url: string, hosted: boolean, demo: boolean): Raw {
   const host = "Brightwater's site · ";
   const tick = html`<span class="box" aria-hidden="true"></span>`;
   const you = html`<span class="by-you">you</span>`;
   return html`<section class="between" id="how" data-reveal>
 <h2>What happens in between</h2>
-<p class="lede">One quote from Brightwater, our demo insurer: its own three-page form, unchanged. Your customer sees your app. You see the session.</p>
+<p class="lede">One quote from Brightwater, our demo insurer: its own three-page form, unchanged. Your customer sees your app. You see the session.${demo ? html` <a href="/demo/dashboard">See a live dashboard</a>` : ''}</p>
 <div class="views seq" data-steps>
 <div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>Brightwater Insurance's own app</span></h3>
 <figure class="assistant uc" aria-label="Illustration: a customer answers Brightwater Insurance's questions in their assistant and gets a quote" inert>
@@ -267,7 +263,6 @@ export function landingPage(o: LandingOptions): string {
   const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">
 <div class="hero-copy">
-<p class="label">Audited AI access for sites with forms</p>
 <h1>${first}. <em>${rest.join('. ')}</em></h1>
 <p class="lede">${POSITIONING}</p>
 <p class="actions"><a class="button" href="/sites/new">Add your site</a><a class="button ghost" href="#how">See how it works</a></p>
@@ -287,13 +282,13 @@ export function landingPage(o: LandingOptions): string {
 </aside>
 </section>
 
-${pillarsSection(Boolean(o.demo))}
+${twentySection()}
 
-${howSection(o.url, Boolean(o.hosted))}
+${howSection(o.url, Boolean(o.hosted), Boolean(o.demo))}
 
 ${setupSection(tag)}
 
-<section id="agents" data-reveal><div class="card"><p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>
+<section id="agents" data-reveal><div class="card"><h2>Usher gives you the plan and holds the door; you drive.</h2>
 <p class="lede">Driving your own browser? No signup. Your agent's key is its identity.</p>
 ${o.hosted
   ? html`<pre class="wrap">${o.url}/mcp</pre>
@@ -344,7 +339,7 @@ ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
-<div class="foot-brand"><a class="brand" href="/">Usher</a><p>Let AI agents use your site, on your terms. Maps hold structure, never values.</p></div>
+${LOOMA_FOOTER}
 <nav>
 <a href="/dashboard">Site dashboard</a>
 <a href="${REPOSITORY}">GitHub</a>
@@ -352,7 +347,6 @@ ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o
 <a href="${REPOSITORY}/blob/main/docs/security.md">Security</a>
 <a href="/privacy">Privacy</a>
 </nav>
-${LOOMA_FOOTER}
 </div></footer>
 </body>
 </html>`;
@@ -371,37 +365,52 @@ main { padding-top:0; }
 .hero { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:56px; align-items:center; padding:56px 0 44px; border-bottom:1px solid var(--rule); margin-bottom:44px; }
 @media (max-width:880px) { .hero { grid-template-columns:1fr; gap:40px; padding-top:36px; padding-bottom:48px; } }
 .hero h1 { font-size:clamp(36px, 5.6vw, 64px); margin:14px 0 20px; max-width:17ch; }
-.hero h1 em { font-style:italic; font-weight:600; color:var(--accent); }
+.hero h1 em { font-style:normal; }
 .hero .lede { font-size:20px; margin:0 0 28px; }
 .actions { display:flex; gap:12px; flex-wrap:wrap; margin:0; }
+/* The call-out: twenty minutes from joining to open to AI assistants, as a timeline of the four steps. */
+.twenty { display:grid; grid-template-columns:auto minmax(0,1fr); gap:20px 36px; align-items:center; border:1.5px solid var(--accent); border-radius:6px; padding:24px 28px; margin:-8px 0 56px; }
+.twenty .big { display:flex; flex-direction:column; gap:4px; }
+.twenty .big b { font-size:56px; font-weight:700; letter-spacing:-0.045em; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--accent); }
+.twenty .big sup { font-size:22px; font-weight:500; vertical-align:top; margin-left:2px; }
+.twenty .big span { font-size:15px; color:var(--muted); max-width:22ch; line-height:1.35; }
+.twenty .big em { font-style:normal; font-weight:600; font-size:15px; color:#7a5200; margin-top:6px; align-self:flex-start; padding:3px 9px; border-radius:3px; background:var(--cons-bg); }
+@media (prefers-color-scheme: dark) { .twenty .big em { color:#061b22; background:var(--cons); } }
+.twenty ol.bar { list-style:none; margin:0; padding:0; display:flex; gap:4px; align-items:stretch; }
+.twenty li { flex-basis:0; min-width:72px; display:flex; flex-direction:column; gap:10px; font-size:15px; }
+.twenty li::before { content:""; display:block; height:10px; border-radius:2px; background:var(--accent); opacity:.35; }
+.twenty li:nth-child(2)::before { opacity:1; }
+.twenty li b { font-weight:600; line-height:1.2; } .twenty li span { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; color:var(--muted); margin-top:-6px; }
+.twenty .proof { grid-column:1 / -1; margin:0; font-size:12.5px; color:var(--dim); } .twenty .proof a { color:var(--dim); }
+@media (max-width:880px) { .twenty { grid-template-columns:1fr; } .twenty li { min-width:56px; } }
 .ticket { display:grid; grid-template-columns:minmax(0,1fr) 112px; background:var(--card); border:1.5px solid var(--rule); transform:rotate(-1.5deg); max-width:470px; justify-self:center; position:relative; }
 .ticket::before, .ticket::after { content:""; position:absolute; right:104px; width:18px; height:18px; border-radius:50%; background:var(--bg); border:1.5px solid var(--rule); }
 .ticket::before { top:-10px; clip-path:inset(50% 0 0 0); } .ticket::after { bottom:-10px; clip-path:inset(0 0 50% 0); }
 .ticket-main { padding:22px 22px 20px; }
-.ticket-title { font-family:var(--serif); font-size:26px; font-weight:700; line-height:1.15; margin:4px 0 14px; }
+.ticket-title { font-size:26px; font-weight:700; line-height:1.15; margin:4px 0 14px; }
 .ticket dl { margin:0; display:grid; gap:8px; }
 .ticket dl div { display:grid; grid-template-columns:96px 1fr; gap:10px; border-top:1px dotted var(--line); padding-top:8px; }
 .ticket dt { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-top:3px; }
 .ticket dd { margin:0; font-size:14.5px; line-height:1.45; }
 .ticket-stub { border-left:1.5px dashed var(--rule); padding:22px 12px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; gap:8px; }
-.ticket-stub b { font-family:var(--serif); font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
+.ticket-stub b { font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
 .ticket-stub span:last-child { font-size:12px; color:var(--muted); line-height:1.35; }
 @media (max-width:480px) { .ticket { grid-template-columns:1fr; transform:none; } .ticket::before, .ticket::after { display:none; } .ticket-stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:12px 22px; } .ticket-stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:2px; } }
 /* What your customer sees, and the rails underneath: two panes side by side, always dark like an
    assistant, playing in step (site.js marks the steps reached as r1…r6 on .views). */
 .between .lede { max-width:64ch; }
 .views { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:28px; align-items:start; margin-top:22px; }
-.view-label { font-family:var(--serif); font-size:20px; margin:0 0 10px; }
-.view-label span { display:block; font-family:Inter,system-ui,sans-serif; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); margin-top:2px; }
+.view-label { font-size:17px; font-weight:600; margin:0 0 10px; }
+.view-label span { display:block; font-size:13px; font-weight:400; color:var(--muted); margin-top:2px; }
 /* The customer's side: a plain assistant window of our own (no product's interface). */
-.assistant { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; overflow:hidden; font-size:15px; line-height:1.5; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
+.assistant { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; overflow:hidden; font-size:15px; line-height:1.5; }
 .assistant-window { display:none; }
 .assistant-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--card); }
 .assistant-name { font-weight:600; font-size:14px; }
 .assistant-tag { font-size:12px; font-weight:600; color:var(--safe); background:var(--safe-bg); padding:3px 10px; border-radius:999px; }
 .assistant > .step { padding:9px 18px; min-width:0; }
 .assistant > .person { display:flex; justify-content:flex-end; padding-top:18px; }
-.assistant .bubble { margin:0; max-width:88%; padding:10px 14px; background:var(--accent); color:#12132c; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
+.assistant .bubble { margin:0; max-width:88%; padding:10px 14px; background:var(--accent); color:#061b22; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
 .assistant .working { margin:0; font-size:14px; color:var(--muted); display:flex; align-items:center; gap:9px; }
 .spinner, .tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; flex:none; }
 .s-result { padding-bottom:20px !important; }
@@ -421,7 +430,7 @@ main { padding-top:0; }
 .assistant-note { max-width:760px; margin:14px 0 0; }
 details.local { margin:4px 0 14px; } details.local summary { cursor:pointer; font-weight:600; } details.local pre { margin-top:10px; }
 /* The rails: Brightwater's app on Usher, the route, the six steps. */
-.hood { ${CARD_DARK} background:var(--bg); color:var(--ink); border:1.5px solid var(--line); border-radius:16px; padding:16px 18px 10px; box-shadow:0 24px 60px -30px rgba(18,19,44,.55); }
+.hood { ${CARD_DARK} background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:16px 18px 10px; }
 .tool-head { margin:0 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
 .seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); }
 .runs-on { margin-left:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 8px; }
@@ -429,7 +438,7 @@ ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:
 .route li { display:flex; align-items:center; color:var(--muted); }
 .route li + li::before { content:""; width:26px; height:2px; margin:0 6px; background:linear-gradient(90deg, var(--line) 0 40%, var(--accent) 40% 60%, var(--line) 60% 100%) 0 0 / 300% 100%; }
 .seq.seq-on:not(.ended) .route li + li::before { animation:flow 1.2s linear infinite; }
-.route li.usher span { color:#12132c; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(197,163,255,.18); }
+.route li.usher span { color:#061b22; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(255,106,77,.2); }
 ol.seq-steps { list-style:none; margin:0; padding:4px 14px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
 .seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px dotted var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out; }
 .seq-steps li:first-child { border-top:0; }
@@ -437,15 +446,15 @@ ol.seq-steps { list-style:none; margin:0; padding:4px 14px; background:var(--car
 .seq-steps li::after { content:""; position:absolute; left:12px; top:38px; width:2px; height:0; background:var(--accent); transition:height 700ms ease-out; }
 .seq-steps li:last-child::before, .seq-steps li:last-child::after { display:none; }
 .seq-steps li.done::after, .seq:not(.seq-on) .seq-steps li::after { height:calc(100% - 24px); }
-.seq-steps h3 { font-family:var(--serif); font-size:17.5px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
-.seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:700 12.5px Inter,system-ui,sans-serif; color:var(--accent); background:var(--bg); border:1.5px solid var(--accent); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
+.seq-steps h3 { font-size:17.5px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
+.seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:500 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--bg); border:1px solid var(--line); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
 button.n { cursor:pointer; }
 button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .seq-steps p { margin:0 0 6px; font-size:14px; color:var(--ink); }
 .seq-steps .note { font-weight:600; color:var(--user); }
 .seq-steps .sees { display:inline-block; margin:2px 0 0; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px 11px 3px 10px; }
 .seq-steps .sees b { color:var(--safe); font-weight:700; }
-.seq-steps li.done .n, .seq:not(.seq-on) .seq-steps .n { background:var(--accent); color:#12132c; }
+.seq-steps li.done .n, .seq:not(.seq-on) .seq-steps .n { background:var(--accent); color:#061b22; }
 .seq-controls { margin:10px 0 4px; }
 .seq-replay[hidden] { display:none; }
 .seq-replay { font:inherit; font-size:13px; font-weight:600; background:none; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 14px; cursor:pointer; }
@@ -471,7 +480,7 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
    annotation for the reader (outside the app's own card) and a glow that lights up when the rails
    reach the questions that are the customer's. */
 .assistant .callout { margin:8px 0 10px; font-size:13px; color:var(--ink); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
-.assistant .callout b { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#12132c; background:var(--accent); padding:2px 9px; border-radius:999px; }
+.assistant .callout b { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#061b22; background:var(--accent); padding:2px 9px; border-radius:999px; }
 .assistant .card.decision { border:2px solid var(--accent); box-shadow:0 0 0 5px rgba(197,163,255,.14), 0 18px 40px -18px rgba(197,163,255,.45); }
 .seq.seq-on.r4:not(.r5) .card.decision { animation:glow 1.6s ease-in-out infinite; }
 .seq-steps li[data-step="4"] { background:linear-gradient(90deg, rgba(197,163,255,.10), transparent 70%); margin:0 -14px; padding-left:54px; padding-right:14px; }
@@ -483,7 +492,7 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
 .keeps { margin:28px 0 0; padding:20px 22px; border:1.5px solid var(--rule); background:var(--card); max-width:760px; }
-.keeps h3 { font-family:var(--serif); font-size:22px; margin:0 0 10px; }
+.keeps h3 { font-size:17px; font-weight:600; margin:0 0 10px; }
 .keeps ul { margin:0; padding-left:20px; }
 .keeps li { margin:8px 0; }
 @media (prefers-reduced-motion: reduce) { .seq *, .seq *::before, .seq *::after { transition:none !important; animation:none !important; } }
@@ -492,19 +501,18 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .grid.three { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
 .grid:not(.three) { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
 .stat { border-top:3px solid var(--ink); }
-.stat b { display:block; font-family:var(--serif); font-size:44px; font-weight:700; line-height:1.1; color:var(--ink); }
+.stat b { display:block; font-size:40px; font-weight:700; letter-spacing:-0.04em; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums; }
 .stat span { color:var(--muted); font-size:15px; }
 @media (max-width:640px) { table, tbody, tr, td { display:block; } thead { display:none; } tr { padding:8px 0; border-bottom:1px solid var(--line); } td { border:0; padding:2px 0; } td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); } }
 /* What the owner gets, and the setup. */
-.pillar { border-top:3px solid var(--accent); } .pillar h2 { font-size:24px; margin:4px 0 8px; } .pillar p:last-child { margin-bottom:0; }
 .logo-mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
 .assistant .ref { margin:6px 0; font-size:14px; }
 .assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:8px; }
 .assistant .card.branded { --btn:#0b6e6e; --btn-ink:#ffffff; --band:#0b6e6e; --band-ink:#ffffff; }
 ol.setup-steps { list-style:none; margin:20px 0 14px; padding:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; counter-reset:none; }
-.setup-steps li { background:var(--card); border:1.5px solid var(--rule); padding:16px 16px 14px; position:relative; }
-.setup-steps .n { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--ink); color:var(--bg); font:700 13px Inter,system-ui,sans-serif; }
-.setup-steps h3 { font-family:var(--serif); font-size:20px; margin:10px 0 6px; }
+.setup-steps li { border-top:1px solid var(--rule); padding:16px 0 0; position:relative; }
+.setup-steps .n { font:500 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); }
+.setup-steps h3 { font-size:17px; margin:10px 0 6px; }
 .setup-steps p { margin:0; font-size:14.5px; line-height:1.5; }
 @media (max-width:980px) { ol.setup-steps { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); } }
 fieldset.setup { border:0; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px 18px; }

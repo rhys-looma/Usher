@@ -32,12 +32,12 @@ after(async () => {
 const post = (path: string, form: Record<string, string>, headers: Record<string, string> = {}) =>
   fetch(`${registry.url}${path}`, { method: 'POST', body: new URLSearchParams(form), headers, redirect: 'manual' });
 
-test('front page: the sentence (no prompt box in the hero), what the owner gets, the six steps, the setup, the quickstart for agents, numbers, sharing tags', async () => {
+test('front page: the sentence (no prompt box in the hero), the six steps, the setup, the quickstart for agents, numbers, sharing tags', async () => {
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>A fast, trusted way in</h2>', '<h2>Your rules, enforced</h2>', '<h2>Every action on the record</h2>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<b>20 min<sup>*</sup></b><span>from joining to open to AI assistants', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'built by <a href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');

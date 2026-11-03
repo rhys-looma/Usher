@@ -63,17 +63,17 @@ export class Learning {
 export const LEARNING_STYLE = `
 .counters { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:18px 0 26px; }
 .counter { border:1px solid var(--line); background:var(--card); border-radius:10px; padding:14px 16px; }
-.counter b { display:block; font-family:var(--serif); font-size:34px; line-height:1.1; }
+.counter b { display:block; font-size:34px; font-weight:700; letter-spacing:-0.04em; line-height:1.1; }
 .counter span { display:block; font-size:14px; color:var(--muted); margin-top:4px; }
 .loop-wrap { overflow-x:auto; margin:8px 0; }
 .loop { width:100%; min-width:620px; max-width:860px; height:auto; display:block; }
 .loop a rect { fill:var(--card); stroke:var(--line); stroke-width:1.5; }
-.loop a:hover rect, .loop a:focus rect { stroke:#7434d3; stroke-width:2.5; }
-.loop text { font:500 14px Inter,system-ui,sans-serif; fill:var(--ink); }
+.loop a:hover rect, .loop a:focus rect { stroke:var(--accent); stroke-width:2.5; }
+.loop text { font:500 14px system-ui,sans-serif; fill:var(--ink); }
 .loop text.small { font-size:12px; fill:var(--muted); }
 .loop .arrow { stroke:var(--ink); stroke-width:1.6; fill:none; marker-end:url(#head); }
 .loop .guard { stroke:#b3261e; }
-blockquote.reuse { border-left:4px solid #7434d3; margin:10px 0 24px; padding:4px 18px; font-size:17px; }
+blockquote.reuse { border-left:2px solid var(--line); margin:10px 0 24px; padding:4px 18px; font-size:17px; }
 ol.steps-text li { margin:6px 0; }
 `;
 
