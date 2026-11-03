@@ -8,6 +8,8 @@ One script, three ways to run it:
   trainer.ts): `train.py --baseten`. The job fetches this file and its data from the registry, trains,
   scores the new adapter and the one serving now on the same held-out examples, saves the adapter
   to $BT_CHECKPOINT_DIR and posts the scores back. The registry promotes it only if it is no worse.
+- On Baseten by hand, one H100: `scripts/baseten-train.sh`. The same job with its data uploaded and
+  no registry: the scores and each answer are saved beside the adapter.
 - Locally on CPU, with a tiny stand-in model (the dry run): `npm run finetune:train -- --dry-run`.
   One training step on 10 examples, to prove the data, the chat format, completion-only loss and
   the adapter save work end to end, at no cost.
@@ -87,6 +89,7 @@ def train(data_dir: Path, out_dir: Path, model_id: str, *, max_steps: int = -1, 
         tokenizer.pad_token = tokenizer.eos_token
     dtype = torch.float32 if cpu else torch.bfloat16
     model = load_base(model_id, dtype)
+    batch = int(os.environ.get("USHER_BATCH_SIZE", "4"))
 
     config = SFTConfig(
         output_dir=str(out_dir / "checkpoints"),
@@ -95,8 +98,10 @@ def train(data_dir: Path, out_dir: Path, model_id: str, *, max_steps: int = -1, 
         warmup_steps=0 if cpu else TRAIN["warmup_steps"],
         max_length=TRAIN["max_length"],
         max_steps=max_steps,
-        per_device_train_batch_size=1 if cpu else 4,
-        gradient_accumulation_steps=1 if cpu else 4,
+        # Sixteen examples to a step however they are batched (USHER_BATCH_SIZE, if memory runs short).
+        per_device_train_batch_size=1 if cpu else batch,
+        per_device_eval_batch_size=1 if cpu else batch,
+        gradient_accumulation_steps=1 if cpu else 16 // batch,
         # 30B in bf16 is about 60 GB of the H100's 80: recompute activations rather than keep them.
         gradient_checkpointing=not cpu,
         # Loss on the assistant's answer only, never the prompt.
@@ -146,8 +151,9 @@ def parse_answer(text: str) -> dict | None:
     return answer if isinstance(answer, dict) else None
 
 
-def evaluate(model, tokenizer, rows: list[dict], batch_size: int = 8) -> dict:
-    """Share of held-out examples where the active adapter gives the expected key and risk, and valid JSON."""
+def evaluate(model, tokenizer, rows: list[dict], batch_size: int = 8, answers: list[dict | None] | None = None) -> dict:
+    """Share of held-out examples where the active adapter gives the expected key and risk, and valid JSON.
+    Each answer, in row order, goes into answers when it is given."""
     import torch
 
     tokenizer.padding_side = "left"
@@ -163,6 +169,8 @@ def evaluate(model, tokenizer, rows: list[dict], batch_size: int = 8) -> dict:
         for row, reply in zip(batch, replies):
             want = json.loads(row["completion"][0]["content"])
             got = parse_answer(reply)
+            if answers is not None:
+                answers.append(got)
             if got is None or "key" not in got or got.get("risk") not in ("safe", "consequential", "needs_user"):
                 continue
             valid += 1
@@ -202,10 +210,20 @@ def baseten_run() -> None:
     """The automatic retraining job on Baseten: train, score against the adapter serving now, report."""
     data = Path.cwd()
     out = Path(os.environ.get("BT_CHECKPOINT_DIR", "/tmp/training_checkpoints"))
-    summary, trainer = train(data, out, os.environ.get("USHER_BASE_DIR", "/app/models/base"))
+    max_steps = int(os.environ.get("USHER_MAX_STEPS", "-1"))
+    limit = int(os.environ.get("USHER_LIMIT", "0")) or None
+    summary, trainer = train(data, out, os.environ.get("USHER_BASE_DIR", "/app/models/base"), max_steps=max_steps, limit=limit)
     model, tokenizer = trainer.model, trainer.processing_class
-    rows = prompt_completion(read_jsonl(data / "eval.chat.jsonl"))
-    scores = {"new": evaluate(model, tokenizer, rows), "previous": None}
+    rows = prompt_completion(read_jsonl(data / "eval.chat.jsonl", limit))
+    batch = int(os.environ.get("USHER_BATCH_SIZE", "4"))
+    answers: list[dict | None] = []
+    scores = {"new": evaluate(model, tokenizer, rows, batch, answers), "previous": None}
+    # By hand there is no registry to fetch from or report to: the scores stay with the adapter.
+    if "USHER_RUN_URL" not in os.environ:
+        (out / "scores.json").write_text(json.dumps({**scores, **summary}, indent=2) + "\n")
+        (out / "answers.jsonl").write_text("".join(json.dumps(a) + "\n" for a in answers))
+        print(json.dumps({**scores, "train_loss": summary["train_loss"], "steps": summary["steps"]}, indent=2))
+        return
     previous = Path("/tmp/previous-adapter")
     if fetch_files(registry_call("previous") or [], "adapter/", previous):
         model.load_adapter(str(previous), adapter_name="previous")
