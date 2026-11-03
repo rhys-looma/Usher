@@ -102,6 +102,10 @@ test('the tools are offered alongside knock, and their descriptions carry the be
   assert.match(fill, /pauses for the person at every consent and before anything is submitted/);
   assert.match(fill, /word for word/);
   assert.match(fill, /never answer them yourself/);
+  // Who answers what: a consent is only ever the person's own yes; a detail is what they say to use.
+  assert.match(fill, /only their own reply, after seeing the words, even if they ask you to choose/);
+  assert.match(fill, /including made-up test details if they ask for them/);
+  assert.match(fill, /Never guess a detail yourself/);
   assert.match(fill, /usher_fill\(\{ site: "Brightwater", task: "health insurance quote", details: /, 'one example, in the person\'s words');
   assert.match(tools.find((t) => t.name === 'usher_confirm')!.description!, /never decide for them/);
 });
