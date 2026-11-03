@@ -144,6 +144,9 @@ pre { max-height:520px; }
 .badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12.5px; font-weight:650; white-space:nowrap; }
 .risk-safe, .rule-allow { color:var(--safe); background:var(--safe-bg); } .risk-consequential, .rule-confirm { color:var(--cons); background:var(--cons-bg); }
 .risk-needs_user, .rule-forbid { color:var(--user); background:var(--user-bg); } .badge.plain { color:var(--muted); background:var(--code); }
+h1, h2 { overflow-wrap:anywhere; }
+.card:has(> table), .card > details:has(> table), [data-live]:has(> table) { overflow-x:auto; }
+[id] { scroll-margin-top:64px; }
 form.inline { display:flex; gap:10px; flex-wrap:wrap; }
 form.inline input[type=url], form.inline input[type=text] { flex:1; min-width:min(260px,100%); }
 textarea { width:100%; min-height:96px; box-sizing:border-box; }

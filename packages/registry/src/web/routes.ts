@@ -638,6 +638,7 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
     const board = await this.board();
     const live = { siteScript: true };
     if (route === 'GET /demo/dashboard') return sendHtml(res, 200, await board.overview(demo.origin, undefined, {}), live), true;
+    if (route === 'GET /demo/dashboard/rules') return redirect(res, '/demo/dashboard#rules'), true;
     if (route === 'POST /demo/dashboard/rules') {
       const text = ((await readForm(req)).get('text') ?? '').trim();
       const client = clientAddress(req, this.options.proxyHops);
@@ -756,6 +757,15 @@ ${annotated(drawn, { anchor: 'v' })}`;
     if (site && !site.claim && !admin) return send(res, req.method === 'GET' && url.pathname === '/dashboard' ? 200 : 403, claimPage({ url: this.registry.url, site, fromDashboard: true })), true;
     const walk = this.options.walkthroughs;
     const boardPage = (status: number, body: string) => send(res, status, body, { siteScript: true });
+    // These addresses answer a form. Reloading one, or coming back to it, goes to the page it was on.
+    if (req.method === 'GET') {
+      if (/^\/dashboard\/rules(\/|$)/.test(url.pathname)) return redirect(res, '/dashboard#rules'), true;
+      if (url.pathname === '/dashboard/explain') return redirect(res, '/dashboard#activity'), true;
+      if (/^\/dashboard\/walkthrough\/(edit(\/apply|\/discard)?|correct|publish|cancel)$/.test(url.pathname)) return redirect(res, '/dashboard/walkthrough'), true;
+      if (url.pathname === '/dashboard/app/switch') return redirect(res, '/dashboard/app'), true;
+      const asked = /^(\/dashboard\/tools\/[a-z][a-z0-9_.]*)\/(suggest|after)$/.exec(url.pathname);
+      if (asked) return redirect(res, asked[1]!), true;
+    }
     if (route === 'GET /dashboard') {
       const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`, admin), last: await walk.get(origin) }) : '';

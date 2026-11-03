@@ -553,6 +553,16 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       short: shortName(f.key, f.label, kind),
     });
 
+    /** A question the owner wants confirmed: what the person said, to check, or asked outright. */
+    const confirmedQuestion = (f: MapField, path: string): Decision => {
+      const said = values[f.key];
+      const items = f.options?.items;
+      const option = items && said !== undefined ? items.find((o) => o.value === matchOption(items, said)) : undefined;
+      if (said === undefined || (items && !option)) return decisionFor(f, 'missing_value', path);
+      job.proposed.set(f.key, String(said));
+      return { ...decisionFor(f, 'confirm_value', path), value: option?.label ?? String(said) };
+    };
+
     const user: UserChannel = {
       async review(d: PageDecisions, page: Page) {
         // A required medical question the site hasn't permitted an agent to enter stops the fill: the
@@ -569,7 +579,9 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           ...d.userOnly.filter((f) => !SENSITIVE.has(f.key) && !toConfirm(f.key)).map((f) => decisionFor(f, kindOf(f), d.path)),
           // A field the site permits is the person's own answer, not a yes or no to filling it.
           // A consent the person confirms (the site's rule is confirm): asked as the consent it is.
-          ...d.confirmFields.filter((f) => !job.permitted.has(f.key)).map((f) => decisionFor(f, f.risk === 'needs_user' ? kindOf(f) : 'optional_consent', d.path)),
+          // Any other question the owner wants confirmed is still a question: what the person said, put
+          // back to them, or asked outright. Only a tick box can be a yes or no to filling it.
+          ...d.confirmFields.filter((f) => !job.permitted.has(f.key)).map((f) => (f.control === 'checkbox' ? decisionFor(f, f.risk === 'needs_user' ? kindOf(f) : 'optional_consent', d.path) : confirmedQuestion(f, d.path))),
           ...(d.advance ? [{ key: d.advance.key, label: d.advance.label, kind: 'submit' as const, page: d.path, short: shortName(d.advance.key, d.advance.label, 'submit') }] : []),
           ...d.missing.map((f) => decisionFor(f, 'missing_value', d.path)),
         ];
@@ -592,14 +604,16 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           const stop = await ask([...toAsk, ...later], [...blocks.filter((b) => !b.source.key || keys.has(b.source.key)), ...laterBlocks.filter((b) => b.kind !== 'disclosure')], d.path);
           if (stop) return { stop };
         }
-        const answered = [...d.missing, ...d.confirmFields.filter((f) => job.permitted.has(f.key))].filter((f) => typeof job.answers.get(f.key) === 'string');
+        const answered = [...d.missing, ...d.confirmFields.filter((f) => job.permitted.has(f.key) || f.control !== 'checkbox')].filter((f) => typeof job.answers.get(f.key) === 'string');
         const profile = Object.fromEntries(answered.map((f) => [f.key, job.answers.get(f.key)!])) as Profile;
         return { profile };
       },
       async confirm(element: MapAction | MapField) {
         // A permitted field is entered as the person said it, and put back to them with the submit.
         if (job.permitted.has(element.key)) return true;
-        return job.answers.get(element.key) === true;
+        // A question the person answered in their own words: their answer is what goes in.
+        const answer = job.answers.get(element.key);
+        return answer === true || typeof answer === 'string';
       },
       async handoff(field: MapField, page: Page) {
         // The user's own answer, as they gave it at a pause or said it (to be confirmed with the

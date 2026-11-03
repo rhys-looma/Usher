@@ -311,7 +311,11 @@ export function knockRules(effective: EffectiveRules): Rules {
   return { agents: effective.agent_lane ? 'allowed' : 'denied', confirm: ['consequential'], human_only: ['needs_user'], actions: effective.actions };
 }
 
+/** How long the same words proposed again get the same proposal back. */
+const REPEAT_PROPOSAL_MS = 10 * 60_000;
+
 export class Registry {
+  private readonly proposing = new Map<string, Promise<Reply>>();
   private key?: SigningKey;
   private keySetCache?: KeySet;
   readonly threshold: number;
@@ -1148,10 +1152,27 @@ export class Registry {
   async proposeRulesFor(origin: string, text: unknown): Promise<Reply> {
     if (typeof text !== 'string' || !text.trim() || text.length > 4000) return error(400, 'invalid_request', 'Expected { "text": "…" } under 4000 characters.');
     if (!this.options.chat || !this.options.model) return error(503, 'no_model', 'Rules in plain English need a model, and none is set up here yet.');
+    // The same words again: the same proposal, not another model call. A second press while the first
+    // is thinking waits for it, and a recent proposal of the same words is still the answer.
+    const key = `${origin}|${text.trim()}`;
+    const running = this.proposing.get(key);
+    if (running) return running;
+    const recent = (await this.storage.listDrafts(origin)).find((d) => d.status === 'pending' && d.text === text.trim() && this.now().getTime() - Date.parse(d.created_at) < REPEAT_PROPOSAL_MS);
+    if (recent) return { status: 201, body: recent };
+    const proposal = this.compileProposal(origin, text.trim());
+    this.proposing.set(key, proposal);
+    try {
+      return await proposal;
+    } finally {
+      this.proposing.delete(key);
+    }
+  }
+
+  private async compileProposal(origin: string, text: string): Promise<Reply> {
     const maps = (await this.mapsFor(origin)).map((r) => r.map);
     try {
-      const result = await compileRules(this.options.chat, this.options.model, text.trim(), origin, maps);
-      const draft = { id: `r_${randomId(9)}`, origin, text: text.trim(), policy: result.policy, summary: result.summary, model: this.options.model, created_at: this.now().toISOString(), status: 'pending' as const };
+      const result = await compileRules(this.options.chat!, this.options.model!, text, origin, maps);
+      const draft = { id: `r_${randomId(9)}`, origin, text, policy: result.policy, summary: result.summary, model: this.options.model!, created_at: this.now().toISOString(), status: 'pending' as const };
       await this.storage.putDraft(draft);
       return { status: 201, body: { ...draft, usage: result.usage, cost_usd: result.cost_usd, latency_ms: result.latency_ms } };
     } catch (err) {

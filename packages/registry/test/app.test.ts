@@ -203,7 +203,23 @@ test('what the model does sits in a floating panel, and shows it is working unti
     await page.locator('.partner p.busy').waitFor();
     assert.match((await page.locator('.partner p.busy').innerText()), /Muse Spark is writing/);
     assert.equal(await page.getByRole('button', { name: 'Suggest with Muse Spark' }).isDisabled(), true, 'it can only be pressed once');
+    // The rules, the slowest wait of all.
+    await page.goto(`${running.url}/dashboard#rules`);
+    await page.evaluate(() => window.addEventListener('submit', (e) => e.preventDefault()));
+    if (!(await page.locator('#rules details.partner').evaluate((d) => (d as HTMLDetailsElement).open))) await page.locator('#rules details.partner summary').click();
+    await page.fill('#rules-text', 'Agents may fill it in.');
+    await page.getByRole('button', { name: 'Propose policy' }).click();
+    await page.locator('#rules p.busy').waitFor();
+    assert.match(await page.locator('#rules p.busy').innerText(), /Muse Spark is writing your policy/);
+    assert.equal(await page.getByRole('button', { name: 'Propose policy' }).isDisabled(), true);
   } finally {
     await browser.close();
+  }
+});
+
+test('reloading an address that answered a form goes back to its page, not to "not found"', async () => {
+  for (const [from, to] of [['/dashboard/rules', '/dashboard#rules'], ['/dashboard/rules/r_x/confirm', '/dashboard#rules'], ['/dashboard/explain', '/dashboard#activity'], ['/dashboard/app/switch', '/dashboard/app'], ['/dashboard/walkthrough/edit', '/dashboard/walkthrough'], ['/dashboard/tools/quote.health_insurance/after', '/dashboard/tools/quote.health_insurance'], ['/dashboard/tools/quote.health_insurance/suggest', '/dashboard/tools/quote.health_insurance']] as const) {
+    const res = await fetch(`${running.url}${from}`, { redirect: 'manual', headers: { Cookie: cookie } });
+    assert.deepEqual([res.status >= 300 && res.status < 400, res.headers.get('location')], [true, to], from);
   }
 });
