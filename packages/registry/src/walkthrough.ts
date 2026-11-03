@@ -860,7 +860,7 @@ export class Walkthroughs {
         }
         if (advance.risk !== 'safe' && !pressFinal) {
           if (await stop(`That task is mapped up to “${advance.label}”, which I won't press on this run. Map another, or finish?`)) continue;
-          await finish('stopped', `Stopped before "${advance.label}": pressing it wasn't allowed for this run.`);
+          await finish('stopped', `Mapped up to "${advance.label}". Usher doesn't press it on a test run.`);
           break;
         }
         if (advance.risk !== 'safe') {

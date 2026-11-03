@@ -7,12 +7,18 @@ import type { Registry, SiteApp } from '../registry.ts';
 import { siteTools, type SiteTool } from '../site-app.ts';
 import type { MapRecord, Session } from '../storage.ts';
 import type { BlockedEntry } from './dashboard.ts';
-import { html, page, partner, riskBadge, ruleBadge, when, type Raw } from './html.ts';
+import { html, page, partner, when, type Raw } from './html.ts';
+import { isMappingRun, keyMeaning, ruleWords, whoBadge, whoRan } from './plain.ts';
 import { shownWhen } from './walkthrough.ts';
 
 const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 
 export const TOOLS_STYLE = `
+.plain-log h3 { font-size:17px; margin:14px 0 4px; }
+.plain-log h3:first-child { margin-top:0; }
+.plain-log ul { margin:0; padding-left:20px; }
+.plain-log li { margin:3px 0; }
+
 .after label { display:block; margin:14px 0; font-weight:600; font-size:14px; }
 .after input[type=text], .after select { display:block; width:100%; max-width:480px; margin-top:4px; font-weight:400; }
 .after fieldset { border:0; margin:0 0 6px; padding:0; }
@@ -147,7 +153,7 @@ export async function toolViews(registry: Registry, origin: string, app: SiteApp
       maps,
       names: stepNames(plan.steps),
       drifted: new Set([...paths].filter((p) => newest.get(p)?.drift)),
-      runs: seen.sessions.filter((s) => s.intent === tool.intent),
+      runs: seen.sessions.filter((s) => s.intent === tool.intent && !isMappingRun(s)),
       blocked: seen.blocked.filter((b) => paths.has(b.path)),
       blurb: own?.description?.trim() || tool.summary,
     });
@@ -193,11 +199,11 @@ function stepPanel(view: ToolView, index: number, options: { base: string; mapHr
   const at = (i: number) => `${options.base}/tools/${view.tool.intent}?step=${i + 1}#flow`;
   return html`<section class="card" id="step"><div class="step-head"><h2>${String(index + 1)}. ${view.names[index]!}</h2><code>${step.path}</code>${view.drifted.has(step.path) ? html`<span class="badge rule-confirm">Form changed</span>` : ''}${link ? html`<a class="small" href="${link}">View the full map</a>` : ''}</div>
 <p class="small muted">${step.purpose}</p>
-${map.fields.length ? html`<table class="small"><thead><tr><th>Question</th><th>Risk</th><th>Notes</th></tr></thead><tbody>${map.fields.map(
-    (f) => html`<tr><td>${f.label || f.key}</td><td>${riskBadge(f.risk)}</td><td class="muted">${[f.required ? 'Required' : '', f.shown_if ? shownWhen(map, f.shown_if) : ''].filter(Boolean).join('. ')}</td></tr>`,
+${map.fields.length ? html`<table class="small"><thead><tr><th>Question</th><th>Who decides</th><th>Notes</th></tr></thead><tbody>${map.fields.map(
+    (f) => html`<tr><td>${f.label || keyMeaning(f.key)}</td><td>${whoBadge(f.risk)}</td><td class="muted">${[f.required ? 'Required' : '', f.shown_if ? shownWhen(map, f.shown_if) : ''].filter(Boolean).join('. ')}</td></tr>`,
   )}</tbody></table>` : html`<p class="muted small">No questions on this page.</p>`}
-${map.actions.length ? html`<table class="small"><thead><tr><th>Button or link</th><th>Risk</th><th>Under your rules</th></tr></thead><tbody>${map.actions.map(
-    (a) => html`<tr><td>${a.label || a.key}${a.leads_to ? html` <span class="muted">→ ${a.leads_to}</span>` : ''}</td><td>${riskBadge(a.risk)}</td><td>${rules[a.key] ? ruleBadge(rules[a.key]!) : ''}</td></tr>`,
+${map.actions.length ? html`<table class="small"><thead><tr><th>Button or link</th><th>Who decides</th><th>Under your rules</th></tr></thead><tbody>${map.actions.map(
+    (a) => html`<tr><td>${a.label || keyMeaning(a.key)}${a.leads_to ? html` <span class="muted">→ ${a.leads_to}</span>` : ''}</td><td>${whoBadge(a.risk)}</td><td>${rules[a.key] ? ruleWords(rules[a.key]!) : ''}</td></tr>`,
   )}</tbody></table>` : ''}
 <p class="step-nav">${index > 0 ? html`<a href="${at(index - 1)}">← ${view.names[index - 1]!}</a>` : ''}${index < view.plan.steps.length - 1 ? html`<a class="next" href="${at(index + 1)}">${view.names[index + 1]!} →</a>` : ''}</p></section>`;
 }
@@ -308,10 +314,10 @@ ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${inp
 <div class="flow-group" id="flow"><p>The steps</p>${flowStrip(steps(view, input.base), { label: `Steps in ${title}`, current: index, end })}</div>
 ${stepPanel(view, index, input)}
 ${edit}
-${!input.demo && input.canSuggest ? partner('Need better words?', html`<form method="post" action="${action}/suggest" data-busy="Muse Spark is writing…"><p>Usher can write a name and description for this task. Nothing changes until you save.</p><button type="submit" class="secondary">Suggest with Muse Spark</button></form>`) : ''}
+${!input.demo && input.canSuggest ? partner('Need better words?', html`<form method="post" action="${action}/suggest" data-busy="Muse Spark is writing…"><p>Usher can write a name and description for this task. Nothing changes until you save.</p><button type="submit" class="secondary">Suggest with Muse Spark</button></form>`, { open: false }) : ''}
 ${afterCard(action, { ...input, intent: tool.intent })}
 <div class="card"><h2>How it's been used</h2>
-${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Agent session</th><th>Events</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td>${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}" class="mono">${s.id.slice(0, 14)}…</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}
+${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Who</th><th>Steps</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td>${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}" class="mono">${whoRan(s)}</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}
 ${view.blocked.length ? html`<p class="small"><a href="${input.base}#blocked">${plural(view.blocked.length, 'blocked attempt')}</a> on these pages.</p>` : ''}</div>`,
     { style: TOOLS_STYLE },
   );

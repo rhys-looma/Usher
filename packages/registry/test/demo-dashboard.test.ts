@@ -93,7 +93,7 @@ test('the rules sandbox shows the policy Muse Spark makes, marked preview only, 
   assert.equal(res.status, 200);
   assert.ok(text.includes('preview only, not applied'));
   assert.match(text, /form\.submit/);
-  assert.match(text, /at most 5 <code>/);
+  assert.match(text, /At most 5 /);
   assert.deepEqual(await registry.registry.storage.getPolicy(site.url), before, 'the policy is unchanged');
   assert.deepEqual(await registry.registry.storage.listDrafts(site.url), [], 'no draft stored');
   // A few previews per visitor an hour: the model costs money.

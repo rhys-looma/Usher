@@ -163,7 +163,9 @@ form.stack { display:flex; flex-direction:column; align-items:stretch; }
 .partner > summary::after { content:"▾"; margin-left:auto; color:var(--muted); }
 .partner:not([open]) > summary::after { content:"▴"; }
 .partner-mark { flex:none; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; display:inline-grid; place-items:center; font-size:13px; font-weight:700; }
-.partner-body { padding:0 16px 16px; max-height:min(65vh, 560px); overflow:auto; font-size:14px; }
+.partner:not([open]) { width:auto; max-width:calc(100vw - 32px); }
+.partner:not([open]) > summary { gap:10px; }
+.partner-body { padding:0 16px 16px; max-height:min(55vh, 480px); overflow:auto; font-size:14px; }
 .partner-body .card { padding:12px; margin:0 0 10px; }
 .partner-body textarea { min-height:72px; }
 .partner-body p { margin:0 0 10px; }
@@ -197,8 +199,8 @@ export function dialog(id: string, open: { label: string; class?: string }, titl
 }
 
 /** Usher at your side: a floating panel for what the model does for you. Folds away; stays while you read the page. */
-export function partner(title: string, body: Raw, id?: string): Raw {
-  return html`<details class="partner"${id ? html` id="${id}"` : ''} open><summary><span class="partner-mark" aria-hidden="true">U</span>${title}</summary><div class="partner-body">${body}</div></details>`;
+export function partner(title: string, body: Raw, options: { id?: string; open?: boolean } = {}): Raw {
+  return html`<details class="partner"${options.id ? html` id="${options.id}"` : ''}${options.open === false ? '' : ' open'}><summary><span class="partner-mark" aria-hidden="true">U</span>${title}</summary><div class="partner-body">${body}</div></details>`;
 }
 
 export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: string[]; style?: string } = {}): string {

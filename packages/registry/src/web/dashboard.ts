@@ -7,7 +7,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
-import { html, page, ruleBadge, siteClaims, when, type Raw, partner } from './html.ts';
+import { html, page, siteClaims, when, type Raw, partner } from './html.ts';
+import { isMappingRun, keyMeaning, labelsOf, pageName, plainLog, ruleWords, whoRan } from './plain.ts';
 import { TOOLS_STYLE, dashNav, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
@@ -183,8 +184,11 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     ]);
     const adminActions = demo ? [] : ((await storage.getCached<AdminAction[]>('admin-audit', origin)) ?? []).slice(-10).reverse();
     const blocked = blockedAll.filter((b) => b.origin === origin).reverse();
+    // Agents, not the owner's own mapping runs.
+    const mappingRuns = sessions.filter(isMappingRun);
+    const agentSessions = sessions.filter((s) => !isMappingRun(s));
     const byAgent = new Map<string, Session[]>();
-    for (const s of sessions) byAgent.set(s.agent, [...(byAgent.get(s.agent) ?? []), s]);
+    for (const s of agentSessions) byAgent.set(s.agent, [...(byAgent.get(s.agent) ?? []), s]);
     const pending = drafts.filter((d) => d.status === 'pending');
     // One row per form: its current (newest) version, with what happened to the ones before.
     const byPath = new Map<string, MapRecord[]>();
@@ -233,7 +237,7 @@ ${options.cards ?? ''}
 <div data-live="bottom">
 <div class="grid">
   <div class="card stat"><b>${records.length}</b><span>forms mapped${drifted ? html`, <span class="badge rule-confirm">${drifted} drifted</span>` : ''}</span></div>
-  <div class="card stat"><b>${sessions.length}</b><span>agent sessions</span></div>
+  <div class="card stat"><b>${agentSessions.length}</b><span>agent sessions</span></div>
   <div class="card stat"><b>${byAgent.size}</b><span>agents seen</span></div>
   <div class="card stat"><b>${blocked.length}</b><span>blocked attempts</span></div>
 </div>
@@ -248,11 +252,12 @@ ${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/expl
 
 <h2 id="sessions">Agent sessions</h2>
 <div class="card"><table>
-<thead><tr><th>Agent</th><th>Identity</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
+<thead><tr><th>Who</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
 <tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td class="mono">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</td><td>${identityBadge(list[0])}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
-<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} events</a> `)}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table></div>
+        ([agent, list]) => html`<tr><td>${whoRan(list[0]!)} <span class="mono small muted" title="${agent}">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</span></td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
+<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} steps</a> `)}</td></tr>`,
+      ) : html`<tr><td colspan="4" class="muted">No agent sessions yet.</td></tr>`}</tbody></table>
+${mappingRuns.length ? html`<p class="small muted">Your own mapping runs aren't counted here: ${mappingRuns.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${when(s.created_at)}</a> `)}</p>` : ''}</div>
 
 <h2 id="blocked">Blocked attempts</h2>
 <div class="card"><table>
@@ -266,11 +271,12 @@ ${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher'
 
 <section id="rules" data-panel>
 <h2 style="margin-top:0">Rules</h2>
+${demo ? '' : pending.map((d) => draftCard(d, records.map((r) => r.map)))}
 <div class="card">${
         policy
           ? html`${policy.text ? html`<p><b>Your rules:</b> “${policy.text}”</p>` : ''}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p>${policySummary(policy.policy, records.map((r) => r.map))}
 <details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details>`
-          : html`<p class="muted">No rules yet: agents may use your forms, and each element's risk decides what needs the user (consequential actions need their confirmation; declarations and payments are theirs alone).</p>`
+          : html`<p class="muted">No rules yet. Agents may use your forms, and they ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p>`
       }${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}</div>
 ${
         demo
@@ -279,12 +285,11 @@ ${
   <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Preview policy</button></p>
 </form>`)}`
-          : html`${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
-${partner('Change your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
+          : html`${partner('Change your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
   <p><label for="rules-text">Say them in plain English. You check the policy before anything changes.</label></p>
   <textarea id="rules-text" name="text" required placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Propose policy</button></p>
-</form>`)}`
+</form>`, { open: !policy })}`
       }
 </section>
 </div>`,
@@ -326,16 +331,18 @@ ${policySummary(preview.policy, maps)}
     if (!session || session.origin !== origin) return null;
     const explained = await this.registry.storage.getCached<ExplanationView>('session-explanations', sid);
     const events = [...session.events].sort((a, b) => a.ts.localeCompare(b.ts));
+    const maps = (await this.registry.storage.mapsForOrigin(origin)).map((r) => r.map);
     return page(
       'Agent session',
-      html`${demo ? LIVE_SCRIPT : ''}${dashNav('activity', { base, demo: Boolean(demo) })}<p class="muted small"><a href="${base}#sessions">Activity</a> · session ${session.id}</p>
-<h1>Agent session</h1>
-<p class="lede">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
-${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
+      html`${demo ? LIVE_SCRIPT : ''}${dashNav('activity', { base, demo: Boolean(demo) })}<p class="muted small"><a href="${base}#sessions">Activity</a> · ${whoRan(session)}</p>
+<h1>${whoRan(session)}</h1>
+<p class="lede">Started ${when(session.created_at)}. ${isMappingRun(session) ? "This is Usher going through your site for you, not an agent acting for someone." : 'What was done, never what anyone typed.'}</p>
+${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain && !isMappingRun(session) ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
 <form method="post" action="/dashboard/sessions/${session.id}/explain" data-busy="Muse Spark is reading this session…"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
-<div class="card" data-live="timeline"><ol class="timeline">${events.map(
+<div class="card" data-live="timeline">${plainLog(events, maps)}
+<details><summary>Technical log</summary><p class="small muted">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · <code>${session.intent}</code> · session ${session.id}</p><ol class="timeline">${events.map(
         (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
-      )}</ol></div>`,
+      )}</ol></details></div>`,
       { style: TOOLS_STYLE },
     );
   }
@@ -369,17 +376,30 @@ function detailText(detail: Record<string, unknown>): string {
     .join(' · ');
 }
 
+/** A rate limit in words: "At most 5 visits an hour, for each agent". */
+function limitWords(l: { action: string; max: number; per: string; window: string }, labels: Map<string, string>): string {
+  const what = l.action === 'knock' ? 'visits' : `uses of “${labels.get(l.action) ?? keyMeaning(l.action)}”`;
+  return `At most ${l.max} ${what} ${l.window === 'hour' ? 'an hour' : `a ${l.window}`}, ${l.per === 'agent' ? 'for each agent' : 'across all agents'}.`;
+}
+
 function policySummary(policy: import('@usher/core').UsherPolicy, maps: import('@usher/core').UsherMap[]): Raw {
+  const labels = labelsOf(maps);
   const rows = maps
-    .map((m) => ({ path: m.path, rules: effectiveRules(policy, m, m.path) }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+    .map((m) => {
+      // Only what's on this page: a site-wide rule isn't this page's until the page has the question.
+      const here = new Set([...m.fields, ...m.actions].map((e) => e.key));
+      const actions = Object.entries(effectiveRules(policy, m, m.path).actions).filter(([k]) => here.has(k));
+      return { map: m, lane: effectiveRules(policy, m, m.path).agent_lane, confirm: actions.filter(([, v]) => v === 'confirm').map(([k]) => k), forbid: actions.filter(([, v]) => v === 'forbid').map(([k]) => k) };
+    })
+    .sort((a, b) => a.map.path.localeCompare(b.map.path));
+  const chip = (k: string) => html`<span class="badge plain" title="${k}">${labels.get(k) ?? keyMeaning(k)}</span> `;
   const limits = [...(policy.default.rate_limits ?? []), ...(policy.forms ?? []).flatMap((f) => f.rate_limits ?? [])];
-  return html`<table class="small"><thead><tr><th>Form</th><th>Agents</th><th>Needs the user's confirmation</th><th>Agents may not</th></tr></thead><tbody>${rows.map(
-    (r) => html`<tr><td><code>${r.path}</code></td><td>${r.rules.agent_lane ? ruleBadge('allow') : ruleBadge('forbid')}</td>
-<td>${Object.entries(r.rules.actions).filter(([, v]) => v === 'confirm').map(([k]) => html`<code>${k}</code> `)}</td>
-<td>${Object.entries(r.rules.actions).filter(([, v]) => v === 'forbid').map(([k]) => html`<code>${k}</code> `)}</td></tr>`,
+  return html`<table class="small"><thead><tr><th>Page</th><th>Agents</th><th>The person confirms</th><th>Agents may not</th></tr></thead><tbody>${rows.map(
+    (r) => html`<tr><td>${pageName(r.map, r.map.path)}<br><code>${r.map.path}</code></td><td>${ruleWords(r.lane ? 'allow' : 'forbid')}</td>
+<td>${r.confirm.map(chip)}</td>
+<td>${r.forbid.map(chip)}</td></tr>`,
   )}</tbody></table>
-${limits.length ? html`<p class="small">Limits: ${limits.map((l) => html`at most ${l.max} <code>${l.action}</code> per ${l.per} per ${l.window}; `)}</p>` : ''}
+${limits.length ? html`<p class="small">${limits.map((l) => limitWords(l, labels)).join(' ')}</p>` : ''}
 ${policy.agents?.block?.length ? html`<p class="small">Blocked agents: ${policy.agents.block.map((a) => html`<span class="mono">${shortAgent(a)}</span> `)}</p>` : ''}
 ${policy.agents?.hosted === 'block' ? html`<p class="small">Hosted agents (through a hosted Usher connection) are blocked.</p>` : ''}
 ${policy.retention?.session_days ? html`<p class="small">Sessions kept ${policy.retention.session_days} days.</p>` : ''}`;
