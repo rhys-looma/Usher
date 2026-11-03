@@ -357,7 +357,7 @@ export class Web {
       }
       // Every site, and its dashboard with its owner's powers (logged, and shown to the owner).
       if (route === 'GET /admin/sites') return sendHtml(res, 200, await this.adminSites()), true;
-      // Maps built elsewhere (a capture mapped by Muse Spark, as for Aviva life), added as the
+      // Maps built elsewhere (a capture mapped by Muse Spark), added as the
       // registry's own: schema-checked, structure only. npm run maps:import sends them.
       if (route === 'POST /admin/maps') {
         const body = (await readJsonBody(req, 10_000_000).catch(() => null)) as { maps?: unknown[] } | null;
@@ -385,7 +385,7 @@ export class Web {
           return failure('That origin is not a URL.');
         }
         const name = (form.get('name') ?? '').trim().slice(0, 80);
-        if (!name) return failure('Give the site a name, as people would say it ("Aviva").');
+        if (!name) return failure('Give the site a name, as people would say it ("Brightwater").');
         const journeys: { start: string; intent: string }[] = [];
         const start = (form.get('start') ?? '').trim();
         const intent = (form.get('intent') ?? '').trim();

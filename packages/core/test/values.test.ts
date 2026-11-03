@@ -1,17 +1,12 @@
 // Values to controls: the option a person's answer means, a date in a field's own form, and the
-// parts of a split date. Then the real Aviva quote's controls (packages/core/test/fixtures/real/
-// aviva-car, structure only), rebuilt from their captured names, ids, labels, autocomplete and
-// placeholders: the extractor recognises the split date of birth, and the fill's rules match
-// Aviva's options and dates.
+// parts of a split date. Then a driver page and options written the way quote forms write them: the
+// extractor recognises the split date of birth, and the fill's rules match the options and dates.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { chromium, type Browser } from 'playwright';
 import { dateFormatOf, datePart, formatDate, isDateKey, matchOption, preflight, scanScript, type OptionItem, type Scan } from '../src/index.ts';
 
-const real = async (file: string) => JSON.parse(await readFile(new URL(`./fixtures/real/aviva-car/${file}`, import.meta.url), 'utf8'));
-type Captured = { name?: string; label: string; control: string; options?: { items: OptionItem[] }; constraints?: { pattern?: string; max_length?: number }; autocomplete?: string; placeholder?: string; domId?: string; group?: string; required: boolean };
 
 test('options: value, label, yes/no, and the one number an option carries', () => {
   const yesNo = [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }];
@@ -59,26 +54,16 @@ let browser: Browser;
 before(async () => (browser = await chromium.launch()));
 after(() => browser.close());
 
-/** The captured controls, rebuilt as markup of the same shape (names, ids, labels, autocomplete, placeholders, groups). */
-function rebuild(elements: Captured[], groups: { id: string; label: string }[]): string {
-  const field = (e: Captured) => {
-    const id = e.domId ?? e.name ?? e.label.replace(/\W+/g, '');
-    const attrs = `id="${id}" name="${e.name ?? id}"${e.required ? ' required' : ''}${e.autocomplete ? ` autocomplete="${e.autocomplete}"` : ''}${e.placeholder ? ` placeholder="${e.placeholder}"` : ''}${e.constraints?.pattern ? ` pattern="${e.constraints.pattern}"` : ''}${e.constraints?.max_length ? ` maxlength="${e.constraints.max_length}"` : ''}`;
-    if (e.control === 'select') return `<label for="${id}">${e.label}</label><select ${attrs}><option value="">Please select</option>${e.options!.items.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}</select>`;
-    if (e.control === 'radio') return `<p id="${id}-q">${e.label}</p><ul role="radiogroup" aria-labelledby="${id}-q">${e.options!.items.map((o, i) => `<li><input type="radio" id="${id}-${i}" name="${e.name}" value="${o.value}"><label for="${id}-${i}">${o.label}</label></li>`).join('')}</ul>`;
-    // Day, month and year boxes are labelled by aria-label, as on Aviva.
-    return /^(Day|Month|Year) of/.test(e.label) ? `<input type="text" aria-label="${e.label}" ${attrs}>` : `<label for="${id}">${e.label}</label><input type="text" ${attrs}>`;
-  };
-  const grouped = new Map<string, Captured[]>();
-  for (const e of elements) grouped.set(e.group ?? `-${e.label}`, [...(grouped.get(e.group ?? `-${e.label}`) ?? []), e]);
-  return `<!doctype html><meta charset="utf-8"><form>${[...grouped].map(([g, es]) => (g.startsWith('-') ? es.map(field).join('') : `<fieldset><legend>${groups.find((x) => x.id === g)?.label}</legend>${es.map(field).join('')}</fieldset>`)).join('')}<button type="submit">Continue</button></form>`;
-}
-
-test('the real Aviva driver page: the split date of birth is recognised, three parts under one group', async () => {
-  const captured = await real('02-driver-details.json');
-  const fields = (captured.forms[0].elements as (Captured & { kind: string })[]).filter((e) => e.kind === 'field');
+test('a driver page: the split date of birth is recognised, three parts under one group', async () => {
   const page = await browser.newPage();
-  await page.setContent(rebuild(fields, captured.forms[0].groups));
+  await page.setContent(`<form>
+<label for="first">First name</label><input id="first" name="FirstName" autocomplete="given-name">
+<fieldset><legend>Date of birth</legend>
+<input type="text" id="d" name="DayOfBirth" aria-label="Day of birth" placeholder="DD">
+<input type="text" id="m" name="MonthOfBirth" aria-label="Month of birth" placeholder="MM">
+<input type="text" id="y" name="YearOfBirth" aria-label="Year of birth" placeholder="YYYY"></fieldset>
+<label for="pc">Postcode</label><input id="pc" name="Postcode" autocomplete="postal-code">
+<label for="lic">Licence number</label><input id="lic" name="LicenceNumber"></form>`);
   const scan = (await page.evaluate(scanScript())) as Scan;
   const parts = scan.forms[0]!.elements.filter((e) => e.part).map((e) => [e.name, e.part]);
   assert.deepEqual(parts, [['DayOfBirth', 'day'], ['MonthOfBirth', 'month'], ['YearOfBirth', 'year']]);
@@ -97,18 +82,22 @@ test('a lone year (Brightwater\'s "Year of manufacture") is not a date part', as
   await page.close();
 });
 
-test('the real Aviva options and dates, by the fill\'s rules', async () => {
-  const vehicle = (await real('01-vehicle.json')).forms[0].elements as Captured[];
-  const mileage = vehicle.find((e) => e.name === 'AnnualMileage')!;
-  assert.equal(matchOption(mileage.options!.items, '12,000'), 'UpTo12000');
-  assert.equal(matchOption(mileage.options!.items, '8000'), 'UpTo8000');
-  const start = vehicle.find((e) => e.name === 'CoverStartDate')!;
+test('quote form options and dates, by the fill\'s rules', () => {
+  const mileage = [{ value: 'UpTo8000', label: 'Up to 8,000 miles' }, { value: 'UpTo12000', label: 'Up to 12,000 miles' }];
+  assert.equal(matchOption(mileage, '12,000'), 'UpTo12000');
+  assert.equal(matchOption(mileage, '8000'), 'UpTo8000');
+  const start = { name: 'CoverStartDate', label: 'Cover start date', control: 'text', placeholder: 'DD/MM/YYYY' };
   assert.equal(dateFormatOf(start), 'DD/MM/YYYY');
   assert.equal(formatDate('2026-11-01', dateFormatOf(start)!), '01/11/2026');
-  const licence = (await real('02c-driver-details-no-licence.json')).appeared as Captured[];
-  assert.equal(matchOption(licence.find((e) => e.name === 'LengthLicenceHeld')!.options!.items, '8 years'), '8');
-  assert.equal(matchOption(licence.find((e) => e.name === 'HasConvictions')!.options!.items, 'no'), 'false');
-  const excess = (await real('04-quote-details.json')).fields[0].options.map((o: string) => ({ value: o.split('=')[0]!, label: o.split('=')[1]! }));
+  assert.equal(matchOption([{ value: '7', label: '7 years' }, { value: '8', label: '8 years' }], '8 years'), '8');
+  assert.equal(matchOption([{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }], 'no'), 'false');
+  const excess = [{ value: '250', label: '£250' }, { value: '550', label: '£550' }];
   assert.equal(matchOption(excess, '250'), '250');
   assert.equal(matchOption(excess, '£550'), '550');
+});
+
+test('smoking with three answers: "no" alone matches none of them, so the person is asked', () => {
+  const smoker = [{ value: '1', label: "I've never smoked" }, { value: '2', label: 'I used to smoke' }, { value: '3', label: 'I smoke now' }];
+  assert.equal(matchOption(smoker, 'no'), null, 'a non-smoker may have smoked in the past');
+  assert.equal(matchOption(smoker, "I've never smoked"), '1');
 });

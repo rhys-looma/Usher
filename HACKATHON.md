@@ -72,3 +72,4 @@ Status on 29 October: steps 1 to 4 are live; step 5 has passed a dry run (one tr
 | 29 Oct | Finishable quotes: the reference and "Continue on <site>" from the plan's resume page |
 | 29 Oct | Publish as an assistant app: the setup strip with join-to-publish time (Brightwater 79 s of machine time), the switch, tool settings, the directory pack (LU-59) |
 | 29 Oct | Front page, README and docs follow the product: your site inside every assistant in twenty minutes; docs/site-apps.md |
+| 3 Nov | Captures of real insurers' pages used in tests (Aviva) removed; those tests now use markup we wrote |

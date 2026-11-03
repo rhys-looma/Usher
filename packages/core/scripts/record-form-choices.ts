@@ -22,7 +22,6 @@ const PUBLIC = [
   ['ico-contact', 'https://ico.org.uk/global/contact-us/', 'contact.message'],
   ['admiral-car', 'https://www.admiral.com/car-insurance', 'quote.car_insurance'],
   ['churchill-car', 'https://www.churchill.com/car-insurance', 'quote.car_insurance'],
-  ['aviva-car', 'https://www.aviva.co.uk/insurance/motor/car-insurance/', 'quote.car_insurance'],
 ] as const;
 
 const trim = (scan: Scan) =>
