@@ -300,7 +300,8 @@ ${CARD_CSS}
   // would open fresh, without the person's session, somewhere else than their result.
   function resultCard(r, image) {
     var res = r.result || {}, ok = r.status === 'completed';
-    var facts = res.facts || [];
+    // The reference has its own line below: not twice.
+    var facts = (res.facts || []).filter(function (f) { return !res.reference || f.indexOf(res.reference) < 0 || f.length > 60; });
     // A theme chooses which parts beyond the headline figure show; without one, all of them.
     if (brand && brand.fields.indexOf('more_facts') < 0) facts = facts.slice(0, 1);
     if (brand && brand.fields.indexOf('thumbnail') < 0) image = null;

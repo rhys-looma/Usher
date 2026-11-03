@@ -141,7 +141,7 @@ export function drawsCards(capabilities: { extensions?: Record<string, unknown> 
 
 /** A site app's instructions: one site, its tools, its rules. */
 export function siteInstructions(name: string): string {
-  return `This is ${name}'s assistant app, run by Usher under ${name}'s rules. Each tool fills one of ${name}'s forms for the person you are helping: pass what they have told you, or their own words in details. When a tool comes back with questions, do what its result says: a card may already be showing them, so don't repeat them unless it tells you to. Answer with usher_confirm using their reply; never answer for them. Usher keeps none of their answers.`;
+  return `This is ${name}'s assistant app, run by Usher under ${name}'s rules. Each tool fills one of ${name}'s forms for the person you are helping: pass what they have told you, or their own words in details. When a tool comes back with questions, do what its result says: a card may already be showing them, so don't repeat them unless it tells you to. Answer with usher_confirm using their reply. A consent, the final button or an answer put back to them to confirm is only ever their own reply. An ordinary detail is what they tell you, or tell you to use. Usher keeps none of their answers.`;
 }
 
 export function hostedInstructions(listed: string): string {

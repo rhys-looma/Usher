@@ -227,11 +227,15 @@ async function launchChromium(): Promise<Browser> {
   }
 }
 
+/** Who answers what, in every instruction: a consent is only ever the person's own yes; a detail is what they say to use. */
+const WHO_ANSWERS =
+  'Consents, the final button and answers put back to them to confirm are theirs alone: only their own reply, after seeing the words, even if they ask you to choose. Ordinary details, such as a name or a postcode, can be what they have told you or told you to use, including made-up test details if they ask for them. Never guess a detail yourself: ask.';
+
 const FILL_DESCRIPTION =
-  'If you cannot drive a browser, Usher can fill the form for you. Otherwise use get_plan. Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form\'s own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site\'s exact wording. Show them to the person word for word, never answer them yourself, and pass the person\'s reply to usher_confirm. Example: "Get me a health insurance quote from Brightwater. I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" becomes usher_fill({ site: "Brightwater", task: "health insurance quote", details: "I\'m Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" }). Answers that are the person\'s alone, such as whether they smoke, come back on the decision set for them to confirm; medical questions only where the site allows it, and the person confirms the answer. With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.';
+  `If you cannot drive a browser, Usher can fill the form for you. Otherwise use get_plan. Fill a whole form journey for the person on a site that uses Usher: a quote, an application, a booking. Pass the site and the task as they said them, and their details word for word; Usher reads the details against the form's own fields, fills every page, and pauses for the person at every consent and before anything is submitted, returning those decisions with the site's exact wording. Show them to the person word for word, never answer them yourself, and pass the person's reply to usher_confirm. ${WHO_ANSWERS} Example: "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" becomes usher_fill({ site: "Brightwater", task: "health insurance quote", details: "I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, …" }). Answers that are the person's alone, such as whether they smoke, come back on the decision set for them to confirm; medical questions only where the site allows it, and the person confirms the answer. With exact keys, pass values by Usher vocabulary key (person.first_name, …) instead of details; with the first page, url and intent instead of site and task.`;
 
 const CONFIRM_DESCRIPTION =
-  'Submits on your user\'s behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as `confirmation` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision\'s key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.';
+  `Submits on your user's behalf with their answers to the decision set usher_fill (or a previous usher_confirm) returned. Pass their reply word for word as \`confirmation\` (for example "Confirm: declaration yes, marketing no, get my quote yes"), or their answers keyed by each decision's key: true or false for consents and the submit, the value itself for a missing value. Only send answers your user actually gave, after they have seen the decisions and every verbatim block; never decide for them. ${WHO_ANSWERS} An optional consent left out counts as no. If your user says no to a required consent or to the submit, the fill stops there and nothing is submitted.`;
 
 const describe = (job: Job) => ({ page: job.page?.url() });
 export function registerFillTools(server: McpServer, options: FillOptions): { close: () => Promise<void>; fill: (args: FillArgs) => Promise<{ content: { type: 'text' | 'image'; text?: string; data?: string; mimeType?: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean }> } {
@@ -263,12 +267,12 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       const said = d.kind === 'confirm_value' ? ` They said: “${d.value}”. Is that right?` : '';
       return `${i + 1}. ${kinds[d.kind]}: ${d.kind === 'submit' ? `press “${wording}”` : `“${wording}”`}${said}${extra}`;
     });
-    return `Usher is asking the person, not the agent. Show them each item below word for word, in quotation marks, and ask for their answer; never answer for them.\n\n${lines.join('\n')}\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. A reply in this form works: ${confirmationPhrase(decisions)}.`;
+    return `Usher is asking the person, not the agent. Show them each item below word for word, in quotation marks, and ask for their answer. ${WHO_ANSWERS}\n\n${lines.join('\n')}\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. A reply in this form works: ${confirmationPhrase(decisions)}.`;
   };
   /** The same set where a card shows it: one line for the person, no repeat, and the wording still to hand if they answer in the chat. */
   const pointToCard = (job: Job, decisions: Decision[]) => {
     const who = job.brand?.name ?? 'the site';
-    return `The card on screen is putting ${decisions.length === 1 ? 'this question' : `these ${decisions.length} questions`} to the person in ${who}'s own words. Don't list or repeat them. Say one short line, such as: "I've started this with ${who}. Fill in the card and press Confirm. Nothing is sent until you do." Then wait.\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word; never answer for them. Only if they can't see the card, or ask to answer in the chat, show each question word for word first.`;
+    return `The card on screen is putting ${decisions.length === 1 ? 'this question' : `these ${decisions.length} questions`} to the person in ${who}'s own words. Don't list or repeat them. Say one short line, such as: "I've started this with ${who}. Fill in the card and press Confirm. Nothing is sent until you do." Then wait.\n\nWhen they reply, call usher_confirm with their reply as \`confirmation\`, word for word. ${WHO_ANSWERS} If they give you details to use instead of typing them, call usher_cancel and run the same task again with those details: the card then asks only for what's left. If they can't see the card, or ask to answer in the chat, show each question word for word first.`;
   };
   const failure = (text: string) => ({ isError: true, content: [{ type: 'text' as const, text }] });
 
@@ -337,8 +341,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           status: 'needs_decision',
           id: job.id,
           instructions: options.cards?.()
-            ? 'The card on screen shows the person these decisions: do not repeat them. Pass their reply to usher_confirm. Never answer for them.'
-            : 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. Never answer for them.',
+            ? `The card on screen shows the person these decisions: do not repeat them. Pass their reply to usher_confirm. ${WHO_ANSWERS}`
+            : 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. ' + WHO_ANSWERS,
           decisions: decisions.map((d) => ({ ...d, ...(job.sections?.has(d.page) && { section: job.sections.get(d.page)! }), ...(d.kind === 'missing_value' && (d.control === 'date' || isDateKey(d.key)) && { date: true }) })),
           blocks,
           confirmation_form: confirmationPhrase(decisions),

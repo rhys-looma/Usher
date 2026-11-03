@@ -151,7 +151,10 @@ test('a host that can\'t take a card\'s tool calls: Confirm sends the person\'s 
   const result = await render(html, done);
   const rc = result.frameLocator('#v');
   assert.equal(await rc.locator('h1').textContent(), 'Your quote');
-  assert.match((await rc.locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a year[\s\S]*Quote reference BW-/);
+  assert.match((await rc.locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a year/);
+  // The reference once, on its own line.
+  assert.doesNotMatch((await rc.locator('.facts').textContent()) ?? '', /Quote reference/);
+  assert.match((await rc.locator('.ref').textContent()) ?? '', /BW-/);
   assert.equal(await rc.locator('img.thumb').count(), 1);
   assert.equal(await rc.locator('text=Taylor').count(), 0, 'no values the user didn\'t ask to see');
   await shot(result, 'result-card.png');
@@ -259,7 +262,7 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   const done = await client.callTool({ name: 'usher_confirm', arguments: { id: (filled.structuredContent as { id: string }).id, confirmation: 'Confirm: smoker yes, declaration yes, get my quote yes' } });
   assert.equal((done.structuredContent as { status: string }).status, 'completed');
   const result = await render(html, done);
-  assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month[\s\S]*Quote reference BWH-/);
+  assert.match((await result.frameLocator('#v').locator('.facts').textContent()) ?? '', /£[\d,]+\.\d\d a month/);
   await shot(result, 'result-card-health.png');
 
   // Finishable: Brightwater's owner chose a one-time link, which opens the quote in the person's own browser.
@@ -288,6 +291,7 @@ test('a client that draws cards isn\'t told to repeat them; anyone else still ge
   const card = await text(await connect('some-host', { extensions: { 'io.modelcontextprotocol/ui': {} } }));
   assert.match(card.lead, /Don't list or repeat them/);
   assert.match(card.lead, /Nothing is sent until you do/);
+  assert.match(card.lead, /run the same task again with those details/, 'details given instead of typed');
   assert.doesNotMatch(card.lead, /Required: “/);
   assert.match(card.lead, /show each question word for word first/, 'the wording if they ask to answer in the chat');
   assert.ok(card.data.decisions.length, 'the card still gets every decision');
