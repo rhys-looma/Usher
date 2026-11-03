@@ -140,7 +140,7 @@ ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p
 }
 
 /** The start form: the first page, update or fresh, the test answers, whether the last button may be pressed. */
-export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean } = {}): string {
+export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean; notice?: string } = {}): string {
   const mode = state.published
     ? html`<fieldset class="mode"><legend>Your site has ${String(state.published)} published map${state.published === 1 ? '' : 's'}</legend>
 <label><input type="radio" name="mode" value="update" checked> <span><b>Update them</b><small>Keeps your corrections and marks anything new.</small></span></label>
@@ -150,7 +150,7 @@ export function startForm(origin: string, error?: string, state: { published?: n
   return page(
     'Map my site',
     html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
-${error ? html`<div class="card error">${error}</div>` : ''}
+${state.notice ? html`<div class="card notice">${state.notice}</div>` : ''}${error ? html`<div class="card error">${error}</div>` : ''}
 ${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough" data-busy="Starting Usher's browser…">
 ${mode}

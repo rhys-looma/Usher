@@ -8,8 +8,7 @@
 // the site script and the next agent can use it, then acts on it. Every run is timed and reported.
 
 import type { Browser, Locator, Page } from 'playwright';
-import {
-  defaultRule,
+import { safeReason, defaultRule,
   LOOKUP_FILLS,
   dateFormatOf,
   datePart,
@@ -40,8 +39,7 @@ import {
   type Usage,
   type UsherMap,
   fillField,
-  locate,
-} from '@usher/core';
+  locate, } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import './page-api.ts';
 import type { RegistryTransport } from './transport.ts';
@@ -644,7 +642,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
           confirmedKnock = await options.registry.knock({ url: page.url(), fingerprint: fp, session: session!, confirmed: [advance.key], ...(options.intent && { intent: options.intent }) });
         } catch (err) {
           outcome = 'stopped';
-          reason = `The site refused "${advance.label}": ${err instanceof Error ? err.message : String(err)}`;
+          reason = `The site refused "${advance.label}": ${safeReason(err)}`;
           break;
         }
         const rebound = await page.evaluate((token) => window.usher.bind(token), confirmedKnock.token);
@@ -706,7 +704,7 @@ export async function runAgent(options: AgentOptions): Promise<RunResult> {
   } catch (err) {
     if (!(err instanceof StopRun)) {
       outcome = 'failed';
-      reason = err instanceof Error ? err.message : String(err);
+      reason = safeReason(err);
     }
   }
 

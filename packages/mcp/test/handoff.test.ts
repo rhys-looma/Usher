@@ -191,3 +191,22 @@ test('a question the owner wants confirmed stays a question: the person\'s answe
     await registry.registry.storage.putPolicy(before!);
   }
 });
+
+test('a date must be a date: the card asks for one, and a wrong answer is asked again, the run still open', async () => {
+  await registry.registry.setSiteHandoff(site.url, INTENT, { mode: 'none' });
+  const { 'person.dob': _dob, ...rest } = values as Record<string, unknown>;
+  type Reply = { isError?: boolean; content: { text?: string }[]; structuredContent?: { status: string; id: string; decisions: { key: string; kind: string; date?: boolean }[] } };
+  const first = (await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/quote/driver`, intent: INTENT, values: rest } })) as unknown as Reply;
+  const asked = first.structuredContent!;
+  assert.equal(asked.decisions.find((d) => d.key === 'person.dob')?.date, true, 'the card draws a date picker');
+  const answers = (dob: string) => Object.fromEntries(asked.decisions.map((d) => [d.key, d.key === 'person.dob' ? dob : d.key !== 'consent.marketing']));
+  const wrong = (await client.callTool({ name: 'usher_confirm', arguments: { id: asked.id, answers: answers('test') } })) as unknown as Reply;
+  assert.equal(wrong.isError, true);
+  assert.match(wrong.content[0]!.text!, /Ask your user again; nothing has been entered or submitted\. "test" is not a date/);
+  assert.doesNotMatch(wrong.content[0]!.text!, /locator|Call log/);
+  // The same run, a real date, written as people write them.
+  const right = (await client.callTool({ name: 'usher_confirm', arguments: { id: asked.id, answers: answers('14 March 1988') } })) as unknown as Reply;
+  assert.notEqual(right.isError, true);
+  assert.notEqual(right.structuredContent?.status, 'failed');
+  if (right.structuredContent?.status === 'needs_decision') await client.callTool({ name: 'usher_cancel', arguments: { id: right.structuredContent.id } });
+});

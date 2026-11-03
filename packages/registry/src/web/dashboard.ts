@@ -8,6 +8,7 @@ import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
 import { html, page, siteClaims, when, type Raw, partner } from './html.ts';
+import { SUGGESTED_BY } from '../registry.ts';
 import { isMappingRun, keyMeaning, labelsOf, pageName, plainLog, ruleWords, whoRan } from './plain.ts';
 import { TOOLS_STYLE, dashNav, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
 
@@ -21,6 +22,13 @@ function identityBadge(session: Session | undefined): Raw {
   }
   return html`<span class="badge plain" title="Ed25519 signature over the knock">signed knock</span>`;
 }
+
+/** To start from, on a site with no rules: the owner can change every word before anything happens. */
+const RULE_EXAMPLES = [
+  { label: 'Person confirms the submit', text: 'Agents can fill in my forms, but the person confirms before anything is submitted.' },
+  { label: 'Limit how often', text: 'Agents can fill in my forms, but no more than ten submissions an hour.' },
+  { label: 'Keep a question for the person', text: 'Agents can fill in my forms, but only the person may answer questions about their health or their finances.' },
+];
 
 const COOKIE = 'usher_site';
 const SESSION_HOURS = 12;
@@ -174,6 +182,8 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
   async overview(origin: string, notice?: Raw, demo?: DemoView, options: { cards?: Raw; active?: 'tools' | 'activity' | 'rules' } = {}): Promise<string> {
     const base = demo ? '/demo/dashboard' : '/dashboard';
     const storage = this.registry.storage;
+    // A site that's mapped but has no rules has some to start from (sites mapped before this, too).
+    if (!demo) await this.registry.suggestRules(origin);
     const [records, sessions, policy, drafts, blockedAll, explanations] = await Promise.all([
       storage.mapsForOrigin(origin),
       storage.listSessions(origin),
@@ -280,7 +290,13 @@ ${demo ? '' : pending.map((d) => draftCard(d, records.map((r) => r.map)))}
         policy
           ? html`${policy.text ? html`<p><b>Your rules:</b> “${policy.text}”</p>` : ''}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p>${policySummary(policy.policy, records.map((r) => r.map))}
 <details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details>`
-          : html`<p class="muted">No rules yet. Agents may use your forms, and they ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p>`
+          : demo
+            ? html`<p class="muted">No rules yet. Agents may use your forms, and they ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p>`
+            : pending.length
+              ? html`<p class="muted">Nothing above applies until you confirm it. Until then, agents may fill in your forms and ask the person before anything that matters.</p>`
+              : html`<p><b>You haven't set any rules yet.</b> Until you do, Usher's defaults apply:</p>
+<ul><li>Agents may fill in your forms.</li><li>They ask the person before anything that matters, such as submitting.</li><li>Declarations and payments are always the person's own.</li></ul>
+<p class="rules-next"><label for="rules-text" class="button">Write my rules</label> <span class="small muted">Tell Usher what you want in the box at the bottom right, in your own words.</span></p>`
       }${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}</div>
 ${
         demo
@@ -289,11 +305,12 @@ ${
   <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Preview policy</button></p>
 </form>`)}`
-          : html`${partner('Change your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
-  <p><label for="rules-text">Say them in plain English. You check the policy before anything changes.</label></p>
-  <textarea id="rules-text" name="text" required placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
+          : html`${partner(policy || pending.length ? 'Change your rules' : 'Tell Usher your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
+  <p><label for="rules-text">${policy || pending.length ? 'What should change?' : 'What may agents do on your site?'} Say it in your own words. You check it before anything changes.</label></p>
+  ${policy || pending.length ? '' : html`<p class="fill-examples small"><span class="muted">Start from one:</span> ${RULE_EXAMPLES.map((e) => html`<button type="button" class="secondary small" data-fill="${e.text}">${e.label}</button> `)}</p>`}
+  <textarea id="rules-text" name="text" required placeholder="Agents can fill in my forms, but the person confirms before anything is submitted."></textarea>
   <p><button type="submit">Propose policy</button></p>
-</form>`, { open: !policy })}`
+</form>`, { open: !policy && !pending.length, keep: !policy && !pending.length })}`
       }
 </section>
 </div>`,
@@ -411,8 +428,8 @@ ${policy.retention?.session_days ? html`<p class="small">Sessions kept ${policy.
 
 function draftCard(draft: RulesDraft, maps: import('@usher/core').UsherMap[]): Raw {
   return html`<div class="card notice">
-<p><b>Proposed from:</b> “${draft.text}”</p>
-<p class="small">${draft.summary} <span class="muted">(${draft.model}, ${when(draft.created_at)})</span></p>
+${draft.model === SUGGESTED_BY ? html`<p><b>Your starting rules.</b> ${draft.summary}</p><p>“${draft.text}”</p>` : html`<p><b>Proposed from:</b> “${draft.text}”</p>
+<p class="small">${draft.summary} <span class="muted">(${draft.model}, ${when(draft.created_at)})</span></p>`}
 ${policySummary(draft.policy, maps)}
 <details><summary>Policy JSON</summary><pre>${JSON.stringify(draft.policy, null, 2)}</pre></details>
 <form class="inline" method="post" action="/dashboard/rules/${draft.id}/confirm"><button type="submit">Confirm and apply</button></form>

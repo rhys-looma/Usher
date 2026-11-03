@@ -7,6 +7,7 @@ import {
   importSigningKey,
   knockSchemaErrors,
   mapSchemaErrors,
+  policySchemaErrors,
   randomId,
   signToken,
   verifySignedRequest,
@@ -33,6 +34,7 @@ import {
   type BrowserPlan,
   type UsherPlan,
   effectiveRules,
+  looserRules,
   defaultRule,
   stricterRule,
   intentLabel,
@@ -311,6 +313,8 @@ export function knockRules(effective: EffectiveRules): Rules {
   return { agents: effective.agent_lane ? 'allowed' : 'denied', confirm: ['consequential'], human_only: ['needs_user'], actions: effective.actions };
 }
 
+/** Who wrote a suggestion that came from the maps rather than a model. */
+export const SUGGESTED_BY = 'usher';
 /** How long the same words proposed again get the same proposal back. */
 const REPEAT_PROPOSAL_MS = 10 * 60_000;
 
@@ -1350,6 +1354,35 @@ export class Registry {
     // Unchanged since the last start: keep when it was set (the setup strip reads it).
     if (current && current.text === text && JSON.stringify(current.policy) === JSON.stringify(policy)) return;
     await this.storage.putPolicy({ policy, text, draft: 'seed', confirmed_at: this.now().toISOString() });
+  }
+
+  /**
+   * Rules to start from, written from a site's published maps by code: no model call, and only a
+   * proposal, so nothing changes until the owner confirms it. Replaces an earlier suggestion that's
+   * still waiting, since the maps may have changed; never replaces anything the owner wrote.
+   */
+  async suggestRules(origin: string, options: { refresh?: boolean } = {}): Promise<void> {
+    if (await this.storage.getPolicy(origin)) return;
+    const drafts = (await this.storage.listDrafts(origin)).filter((d) => d.status === 'pending');
+    const ours = drafts.filter((d) => d.model === SUGGESTED_BY);
+    if (drafts.length > ours.length || (ours.length && !options.refresh)) return;
+    const maps = (await this.mapsFor(origin)).filter((r) => visibleTo(r)).map((r) => r.map);
+    if (!maps.length) return;
+    const submits = maps.some((m) => m.actions.some((a) => a.key === 'form.submit'));
+    const policy: UsherPolicy = {
+      usher_policy: '0.1',
+      origin,
+      default: { agent_lane: true, actions: submits ? { 'form.submit': 'confirm' } : {}, rate_limits: submits ? [{ action: 'form.submit', per: 'agent', max: 10, window: 'hour' }] : [] },
+    };
+    if (policySchemaErrors(policy) || looserRules(policy, maps).length) return;
+    const labels = new Map(maps.flatMap((m) => [...m.fields, ...m.actions].map((e) => [e.key, e.label || e.key] as const)));
+    const theirs = [...new Set(maps.flatMap((m) => {
+      const here = new Set([...m.fields, ...m.actions].map((e) => e.key));
+      return Object.entries(effectiveRules(policy, m, m.path).actions).filter(([k, v]) => here.has(k) && v !== 'allow').map(([k]) => k);
+    }))].map((k) => `“${labels.get(k) ?? k}”`);
+    const text = `Agents can fill in my forms.${theirs.length ? ` The person answers or confirms these themselves: ${theirs.join(', ')}.` : ''}${submits ? ' At most 10 submissions an hour for each agent.' : ''}`;
+    for (const old of ours) await this.storage.putDraft({ ...old, status: 'superseded' });
+    await this.storage.putDraft({ id: `r_${randomId(9)}`, origin, text, policy, summary: 'Written from your maps. Confirm it, or tell Usher what to change.', model: SUGGESTED_BY, created_at: this.now().toISOString(), status: 'pending' });
   }
 
   /** Applies a draft the owner has read. Nothing changes until this is called. */

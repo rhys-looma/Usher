@@ -5,7 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser } from 'playwright';
-import { dateFormatOf, datePart, formatDate, isDateKey, matchOption, preflight, scanScript, type OptionItem, type Scan } from '../src/index.ts';
+import { safeReason, dateFormatOf, datePart, formatDate, isDateKey, matchOption, preflight, scanScript, type OptionItem, type Scan } from '../src/index.ts';
 
 
 test('options: value, label, yes/no, and the one number an option carries', () => {
@@ -100,4 +100,11 @@ test('smoking with three answers: "no" alone matches none of them, so the person
   const smoker = [{ value: '1', label: "I've never smoked" }, { value: '2', label: 'I used to smoke' }, { value: '3', label: 'I smoke now' }];
   assert.equal(matchOption(smoker, 'no'), null, 'a non-smoker may have smoked in the past');
   assert.equal(matchOption(smoker, "I've never smoked"), '1');
+});
+
+test('a browser error never carries what was typed into a reason', () => {
+  const reason = safeReason(new Error('locator.fill: Error: Malformed value\nCall log:\n  - fill("Sam Taylor")'));
+  assert.doesNotMatch(reason, /Sam|locator|Call log/);
+  assert.match(reason, /didn't accept one of the answers/);
+  assert.equal(safeReason(new Error('No way forward on /x.')), 'No way forward on /x.', 'our own words stay');
 });
