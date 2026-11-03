@@ -50,6 +50,8 @@ app.post('/usher/handoff', async (req, res) => {
 
 `saveResult`, `findResultByUsherSession`, `startNewSession` and `resultPageFor` stand for your own code.
 
+`@usher/site-middleware` isn't on npm yet. Build it from [`packages/site-middleware`](../packages/site-middleware) in this repository, or follow the checks below.
+
 Then choose **Open it on your site** on the task's page and enter the route.
 
 ### With another language

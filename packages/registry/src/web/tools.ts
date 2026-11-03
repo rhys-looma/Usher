@@ -13,6 +13,14 @@ import { shownWhen } from './walkthrough.ts';
 const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 
 export const TOOLS_STYLE = `
+.after label, .after details { display:block; margin:14px 0; }
+.after label.check { display:flex; gap:10px; align-items:flex-start; margin:10px 0; }
+.after label.check input { flex:none; margin-top:5px; }
+.after input[type=text], .after textarea, .after select { display:block; width:100%; max-width:560px; margin-top:4px; }
+.after fieldset { border:0; margin:0; padding:0; }
+.after legend { font-weight:600; padding:0; }
+.after summary { cursor:pointer; }
+
 .dash-nav { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:4px 22px; align-items:center; background:var(--bg); border-bottom:1px solid var(--line); margin:0 0 22px; padding:10px 0 0; }
 .dash-nav a { padding:6px 2px 10px; text-decoration:none; font-weight:600; font-size:15px; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-1px; }
 .dash-nav a:hover { color:var(--ink); }
@@ -197,7 +205,7 @@ const AFTER_SHOW: { show: SiteHandoff['show']; title: string }[] = [
 ];
 
 /** The owner's choice of what happens when the task finishes; read-only on the public demo. */
-function afterCard(action: string, input: { origin: string; demo: boolean; handoff: SiteHandoff; registryUrl: string }): Raw {
+function afterCard(action: string, input: { origin: string; intent: string; demo: boolean; handoff: SiteHandoff; registryUrl: string }): Raw {
   const h = input.handoff;
   if (input.demo) return html`<div class="card" id="after"><h2>When it finishes</h2><p><b>${AFTER_MODES.find((m) => m.mode === h.mode)!.title}.</b> ${AFTER_MODES.find((m) => m.mode === h.mode)!.what}</p></div>`;
   const snippet = `import { createUsherCheck, sendHandoffPage } from '@usher/site-middleware';
@@ -205,7 +213,7 @@ function afterCard(action: string, input: { origin: string; demo: boolean; hando
 const usher = createUsherCheck({
   registry: '${input.registryUrl}',
   origin: '${input.origin}',
-  intent: 'your.task',
+  intent: '${input.intent}',
 });
 
 // 1. Where the result is created: remember which Usher session asked for it.
@@ -222,7 +230,7 @@ app.post('${h.redirect?.url ?? '/usher/handoff'}', async (req, res) => {
   startNewSession(res, result);        // your own cookie, as after any sign-in
   res.redirect(resultPageFor(result));
 });`;
-  return html`<form class="card stack" method="post" action="${action}/after" id="after"><h2>When it finishes</h2>
+  return html`<form class="card after" method="post" action="${action}/after" id="after"><h2>When it finishes</h2>
 <p class="small muted">What the person gets once this task is done.</p>
 <fieldset class="after-modes"><legend>Where they go next</legend>${AFTER_MODES.map((m) => html`<label class="check"><input type="radio" name="mode" value="${m.mode}"${h.mode === m.mode ? ' checked' : ''}> <span><b>${m.title}</b><br><span class="small muted">${m.what}</span></span></label>`)}</fieldset>
 <label>What it returns <select name="show">${AFTER_SHOW.map((s) => html`<option value="${s.show}"${h.show === s.show ? ' selected' : ''}>${s.title}</option>`)}</select></label>
@@ -237,7 +245,7 @@ app.post('${h.redirect?.url ?? '/usher/handoff'}', async (req, res) => {
 <label>What the link says <input type="text" name="redirect_label" value="${h.redirect?.label ?? 'Open your result'}" maxlength="80"></label>
 <p class="small">Ask your developer to add this before you switch it on. Until the route exists, the link leads to a page that isn't there. Usher never sees your session: your server checks the token and signs the person in itself.</p>
 <pre class="wrap small">${snippet}</pre>
-<p class="small"><a href="${REPOSITORY}/blob/main/docs/handoff.md">The full guide</a>, including other languages and what to check first.</p></details>
+<p class="small"><a href="${REPOSITORY}/blob/main/docs/handoff.md">The full guide</a>, including other languages and what to check first. The package isn't on npm yet; the guide says where to get it.</p></details>
 <p class="tool-buttons"><button type="submit">Save</button></p></form>`;
 }
 
@@ -287,7 +295,7 @@ ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${inp
 <div class="flow-group" id="flow"><p>The steps</p>${flowStrip(steps(view, input.base), { label: `Steps in ${title}`, current: index, end })}</div>
 ${stepPanel(view, index, input)}
 ${edit}
-${afterCard(action, input)}
+${afterCard(action, { ...input, intent: tool.intent })}
 <div class="card"><h2>How it's been used</h2>
 ${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Agent session</th><th>Events</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td>${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}" class="mono">${s.id.slice(0, 14)}…</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}
 ${view.blocked.length ? html`<p class="small"><a href="${input.base}#blocked">${plural(view.blocked.length, 'blocked attempt')}</a> on these pages.</p>` : ''}</div>`,
