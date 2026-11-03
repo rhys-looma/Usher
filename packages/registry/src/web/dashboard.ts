@@ -188,7 +188,11 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     const mappingRuns = sessions.filter(isMappingRun);
     const agentSessions = sessions.filter((s) => !isMappingRun(s));
     const byAgent = new Map<string, Session[]>();
-    for (const s of agentSessions) byAgent.set(s.agent, [...(byAgent.get(s.agent) ?? []), s]);
+    // Each hosted connection gets its own key, so its id says nothing: they're one line.
+    for (const s of agentSessions) {
+      const who = s.identity?.method === 'hosted' ? 'hosted' : s.agent;
+      byAgent.set(who, [...(byAgent.get(who) ?? []), s]);
+    }
     const pending = drafts.filter((d) => d.status === 'pending');
     // One row per form: its current (newest) version, with what happened to the ones before.
     const byPath = new Map<string, MapRecord[]>();
@@ -254,7 +258,7 @@ ${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/expl
 <div class="card"><table>
 <thead><tr><th>Who</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
 <tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td>${whoRan(list[0]!)} <span class="mono small muted" title="${agent}">${shortAgent(agent, list[0]?.identity?.method === 'hosted')}</span></td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
+        ([agent, list]) => html`<tr><td><a href="${base}/sessions/${list[0]!.id}">${whoRan(list[0]!)}</a>${agent === 'hosted' ? '' : html` <span class="mono small muted" title="${agent}">${shortAgent(agent)}</span>`}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
 <td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} steps</a> `)}</td></tr>`,
       ) : html`<tr><td colspan="4" class="muted">No agent sessions yet.</td></tr>`}</tbody></table>
 ${mappingRuns.length ? html`<p class="small muted">Your own mapping runs aren't counted here: ${mappingRuns.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${when(s.created_at)}</a> `)}</p>` : ''}</div>

@@ -158,3 +158,36 @@ test('the seeded route isn\'t under /usher/, which the CDN treats as static and 
   assert.ok(/"\/usher\/\*"/.test(cdn), 'what this guards against');
   for (const entry of Object.values(seeded)) assert.doesNotMatch(entry.redirect?.url ?? '', /^\/usher\//);
 });
+
+test('a question the owner wants confirmed stays a question: the person\'s answer goes in, "no" included', async () => {
+  const before = await registry.registry.storage.getPolicy(site.url);
+  await registry.registry.storage.putPolicy({ ...before!, policy: { ...before!.policy, default: { ...before!.policy.default, actions: { ...before!.policy.default.actions, 'person.employment_status': 'confirm' } } } });
+  await registry.registry.setSiteHandoff(site.url, INTENT, { mode: 'none' });
+  type Reply = { structuredContent: { status: string; id: string; reason?: string; decisions?: { key: string; kind: string; value?: string; options?: string[] }[] } };
+  try {
+    const run = async (given: Record<string, unknown>, answer: (d: { key: string; kind: string; options?: string[] }) => unknown) => {
+      const seen: { key: string; kind: string; value?: string; options?: string[] }[] = [];
+      let reply = (await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/quote/driver`, intent: INTENT, values: given } })) as unknown as Reply;
+      while (reply.structuredContent.status === 'needs_decision') {
+        seen.push(...reply.structuredContent.decisions!);
+        const answers = Object.fromEntries(reply.structuredContent.decisions!.map((d) => [d.key, answer(d)]));
+        reply = (await client.callTool({ name: 'usher_confirm', arguments: { id: reply.structuredContent.id, answers } })) as unknown as Reply;
+      }
+      return { status: reply.structuredContent.status, reason: reply.structuredContent.reason, asked: seen.find((d) => d.key === 'person.employment_status') };
+    };
+    const yes = (d: { key: string }) => d.key !== 'consent.marketing';
+    // Not told yet: asked, with the site's options; not a tick box to skip.
+    const { 'person.employment_status': said, ...rest } = values as Record<string, unknown>;
+    const asked = await run(rest, (d) => (d.key === 'person.employment_status' ? d.options!.at(-1) : yes(d)));
+    assert.equal(asked.asked?.kind, 'missing_value');
+    assert.ok(asked.asked?.options?.length, 'with its options');
+    assert.equal(asked.status, 'completed', asked.reason);
+    // Already told: put back to them as they said it, then entered.
+    const checked = await run({ ...rest, 'person.employment_status': said }, yes);
+    assert.equal(checked.asked?.kind, 'confirm_value');
+    assert.ok(checked.asked?.value);
+    assert.equal(checked.status, 'completed', checked.reason);
+  } finally {
+    await registry.registry.storage.putPolicy(before!);
+  }
+});

@@ -115,6 +115,11 @@ test('dashboard: a rule in English becomes policy, then applies on confirm', asy
   assert.equal(proposed.status, 200, proposed.text.slice(0, 400));
   assert.match(proposed.text, /Proposed\. Check the policy below/);
   assert.match(proposed.text, /Confirm and apply/);
+  // The same words again: the same proposal, not another model call or another card.
+  const drafts = async () => (await registry.registry.storage.listDrafts('http://localhost:4100')).filter((d) => d.status === 'pending').length;
+  const pending = await drafts();
+  await dash('/dashboard/rules', cookie, { text: rules[0]!.text });
+  assert.equal(await drafts(), pending);
   const id = /\/dashboard\/rules\/(r_[A-Za-z0-9_-]+)\/confirm/.exec(proposed.text)![1]!;
   const applied = await dash(`/dashboard/rules/${id}/confirm`, cookie, {});
   assert.match(applied.text, /Rules applied/);

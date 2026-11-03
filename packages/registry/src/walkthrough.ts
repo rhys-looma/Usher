@@ -343,7 +343,10 @@ export class Walkthroughs {
   subscribe(origin: string, id: string, listener: (e: WalkthroughEvent) => void): (() => void) | null {
     const live = this.live.get(id);
     if (!live || live.run.origin !== origin) return null;
+    // What this listener missed, so a question asked before the page connected still reaches it.
     for (const text of live.run.log) listener({ type: 'log', text });
+    for (const message of live.run.chat ?? []) listener({ type: 'chat', message });
+    if (live.run.waiting) listener({ type: 'waiting', waiting: true });
     live.listeners.add(listener);
     return () => live.listeners.delete(listener);
   }

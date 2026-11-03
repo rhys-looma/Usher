@@ -170,6 +170,11 @@ test('a conversation: from the home page, by a click, a choice and words, two jo
   try {
     // The home page has no form: Usher asks, offering the declared journeys by their link text.
     let run = await until(site.url, (r) => Boolean(r.waiting), 'the first question');
+    // A page that connects after the question was asked still gets it, and knows it's the owner's turn.
+    const missed: { type: string }[] = [];
+    walk.subscribe(site.url, run.id, (e) => missed.push(e))?.();
+    assert.ok(missed.some((e) => e.type === 'chat'), 'the conversation so far');
+    assert.equal(missed.at(-1)?.type, 'waiting', 'and whose turn it is');
     assert.equal(run.pages.length, 0);
     const first = lastChoices(run);
     assert.deepEqual(first.slice(0, 2).map((c) => [c.label, c.path]), [['Health insurance', '/health/about'], ['Car insurance', '/quote/driver']]);

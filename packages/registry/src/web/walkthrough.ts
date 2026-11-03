@@ -316,7 +316,9 @@ export const WALKTHROUGH_JS = `(() => {
   const frame = document.getElementById('live-frame');
   const log = document.getElementById('live-log');
   const source = new EventSource(live.getAttribute('data-events'));
-  let seen = log.children.length;
+  // Each connection replays the whole run: skip what's already on the page, on a reconnect too.
+  let seen = 0;
+  source.addEventListener('open', () => { seen = log.children.length; });
   source.addEventListener('frame', (e) => { frame.src = 'data:image/jpeg;base64,' + e.data; });
   // Always in view: what Usher is at, in plain words, and for how long, so a slow step never looks stuck.
   const activity = document.getElementById('live-activity');
@@ -400,7 +402,13 @@ export const WALKTHROUGH_JS = `(() => {
     chat.appendChild(box);
     chat.scrollTop = chat.scrollHeight;
   };
-  source.addEventListener('chat', (e) => { const m = JSON.parse(e.data); render(m); if (m.from === 'usher' && /^Mapped /.test(m.text)) mapped(1); });
+  let seenChat = 0;
+  const shownChat = () => chat.querySelectorAll('.msg:not(.thinking)').length;
+  source.addEventListener('open', () => { seenChat = shownChat(); });
+  source.addEventListener('chat', (e) => {
+    if (seenChat > 0) { seenChat--; return; }
+    const m = JSON.parse(e.data); render(m); if (m.from === 'usher' && /^Mapped /.test(m.text)) mapped(1);
+  });
   source.addEventListener('waiting', (e) => { const w = JSON.parse(e.data); setWaiting(w); setYours(w); });
   const cost = document.getElementById('live-cost');
   source.addEventListener('cost', (e) => { if (cost) cost.textContent = e.data; });
