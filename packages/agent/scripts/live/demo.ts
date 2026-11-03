@@ -257,9 +257,9 @@ async function siteSees(): Promise<void> {
 
 async function govuk(): Promise<void> {
   const state = await reset();
-  // Try it on GOV.UK: the front page's map viewer.
+  // Try it on GOV.UK: the map viewer.
   const left = await window('left');
-  await left.goto(`${REGISTRY}/#try`);
+  await left.goto(`${REGISTRY}/viewer`);
   const viewStarted = Date.now();
   await Promise.all([left.waitForURL(/\/viewer/, { timeout: 120_000, waitUntil: 'load' }), left.locator('button[name="form"][value="govuk-contact"]').click()]);
   const viewMs = Date.now() - viewStarted;

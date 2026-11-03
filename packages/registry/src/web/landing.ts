@@ -1,12 +1,10 @@
 // The front page (LU-53), told to a site's owner: let AI agents use your site, on your terms. The
 // hero; what they get (access, control, audit); one session from both sides on the hosted path, and
-// what Usher keeps; the setup; agents, briefly; the map viewer (when it is on); the numbers from the
-// committed reports; and an interest form that carries Usher's own script tag.
+// what Usher keeps; the setup; agents, briefly; the numbers from the committed reports; and an interest form
+// that carries Usher's own script tag.
 
 import { readFile, readdir } from 'node:fs/promises';
 import { FAVICON, LOOMA_FOOTER, THEME, esc, html, type Raw } from './html.ts';
-import type { PickerForm } from './picker.ts';
-import { PICKER_STYLE, pickerButtons } from './viewer.ts';
 import { CARD_CSS, CARD_DARK } from './cards.ts';
 import { KEEPS, KEEPS_HEADING } from './keeps.ts';
 
@@ -143,10 +141,6 @@ export interface LandingOptions {
   /** Usher's own site key, for the tag on the interest form. */
   siteKey?: string;
   numbers: Numbers;
-  /** The forms anyone can map from the "Try it" box. */
-  forms?: PickerForm[];
-  /** The viewer box: what was pasted, and a reason if it failed. */
-  viewer?: { url: string; error: string };
   interest?: { error?: string };
   /** Link the demo site's public dashboard (/demo/dashboard). */
   demo?: boolean;
@@ -312,12 +306,6 @@ ${o.hosted
   : html`<pre>${mcp}</pre>
 <p><code>get_plan</code> gives you the journey and the rules; <code>prepare_run</code> puts your user's answers in the site's own form; you fill and stop where the rules say.</p>`}
 </div></section>
-${o.forms?.length ? html`<section id="try" data-reveal><h2>See what a map is</h2>
-<p class="lede">A map is how Usher reads a form: what each field means and how risky it is to act on. Structure only, never anything typed. Pick a form and nothing is submitted.</p>
-${o.viewer ? html`<div class="card error">${o.viewer.error}</div>` : ''}
-${pickerButtons(o.forms, 'home')}
-</section>` : ''}
-
 ${numbersSection(o.numbers)}
 
 <section id="interest" data-reveal><h2>Talk to us</h2>
@@ -353,7 +341,7 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <script src="/site.js" defer></script>
 ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o.url)}" data-usher-site-key="${esc(o.siteKey)}" defer></script>\n` : ''}</head>
 <body>
-<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a>${o.forms?.length ? '<a href="#try">Try it</a>' : ''}<a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
+<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
 <div class="foot-brand"><a class="brand" href="/">Usher</a><p>Let AI agents use your site, on your terms. Maps hold structure, never values.</p></div>
@@ -373,7 +361,6 @@ ${LOOMA_FOOTER}
 const LANDING_STYLE = `
 ${THEME}
 section { margin:0 0 56px; }
-${PICKER_STYLE}
 /* Sections settle into place as they come near (site.js). Content is always present and fully
    visible: only position moves, so pages without JavaScript and screenshots see everything. */
 ${CARD_CSS}
