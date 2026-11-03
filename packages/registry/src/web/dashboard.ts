@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
-import { html, page, ruleBadge, siteClaims, when, type Raw } from './html.ts';
+import { html, page, ruleBadge, siteClaims, when, type Raw, partner } from './html.ts';
 import { TOOLS_STYLE, dashNav, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
@@ -162,8 +162,8 @@ export class Dashboard {
 ${siteClaims()}
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card" method="post" action="/dashboard/login">
-  <p><label>Site origin<br><input type="text" name="origin" required placeholder="https://quote.example"></label></p>
-  <p><label>Secret key<br><input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label></p>
+  <label>Your site's address <input type="text" name="origin" required placeholder="https://www.example.com" autocomplete="url"></label>
+  <label>Secret key <input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label>
   <button type="submit">Sign in</button>
 </form>
 <p class="small muted">No keys yet? <a href="/sites/new">Get your keys</a>. Lost your secret key? <a href="/sites/lost">Get a new one</a>.</p>`,
@@ -244,7 +244,7 @@ ${options.cards ?? ''}
           ? html`${explanations.map((e) => html`<h3><code>${e.path}</code> <span class="muted small">${e.sessions} session${e.sessions === 1 ? '' : 's'} · ${e.model} · ${when(e.created_at)}</span></h3><p>${e.text}</p>`)}`
           : html`<p class="muted">No explanations yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Generate them once agents have used your forms.' : ''}</p>`
       }
-${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
+${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain" data-busy="Muse Spark is reading the sessions…"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
 
 <h2 id="sessions">Agent sessions</h2>
 <div class="card"><table>
@@ -274,17 +274,17 @@ ${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher'
       }${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}</div>
 ${
         demo
-          ? html`${demo.preview ?? ''}<form class="card" method="post" action="/demo/dashboard/rules" id="sandbox">
-  <p><label for="rules-text"><b>Try the rules sandbox.</b> Write rules in plain English and see the policy Muse Spark makes of them for these forms. <span class="badge rule-confirm">preview only, not applied</span></label></p>
+          ? html`${demo.preview ?? ''}${partner('Try the rules', html`<form method="post" action="/demo/dashboard/rules" id="sandbox" data-busy="Muse Spark is writing the policy…">
+  <p><label for="rules-text">Say the rules in plain English and see the policy. <span class="badge rule-confirm">preview only</span></label></p>
   <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Preview policy</button></p>
-</form>`
+</form>`)}`
           : html`${pending.map((d) => draftCard(d, records.map((r) => r.map)))}
-<form class="card" method="post" action="/dashboard/rules">
-  <p><label for="rules-text"><b>Write your rules in plain English.</b> Muse Spark turns them into a policy for you to check before anything changes.</label></p>
+${partner('Change your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
+  <p><label for="rules-text">Say them in plain English. You check the policy before anything changes.</label></p>
   <textarea id="rules-text" name="text" required placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
   <p><button type="submit">Propose policy</button></p>
-</form>`
+</form>`)}`
       }
 </section>
 </div>`,
@@ -332,7 +332,7 @@ ${policySummary(preview.policy, maps)}
 <h1>Agent session</h1>
 <p class="lede">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · intent <code>${session.intent}</code> · started ${when(session.created_at)}. Events name what was done by meaning, never what was typed.</p>
 ${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
-<form method="post" action="/dashboard/sessions/${session.id}/explain"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
+<form method="post" action="/dashboard/sessions/${session.id}/explain" data-busy="Muse Spark is reading this session…"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
 <div class="card" data-live="timeline"><ol class="timeline">${events.map(
         (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
       )}</ol></div>`,

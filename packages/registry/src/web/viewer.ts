@@ -230,7 +230,7 @@ export class Viewer {
 
 /** The picker's forms, one button each: a visitor chooses by id and never sends an address. */
 export function pickerButtons(forms: PickerForm[]): Raw {
-  return html`<form class="picker" method="post" action="/viewer">
+  return html`<form class="picker" method="post" action="/viewer" data-busy="Reading the form. This can take a minute…">
 ${forms.map((f) => html`<button type="submit" name="form" value="${f.id}"><b>${f.name}</b><span>${f.about}</span></button>`)}
 </form>`;
 }
@@ -245,7 +245,7 @@ ${pickerButtons(options.forms)}
 ${
   options.owner || options.open
     ? html`<h2>${options.owner ? 'A page on your site' : 'Any page (local demo)'}</h2>
-<form class="inline card" method="post" action="/viewer">
+<form class="inline card" method="post" action="/viewer" data-busy="Reading the page. This can take a minute…">
   <input type="url" name="url" required placeholder="${options.owner ? `${options.owner}/contact` : 'https://example.com/contact'}" value="${options.url ?? ''}" aria-label="Page address">
   <button type="submit">Build the map</button>
 </form>`

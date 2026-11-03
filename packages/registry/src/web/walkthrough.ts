@@ -7,7 +7,7 @@
 import type { UsherMap } from '@usher/core';
 import { RISKS, vocabulary } from '@usher/core';
 import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
-import { esc, html, page, when, type Raw } from './html.ts';
+import { dialog, esc, html, page, partner, when, type Raw } from './html.ts';
 import { TOOLS_STYLE, flowStrip, stepNames, type FlowStep } from './tools.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
@@ -30,6 +30,18 @@ export function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][numbe
 }
 
 export const ANNOTATE_STYLE = `
+.activity { display:flex; align-items:center; gap:10px; margin:10px 0 0; padding:10px 12px; border:1.5px solid var(--accent); border-radius:10px; background:rgba(116,52,211,.08); font-size:14px; font-weight:600; }
+.activity .count { margin-left:auto; flex:none; font-weight:400; color:var(--muted); font-variant-numeric:tabular-nums; }
+.activity.yours { border-color:#0f7a3d; background:rgba(15,122,61,.08); }
+.activity.yours .spin { animation:none; border-color:#0f7a3d; background:#0f7a3d; }
+.activity.ended .spin { display:none; }
+.run-summary { display:flex; flex-wrap:wrap; gap:14px 24px; align-items:center; justify-content:space-between; }
+.run-summary h2 { margin:2px 0 4px; }
+.run-summary p { margin:0; }
+.task-head { margin:22px 0 2px; font-size:22px; }
+.page-of { color:var(--muted); font-size:14px; }
+details.more { margin:0 0 16px; }
+details.more summary { margin-bottom:10px; }
 .annotated { position:relative; display:inline-block; max-width:100%; border:1px solid var(--line); background:var(--card); }
 .annotated img { display:block; max-width:100%; height:auto; }
 .annotated .box { position:absolute; border:2px solid; border-radius:3px; text-decoration:none; outline-offset:2px; }
@@ -64,16 +76,6 @@ table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font
 table.elements tr.saved .saved-note { display:inline; }
 .risk { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:14px; }
 .risk .risk-dot { margin:0; }
-details.correct { margin-top:6px; font-size:14px; }
-details.correct summary { display:inline-block; cursor:pointer; list-style:none; padding:3px 12px; border:1px solid var(--line); border-radius:999px; color:var(--accent,#7434d3); font-weight:600; font-size:13px; }
-details.correct summary::-webkit-details-marker { display:none; }
-details.correct[open] summary { background:var(--accent,#7434d3); border-color:var(--accent,#7434d3); color:#fff; }
-form.correct { display:grid; gap:10px; margin-top:10px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); max-width:30em; }
-form.correct label { display:grid; gap:4px; font-size:13px; font-weight:600; }
-form.correct label small { font-weight:400; color:var(--muted); }
-form.correct input, form.correct select { font:inherit; font-size:14px; padding:6px 8px; width:100%; box-sizing:border-box; }
-form.correct .row { display:flex; gap:10px; align-items:center; }
-form.correct button { padding:6px 16px; font-size:14px; }
 .live.talk { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); }
 .browser.clickable img { cursor:pointer; outline:3px solid rgba(116,52,211,.35); outline-offset:-3px; }
 .browser .hint { margin-left:auto; color:var(--accent,#7434d3); font-weight:600; }
@@ -110,12 +112,13 @@ export function annotated(input: { map: UsherMap; screenshot: string; width: num
     const leads = 'leads_to' in e && e.leads_to ? html`<span class="note">Goes on to ${e.leads_to}</span>` : '';
     const meaning = vocabulary.entries.find((v) => v.key === e.key)?.meaning;
     const key = html`<code>${e.key}</code>${meaning ? html`<small class="muted meaning">${meaning}</small>` : ''}`;
-    const edit = options.editable
-      ? html`<details class="correct"><summary>Edit</summary><form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${options.editable.path}"><input type="hidden" name="id" value="${e.id}"><input type="hidden" name="row" value="${rowId}">
-<label>What it is <small>A key from the vocabulary (start typing), or custom.something</small><input name="key" value="${e.key}" list="vocab" required spellcheck="false" autocomplete="off"></label>
+    const editable = options.editable;
+    const edit = editable
+      ? dialog(`${prefix}-edit-${e.id}`, { label: 'Edit', class: 'secondary small' }, e.label || 'Edit this', (cancel) => html`<form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${editable.path}"><input type="hidden" name="id" value="${e.id}"><input type="hidden" name="row" value="${rowId}">
+<label>What it is <small>Start typing to pick one, or use custom.something</small><input name="key" value="${e.key}" list="vocab" required spellcheck="false" autocomplete="off"></label>
 <label>Who decides<select name="risk">${RISKS.map((r) => html`<option value="${r}"${r === e.risk ? ' selected' : ''}>${RISK_CHOICES[r]}</option>`)}</select></label>
 <label>Label <small>What agents and people call it</small><input name="label" value="${e.label}"></label>
-<div class="row"><button type="submit">Save</button><span class="small muted">Saved to this run; agents see it once you publish.</span></div></form></details>`
+<p class="small muted">Agents see it once you publish.</p><p class="dialog-actions"><button type="submit">Save</button>${cancel}</p></form>`)
       : '';
     return html`<tr id="${rowId}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}${options.status?.[e.id] ? html` <span class="badge ${options.status[e.id]!}">${options.status[e.id] === 'new' ? 'New' : 'Labelled differently'}</span>` : ''}<span class="saved-note">Saved</span>${condition}${leads}</td><td>${control}</td><td><span class="risk"><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</span></td><td>${key}${edit}</td></tr>`;
   };
@@ -138,8 +141,8 @@ ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p
 export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean } = {}): string {
   const mode = state.published
     ? html`<fieldset class="mode"><legend>Your site has ${String(state.published)} published map${state.published === 1 ? '' : 's'}</legend>
-<label><input type="radio" name="mode" value="update" checked> <b>Update them</b> <span class="small muted">Each page starts from its published map, so your corrections stay. Anything new on the page is marked for you to check.</span></label>
-<label><input type="radio" name="mode" value="fresh"> <b>Start fresh</b> <span class="small muted">Muse Spark labels every page again, ignoring the published maps. What it labels differently is marked.</span></label>
+<label><input type="radio" name="mode" value="update" checked> <span><b>Update them</b><small>Keeps your corrections and marks anything new.</small></span></label>
+<label><input type="radio" name="mode" value="fresh"> <span><b>Start fresh</b><small>Muse Spark labels every page again.</small></span></label>
 <p class="small muted">Either way, the maps agents get stay as they are until you publish.</p></fieldset>`
     : '';
   return page(
@@ -147,26 +150,34 @@ export function startForm(origin: string, error?: string, state: { published?: n
     html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
 ${error ? html`<div class="card error">${error}</div>` : ''}
 ${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
-<form class="card stack" method="post" action="/dashboard/walkthrough">
+<form class="card stack" method="post" action="/dashboard/walkthrough" data-busy="Starting Usher's browser…">
 ${mode}
-<label>Where to start <span class="small muted">(your home page is fine: Usher asks where to go, and can map every form in one run)</span><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
-<label><input type="checkbox" name="generated" value="1" checked> Use a generated test person (fictional; nothing about anyone real)</label>
-<label>Or your own test answers, one per line as <code>key: value</code> (for example <code>person.first_name: Test</code>)<textarea name="values" rows="6"></textarea></label>
-<label><input type="checkbox" name="final" value="1"> Press the last button too (the one that submits), on this test run</label>
-<p class="small muted">Test answers stay in the run's memory: they are never stored, logged, sent to the model or shown in a screenshot (every input is masked), and are gone when the run ends. One run per day, and a run that maps nothing doesn't count; it counts against the daily model budget. While it runs you can talk to Usher, pick where it goes, or click its browser; it never leaves your site.</p>
+<label>Where to start <small>Your home page is fine. Usher asks where to go.</small><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
+<details class="more"><summary>More options</summary>
+<label><input type="checkbox" name="generated" value="1" checked> Use a made-up test person</label>
+<label>Or your own test answers <small>One per line, such as <code>person.first_name: Test</code></small><textarea name="values" rows="4"></textarea></label>
+<label><input type="checkbox" name="final" value="1"> Also press the final submit button on this test run</label>
+</details>
+<p class="small muted">One run a day. Test answers are never stored, logged or sent to the model. Usher stays on your site.</p>
 <button type="submit">Start</button></form>`,
-    { style: '.mode { border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:grid; gap:10px; } .mode legend { font-weight:600; padding:0 6px; } .mode label { display:block; } .mode label .small { display:block; margin-left:1.6em; }' },
+    { style: ANNOTATE_STYLE + '.mode { border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:0 0 18px; } .mode legend { font-weight:600; padding:0 6px; } .mode label small { display:block; color:var(--muted); font-size:13px; font-weight:400; }' },
   );
 }
 
 /** While it runs: masked frames and the step log, streamed; on finish the page reloads to the result. */
+/** What Usher is doing right now, always in view: the words, the time it has been at it, and the count so far. */
+function activity(run: WalkthroughRun): Raw {
+  const pages = run.pages.length;
+  return html`<div class="activity${run.waiting ? ' yours' : ''}" id="live-activity" role="status"><span class="spin" aria-hidden="true"></span><span class="what" id="live-what">${run.waiting ? 'Your turn: pick a choice or say where to go' : 'Usher is working…'}</span><span class="count" id="live-count" data-pages="${String(pages)}">${pages ? `${pages} mapped` : ''}</span></div>`;
+}
+
 export function liveView(run: WalkthroughRun, events: string, interactive = false): Raw {
   const steplog = html`<ol class="steplog" id="live-log">${run.log.map((l) => html`<li>${l}</li>`)}</ol>`;
   const stop = html`<form method="post" action="/dashboard/walkthrough/cancel"><input type="hidden" name="id" value="${run.id}"><button type="submit" class="secondary">Stop</button></form>`;
   if (!run.chat)
     return html`<div class="live" data-events="${events}" id="walkthrough-live">
 <div class="browser"><div class="bar"><i></i><i></i><i></i><span id="live-url">${run.start}</span></div><img id="live-frame" alt="Usher's browser, inputs masked" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></div>
-<div><h2>What Usher is doing</h2>${steplog}
+<div><h2>What Usher is doing</h2>${activity(run)}${steplog}
 ${stop}
 <p class="small muted">You can close this page: the run carries on, and the result waits here.</p></div></div>`;
   // The last message with choices is the one that can still be answered.
@@ -176,6 +187,7 @@ ${stop}
 <div><h2>Usher</h2>
 <p class="small muted">Model spend this run: $<span id="live-cost">${run.cost_usd.toFixed(3)}</span>. Usher reads up to 40 messages a run, within a daily allowance for your site.</p>
 <div class="chat" id="live-chat" aria-live="polite">${run.chat.map((m, i) => chatMessage(run, m, { interactive, open: i === open }))}</div>
+${activity(run)}
 ${interactive ? html`<form class="say" method="post" action="/dashboard/walkthrough/say" id="live-say"><input type="hidden" name="id" value="${run.id}"><textarea name="text" rows="2" maxlength="500" required placeholder="Say where to go next, or ask Usher something" aria-label="Message to Usher"></textarea><button type="submit">Send</button></form>` : ''}
 <details><summary>Step log</summary>${steplog}</details>
 ${stop}
@@ -209,11 +221,10 @@ ${edits.rules ? html`<p class="small"><b>That sounds like a site rule</b>, not a
 ${edits.refused.length ? html`<p class="small muted"><b>Left out:</b> ${edits.refused.join('; ')}.</p>` : ''}
 <form method="post" action="/dashboard/walkthrough/edit/apply" class="inline">${edits.changes.length ? html`<input type="hidden" name="id" value="${edits.id}"><button type="submit">Make these changes</button> ` : ''}<button type="submit" formaction="/dashboard/walkthrough/edit/discard" class="secondary">Discard</button></form></div>`
     : '';
-  return html`<section class="card" id="edit"><h2>Change it in words</h2>
-${error ? html`<div class="card error">${error}</div>` : ''}${pending}
-<form method="post" action="/dashboard/walkthrough/edit"><p><label for="edit-text">Tell Usher what to change, for example "the smoker question is the person's own on every page" or "call the third field the policy number".</label></p>
-<p><textarea id="edit-text" name="text" rows="3" maxlength="1000" required style="width:100%"></textarea></p>
-<p><button type="submit">Suggest changes</button> <span class="small muted">Muse Spark reads the request and the map's structure; nothing changes until you accept.</span></p></form></section>`;
+  return partner('Change it in words', html`${error ? html`<div class="card error">${error}</div>` : ''}${pending}
+<form method="post" action="/dashboard/walkthrough/edit" data-busy="Muse Spark is reading your request…"><p><label for="edit-text">Tell Usher what to change, such as "the smoker question is the person's own on every page". Nothing changes until you accept.</label></p>
+<textarea id="edit-text" name="text" rows="3" maxlength="1000" required></textarea>
+<p><button type="submit">Suggest changes</button></p></form>`, 'edit');
 }
 
 /** The conversation of a finished run, folded away above its pages. */
@@ -227,7 +238,7 @@ export function resultView(run: WalkthroughRun, options: { editable: boolean; pu
   const section = (p: WalkthroughPage, i: number) => {
     const next = p.leads_to ? pageFor(p.leads_to) : undefined;
     const diff = run.diff?.find((d) => d.path === p.path);
-    return html`<section class="card" id="page-${String(i + 1)}" data-panel><div class="page-head"><h2>${String(i + 1)}. ${stepName(p)}</h2><code>${p.path}</code><span class="small muted">${p.map.provenance.votes ? `labelled in ${p.map.provenance.votes.runs} run${p.map.provenance.votes.runs === 1 ? '' : 's'}` : ''}</span></div>
+    return html`<section class="card" id="page-${String(i + 1)}" data-panel><div class="page-head"><h2>${String(i + 1)}. ${stepName(p)}</h2><span class="page-of">Page ${String(i + 1)} of ${String(run.pages.length)}</span><code>${p.path}</code><span class="small muted">${p.map.provenance.votes ? `labelled in ${p.map.provenance.votes.runs} run${p.map.provenance.votes.runs === 1 ? '' : 's'}` : ''}</span></div>
 ${annotated(p, { anchor: `p${i + 1}`, ...(p.status && { status: p.status }), ...(options.editable && { editable: { path: p.path } }) })}
 ${p.conditions.length ? html`<p class="small"><b>What the options show:</b> ${p.conditions.map((c) => html`"${c.label}" shows ${String(c.reveals.length)} more field${c.reveals.length === 1 ? '' : 's'}; `)}</p>` : ''}
 ${p.unexplored.length ? html`<p class="small muted"><b>Seen but not mapped in this run</b> (only another option shows them): ${p.unexplored.join(', ')}.</p>` : ''}
@@ -249,15 +260,20 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
     const marks = Object.keys(p.status ?? {}).length;
     return { name: stepName(p), path: p.path, href: `#page-${run.pages.indexOf(p) + 1}`, ...(marks && { flag: `${marks} to check` }) };
   });
-  const flows = run.pages.length > 1 ? html`<p class="small muted" style="margin:16px 0 6px">Pick a page to check it.</p>${[...journeys.values()].map((pages) => html`<div class="flow-group">${journeys.size > 1 ? html`<p>${pages[0]!.map.form.purpose.replace(/:.*$/, '')}</p>` : ''}${flowStrip(flowSteps(pages), { label: 'Pages mapped' })}</div>`)}` : '';
+  // As the task page names it: from the journey's first page.
+  const taskName = (pages: WalkthroughPage[]) => pages[0]!.map.form.purpose.replace(/:.*$/, '').trim().replace(/^(.)/, (c) => c.toUpperCase());
+  const toCheck = (pages: WalkthroughPage[]) => pages.reduce((n, p) => n + Object.keys(p.status ?? {}).length, 0);
+  const flows = html`${[...journeys.values()].map((pages) => html`<div class="flow-group">${journeys.size > 1 ? html`<h2 class="task-head">${taskName(pages)}</h2>` : ''}<p class="small muted">${String(pages.length)} page${pages.length === 1 ? '' : 's'} mapped${toCheck(pages) ? ` · ${toCheck(pages)} to check` : ''}. Pick a page to check it.</p>${flowStrip(flowSteps(pages), { label: `Pages in ${taskName(pages)}` })}</div>`)}`;
   const marked = run.pages.reduce((n, p) => n + Object.keys(p.status ?? {}).length, 0);
   const mode = run.mode === 'update'
     ? html`<p class="small"><b>An update of your published maps:</b> your labels and corrections are kept${marked ? html`; ${String(marked)} element${marked === 1 ? ' is' : 's are'} new and marked <span class="badge new">New</span> for you to check` : ', and nothing is new'}.</p>`
     : marked ? html`<p class="small"><b>A fresh run:</b> ${String(marked)} element${marked === 1 ? ' is' : 's are'} new or labelled differently from your published maps, and marked.</p>` : '';
-  return html`${mode}<p>Run of ${when(run.started_at)}: <b>${run.status}</b>${run.reason ? html` (${run.reason})` : ''}. ${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'}, model spend $${run.cost_usd.toFixed(3)}.${run.published_at ? html` Published ${when(run.published_at)}.` : ''}</p>
-${options.publishAction && run.pages.length && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish these maps</button> <span class="small muted">Each one becomes a task in your assistant app, and agents get the maps from then on.</span></form>` : ''}
-<details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol></details>
+  const tasks = journeys.size;
+  const summary = run.pages.length ? html`<div class="card run-summary"><div><p class="label">${run.published_at ? 'Published' : run.status === 'completed' ? 'Ready to check' : run.status}</p><h2>${tasks === 1 ? taskName([...journeys.values()][0]!) : `${tasks} tasks`}</h2><p class="small muted">${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'} mapped${marked ? ` · ${marked} to check` : ''}${run.published_at ? ` · published ${when(run.published_at)}` : ' · not published yet'}${run.reason ? ` · ${run.reason}` : ''}</p></div>
+${options.publishAction && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish ${tasks === 1 ? 'this task' : 'these tasks'}</button></form>` : ''}</div>` : html`<p><b>${run.status}</b>${run.reason ? html`: ${run.reason}` : ''}. Nothing was mapped.</p>`;
+  return html`${mode}${summary}
 ${flows}<div class="pages" data-panels>${run.pages.map(section)}</div>
+<details><summary>Step log</summary><ol class="steplog">${run.log.map((l) => html`<li>${l}</li>`)}</ol><p class="small muted">Run of ${when(run.started_at)}, model spend $${run.cost_usd.toFixed(3)}.</p></details>
 ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(run, options.edits ?? null, options.editError) : ''}`;
 }
 
@@ -298,13 +314,46 @@ export const WALKTHROUGH_JS = `(() => {
   const source = new EventSource(live.getAttribute('data-events'));
   let seen = log.children.length;
   source.addEventListener('frame', (e) => { frame.src = 'data:image/jpeg;base64,' + e.data; });
+  // Always in view: what Usher is at, in plain words, and for how long, so a slow step never looks stuck.
+  const activity = document.getElementById('live-activity');
+  const what = document.getElementById('live-what');
+  const count = document.getElementById('live-count');
+  const plain = (line) => {
+    if (/^Labelling/.test(line)) return 'Muse Spark is reading this page';
+    if (/^Extracting/.test(line)) return 'Looking through this page';
+    if (/^Opening/.test(line)) return 'Opening your site';
+    if (/^Filled/.test(line)) return 'Filling in test answers';
+    if (/^Pressing "(.*)"/.test(line)) return 'Going on: ' + /^Pressing "(.*)"/.exec(line)[1];
+    if (/^Trying/.test(line)) return 'Trying the options to see what they show';
+    return 'Usher is working';
+  };
+  let doing = 'Usher is working'; let since = Date.now(); let yours = !!(activity && activity.classList.contains('yours'));
+  const tick = () => {
+    if (!what || yours) return;
+    const s = Math.round((Date.now() - since) / 1000);
+    what.textContent = doing + '… ' + (s >= 3 ? s + ' s' : '');
+  };
+  const ticking = setInterval(tick, 1000);
+  const setDoing = (words) => { doing = words; since = Date.now(); tick(); };
+  const setYours = (w) => {
+    yours = w;
+    if (activity) activity.classList.toggle('yours', w);
+    if (what) { if (w) what.textContent = 'Your turn: pick a choice or say where to go'; else setDoing('Usher is working'); }
+  };
+  const mapped = (n) => { if (count) { const k = Number(count.getAttribute('data-pages')) + n; count.setAttribute('data-pages', String(k)); count.textContent = k + ' mapped'; } };
   const address = document.getElementById('live-url');
   source.addEventListener('url', (e) => { if (address) address.textContent = e.data; });
   source.addEventListener('log', (e) => {
     if (seen > 0) { seen--; return; }
     const li = document.createElement('li'); li.textContent = e.data; log.appendChild(li); log.scrollTop = log.scrollHeight;
+    setDoing(plain(e.data));
   });
-  source.addEventListener('done', () => { source.close(); setTimeout(() => location.reload(), 600); });
+  source.addEventListener('done', () => {
+    clearInterval(ticking);
+    if (activity) activity.classList.add('ended');
+    if (what) what.textContent = 'Finished. Opening the result…';
+    source.close(); setTimeout(() => location.reload(), 600);
+  });
 
   // The conversation: Usher's messages and choices arrive as events; the owner answers by choice,
   // by words or by clicking the live page while Usher waits.
@@ -347,8 +396,8 @@ export const WALKTHROUGH_JS = `(() => {
     chat.appendChild(box);
     chat.scrollTop = chat.scrollHeight;
   };
-  source.addEventListener('chat', (e) => render(JSON.parse(e.data)));
-  source.addEventListener('waiting', (e) => setWaiting(JSON.parse(e.data)));
+  source.addEventListener('chat', (e) => { const m = JSON.parse(e.data); render(m); if (m.from === 'usher' && /^Mapped /.test(m.text)) mapped(1); });
+  source.addEventListener('waiting', (e) => { const w = JSON.parse(e.data); setWaiting(w); setYours(w); });
   const cost = document.getElementById('live-cost');
   source.addEventListener('cost', (e) => { if (cost) cost.textContent = e.data; });
   chat.scrollTop = chat.scrollHeight;

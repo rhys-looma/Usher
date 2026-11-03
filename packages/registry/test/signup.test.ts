@@ -105,7 +105,7 @@ test('signup: keys once, the tag, a claim that fails and says why, then passes, 
   const fresh = await browser.newPage();
   await fresh.goto(`${registry.url}/dashboard`);
   await look(fresh, 'sign in');
-  await fresh.getByLabel('Site origin').fill(site.url);
+  await fresh.getByLabel("Your site's address").fill(site.url);
   await fresh.getByLabel('Secret key').fill(secret);
   await fresh.getByRole('button', { name: 'Sign in' }).click();
   assert.match(await fresh.locator('body').innerText(), /Sign out/);

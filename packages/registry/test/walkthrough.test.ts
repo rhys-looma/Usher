@@ -541,7 +541,7 @@ test('through the dashboard: start, live events close cleanly, correct, publish'
 
   // Again, now the site has maps: an update by default, and the owner's correction is kept.
   const form = await (await fetch(`${running.url}/dashboard/walkthrough/new`, { headers: { Cookie: cookie } })).text();
-  assert.match(form, /<input type="radio" name="mode" value="update" checked> <b>Update them<\/b>/);
+  assert.match(form, /<input type="radio" name="mode" value="update" checked> <span><b>Update them<\/b>/);
   assert.ok(!form.includes('isn&#39;t published') && !form.includes("isn't published"), 'nothing unpublished to lose');
   assert.equal((await post('/dashboard/walkthrough', { start: `${site.url}/quote/driver`, generated: '1' })).status, 303);
   await stopWhenAsked();

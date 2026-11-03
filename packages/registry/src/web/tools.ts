@@ -7,7 +7,7 @@ import type { Registry, SiteApp } from '../registry.ts';
 import { siteTools, type SiteTool } from '../site-app.ts';
 import type { MapRecord, Session } from '../storage.ts';
 import type { BlockedEntry } from './dashboard.ts';
-import { html, page, riskBadge, ruleBadge, when, type Raw } from './html.ts';
+import { html, page, partner, riskBadge, ruleBadge, when, type Raw } from './html.ts';
 import { shownWhen } from './walkthrough.ts';
 
 const REPOSITORY = 'https://github.com/rhys-looma/Usher';
@@ -290,13 +290,13 @@ export function toolPage(view: ToolView, input: {
       ? html`<span class="end"><span class="n">✓</span><span><b>${finish.label}</b><small>The final step, left to the person</small></span></span>`
       : html`<span class="end"><span class="n">?</span><span><b>Not mapped yet</b><small>What comes after this page</small></span></span>`;
   const edit = input.demo ? '' : html`<form class="card tool-edit${input.suggested ? ' suggested' : ''}" method="post" action="${action}" id="edit"><h2>How assistants see it</h2>
-<p class="small muted">The name is what assistants call; the description tells them when to use it. Usher wrote these from the pages; change them in your own words, or ask Muse Spark for a suggestion.</p>
+<p class="small muted">The name is what assistants call; the description tells them when to use it. Usher wrote these from the pages; change them in your own words.</p>
 ${input.suggested ? html`<p class="suggested-note"><b>Muse Spark's suggestion is in the boxes.</b> Check it, change anything, then save. Nothing changes until you do.</p>` : ''}
 <label>Name <input type="text" name="name" value="${input.suggested?.name ?? input.own?.name ?? tool.name}" pattern="[a-z][a-z0-9_]{2,63}" required spellcheck="false" autocomplete="off"></label>
 <label>Description<textarea name="description" maxlength="600" rows="3" required>${input.suggested?.description ?? input.own?.description ?? tool.summary}</textarea></label>
 <label class="check"><input type="checkbox" name="hidden" value="1"${tool.hidden ? ' checked' : ''}> Hide this task from assistants</label>
 <details class="small"><summary>What it asks for (${String(tool.params.length)})</summary><ul>${tool.params.map((p) => html`<li><code>${p.name}</code>: ${p.description}${p.options ? html` <span class="muted">(${p.options.join(', ')})</span>` : ''}</li>`)}</ul></details>
-<p class="tool-buttons"><button type="submit">Save</button>${input.canSuggest ? html` <button type="submit" class="secondary" formaction="${action}/suggest" formnovalidate>Suggest with Muse Spark</button>` : ''}${input.suggested ? html` <a href="${action}">Discard the suggestion</a>` : ''}</p></form>`;
+<p class="tool-buttons"><button type="submit">Save</button>${input.suggested ? html` <a href="${action}">Discard the suggestion</a>` : ''}</p></form>`;
   const sessions = view.runs.slice(0, 10);
   return page(
     `${title} · ${input.origin}`,
@@ -308,6 +308,7 @@ ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${inp
 <div class="flow-group" id="flow"><p>The steps</p>${flowStrip(steps(view, input.base), { label: `Steps in ${title}`, current: index, end })}</div>
 ${stepPanel(view, index, input)}
 ${edit}
+${!input.demo && input.canSuggest ? partner('Need better words?', html`<form method="post" action="${action}/suggest" data-busy="Muse Spark is writing…"><p>Usher can write a name and description for this task. Nothing changes until you save.</p><button type="submit" class="secondary">Suggest with Muse Spark</button></form>`) : ''}
 ${afterCard(action, { ...input, intent: tool.intent })}
 <div class="card"><h2>How it's been used</h2>
 ${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Agent session</th><th>Events</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td>${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}" class="mono">${s.id.slice(0, 14)}…</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}

@@ -11,10 +11,10 @@ import { createUsherCheck } from '@usher/site-middleware';
 import { clientAddress } from '../forwarded.ts';
 import { visibleTo, type Registry } from '../registry.ts';
 import { Dashboard, recordAdminAction, type DashboardHooks } from './dashboard.ts';
-import { html, page, when } from './html.ts';
+import { dialog, html, page, when, type Raw } from './html.ts';
 import { landingPage, loadNumbers, type LandingOptions, type Numbers } from './landing.ts';
 import { ROBOTS, privacyPage, securityTxt } from './privacy.ts';
-import { DEMO_JS, PANELS_JS, SITE_JS } from './site-js.ts';
+import { DEMO_JS, PANELS_JS, SITE_JS, BUSY_JS } from './site-js.ts';
 import { RateLimiter } from '../rate-limit.ts';
 import { statusPage, statusReport, type StatusSources } from './status.ts';
 import { claimPage, explainClaim, explainRegistration, keysFile, keysPage, lostPage, startPage, tagPage } from './signup.ts';
@@ -123,6 +123,13 @@ async function readJsonBody(req: IncomingMessage, limit: number): Promise<unknow
   return JSON.parse(body || 'null') as unknown;
 }
 
+/** The admin's purge: a dialog, and the address typed exactly before the button will go. */
+const purgeDialog = (origin: string, id: string): Raw =>
+  dialog(id, { label: 'Purge', class: 'secondary small' }, `Purge ${origin}?`, (cancel) => html`<form method="post" action="/admin/sites/purge"><input type="hidden" name="origin" value="${origin}">
+<p>Deletes every record of this site: maps, sessions, rules, logs, cached values and any listing. It can't be undone.</p>
+<label>Type <code>${origin}</code> to confirm <input name="confirm" required autofocus autocomplete="off" spellcheck="false" pattern="${origin.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&')}" title="The site's address, exactly"></label>
+<p class="dialog-actions"><button class="danger">Purge everything</button>${cancel}</p></form>`);
+
 const bearerOf = (req: IncomingMessage) => /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1] ?? '';
 
 async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
@@ -147,9 +154,9 @@ function sendHtml(res: ServerResponse, status: number, body: string, options: { 
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Frame-Options': 'DENY',
-    // One inline stylesheet and forms that post to themselves. The front page also runs Usher's
-    // own site script, which talks only to this origin.
-    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;${options.siteScript ? " script-src 'self'; connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    // One inline stylesheet, this origin's own scripts (never inline) and forms that post to
+    // themselves. The front page also runs Usher's own site script, which talks only to this origin.
+    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; script-src 'self';${options.siteScript ? " connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
   });
   res.end(body);
 }
@@ -246,6 +253,10 @@ export class Web {
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
+    }
+    if (route === 'GET /busy.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(BUSY_JS), true;
     }
     if (route === 'GET /panels.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
@@ -519,40 +530,38 @@ export class Web {
     rows.sort((a, b) => (b.last ?? b.site.created_at).localeCompare(a.last ?? a.site.created_at));
     return page(
       'All sites',
-      html`<style>details.purge { margin-top:8px; } details.purge summary { cursor:pointer; color:var(--user); font-size:13px; } details.purge form { margin-top:8px; max-width:28em; } button.danger { background:var(--user); border-color:var(--user); color:#fff; }</style>
-<h1>All sites</h1><p class="lede">${String(rows.length)} registered, most recently active first. Open one to see and change it as its owner would; every change is logged and shown to the owner. <a href="/admin">Interest</a>.</p>
+      html`<h1>All sites</h1><p class="lede">${String(rows.length)} registered, most recently active first. Open one to see and change it as its owner would; every change is logged and shown to the owner. <a href="/admin">Interest</a>.</p>
 ${message ? html`<div class="card ${ok ? 'notice' : 'error'}">${message}</div>` : ''}
-<div class="card"><table><thead><tr><th>Site</th><th>Verified</th><th>Maps</th><th>Sessions</th><th>Corrections</th><th>Last agent</th><th>Registered</th><th></th></tr></thead>
+<div class="card table-scroll"><table><thead><tr><th>Site</th><th>Verified</th><th>Maps</th><th>Sessions</th><th>Corrections</th><th>Last agent</th><th>Registered</th><th></th></tr></thead>
 <tbody>${rows.map(
-        (r) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`Yes, by ${r.site.claim.method === 'well-known' ? 'file' : r.site.claim.method === 'dns' ? 'DNS' : 'development key'}` : html`<span class="muted">Not yet</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
-<td><form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${r.site.origin}"><button class="secondary">Open as owner</button></form><details class="purge"><summary>Purge</summary><form method="post" action="/admin/sites/purge" class="stack"><input type="hidden" name="origin" value="${r.site.origin}"><p class="small">Deletes every record of this site: maps, sessions, rules, logs, cached values and any listing. It can't be undone.</p><label>Type <code>${r.site.origin}</code> to confirm <input name="confirm" required autocomplete="off" spellcheck="false"></label><button class="danger">Purge everything</button></form></details></td></tr>`,
+        (r, i) => html`<tr><td class="mono">${r.site.origin}</td><td>${r.site.claim ? html`Yes, by ${r.site.claim.method === 'well-known' ? 'file' : r.site.claim.method === 'dns' ? 'DNS' : 'development key'}` : html`<span class="muted">Not yet</span>`}</td><td>${String(r.maps)}</td><td>${String(r.sessions)}</td><td>${String(r.corrections)}</td><td>${r.last ? when(r.last) : html`<span class="muted">none</span>`}</td><td>${when(r.site.created_at)}</td>
+<td><div class="row-actions"><form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${r.site.origin}"><button class="secondary small">Open as owner</button></form>${purgeDialog(r.site.origin, `purge-${i}`)}</div></td></tr>`,
       )}</tbody></table></div>
 <h2 id="mapped">Mapped, not joined</h2>
 <p>Sites Usher has maps for that haven't registered. Listing one lets hosted Usher (ChatGPT, Claude) fill it with its maps. The site runs no script and checks no token, and has set no rules, so only the defaults apply: consequential steps still wait for the person. Publishing makes the maps agents built there (private to each agent until another agrees) available to every connection.</p>
 ${mapped.length ? mapped.map(
-        (m) => html`<div class="card"><h3 class="mono">${m.origin} ${m.listing ? html`<span class="badge rule-allow">listed as ${m.listing.name}</span>` : ''}</h3>
+        (m, i) => html`<div class="card"><h3 class="mono">${m.origin} ${m.listing ? html`<span class="badge rule-allow">listed as ${m.listing.name}</span>` : ''}</h3>
 <p class="small">${String(m.maps)} map${m.maps === 1 ? '' : 's'}, ${String(m.private)} private to the agent that built ${m.private === 1 ? 'it' : 'them'}. Pages: ${m.paths.map((p) => html`<code>${p}</code> `)}</p>
-<form method="post" action="/admin/listed" class="stack">
+<div class="row-actions">${dialog(`list-${i}`, { label: m.listing ? 'Edit listing' : 'Open to hosted Usher' }, m.listing ? 'Edit this listing' : 'Open to hosted Usher', (cancel) => html`<form method="post" action="/admin/listed">
 <input type="hidden" name="origin" value="${m.origin}">
-<label>Name, as people say it <input name="name" value="${m.listing?.name ?? ''}" required></label>
-<label>A journey's first page (optional) <input name="start" value="${m.listing?.journeys[0] ? `${m.origin}${m.listing.journeys[0].start}` : ''}" placeholder="${m.origin}/…"></label>
-<label>Its intent <input name="intent" value="${m.listing?.journeys[0]?.intent ?? ''}" placeholder="quote.life_insurance"></label>
+<label>Name, as people say it <input name="name" value="${m.listing?.name ?? ''}" required autofocus></label>
+<label>First page <span class="small muted">(optional)</span><input name="start" value="${m.listing?.journeys[0] ? `${m.origin}${m.listing.journeys[0].start}` : ''}" placeholder="${m.origin}/…"></label>
+<label>Task code <input name="intent" value="${m.listing?.journeys[0]?.intent ?? ''}" placeholder="quote.life_insurance"></label>
 <label><input type="checkbox" name="publish" value="1"${m.private ? ' checked' : ''}> Publish the maps agents built here</label>
-<button>${m.listing ? 'Update listing' : 'Open to hosted Usher'}</button></form>
-<form method="post" action="/admin/sites/open" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Open as owner: maps and sessions</button></form>
-${m.listing ? html`<form method="post" action="/admin/listed/remove" style="display:inline"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}
-<details class="purge"><summary>Purge</summary><form method="post" action="/admin/sites/purge" class="stack"><input type="hidden" name="origin" value="${m.origin}"><p class="small">Deletes every record of this site: maps, sessions, rules, logs, cached values and any listing. It can't be undone.</p><label>Type <code>${m.origin}</code> to confirm <input name="confirm" required autocomplete="off" spellcheck="false"></label><button class="danger">Purge everything</button></form></details></div>`,
+<p class="dialog-actions"><button>${m.listing ? 'Update listing' : 'Open to hosted Usher'}</button>${cancel}</p></form>`)}
+<form method="post" action="/admin/sites/open"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Open as owner</button></form>
+${m.listing ? html`<form method="post" action="/admin/listed/remove"><input type="hidden" name="origin" value="${m.origin}"><button class="secondary">Close to hosted Usher</button></form>` : ''}
+${purgeDialog(m.origin, `purge-m-${i}`)}</div></div>`,
       ) : html`<p class="muted">None.</p>`}
 <h2 id="asked">Asked for, not mapped</h2>
 <p>Sites assistants asked get_plan for that Usher hasn't mapped, most asked first. Map one (list it, then walk it) to give the next assistant a plan.</p>
 ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent</th><th>Asks</th><th>Last</th></tr></thead><tbody>${asks.slice(0, 50).map((a) => html`<tr><td class="mono">${a.origin}</td><td>${a.intent ? html`<code>${a.intent}</code>` : html`<span class="muted">none given</span>`}</td><td>${String(a.asks)}</td><td>${when(a.last)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">None yet.</p>`}
-<h3>List a site with no maps yet</h3>
-<form method="post" action="/admin/listed" class="card stack">
-<label>Origin <input name="origin" placeholder="https://www.example.co.uk" required></label>
-<label>Name <input name="name" required></label>
-<label>Its first page <input name="start" placeholder="https://www.example.co.uk/quote"></label>
-<label>Intent <input name="intent" placeholder="quote.life_insurance"></label>
-<button>Open to hosted Usher</button></form>`,
+<p>${dialog('list-new', { label: 'List a site with no maps yet', class: 'secondary' }, 'List a site', (cancel) => html`<form method="post" action="/admin/listed">
+<label>Site address <input name="origin" placeholder="https://www.example.co.uk" required autofocus></label>
+<label>Name, as people say it <input name="name" required></label>
+<label>First page <span class="small muted">(optional)</span><input name="start" placeholder="https://www.example.co.uk/quote"></label>
+<label>Task code <input name="intent" placeholder="quote.life_insurance"></label>
+<p class="dialog-actions"><button>Open to hosted Usher</button>${cancel}</p></form>`)}</p>`,
     );
   }
 
@@ -651,7 +660,7 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
   }
 
   private adminLogin(error?: string): string {
-    return page('Admin', html`<h1>Admin</h1>${error ? html`<div class="card error">${error}</div>` : ''}<form class="card" method="post" action="/admin/login"><p><label>Admin key<br><input type="password" name="key" required autocomplete="off"></label></p><button type="submit">Sign in</button></form>`);
+    return page('Admin', html`<h1>Admin</h1>${error ? html`<div class="card error">${error}</div>` : ''}<form class="card" method="post" action="/admin/login"><label>Admin key <input type="password" name="key" required autocomplete="off"></label><button type="submit">Sign in</button></form>`);
   }
 
   /** The origin this browser is signed in to, once that site has proved it controls it. */
