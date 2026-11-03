@@ -34,7 +34,8 @@ function median(values: number[]): number {
 export function formFacts(map: UsherMap, sessions: Session[], blocked: BlockedFact[]): Record<string, unknown> {
   const path = map.path;
   const elements = new Map([...map.fields, ...map.actions].map((e) => [e.key, e]));
-  const relevant = sessions.filter((s) => s.events.some((e) => e.path === path));
+  // Agents only: the owner's own mapping run isn't someone using the form.
+  const relevant = sessions.filter((s) => !s.agent.startsWith('walkthrough:') && s.events.some((e) => e.path === path));
   const advance = map.actions.find((a) => a.key === 'form.submit' || a.key === 'search.submit') ?? map.actions.find((a) => a.key === 'nav.next');
   const dwell = new Map<string, number[]>();
   let submitted = 0;

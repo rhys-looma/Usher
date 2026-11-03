@@ -119,7 +119,7 @@ test('dashboard: a rule in English becomes policy, then applies on confirm', asy
   const applied = await dash(`/dashboard/rules/${id}/confirm`, cookie, {});
   assert.match(applied.text, /Rules applied/);
   assert.match(applied.text, /Your rules:<\/b> “Agents can fill in quotes, but a human confirms the submit\. Max five an hour\.”/);
-  assert.match(applied.text, /at most 5 <code>form\.submit<\/code> per agent per hour/);
+  assert.match(applied.text, /At most 5 uses of “[^”]+” an hour, for each agent\./);
 });
 
 test('dashboard: agent sessions as timelines, blocked attempts from registry and site, drift', async () => {
@@ -158,7 +158,7 @@ test('dashboard: agent sessions as timelines, blocked attempts from registry and
   assert.match(overview, /<td class="small">Usher<\/td>/, 'refused by Usher, not the site');
   assert.match(overview, /drifted/);
   assert.match(overview, /<code>\/quote\/cover<\/code>/);
-  assert.match(overview, /verified identity<\/span> <span class="small muted">Web Bot Auth · key in the knock/);
+  assert.match(overview, /An agent that proved who it is/);
 
   const timeline = await dash(`/dashboard/sessions/${knock.session}`, cookie);
   assert.equal(timeline.status, 200);

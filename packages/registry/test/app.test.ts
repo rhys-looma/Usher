@@ -182,10 +182,10 @@ test('what the model does sits in a floating panel, and shows it is working unti
   assert.equal(js.status, 200);
   assert.match(await js.text(), /data-busy/);
   const rules = await (await get('/dashboard')).text();
-  assert.match(rules, /<details class="partner" open>[\s\S]*?Change your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
+  assert.match(rules, /<details class="partner"[^>]*>[\s\S]*?Change your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
   assert.match(rules, /<script src="\/busy\.js" defer><\/script>/);
   const task = await (await get('/dashboard/tools/quote.health_insurance')).text();
-  assert.match(task, /<details class="partner" open>[\s\S]*?action="\/dashboard\/tools\/quote\.health_insurance\/suggest" data-busy=/);
+  assert.match(task, /<details class="partner">[\s\S]*?action="\/dashboard\/tools\/quote\.health_insurance\/suggest" data-busy=/);
 
   const browser = await chromium.launch();
   try {
@@ -198,6 +198,7 @@ test('what the model does sits in a floating panel, and shows it is working unti
     await page.goto(`${running.url}/dashboard/tools/quote.health_insurance`);
     // Held here, after the page's own listener, so the wait can be looked at: a page mid-navigation can't be.
     await page.evaluate(() => window.addEventListener('submit', (e) => e.preventDefault()));
+    await page.locator('.partner summary').click(); // Folded here, so it doesn't sit over the page.
     await page.getByRole('button', { name: 'Suggest with Muse Spark' }).click();
     await page.locator('.partner p.busy').waitFor();
     assert.match((await page.locator('.partner p.busy').innerText()), /Muse Spark is writing/);
