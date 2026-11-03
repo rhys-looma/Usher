@@ -46,7 +46,8 @@ test('/admin/sites needs the admin key and lists every site, proved or not', asy
   const text = await (await fetch(`${running.url}/admin/sites`, { headers: { Authorization: `Bearer ${ADMIN}` } })).text();
   assert.match(text, /<h1>All sites<\/h1>/);
   for (const origin of [claimed.origin, unclaimed.origin]) assert.ok(text.includes(origin), origin);
-  assert.match(text, /not proved/);
+  assert.match(text, /<th>Verified<\/th>/);
+  assert.match(text, /Not yet/);
   assert.equal((text.match(/Open as owner/g) ?? []).length, 2);
 });
 

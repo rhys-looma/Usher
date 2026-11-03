@@ -125,7 +125,10 @@ async function runOnce(start: string, input: { values?: Record<string, string>; 
 const fieldsOf = (run: WalkthroughRun, path: string): UsherMap['fields'] => run.pages.find((p) => p.path === path)?.map.fields ?? [];
 
 test('refusals: unclaimed site, start page elsewhere, the daily limit, the budget', async () => {
-  assert.match((await walk.refusal('https://unclaimed.example', 'https://unclaimed.example/'))!, /not proved/);
+  assert.match((await walk.refusal('https://unclaimed.example', 'https://unclaimed.example/'))!, /Verify your site first/);
+  // Verification withdrawn after a run finished: the run can't be published.
+  await running.registry.storage.putCached('walkthrough', 'https://unclaimed.example', { status: 'stopped', pages: [{ map: { fingerprint: {} } }] });
+  assert.equal(await walk.publish('https://unclaimed.example'), 0);
   assert.match((await walk.refusal(site.url, 'https://elsewhere.example/quote'))!, /must be on/);
   assert.match((await walk.refusal(site.url, 'not a url'))!, /not an address/);
   spent = 4.9;

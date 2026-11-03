@@ -803,6 +803,8 @@ export class Registry {
     const map = (request as { map?: UsherMap }).map;
     const invalid = mapSchemaErrors(map);
     if (invalid || !map) return error(400, 'invalid_map', invalid ?? 'No map.');
+    // Nothing is stored for a site that hasn't proved its address: no one maps a site over its head.
+    if (!(await this.joined(map.origin))) return error(403, 'site_not_verified', `${map.origin} hasn't verified its address, so Usher keeps no maps of it. Use the map you built yourself.`);
     if (!this.submitLimit.allow(check.agentId)) return error(429, 'rate_limited', 'Too many maps from this agent; try again in an hour.');
     const existing = await this.storage.getMap(map.origin, map.fingerprint.digest);
     // Another agent's own map for the same structure: agreeing keys count towards verifying it.
@@ -1210,7 +1212,8 @@ export class Registry {
     const [site, records, policy, theme, app] = await Promise.all([this.storage.getSite(origin), this.storage.mapsForOrigin(origin), this.storage.getPolicy(origin), this.siteTheme(origin), this.siteApp(origin)]);
     // Maps the site's own (or Usher's) work published, not an agent's unverified one.
     const published = records.filter((r) => !r.submitted_by || r.verification).map((r) => r.added_at).sort();
-    const joined = site?.claim?.verified_at ?? published[0];
+    // Only a passed check counts: maps alone don't prove a site is its owner's.
+    const joined = site?.claim?.verified_at;
     const steps: SiteSetup['steps'] = [
       { key: 'joined', label: 'Joined: your site proved its address', ...(joined && { done_at: joined }) },
       { key: 'mapped', label: 'Mapped: your forms, checked by you', ...(published[0] && { done_at: published[0] }) },
