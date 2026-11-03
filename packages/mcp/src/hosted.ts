@@ -129,9 +129,19 @@ export function siteList(joined: JoinedSite[]): string {
   return joined.map((j) => `- ${j.name} (${new URL(j.origin).host}): ${j.demo ? 'demo ' : ''}${[...new Set(j.journeys.map((x) => x.label))].join(', ')}${j.listed ? ' (mapped by Usher; the site itself hasn\'t joined)' : ''}.`).join('\n');
 }
 
+/** The MCP Apps extension a client declares when it can draw cards. */
+const UI_EXTENSION = 'io.modelcontextprotocol/ui';
+/** Clients known to draw cards, whether or not they declare it. Anyone else gets the full wording in text. */
+const CARD_CLIENTS = /^(openai-mcp|chatgpt|claude-ai)$/i;
+
+/** Whether this client draws cards: if unsure, no, so the person always gets the site's words. */
+export function drawsCards(capabilities: { extensions?: Record<string, unknown> } | undefined, client: string | undefined): boolean {
+  return Boolean(capabilities?.extensions?.[UI_EXTENSION]) || CARD_CLIENTS.test(client ?? '');
+}
+
 /** A site app's instructions: one site, its tools, its rules. */
 export function siteInstructions(name: string): string {
-  return `This is ${name}'s assistant app, run by Usher under ${name}'s rules. Each tool fills one of ${name}'s forms for the person you are helping: pass what they have told you, or their own words in details. When a tool comes back with questions, put each to them in the site's own words and answer with usher_confirm using their reply; never answer for them. Usher keeps none of their answers.`;
+  return `This is ${name}'s assistant app, run by Usher under ${name}'s rules. Each tool fills one of ${name}'s forms for the person you are helping: pass what they have told you, or their own words in details. When a tool comes back with questions, do what its result says: a card may already be showing them, so don't repeat them unless it tells you to. Answer with usher_confirm using their reply; never answer for them. Usher keeps none of their answers.`;
 }
 
 export function hostedInstructions(listed: string): string {
@@ -211,7 +221,15 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       },
       close: async () => undefined,
     });
+    // Which client this is, for telling cards from text. Its software's name only: nothing about the person.
+    const drawing = () => drawsCards(server.server.getClientCapabilities() as { extensions?: Record<string, unknown> } | undefined, server.server.getClientVersion()?.name);
+    server.server.oninitialized = () => {
+      const version = server.server.getClientVersion();
+      const declares = Boolean((server.server.getClientCapabilities() as { extensions?: Record<string, unknown> } | undefined)?.extensions?.[UI_EXTENSION]);
+      console.log(JSON.stringify({ event: 'mcp_client', client: version?.name?.slice(0, 60), version: version?.version?.slice(0, 30), declares_cards: declares, cards: drawing() }));
+    };
     const fill = registerFillTools(server, {
+      cards: drawing,
       transport,
       shareMaps: true,
       browser: options.browser,

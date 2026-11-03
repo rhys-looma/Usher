@@ -112,37 +112,74 @@ ${CARD_CSS}
     if (first) page = where(first.source.url);
     // A plan (get_plan): the person answers once, up front, for their own assistant's browser.
     var plan = d.plan_for === 'browser';
-    var html = '<div class="card">' + band() + '<p class="label">Your decision</p><h1 class="title">' + (plan ? 'Before your assistant starts' : 'Before Usher goes on') + '</h1>'
+    // A long form reads as its pages, each folding away, with its decisions on their own at the end.
+    var details = (d.decisions || []).filter(function (q) { return q.kind === 'missing_value'; });
+    var grouped = !plan && details.length >= 6;
+    var html = '<div class="card">' + band() + '<p class="label">' + (grouped ? 'Your details' : 'Your decision') + '</p><h1 class="title">' + (plan ? 'Before your assistant starts' : grouped ? 'A few details first' : 'Before Usher goes on') + '</h1>'
       + (page ? '<p class="where">' + esc(page) + '</p>' : plan && d.url ? '<p class="where">' + esc(where(d.url)) + '</p>' : '')
-      + '<p class="asking">' + (plan ? 'Your answers go to your assistant with the plan. Usher keeps none of them.' : 'Usher is asking you, not the agent') + '</p><div id="f">';
+      + '<p class="asking">' + (plan ? 'Your answers go to your assistant with the plan. Usher keeps none of them.' : 'Usher is asking you, not the agent') + '</p>'
+      + (grouped ? '<p class="progress" id="progress" role="status"></p>' : '') + '<div id="f">';
+    var rows = [];
     (d.decisions || []).forEach(function (q, i) {
       var own = blocks.filter(function (b) { return b.source && b.source.key === q.key; });
       var wording = own.filter(function (b) { return b.kind === 'consent'; });
       var text = wording[0] ? wording[0].text : q.label;
       var terms = wording.slice(1).map(function (b) { return '<div class="terms">' + esc(b.text) + (b.source.url ? '\\n<a href="#" data-open="' + esc(b.source.url) + '">' + esc(where(b.source.url)) + '</a>' : '') + '</div>'; }).join('');
-      var name = 'q' + i;
+      var name = 'q' + i, row;
       if (q.kind === 'required_consent') {
-        html += '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span class="verbatim">' + esc(text) + '<span class="tag req">required</span></span></label>' + terms + '</div>';
+        row = '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span class="verbatim">' + esc(text) + '<span class="tag req">required</span></span></label>' + terms + '</div>';
       } else if (q.kind === 'optional_consent') {
-        html += '<div class="row"><span class="verbatim">' + esc(text) + '<span class="tag opt">optional</span></span>' + terms
+        row = '<div class="row"><span class="verbatim">' + esc(text) + '<span class="tag opt">optional</span></span>' + terms
           + '<div class="yesno"><label><input type="radio" name="' + name + '" value="yes" data-key="' + esc(q.key) + '" data-kind="yesno"> Yes</label><label><input type="radio" name="' + name + '" value="no" checked data-key="' + esc(q.key) + '" data-kind="yesno"> No</label></div></div>';
       } else if (q.kind === 'submit') {
         var said = own.filter(function (b) { return b.kind === 'disclosure'; }).map(function (b) { return '<p class="disclosure">' + esc(b.text) + '</p>'; }).join('');
-        html += '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span>Yes, press <b>“' + esc(q.label) + '”</b> for me</span></label>' + said + '</div>';
+        row = '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span>Yes, press <b>“' + esc(q.label) + '”</b> for me</span></label>' + said + '</div>';
       } else if (q.kind === 'confirm_value') {
         // Theirs alone: what they said, put back to them, nothing chosen until they choose.
-        html += '<div class="row"><span class="verbatim">' + esc(q.label) + '<span class="tag req">confirm</span></span><p class="said">You said: <b>' + esc(q.value || '') + '</b></p>'
+        row = '<div class="row"><span class="verbatim">' + esc(q.label) + '<span class="tag req">confirm</span></span><p class="said">You said: <b>' + esc(q.value || '') + '</b></p>'
           + '<div class="yesno"><label><input type="radio" name="' + name + '" value="yes" data-key="' + esc(q.key) + '" data-kind="yesno"> That&#39;s right</label><label><input type="radio" name="' + name + '" value="no" data-key="' + esc(q.key) + '" data-kind="yesno"> Not right</label></div></div>';
       } else if (q.options && q.options.length) {
         // The site's own options: one is chosen, nothing chosen for them.
-        html += '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<select name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value"><option value="">Choose…</option>'
+        row = '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<select name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value"><option value="">Choose…</option>'
           + q.options.map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('') + '</select></label></div>';
       } else {
-        html += '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
+        row = '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
       }
+      rows.push({ q: q, html: row });
     });
+    if (!grouped) rows.forEach(function (r) { html += r.html; });
+    else {
+      var sections = [];
+      rows.forEach(function (r) {
+        if (r.q.kind !== 'missing_value') return;
+        var name = r.q.section || 'Your details', s = sections.filter(function (x) { return x.name === name; })[0];
+        if (!s) sections.push(s = { name: name, rows: [] });
+        s.rows.push(r);
+      });
+      sections.forEach(function (s, i) {
+        html += '<details class="section"' + (i === 0 ? ' open' : '') + ' data-section="' + i + '"><summary><span>' + esc(s.name) + '</span><span class="count"></span></summary>' + s.rows.map(function (r) { return r.html; }).join('') + '</details>';
+      });
+      var mine = rows.filter(function (r) { return r.q.kind !== 'missing_value'; });
+      if (mine.length) html += '<div class="yours"><p class="yours-head">Your decisions</p>' + mine.map(function (r) { return r.html; }).join('') + '</div>';
+    }
     html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Confirm sends your answers on. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
     root.innerHTML = html;
+    // How far through the details they are, overall and page by page; never what they typed.
+    function filled(el) { return Boolean(el && el.value && el.value.trim()); }
+    function progress() {
+      var bar = document.getElementById('progress');
+      if (!bar) return;
+      var all = document.querySelectorAll('[data-kind="value"]'), done = Array.prototype.filter.call(all, filled).length;
+      bar.textContent = done + ' of ' + all.length + ' filled in';
+      Array.prototype.forEach.call(document.querySelectorAll('details.section'), function (s) {
+        var inputs = s.querySelectorAll('[data-kind="value"]'), n = Array.prototype.filter.call(inputs, filled).length;
+        s.querySelector('.count').textContent = n === inputs.length ? 'Done' : n + ' of ' + inputs.length;
+      });
+    }
+    progress();
+    root.addEventListener('input', progress);
+    root.addEventListener('change', progress);
+    Array.prototype.forEach.call(document.querySelectorAll('details.section'), function (s) { s.addEventListener('toggle', resize); });
     // A plan's card may be left open while the person answers in the chat instead: ask Usher every
     // few seconds whether the plan was prepared, and if so, say so in place of the questions.
     var answeredHere = false;
@@ -178,7 +215,17 @@ ${CARD_CSS}
         parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
-      if (missing.length) { msg.className = 'note warn'; msg.textContent = 'Please answer every question first.'; resize(); return; }
+      if (missing.length) {
+        msg.className = 'note warn'; msg.textContent = 'Please answer every question first.';
+        // A question can't be missed because its page is folded away.
+        var firstEmpty = null;
+        Array.prototype.forEach.call(document.querySelectorAll('details.section'), function (s) {
+          var empty = Array.prototype.filter.call(s.querySelectorAll('[data-kind="value"]'), function (el) { return !filled(el); });
+          if (empty.length) { s.open = true; firstEmpty = firstEmpty || empty[0]; }
+        });
+        if (firstEmpty) firstEmpty.focus();
+        resize(); return;
+      }
       // The person's own confirmation, in their words: what the agent passes to usher_confirm.
       // A plan's answers aren't a confirmation for usher_confirm: they go to prepare_run.
       var phrase = (plan ? 'My answers for the Usher plan: ' : 'Confirm: ') + parts.join(', ');

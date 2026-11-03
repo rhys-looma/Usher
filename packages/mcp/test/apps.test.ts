@@ -19,7 +19,7 @@ import { startMockSite, type MockSite } from '../../site-middleware/test/mock-si
 import { registerSite } from '../../registry/test/sites.ts';
 import { testStorage } from '../../registry/test/storage-helper.ts';
 import { CARD_URI, claudeDomain } from '../src/apps.ts';
-import { hostedMcp } from '../src/hosted.ts';
+import { drawsCards, hostedMcp } from '../src/hosted.ts';
 
 const profile = JSON.parse(await readFile(new URL('../../agent/profiles/test-driver.json', import.meta.url), 'utf8')) as Record<string, string | boolean>;
 const { _comment: _, 'consent.declaration': _d, 'consent.marketing': _m, ...values } = profile;
@@ -47,8 +47,8 @@ after(async () => {
   await rm(dir, { recursive: true });
 });
 
-async function connect(name = 'test-client'): Promise<Client> {
-  const client = new Client({ name, version: '0' });
+async function connect(name = 'test-client', capabilities: Record<string, unknown> = {}): Promise<Client> {
+  const client = new Client({ name, version: '0' }, { capabilities });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${registry.url}/mcp`)));
   open.push(client);
   return client;
@@ -273,4 +273,57 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   await own.goto(finished.continue.url);
   await own.waitForURL(/\/health\/result$/);
   assert.match(await own.locator('.ref').innerText(), new RegExp(finished.reference));
+});
+
+test('a client that draws cards isn\'t told to repeat them; anyone else still gets the site\'s words as text', async () => {
+  assert.equal(drawsCards({ extensions: { 'io.modelcontextprotocol/ui': {} } }, 'anything'), true, 'it declares them');
+  assert.equal(drawsCards({}, 'openai-mcp'), true, 'known to draw them');
+  assert.equal(drawsCards({}, 'claude-code'), false, 'unsure: the words go in the text');
+  assert.equal(drawsCards(undefined, undefined), false);
+  const args = { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values };
+  const text = async (client: Client) => {
+    const result = await client.callTool({ name: 'usher_fill', arguments: args });
+    return { lead: (result.content as { text: string }[])[0]!.text, data: result.structuredContent as { decisions: { label: string }[]; instructions: string } };
+  };
+  const card = await text(await connect('some-host', { extensions: { 'io.modelcontextprotocol/ui': {} } }));
+  assert.match(card.lead, /Don't list or repeat them/);
+  assert.match(card.lead, /Nothing is sent until you do/);
+  assert.doesNotMatch(card.lead, /Required: “/);
+  assert.match(card.lead, /show each question word for word first/, 'the wording if they ask to answer in the chat');
+  assert.ok(card.data.decisions.length, 'the card still gets every decision');
+  const plain = await text(await connect('plain-client'));
+  assert.match(plain.lead, /1\. Required: “I confirm the information/);
+  assert.doesNotMatch(plain.lead, /Don't list or repeat/);
+});
+
+test('a long form\'s card: its pages fold, it says how far you are, and a folded page can\'t hide a missed question', async () => {
+  const client = await connect();
+  const html = ((await client.readResource({ uri: CARD_URI })).contents[0] as { text: string }).text;
+  const filled = await client.callTool({ name: 'usher_fill', arguments: { url: `${site.url}/quote/driver`, intent: 'quote.car_insurance', values: {} } });
+  const asked = (filled.structuredContent as { status: string; decisions: { kind: string; section?: string; key: string }[] });
+  assert.equal(asked.status, 'needs_decision');
+  const details = asked.decisions.filter((d) => d.kind === 'missing_value');
+  assert.ok(details.length >= 6, String(details.length));
+  assert.ok(details.every((d) => d.section), 'each by its page');
+  const page = await render(html, filled, { caps: { message: { text: {} } } });
+  const card = page.frameLocator('#v');
+  assert.equal(await card.locator('h1').textContent(), 'A few details first');
+  assert.equal(await card.locator('#progress').textContent(), `0 of ${details.length} filled in`);
+  const sections = card.locator('details.section');
+  const many = await sections.count();
+  assert.equal(new Set(details.map((d) => d.section)).size, many);
+  assert.equal(await card.locator('details.section[open]').count(), 1, 'one open to start');
+  await shot(page, 'long-form-card.png');
+  assert.equal(await card.locator('.yours-head').textContent(), 'Your decisions');
+  assert.ok((await card.locator('.yours [data-kind="consent"]').count()) > 0, 'the decisions stand apart');
+  // Typing moves the count on; what's typed isn't shown anywhere else.
+  await card.locator('details.section[open] input[type=text]').first().fill('Sam');
+  assert.equal(await card.locator('#progress').textContent(), `1 of ${details.length} filled in`);
+  assert.doesNotMatch((await card.locator('details.section[open] .count').textContent()) ?? '', /Sam/);
+  // Confirm with blanks: every folded page with a blank opens, and nothing is sent.
+  await card.locator('button#go').click();
+  assert.equal(await card.locator('#msg').textContent(), 'Please answer every question first.');
+  assert.equal(await card.locator('details.section[open]').count(), many);
+  assert.equal(await page.evaluate(() => (window as unknown as { msgs: { method?: string }[] }).msgs.filter((m) => m.method === 'ui/message').length), 0);
+  await page.close();
 });
