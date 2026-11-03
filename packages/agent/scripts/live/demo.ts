@@ -7,7 +7,7 @@
 //   npm run demo -- 3 --once          run, print the numbers and close
 //   npm run demo -- 7 --screen 2560x1440 --zoom 1.5
 //
-// Scenes: 1 fill, 2 ticket, 3 race, 4 signup, 5 rules-hold, 6 site-sees, 7 govuk, 8 diagram, 9 twenty.
+// Scenes: 1 fill, 2 ticket, 3 race, 4 signup, 5 rules-hold, 6 site-sees, 7 govuk, 8 diagram, 9 setup.
 // Scene 1 is recorded by hand in an MCP client with Brightwater's own app (its site app, first) or
 // the general endpoint (the plan path, second); the runner only resets and opens the dashboard.
 // Live model calls: scene 4's rules preview (about $0.01), and in scenes 1 and 7 the keeper's
@@ -33,7 +33,7 @@ const SCENES = [
   { n: 6, id: 'site-sees', title: 'The site sees' },
   { n: 7, id: 'govuk', title: 'Try it on GOV.UK, then the form changes' },
   { n: 8, id: 'diagram', title: 'Map, knock, log' },
-  { n: 9, id: 'twenty', title: 'The twenty minutes' },
+  { n: 9, id: 'setup', title: 'The setup' },
 ] as const;
 type SceneId = (typeof SCENES)[number]['id'];
 
@@ -292,15 +292,15 @@ async function diagram(): Promise<void> {
   print('8  Map, knock, log', { 'still': file, 'models': 'Muse Spark: maps, rules, explanations, rebuilds · Muse Spark Open: risk second opinion, keeper triage' });
 }
 
-/** The front page's twenty minutes, and Brightwater's own measured time from joining to publishing. */
-async function twenty(): Promise<void> {
+/** The front page's setup, and Brightwater's own measured time from joining to publishing. */
+async function setup(): Promise<void> {
   const page = await window('full');
-  await page.goto(`${REGISTRY}/#twenty`);
-  const steps = await page.locator('ol.twenty h3').allTextContents();
-  print('9  The twenty minutes', { 'steps': steps.join(', '), 'Brightwater joined to published': '79.1 s of machine time, $0.10 (reports/log-2026-10-29.md)', 'the owner\'s page': `${REGISTRY}/dashboard/app (signed in)` });
+  await page.goto(`${REGISTRY}/#start`);
+  const steps = await page.locator('ol.setup-steps h3').allTextContents();
+  print('9  The setup', { 'steps': steps.join(', '), 'Brightwater joined to published': '79.1 s of machine time, $0.10 (reports/log-2026-10-29.md)', 'the owner\'s page': `${REGISTRY}/dashboard/app (signed in)` });
 }
 
-const RUN: Record<SceneId, () => Promise<void>> = { fill, ticket, race, signup, 'rules-hold': rulesHold, 'site-sees': siteSees, govuk, diagram, twenty };
+const RUN: Record<SceneId, () => Promise<void>> = { fill, ticket, race, signup, 'rules-hold': rulesHold, 'site-sees': siteSees, govuk, diagram, setup };
 
 try {
   for (const id of requested) {

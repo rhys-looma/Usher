@@ -12,7 +12,7 @@ The assistant calls Brightwater's `get_health_insurance_quote`, and Usher fills 
 - its reference;
 - a "Continue on Brightwater Insurance" link to the site's own page for finishing.
 
-## The twenty minutes
+## The setup
 
 The owner works from `/dashboard/app`. Its setup strip shows each step: done, with when, or a link to do it.
 
@@ -31,7 +31,7 @@ Once the app is published, the strip shows "Joined to published" and how long it
 | Look | 79.1 s |
 | Published | 79.1 s |
 
-The rest of the twenty minutes is the owner reading and clicking. The measurement is in [reports/log-2026-10-29.md](../reports/log-2026-10-29.md).
+The rest is the owner reading and clicking. The measurement is in [reports/log-2026-10-29.md](../reports/log-2026-10-29.md).
 
 ## What the owner controls
 

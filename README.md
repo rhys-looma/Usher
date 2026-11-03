@@ -1,8 +1,8 @@
 # Usher
 
-**Your site inside every assistant in twenty minutes. Under your rules.**
+**Let AI agents use your site. On your terms.**
 
-Usher turns a site's forms into the site's own assistant app, hosted by Usher. It shows in Claude, ChatGPT and any assistant that speaks MCP, in the site's name and look. Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt.
+Usher gives a site audited AI access to its forms, with the controls in the owner's hands. The forms become the site's own assistant app, hosted by Usher, in Claude, ChatGPT and any assistant that speaks MCP, in the site's name and look. The owner writes the rules and sees every agent session. Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt.
 
 The site does four things:
 - adds one script tag;

@@ -144,6 +144,8 @@ async function reset(o: { maps: boolean; policy: boolean }): Promise<void> {
   current = new FileStorage(join(dir, `state-${++generation}`));
   await old.close?.();
   await running.registry.ensureSite(SITE, siteKey, secret);
+  // Usher only keeps maps of a verified site; this one is local, so the development way.
+  await running.registry.claimForDevelopment(SITE);
   await site.setLayout('a');
   rulesChat = rulesQuick;
   running.registry.onDrift = undefined;
@@ -290,12 +292,14 @@ const scenes: Record<string, () => Promise<void>> = {
   },
 
   async race() {
-    stage.clear('race', 'The race', 'Agent A has no map: Muse Spark reads every page, then shares the map. Agent B knocks and runs on it.', REPLAYED);
+    stage.clear('race', 'The race', 'Agent A has no map: Muse Spark reads every page. Agent B knocks and runs on the map the site published.', REPLAYED);
     await reset({ maps: false, policy: true });
     stage.pane('A', { title: 'Agent A', subtitle: 'Muse Spark · no map', status: 'Ready', counters: true });
-    stage.pane('B', { title: 'Agent B', subtitle: 'Muse Spark Open · knocks', status: 'Knocks once Agent A has shared the map', counters: true });
+    stage.pane('B', { title: 'Agent B', subtitle: 'Muse Spark Open · knocks', status: 'Knocks once the site has published its map', counters: true });
     const a = await agent('A', 'A');
-    stage.pane('A', { status: a.outcome === 'completed' ? `Quote reached · ${a.maps_submitted} maps shared` : `Stopped: ${a.reason}`, tone: a.outcome === 'completed' ? 'ok' : 'bad' });
+    stage.pane('A', { status: a.outcome === 'completed' ? `Quote reached · read ${a.pages.length} pages` : `Stopped: ${a.reason}`, tone: a.outcome === 'completed' ? 'ok' : 'bad' });
+    // What an agent shares stays its own until it's confirmed; what the site publishes is for everyone.
+    await seed(running.registry, 'mock-site', SITE);
     const b = await agent('B', 'B');
     stage.pane('B', { status: b.outcome === 'completed' ? `Quote reached · ${b.pages.filter((p) => p.map_source === 'registry').length} of ${b.pages.length} pages from maps` : `Stopped: ${b.reason}`, tone: b.outcome === 'completed' ? 'ok' : 'bad' });
     stage.number('Agent A, no map', `${secs(a.total_ms)} · ${(a.usage.prompt_tokens + a.usage.completion_tokens).toLocaleString('en-GB')} tokens · ${money(a.cost_usd)}`);
