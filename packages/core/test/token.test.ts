@@ -179,3 +179,22 @@ test('the spec examples verify: knock request signature and token', async () => 
   assert.deepEqual(verified.claims, await read('token-claims.json'));
   assert.equal(verified.claims.sub, knock.agent.id);
 });
+
+test('a handoff token is accepted only by a check that asks for one, and that check accepts nothing else', async () => {
+  const { key } = await generateSigningKey();
+  const keys: KeySet = { keys: [key.publicJwk] };
+  const claims = { iss: 'http://localhost:4200', sub: 'a'.repeat(43), origin: 'http://localhost:4100', intent: 'quote.car_insurance', map: null, sid: 's_x', iat: 1000, exp: 2000, jti: 'j'.repeat(16) };
+  const handoff = await signToken({ ...claims, scope: 'handoff' }, key);
+  const agent = await signToken(claims, key);
+  const mapper = await signToken({ ...claims, scope: 'map' }, key);
+  assert.equal((await verifyToken(handoff, { keys, now: 1500, handoff: true })).ok, true);
+  assert.deepEqual(await verifyToken(handoff, { keys, now: 1500 }).then((r) => !r.ok && r.error), 'wrong_scope');
+  for (const other of [agent, mapper]) assert.deepEqual(await verifyToken(other, { keys, now: 1500, handoff: true }).then((r) => !r.ok && r.error), 'wrong_scope');
+  // A refused token isn't used up.
+  const replay = new ReplayCache();
+  await verifyToken(handoff, { keys, now: 1500, replay });
+  assert.equal((await verifyToken(handoff, { keys, now: 1500, handoff: true, replay })).ok, true);
+  assert.equal((await verifyToken(handoff, { keys, now: 1500, handoff: true, replay })).ok, false, 'one use');
+  assert.equal((await verifyToken(handoff, { keys, now: 3000, handoff: true })).ok, false, 'expired');
+  assert.equal((await verifyToken(handoff, { keys, now: 1500, handoff: true, origin: 'https://other.example' })).ok, false, 'another site');
+});

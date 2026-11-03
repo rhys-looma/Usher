@@ -305,7 +305,8 @@ ${
       const record = records.find((r) => r.digest === digest);
       return record && visibleTo(record) ? `/maps/view?origin=${encodeURIComponent(origin)}&digest=${encodeURIComponent(digest)}` : undefined;
     };
-    return toolPage(view, { origin, step: input.step, base: demo ? '/demo/dashboard' : '/dashboard', demo, published: Boolean(app.enabled), own: app.tools?.[intent], policy: policy?.policy, mapHref, ...(input.notice && { notice: input.notice }), ...(input.problems && { problems: input.problems }), ...(input.canSuggest && { canSuggest: true }), ...(input.suggested && { suggested: input.suggested }) });
+    const handoff = await this.registry.siteHandoff(origin, intent);
+    return toolPage(view, { handoff, registryUrl: this.registry.url, origin, step: input.step, base: demo ? '/demo/dashboard' : '/dashboard', demo, published: Boolean(app.enabled), own: app.tools?.[intent], policy: policy?.policy, mapHref, ...(input.notice && { notice: input.notice }), ...(input.problems && { problems: input.problems }), ...(input.canSuggest && { canSuggest: true }), ...(input.suggested && { suggested: input.suggested }) });
   }
 
   /** A rules preview for the demo: what was typed, and the policy, marked as not applied. */

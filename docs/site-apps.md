@@ -35,6 +35,8 @@ The rest is the owner reading and clicking. The measurement is in [reports/log-2
 
 ## What the owner controls
 
+Each task also sets what happens when it finishes: stay in the assistant, tell the person how to retrieve the result, or open it on the site with a one-time link. See [handoff.md](handoff.md).
+
 - **Whether the app answers at all.** Switched off, the endpoint answers no one, including assistants already connected.
 - **Its name and look.** The accepted theme's name is the app's name everywhere: the MCP server, the tool descriptions, the cards and the directory pack. A derived theme is only a proposal until the owner accepts it. Themes are data from closed lists, never CSS or markup.
 - **Its tools.** One per mapped journey. The owner can rename each one, describe it or hide it. Usher's own tool names, malformed names, duplicates and descriptions over 600 characters are refused, and markup is taken out. Hidden tools aren't offered.

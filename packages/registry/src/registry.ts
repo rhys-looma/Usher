@@ -48,8 +48,11 @@ import {
   vocabulary,
   cardTheme,
   validateTheme,
+  checkHandoff,
   checkResume,
+  HANDOFF_LIFETIME_SECONDS,
   type PlanResume,
+  type SiteHandoff,
   type CardTheme,
   type SiteTheme,
   type ThemeProblem,
@@ -135,6 +138,15 @@ export function notJoinedMessage(origin: string): string {
  * tools generated from its plans. The owner switches it on, and may rename, hide or describe each
  * journey's tool (by intent).
  */
+/** What a finished run returns: the owner's choices, and the signed link when they chose a redirect. */
+export interface FinishedRun {
+  mode: SiteHandoff['mode'];
+  show: SiteHandoff['show'];
+  message?: string;
+  resume?: PlanResume;
+  link?: { url: string; label: string };
+}
+
 export interface SiteApp {
   enabled: boolean;
   enabled_at?: string;
@@ -1241,10 +1253,48 @@ export class Registry {
     return resume;
   }
 
+  /** What each task's owner chose for when it finishes, by intent. */
+  async siteHandoffs(origin: string): Promise<Record<string, SiteHandoff>> {
+    return (await this.storage.getCached<Record<string, SiteHandoff>>('site-handoff', origin)) ?? {};
+  }
+
+  /** A task's setting: the owner's, or a link to its resume page if it has one, or no way out. */
+  async siteHandoff(origin: string, intent: string): Promise<SiteHandoff> {
+    const own = (await this.siteHandoffs(origin))[intent];
+    if (own) return own;
+    const resume = checkResume((await this.siteResume(origin))[intent]);
+    return resume ? { mode: 'instructions', show: 'all', resume } : { mode: 'none', show: 'all' };
+  }
+
+  async setSiteHandoff(origin: string, intent: string, input: unknown): Promise<{ problems: string[] } | SiteHandoff> {
+    const checked = checkHandoff(input);
+    if ('problems' in checked) return checked;
+    await this.storage.putCached('site-handoff', origin, { ...(await this.siteHandoffs(origin)), [intent]: checked });
+    return checked;
+  }
+
+  /**
+   * What a finished run returns, on the hosted path, by the owner's setting. For `redirect` it signs
+   * a one-time link for this session; the site's server checks it and starts its own session.
+   */
+  async finishedRun(origin: string, intent: string | null, sid: string | undefined): Promise<FinishedRun | undefined> {
+    if (!intent) return undefined;
+    const setting = await this.siteHandoff(origin, intent);
+    const session = sid ? await this.storage.getSession(sid) : undefined;
+    const out: FinishedRun = { mode: setting.mode, show: setting.show, ...(setting.message && { message: setting.message }), ...(setting.resume && { resume: setting.resume }) };
+    if (setting.mode !== 'redirect' || !setting.redirect || session?.origin !== origin || !(await this.joined(origin))) return setting.mode === 'redirect' && !setting.resume ? { ...out, mode: 'none' } : out;
+    const iat = Math.floor(this.now().getTime() / 1000);
+    const token = await signToken({ iss: this.url, sub: session.agent, origin, intent, map: null, sid: session.id, iat, exp: iat + HANDOFF_LIFETIME_SECONDS, jti: randomId(16), scope: 'handoff' }, await this.signingKey());
+    const url = new URL(setting.redirect.url, origin);
+    if (url.origin !== origin) return out;
+    url.searchParams.set('token', token);
+    return { ...out, link: { url: url.toString(), label: setting.redirect.label } };
+  }
+
   private async withResume(plan: UsherPlan | null): Promise<UsherPlan | null> {
     if (!plan?.intent) return plan;
-    const resume = checkResume((await this.siteResume(plan.origin))[plan.intent]);
-    return resume ? { ...plan, resume } : plan;
+    const { mode, resume } = await this.siteHandoff(plan.origin, plan.intent);
+    return mode !== 'none' && resume ? { ...plan, resume } : plan;
   }
 
   async siteTheme(origin: string): Promise<SiteThemeRecord> {

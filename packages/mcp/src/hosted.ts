@@ -217,6 +217,7 @@ export function hostedMcp(options: HostedOptions): HostedMcp {
       browser: options.browser,
       perHour: limits.fillsPerConnectionHour,
       toolMeta: CARD_META,
+      afterRun: (origin, intent, session) => registry.finishedRun(origin, intent, session),
       // A site's app has its generated tools instead of usher_fill (usher_confirm and usher_cancel stay).
       exposeFill: !site,
       // A joined site's cards, under its name and theme once its owner has accepted one.

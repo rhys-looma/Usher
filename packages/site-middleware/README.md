@@ -17,6 +17,8 @@ const check = await usher.check(req, { form: params, action: 'form.submit', body
 if (check.status === 'knock_required') return usher.reject(req, res, check, 'form.submit'); // 403, with where to knock
 ```
 
+A finished run can also send the person back to your site, already in their result: `usher.openHandoff` and `sendHandoffPage` do the checking, and [docs/handoff.md](../../docs/handoff.md) shows the route to add.
+
 - **Who is checked:** requests that identify as agents (a token, an `Usher-Agent` or `Signature-Agent` header, a Web Bot Auth signature), and every request when `always: true`, as for an API. People using the normal form pass through as `{ status: 'human' }`.
 - **The token** must be signed by your registry, unexpired, for your origin and intent, and unused: each token id is accepted once.
 - **The action** must be allowed. It is refused if the site's rules forbid it, or if it needs the user's confirmation the agent didn't state. The vocabulary's default risk is the floor.

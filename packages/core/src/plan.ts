@@ -59,6 +59,47 @@ export function checkResume(input: unknown): PlanResume | null {
 }
 
 /**
+ * What a site's owner chooses for when a task finishes (they set it per task). `none`: the result
+ * stays in the assistant, with no way out. `instructions`: a link to the site's own page, where the
+ * person enters the reference. `redirect`: a signed one-time link that the site's server turns into
+ * its own session (docs/handoff.md); `resume`, if any, is where it falls back to.
+ */
+export interface SiteHandoff {
+  mode: 'none' | 'instructions' | 'redirect';
+  /** What the result returns from the site's page: all of it, only the reference, or nothing. */
+  show: 'all' | 'reference' | 'nothing';
+  /** The owner's own words, returned with the result. */
+  message?: string;
+  resume?: PlanResume;
+  /** The site's route that takes a handoff token, and what the link says. */
+  redirect?: { url: string; label: string };
+}
+
+export const HANDOFF_MESSAGE_MAX = 300;
+const SITE_PATH = /^\/[^\s\/\\][^\s\\]*$|^\/$/;
+
+/** A handoff setting in its one allowed shape, or what's wrong with it, in the owner's terms. */
+export function checkHandoff(input: unknown): SiteHandoff | { problems: string[] } {
+  const r = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const problems: string[] = [];
+  const mode = r.mode === 'none' || r.mode === 'instructions' || r.mode === 'redirect' ? r.mode : undefined;
+  if (!mode) problems.push('Choose what happens when the task finishes.');
+  const show = r.show === 'reference' || r.show === 'nothing' ? r.show : r.show === undefined || r.show === 'all' ? 'all' : undefined;
+  if (!show) problems.push('Choose what the result returns.');
+  const message = typeof r.message === 'string' ? r.message.trim() : '';
+  if (message.length > HANDOFF_MESSAGE_MAX) problems.push(`Keep your message to ${HANDOFF_MESSAGE_MAX} characters.`);
+  const resume = r.resume === undefined || r.resume === null ? undefined : checkResume(r.resume);
+  if (r.resume && !resume) problems.push('The retrieve page must be a path on your site, such as /retrieve, with a short label.');
+  if (mode === 'instructions' && !r.resume) problems.push('Give the page where people retrieve a result.');
+  const given = (r.redirect && typeof r.redirect === 'object' ? r.redirect : {}) as Record<string, unknown>;
+  const url = typeof given.url === 'string' ? given.url.trim() : '';
+  const label = typeof given.label === 'string' && given.label.trim() ? given.label.trim() : 'Open your result';
+  if (mode === 'redirect' && (!SITE_PATH.test(url) || url.length > 200 || label.length > 80)) problems.push('The redirect route must be a path on your site, such as /usher/handoff.');
+  if (problems.length || !mode || !show) return { problems };
+  return { mode, show, ...(message && { message }), ...(mode !== 'none' && resume && { resume }), ...(mode === 'redirect' && { redirect: { url, label } }) };
+}
+
+/**
  * Where the person continues on the site with a result's reference: the resume page, with the
  * reference in its query when the site prefills it. Always on the origin.
  */

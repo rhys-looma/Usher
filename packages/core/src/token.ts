@@ -56,8 +56,11 @@ export interface TokenClaims {
    * "map": the site's owner mapping their own site, through the registry's walkthrough (never an
    * agent acting for a person). Good for any intent and action on this origin; the signature,
    * origin, expiry and one use still hold.
+   * "handoff": a finished run's link back to the site, for the person (see HANDOFF_LIFETIME_SECONDS).
+   * Good for nothing else: only a check that asks for a handoff accepts one, and that check accepts
+   * nothing else, so an agent's token can never open a session and a handoff can never submit.
    */
-  scope?: 'map';
+  scope?: 'map' | 'handoff';
   /** The agent's public key (RFC 7800 confirmation): sites can check its request signatures. */
   cnf?: { jwk: PublicJwk };
 }
@@ -70,6 +73,8 @@ export interface TokenHeader {
 
 /** Tokens live ten minutes. */
 export const TOKEN_LIFETIME_SECONDS = 600;
+/** How long a person has to open a finished run's link; after that the site's own page takes over. */
+export const HANDOFF_LIFETIME_SECONDS = 900;
 const CLOCK_SKEW_SECONDS = 60;
 const ED25519 = { name: 'Ed25519' } as const;
 
@@ -174,6 +179,7 @@ export type TokenErrorCode =
   | 'wrong_issuer'
   | 'wrong_origin'
   | 'wrong_intent'
+  | 'wrong_scope'
   | 'replayed';
 
 export type TokenVerification = { ok: true; claims: TokenClaims } | { ok: false; error: TokenErrorCode; message: string };
@@ -187,6 +193,8 @@ export interface VerifyOptions {
   intent?: string;
   /** Registries the verifier trusts. */
   issuers?: string[];
+  /** A finished run's handoff is what's wanted, and nothing else will do. Without it, a handoff is refused. */
+  handoff?: boolean;
   /** Records the jti; a token seen before fails as replayed. */
   replay?: ReplayCache;
   /** Seconds since the epoch. */
@@ -222,6 +230,7 @@ export async function verifyToken(token: string, options: VerifyOptions): Promis
   if (options.issuers && !options.issuers.includes(claims.iss)) return fail('wrong_issuer', `Tokens from ${claims.iss} are not trusted here.`);
   if (options.origin !== undefined && claims.origin !== options.origin) return fail('wrong_origin', `The token is for ${claims.origin}, not ${options.origin}.`);
   if (options.intent !== undefined && claims.intent !== options.intent && claims.scope !== 'map') return fail('wrong_intent', `The token allows ${claims.intent}, not ${options.intent}.`);
+  if ((claims.scope === 'handoff') !== Boolean(options.handoff)) return fail('wrong_scope', options.handoff ? 'This is not a handoff token.' : 'A handoff token only opens the result on the site.');
   if (options.replay && !options.replay.accept(claims.jti, claims.exp, now)) return fail('replayed', 'This token has already been used.');
   return { ok: true, claims };
 }

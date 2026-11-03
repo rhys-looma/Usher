@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { browserPlan, checkResume, composePlan, preflight, resumeUrl, type UsherMap } from '../src/index.ts';
+import { browserPlan, checkHandoff, checkResume, composePlan, preflight, resumeUrl, type UsherMap } from '../src/index.ts';
 import { planSchemaErrors } from '../src/schemas.ts';
 
 const seedDir = new URL('../../registry/seed/mock-site/', import.meta.url);
@@ -86,4 +86,14 @@ test('resume: a plan may say where the person picks the result up on the site; o
   assert.equal(checkResume({ ...resume, asks: ['a', 'b', 'c', 'd', 'e'] }), null);
   assert.equal(checkResume({ ...resume, reference_param: 'a&b=c' })!.reference_param, undefined);
   assert.notEqual(planSchemaErrors({ ...plan, resume: { url: 'https://evil.example', label: 'x', asks: [] } }), null);
+});
+
+test('a task\'s handoff setting: one of three, on the site\'s own paths, with short words', () => {
+  const resume = { url: '/retrieve', label: 'Find your quote', asks: ['your quote reference'] };
+  assert.deepEqual(checkHandoff({ mode: 'none', message: ' Call us. ' }), { mode: 'none', show: 'all', message: 'Call us.' });
+  assert.deepEqual(checkHandoff({ mode: 'instructions', show: 'reference', resume }), { mode: 'instructions', show: 'reference', resume });
+  assert.deepEqual(checkHandoff({ mode: 'redirect', redirect: { url: '/usher/handoff', label: 'Open' } }), { mode: 'redirect', show: 'all', redirect: { url: '/usher/handoff', label: 'Open' } });
+  assert.deepEqual(checkHandoff({ mode: 'none', resume, redirect: { url: '/usher/handoff' } }), { mode: 'none', show: 'all' }, 'nothing kept that the choice does not use');
+  for (const url of ['https://evil.example/x', '//evil.example/x', '/\\\\evil.example', 'handoff', '/a b', '']) assert.ok('problems' in checkHandoff({ mode: 'redirect', redirect: { url } }), url);
+  for (const bad of [{ mode: 'sideways' }, {}, { mode: 'instructions' }, { mode: 'none', show: 'some' }, { mode: 'none', message: 'x'.repeat(301) }, { mode: 'instructions', resume: { url: 'https://evil.example', label: 'x', asks: [] } }]) assert.ok('problems' in checkHandoff(bad), JSON.stringify(bad));
 });

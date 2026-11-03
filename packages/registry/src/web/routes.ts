@@ -754,7 +754,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       return boardPage(200, await board.overview(origin, welcome || undefined, undefined, { cards: html`${card}${app}` })), true;
     }
     if (route === 'GET /dashboard/tools') return redirect(res, '/dashboard#tools'), true;
-    const toolRoute = /^\/dashboard\/tools\/([a-z][a-z0-9_.]*)(\/suggest)?$/.exec(url.pathname);
+    const toolRoute = /^\/dashboard\/tools\/([a-z][a-z0-9_.]*)(\/suggest|\/after)?$/.exec(url.pathname);
     if (toolRoute) {
       const intent = toolRoute[1]!;
       const step = Number(url.searchParams.get('step')) || 1;
@@ -763,12 +763,25 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const body = await board.tool(origin, intent, { step, canSuggest, ...extra });
         return send(res, body ? status : 404, body ?? page('Not found', html`<h1>No such task on ${origin}</h1><p><a href="/dashboard#tools">Back to your tasks</a></p>`));
       };
-      if (req.method === 'GET' && !toolRoute[2]) return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. New connections get it; open ones keep the old one until they reconnect.' } : {}), true;
+      if (req.method === 'GET' && !toolRoute[2]) return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. New connections get it; open ones keep the old one until they reconnect.' } : url.searchParams.has('after') ? { notice: 'Saved. The next run that finishes follows this.' } : {}), true;
       if (req.method !== 'POST') return await show(404), true;
       const app = await this.registry.siteApp(origin);
       const tools = await siteTools(this.registry, origin, app, { includeHidden: true });
       const tool = tools.find((t) => t.intent === intent);
       if (!tool) return await show(404), true;
+      if (toolRoute[2] === '/after') {
+        const form = await readForm(req);
+        const text = (name: string) => (form.get(name) ?? '').trim();
+        const saved = await this.registry.setSiteHandoff(origin, intent, {
+          mode: text('mode'),
+          show: text('show'),
+          message: text('message'),
+          ...(text('retrieve_url') && { resume: { url: text('retrieve_url'), label: text('retrieve_label') || 'Retrieve your result', asks: text('retrieve_asks').split(',').map((a) => a.trim()).filter(Boolean), reference_param: text('reference_param') } }),
+          redirect: { url: text('redirect_url'), label: text('redirect_label') },
+        });
+        if ('problems' in saved) return await show(422, { problems: saved.problems }), true;
+        return redirect(res, `/dashboard/tools/${intent}?after#after`), true;
+      }
       // Muse Spark's name and description, shown in the boxes for the owner to check; saved only by Save.
       if (toolRoute[2]) {
         const writer = this.options.toolWriter;

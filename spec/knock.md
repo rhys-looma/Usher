@@ -184,7 +184,7 @@ Header: `{"alg":"EdDSA","typ":"usher+jwt","kid":"<key id>"}`.
 | `jti` | Unique token id |
 | `confirm`, `forbid` | Keys on the form that need the user's confirmation, and keys agents may not act on (from the policy) |
 | `confirmed` | Keys the agent stated its user confirmed, when it knocked |
-| `scope` | `"map"` on a mapper's token only: the site's owner mapping their own site through the registry's walkthrough. The registry issues it to nothing else |
+| `scope` | `"map"` on a mapper's token only: the site's owner mapping their own site through the registry's walkthrough. The registry issues it to nothing else. `"handoff"` on a finished run's one-time link back to the site, for the person: a site's server may turn it into its own session, and a verifier must refuse it for anything else and refuse every other token for that ([handoff](../docs/handoff.md)) |
 | `cnf` | `{"jwk": …}`: the agent's public key ([RFC 7800](https://www.rfc-editor.org/rfc/rfc7800) confirmation), so a site can check that requests carrying the token are signed by the agent it was issued to |
 
 The registry publishes its public keys at `/.well-known/usher-keys.json` as a JWK set: `{"keys":[{"kty":"OKP","crv":"Ed25519","x":"…","kid":"…","alg":"EdDSA","use":"sig"}]}`. Sites cache it and verify tokens offline; they refetch only when they meet an unknown `kid`. Old keys stay published until every token they signed has expired.

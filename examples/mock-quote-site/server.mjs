@@ -55,9 +55,9 @@ const MAX_SESSIONS = 5000;
 // demo; the oldest go past MAX_QUOTES, and all of them on restart).
 const quotes = new Map();
 const MAX_QUOTES = 5000;
-function keepQuote(product, dob, result) {
+function keepQuote(product, dob, result, usherSession) {
   if (quotes.size >= MAX_QUOTES) quotes.delete(quotes.keys().next().value);
-  quotes.set(result.reference, { product, dob, result });
+  quotes.set(result.reference, { product, dob, result, usherSession });
   return result;
 }
 const originOf = (req) => SITE_ORIGIN ?? `http://${req.headers.host}`;
@@ -602,6 +602,19 @@ const server = createServer(async (req, res) => {
       journey.state(session).result = found.result;
       return redirect(res, `/${journey.base}/result`);
     }
+    // A finished run's link back: the page first, so a link preview uses nothing up; then the token,
+    // checked on this server, starts a new session of our own on the person's quote.
+    if (url.pathname === '/usher/handoff' && middleware) {
+      if (req.method === 'GET') return middleware.sendHandoffPage(res, url.searchParams.get('token'), 'Open your quote');
+      if (req.method === 'POST') {
+        const opened = await journeys.health.check.openHandoff(req, new URLSearchParams(await body(req)).get('token'));
+        const found = opened.ok ? [...quotes.values()].find((q) => q.usherSession === opened.sid) : undefined;
+        if (!found) return redirect(res, '/retrieve');
+        const journey = found.product === 'health' ? journeys.health : journeys.quote;
+        journey.state(newSession(res)).result = found.result;
+        return redirect(res, `/${journey.base}/result`);
+      }
+    }
     if (url.pathname === '/quote/proceed' && req.method === 'GET') return session.result ? html(res, renderProceed(session)) : redirect(res, '/retrieve');
 
     const journey = journeys[section];
@@ -628,9 +641,12 @@ const server = createServer(async (req, res) => {
         const params = new URLSearchParams(raw);
         // Requesting the quote is consequential: an agent needs a token from a knock (and, if it
         // signs its requests, a signature from the key the token was issued to).
+        let usherSession;
         if (steps[key].final && journey.check) {
           const check = await journey.check.check(req, { form: params, action: 'form.submit', body: new TextEncoder().encode(raw) });
           if (check.status === 'knock_required') return journey.check.reject(req, res, check, 'form.submit');
+          // Which Usher session asked for this quote, so its handoff can open it later.
+          if (check.status === 'ok') usherSession = check.claims.sid;
         }
         const values = readStep(journey, key, params);
         const errors = validate(journey, key, values);
@@ -638,7 +654,7 @@ const server = createServer(async (req, res) => {
         state[key] = values;
         if (!steps[key].final) return redirect(res, `/${journey.base}/${steps[key].next}`);
         // Consequential action: requesting a quote. Usher's server-side token check attaches here.
-        state.result = journey.base === 'health' ? keepQuote('health', state.about.dob, healthPrice(state)) : keepQuote('car', session.driver.dob, price(session));
+        state.result = journey.base === 'health' ? keepQuote('health', state.about.dob, healthPrice(state), usherSession) : keepQuote('car', session.driver.dob, price(session), usherSession);
         return redirect(res, `/${journey.base}/result`);
       }
     }
@@ -723,6 +739,10 @@ server.listen(PORT, process.env.HOST ?? '::', () => {
 function getSession(req, res) {
   const sid = /(?:^|;\s*)bw_sid=([0-9a-f-]{36})/.exec(req.headers.cookie ?? '')?.[1];
   if (sid && sessions.has(sid)) return sessions.get(sid);
+  return newSession(res);
+}
+
+function newSession(res) {
   const id = randomUUID();
   const session = {};
   if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
