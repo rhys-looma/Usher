@@ -17,7 +17,6 @@ const PUBLIC = [
   ['booking', 'https://www.travelodge.co.uk/'],
   ['newsletter sign-up', 'https://www.mozilla.org/en-US/newsletter/'],
   ['search', 'https://en.wikipedia.org/wiki/Special:Search'],
-  ['insurer first step', 'https://www.aviva.co.uk/insurance/motor/car-insurance/'],
 ] as const;
 
 const open = modelApi({ provider: 'baseten' });

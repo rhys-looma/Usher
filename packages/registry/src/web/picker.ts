@@ -14,7 +14,6 @@ const PUBLIC_FORMS: PickerForm[] = [
   { id: 'govuk-contact', name: 'GOV.UK', about: 'Contact the GOV.UK team', url: 'https://www.gov.uk/contact/govuk' },
   { id: 'travelodge-booking', name: 'Travelodge', about: 'Search for a hotel room', url: 'https://www.travelodge.co.uk/' },
   { id: 'mozilla-newsletter', name: 'Mozilla', about: 'Sign up to the Firefox newsletter', url: 'https://www.mozilla.org/en-US/newsletter/' },
-  { id: 'aviva-car', name: 'Aviva', about: 'Car insurance: the first step', url: 'https://www.aviva.co.uk/insurance/motor/car-insurance/' },
   { id: 'httpbin-order', name: 'httpbin', about: 'Order a pizza (a test form)', url: 'https://httpbin.org/forms/post' },
   { id: 'nationalrail-journey', name: 'National Rail', about: 'Plan a train journey', url: 'https://www.nationalrail.co.uk/' },
   { id: 'nhs-search', name: 'NHS', about: 'Search the NHS website', url: 'https://www.nhs.uk/' },

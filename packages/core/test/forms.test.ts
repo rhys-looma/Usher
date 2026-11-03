@@ -30,7 +30,6 @@ for (const [id, expected] of [
   ['ico-contact', []],
   ['admiral-car', []],
   ['churchill-car', []],
-  ['aviva-car', ['car-reg-form']],
 ] as const) {
   test(`form choice, recorded page ${id}: never a cookie widget, site search or newsletter box`, async () => {
     const page = await fixture<PublicPage>(id);
@@ -43,9 +42,13 @@ for (const [id, expected] of [
 }
 
 test('form choice: an intent that asks for a search, or none at all, still finds the search box', async () => {
-  const aviva = await fixture<PublicPage>('aviva-car');
-  assert.equal(mainForm(aviva.forms, 'search.query')?.search, false, 'two candidates: the registration form has more to it');
-  assert.ok(candidateForms(aviva.forms, 'search.query').some((f) => f.search));
+  const page = await browser.newPage();
+  await page.setContent('<form role="search" action="/search"><input type="search" name="q" aria-label="Search"><button>Search</button></form><form id="car-reg-form" action="/quote"><label>Registration <input name="reg"></label><label>Postcode <input name="postcode"></label><button>Get a quote</button></form>');
+  const { forms } = (await page.evaluate(scanScript())) as Scan;
+  await page.close();
+  assert.deepEqual(candidateForms(forms, 'quote.car_insurance').map((f) => f.domId), ['car-reg-form'], 'never the search box for a quote');
+  assert.equal(mainForm(forms, 'search.query')?.search, false, 'two candidates: the registration form has more to it');
+  assert.ok(candidateForms(forms, 'search.query').some((f) => f.search));
   const ico = await fixture<PublicPage>('ico-contact');
   assert.equal(mainForm(ico.forms)?.domId, 'search-form', 'no intent: a site search is better than nothing');
   assert.equal(mainForm(ico.forms, 'contact.message'), undefined, 'but never for a contact intent');

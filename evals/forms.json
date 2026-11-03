@@ -106,12 +106,6 @@
       "note": "stop before submit"
     },
     {
-      "id": "aviva-car",
-      "category": "insurance first step",
-      "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
-      "recorded": true
-    },
-    {
       "id": "directline-car",
       "category": "insurance first step",
       "url": "https://www.directline.com/car-insurance"
