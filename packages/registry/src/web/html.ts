@@ -171,6 +171,7 @@ form.stack { display:flex; flex-direction:column; align-items:stretch; }
 .spin { flex:none; display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; animation:spin .9s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
+button:disabled { opacity:.5; cursor:default; }
 p.busy { display:flex; align-items:center; gap:8px; margin:10px 0 0; font-size:14px; font-weight:600; color:var(--accent); }
 /* A dialog: opened by the browser (popover), so it needs no script and sits above any table. */
 .dialog { white-space:normal; margin:auto; padding:24px; width:min(480px, calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1.5px solid var(--rule); border-radius:6px; background:var(--card); color:var(--ink); }
