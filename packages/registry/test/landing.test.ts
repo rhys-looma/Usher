@@ -98,6 +98,20 @@ test('interest: people are stored, agents must knock, mistakes are explained, th
   assert.doesNotMatch(list, /a@shop\.example/, 'the refused agent stored nothing');
 });
 
+test('the two typefaces are served from this origin, and nothing else from /fonts/', async () => {
+  const text = await (await fetch(`${registry.url}/`)).text();
+  assert.match(text, /@font-face \{ font-family:"Instrument Sans"; font-style:normal; font-weight:400 700; font-display:swap; src:url\("\/fonts\/instrument-sans\.woff2"\)/);
+  assert.match(text, /@font-face \{ font-family:"JetBrains Mono"; font-style:normal; font-weight:500; font-display:swap; src:url\("\/fonts\/jetbrains-mono-500\.woff2"\)/);
+  for (const file of ['instrument-sans.woff2', 'jetbrains-mono-400.woff2', 'jetbrains-mono-500.woff2']) {
+    const res = await fetch(`${registry.url}/fonts/${file}`);
+    assert.deepEqual([res.status, res.headers.get('content-type')], [200, 'font/woff2'], file);
+    assert.equal(Buffer.from(await res.arrayBuffer()).toString('latin1', 0, 4), 'wOF2', `${file} is woff2`);
+  }
+  assert.equal((await fetch(`${registry.url}/fonts/other.woff2`)).status, 404);
+  assert.equal((await fetch(`${registry.url}/fonts/../og.png`)).status, 404);
+  assert.match((await fetch(`${registry.url}/privacy`)).headers.get('content-security-policy') ?? '', /font-src 'self'/);
+});
+
 test('specifications are served with this registry in place of the example registry', async () => {
   const index = await (await fetch(`${registry.url}/spec/`)).text();
   assert.match(index, /knock\.md/);

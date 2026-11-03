@@ -38,10 +38,12 @@ export function when(date: string | undefined): Raw {
 
 /**
  * The two typefaces, served by this registry from /fonts/ (nothing is loaded from any other
- * origin). Text shows in the system face until a file arrives, and stays there if none does.
+ * origin; the files sit in packages/registry/assets/fonts, SIL Open Font Licence). Instrument Sans
+ * is one variable file, weights 400 to 700; JetBrains Mono is regular and medium. Text shows in
+ * the system face until a file arrives, and stays there if none does.
  */
 const FONT_FACES = [
-  ...[400, 500, 600, 700].map((w) => `@font-face { font-family:"Instrument Sans"; font-style:normal; font-weight:${w}; font-display:swap; src:url("/fonts/instrument-sans-${w}.woff2") format("woff2"); }`),
+  `@font-face { font-family:"Instrument Sans"; font-style:normal; font-weight:400 700; font-display:swap; src:url("/fonts/instrument-sans.woff2") format("woff2"); }`,
   ...[400, 500].map((w) => `@font-face { font-family:"JetBrains Mono"; font-style:normal; font-weight:${w}; font-display:swap; src:url("/fonts/jetbrains-mono-${w}.woff2") format("woff2"); }`),
 ].join('\n');
 

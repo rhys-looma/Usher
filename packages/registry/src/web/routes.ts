@@ -266,7 +266,7 @@ export class Web {
     if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
     if (route === 'GET /learning') return sendHtml(res, 200, learningPage(await this.learning.counters())), true;
     // The two typefaces, self-hosted (html.ts names the files). Missing files fall back to the system face.
-    if (req.method === 'GET' && /^\/fonts\/[a-z-]+-[4-7]00\.woff2$/.test(url.pathname)) {
+    if (req.method === 'GET' && /^\/fonts\/[a-z-]+(-[4-7]00)?\.woff2$/.test(url.pathname)) {
       const font = await readFile(new URL(`../../assets/fonts/${url.pathname.slice('/fonts/'.length)}`, import.meta.url)).catch(() => null);
       if (!font) return false;
       res.writeHead(200, { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' });
