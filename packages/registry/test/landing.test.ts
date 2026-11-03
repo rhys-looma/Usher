@@ -1,6 +1,6 @@
 // The front page (LU-53): the sentence and what an owner gets, what happens
 // in between on the hosted path (six steps, in reading order with no JavaScript) and what Usher keeps
-// (as docs/security.md says it), the setup, then for agents with this registry's address, the viewer box, the numbers, and the interest form, which carries Usher's own
+// (as docs/security.md says it), the setup, then for agents with this registry's address, the numbers, and the interest form, which carries Usher's own
 // tag, asks whether Looma should set up the app, is locked to agents that didn't knock, and is listed
 // for the admin only.
 
@@ -32,16 +32,17 @@ after(async () => {
 const post = (path: string, form: Record<string, string>, headers: Record<string, string> = {}) =>
   fetch(`${registry.url}${path}`, { method: 'POST', body: new URLSearchParams(form), headers, redirect: 'manual' });
 
-test('front page: the sentence (no prompt box in the hero), what the owner gets, the six steps, the setup, the quickstart for agents, the viewer box, numbers, sharing tags', async () => {
+test('front page: the sentence (no prompt box in the hero), what the owner gets, the six steps, the setup, the quickstart for agents, numbers, sharing tags', async () => {
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
   // The sentence, its second half set in italic.
-  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>A fast, trusted way in</h2>', '<h2>Your rules, enforced</h2>', '<h2>Every action on the record</h2>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>See what a map is</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
+  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<h2>A fast, trusted way in</h2>', '<h2>Your rules, enforced</h2>', '<h2>Every action on the record</h2>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<p class="label">For agents</p><h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'Built by</small><a class="wordmark" href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
   assert.doesNotMatch(text.split('</section>')[0]!, /Ask your assistant|class="bubble"/, 'the hero shows no prompt box');
+  assert.doesNotMatch(text, /id="try"|class="picker"/, 'no map picker on the front page');
   assert.ok(text.includes('No signup. Your agent&#39;s key is its identity.') || text.includes("No signup. Your agent's key is its identity."));
   assert.ok(text.includes(`&quot;USHER_REGISTRY_URL&quot;: &quot;${registry.url}&quot;`), 'the MCP entry names this registry');
   assert.ok(text.includes(`data-usher-registry=&quot;${registry.url}&quot;`), 'the tag names this registry');
@@ -71,14 +72,6 @@ test('front page: the interest form carries Usher\'s own tag, and the site claim
   await page.waitForFunction(() => document.querySelector('form[action="/interest"]')?.getAttribute('data-usher-knock'));
   assert.equal(await page.locator('form[action="/interest"]').getAttribute('data-usher-knock'), `${registry.url}/knock`);
   await browser.close();
-});
-
-test('front page: a failed "try it" is explained on the page', async () => {
-  const res = await post('/viewer', { from: 'home', url: 'http://10.0.0.1/form' });
-  assert.equal(res.status, 422);
-  const text = await res.text();
-  assert.match(text, /class="card error">The viewer only opens public websites\./);
-  assert.match(text, /<h2>What happens in between<\/h2>/, 'still the front page');
 });
 
 test('interest: people are stored, agents must knock, mistakes are explained, the list is for the admin only', async () => {

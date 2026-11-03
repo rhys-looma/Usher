@@ -229,8 +229,8 @@ export class Viewer {
 }
 
 /** The picker's forms, one button each: a visitor chooses by id and never sends an address. */
-export function pickerButtons(forms: PickerForm[], from?: string): Raw {
-  return html`<form class="picker" method="post" action="/viewer">${from ? html`<input type="hidden" name="from" value="${from}">` : ''}
+export function pickerButtons(forms: PickerForm[]): Raw {
+  return html`<form class="picker" method="post" action="/viewer">
 ${forms.map((f) => html`<button type="submit" name="form" value="${f.id}"><b>${f.name}</b><span>${f.about}</span></button>`)}
 </form>`;
 }

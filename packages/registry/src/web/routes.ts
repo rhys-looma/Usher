@@ -37,7 +37,7 @@ export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
   /** USHER_CONTACT_EMAIL: named on /privacy and in security.txt. */
   contact?: string;
   /**
-   * The map viewer (/viewer and the front page's "Try it"). 'picker' (the default): anyone picks
+   * The map viewer (/viewer). 'picker' (the default): anyone picks
    * one of `forms`, and a signed-in owner may map pages on their own claimed origin. 'open': any
    * address, for local demos only (USHER_VIEWER=open; production refuses it).
    */
@@ -193,7 +193,7 @@ export class Web {
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
     this.numbers ??= loadNumbers();
     const own = await this.registry.ownSite();
-    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, forms: this.viewer.forms, demo: Boolean(this.registry.publicDemo), hosted: Boolean(this.options.hostedMcp), ...extra });
+    return landingPage({ url: this.registry.url, siteKey: own.site_key, numbers: await this.numbers, demo: Boolean(this.registry.publicDemo), hosted: Boolean(this.options.hostedMcp), ...extra });
   }
 
   /** The server-side check on the interest form, as any site would run it. Keys come from this registry directly. */
@@ -686,8 +686,6 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
           ? await this.viewer.compile(target, client, open ? {} : { owner: owner! })
           : { ok: false, reason: 'unknown_form', message: 'Pick one of the forms listed.' };
       const status = result.ok ? 200 : result.reason === 'rate_limited' ? 429 : 422;
-      // From the front page's box, a failure is explained there.
-      if (!result.ok && form.get('from') === 'home') return sendHtml(res, status, await this.landing({ viewer: { url: target, error: result.message } }), { siteScript: true }), true;
       if (!result.ok) return sendHtml(res, status, viewerPage({ forms, open, url: target, error: result, ...(owner && { owner }) })), true;
       const source = `${result.cached ? 'from cache' : `compiled by ${result.model}`} in ${(result.ms / 1000).toFixed(1)}s${result.cost_usd ? `, $${result.cost_usd.toFixed(4)}` : ''}`;
       return sendHtml(res, 200, mapPage(result.map, { source, ...(result.flags && { flags: result.flags }), ...(id && { annotated: `/viewer/annotated?form=${encodeURIComponent(id)}` }) })), true;
