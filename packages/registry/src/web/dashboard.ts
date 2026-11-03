@@ -162,8 +162,8 @@ export class Dashboard {
 ${siteClaims()}
 ${error ? html`<div class="card error">${error}</div>` : ''}
 <form class="card" method="post" action="/dashboard/login">
-  <p><label>Site origin<br><input type="text" name="origin" required placeholder="https://quote.example"></label></p>
-  <p><label>Secret key<br><input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label></p>
+  <label>Your site's address <input type="text" name="origin" required placeholder="https://www.example.com" autocomplete="url"></label>
+  <label>Secret key <input type="password" name="secret" required placeholder="uss_…" autocomplete="off"></label>
   <button type="submit">Sign in</button>
 </form>
 <p class="small muted">No keys yet? <a href="/sites/new">Get your keys</a>. Lost your secret key? <a href="/sites/lost">Get a new one</a>.</p>`,

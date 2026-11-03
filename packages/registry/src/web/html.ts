@@ -145,12 +145,39 @@ pre { max-height:520px; }
 .risk-safe, .rule-allow { color:var(--safe); background:var(--safe-bg); } .risk-consequential, .rule-confirm { color:var(--cons); background:var(--cons-bg); }
 .risk-needs_user, .rule-forbid { color:var(--user); background:var(--user-bg); } .badge.plain { color:var(--muted); background:var(--code); }
 form.inline { display:flex; gap:10px; flex-wrap:wrap; }
-input[type=url], input[type=text] { flex:1; min-width:260px; } textarea { width:100%; min-height:96px; }
+form.inline input[type=url], form.inline input[type=text] { flex:1; min-width:min(260px,100%); }
+textarea { width:100%; min-height:96px; box-sizing:border-box; }
+/* Every field: its label above it, one width, the same shape, whichever page it's on. */
+select { font:inherit; padding:10px 8px; border:1.5px solid var(--rule); border-radius:2px; background:var(--card); color:var(--ink); }
+main label:not(:has(> input[type=color])):has(> input:not([type=checkbox], [type=radio], [type=hidden]), > select, > textarea) { display:block; font-weight:600; font-size:14px; margin:0 0 16px; max-width:520px; }
+main label:has(> textarea) { max-width:none; }
+main label:not(:has(> input[type=color])) > input:not([type=checkbox], [type=radio]), main label > select, main label > textarea { display:block; width:100%; box-sizing:border-box; margin-top:4px; font-weight:400; font-size:16px; }
+main label > small, main label > .hint { display:block; font-weight:400; color:var(--muted); font-size:13px; }
+main label:has(> input[type=checkbox], > input[type=radio]) { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; }
+main label > input[type=checkbox], main label > input[type=radio] { flex:none; margin-top:5px; }
+form.stack { display:flex; flex-direction:column; align-items:stretch; }
+/* A dialog: opened by the browser (popover), so it needs no script and sits above any table. */
+.dialog { white-space:normal; margin:auto; padding:24px; width:min(480px, calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1.5px solid var(--rule); border-radius:6px; background:var(--card); color:var(--ink); }
+.dialog::backdrop { background:rgba(18,19,44,.5); }
+.dialog h2 { margin:0 0 10px; font-size:22px; }
+.dialog-actions { display:flex; flex-wrap:wrap; gap:10px; margin:6px 0 0; }
+button.danger { background:var(--user); border-color:var(--user); color:#fff; }
+button.small, .small-button { padding:7px 12px; font-size:14px; }
+.row-actions { display:flex; gap:8px; white-space:nowrap; align-items:center; }
+.row-actions form { margin:0; }
+.row-actions > button, .row-actions > form > button { padding:8px 14px; font-size:14px; }
+.table-scroll { overflow-x:auto; }
 pre.key { white-space:pre-wrap; word-break:break-all; }
 ol.timeline { list-style:none; padding:0; margin:0; } ol.timeline li { display:grid; grid-template-columns:150px 110px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px; }
 ol.timeline .src { color:var(--muted); }
 details summary { cursor:pointer; color:var(--accent); }
 `;
+
+/** A button and the dialog it opens. The body holds its own form; `cancel` is the button that closes it. */
+export function dialog(id: string, open: { label: string; class?: string }, title: string, body: (cancel: Raw) => Raw): Raw {
+  const cancel = html`<button type="button" class="secondary" popovertarget="${id}" popovertargetaction="hide">Cancel</button>`;
+  return html`<button type="button"${open.class ? html` class="${open.class}"` : ''} popovertarget="${id}">${open.label}</button><div id="${id}" class="dialog" popover><h2>${title}</h2>${body(cancel)}</div>`;
+}
 
 export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: string[]; style?: string } = {}): string {
   return `<!doctype html>
@@ -167,7 +194,7 @@ ${(options.scripts ?? []).map((src) => `<script src="${esc(src)}" defer></script
 <header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a href="/dashboard">Site dashboard</a>${options.nav ?? ''}</nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
-<div class="foot-brand"><a class="brand" href="/">Usher</a><p>Your site inside every assistant, under your rules. Maps hold structure, never values.</p></div>
+<div class="foot-brand"><a class="brand" href="/">Usher</a><p>Let AI agents use your site, on your terms. Maps hold structure, never values.</p></div>
 <nav><a href="/dashboard">Site dashboard</a><a href="/sites/new">Get your keys</a><a href="/privacy">Privacy</a></nav>
 ${LOOMA_FOOTER}
 </div></footer>

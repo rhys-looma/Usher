@@ -7,7 +7,7 @@
 import type { UsherMap } from '@usher/core';
 import { RISKS, vocabulary } from '@usher/core';
 import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
-import { esc, html, page, when, type Raw } from './html.ts';
+import { dialog, esc, html, page, when, type Raw } from './html.ts';
 import { TOOLS_STYLE, flowStrip, stepNames, type FlowStep } from './tools.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'safe', consequential: 'consequential', needs_user: 'the person\'s' };
@@ -30,6 +30,8 @@ export function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][numbe
 }
 
 export const ANNOTATE_STYLE = `
+details.more { margin:0 0 16px; }
+details.more summary { margin-bottom:10px; }
 .annotated { position:relative; display:inline-block; max-width:100%; border:1px solid var(--line); background:var(--card); }
 .annotated img { display:block; max-width:100%; height:auto; }
 .annotated .box { position:absolute; border:2px solid; border-radius:3px; text-decoration:none; outline-offset:2px; }
@@ -64,16 +66,6 @@ table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font
 table.elements tr.saved .saved-note { display:inline; }
 .risk { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:14px; }
 .risk .risk-dot { margin:0; }
-details.correct { margin-top:6px; font-size:14px; }
-details.correct summary { display:inline-block; cursor:pointer; list-style:none; padding:3px 12px; border:1px solid var(--line); border-radius:999px; color:var(--accent,#7434d3); font-weight:600; font-size:13px; }
-details.correct summary::-webkit-details-marker { display:none; }
-details.correct[open] summary { background:var(--accent,#7434d3); border-color:var(--accent,#7434d3); color:#fff; }
-form.correct { display:grid; gap:10px; margin-top:10px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); max-width:30em; }
-form.correct label { display:grid; gap:4px; font-size:13px; font-weight:600; }
-form.correct label small { font-weight:400; color:var(--muted); }
-form.correct input, form.correct select { font:inherit; font-size:14px; padding:6px 8px; width:100%; box-sizing:border-box; }
-form.correct .row { display:flex; gap:10px; align-items:center; }
-form.correct button { padding:6px 16px; font-size:14px; }
 .live.talk { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); }
 .browser.clickable img { cursor:pointer; outline:3px solid rgba(116,52,211,.35); outline-offset:-3px; }
 .browser .hint { margin-left:auto; color:var(--accent,#7434d3); font-weight:600; }
@@ -110,12 +102,13 @@ export function annotated(input: { map: UsherMap; screenshot: string; width: num
     const leads = 'leads_to' in e && e.leads_to ? html`<span class="note">Goes on to ${e.leads_to}</span>` : '';
     const meaning = vocabulary.entries.find((v) => v.key === e.key)?.meaning;
     const key = html`<code>${e.key}</code>${meaning ? html`<small class="muted meaning">${meaning}</small>` : ''}`;
-    const edit = options.editable
-      ? html`<details class="correct"><summary>Edit</summary><form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${options.editable.path}"><input type="hidden" name="id" value="${e.id}"><input type="hidden" name="row" value="${rowId}">
-<label>What it is <small>A key from the vocabulary (start typing), or custom.something</small><input name="key" value="${e.key}" list="vocab" required spellcheck="false" autocomplete="off"></label>
+    const editable = options.editable;
+    const edit = editable
+      ? dialog(`${prefix}-edit-${e.id}`, { label: 'Edit', class: 'secondary small' }, e.label || 'Edit this', (cancel) => html`<form class="correct" method="post" action="/dashboard/walkthrough/correct"><input type="hidden" name="path" value="${editable.path}"><input type="hidden" name="id" value="${e.id}"><input type="hidden" name="row" value="${rowId}">
+<label>What it is <small>Start typing to pick one, or use custom.something</small><input name="key" value="${e.key}" list="vocab" required spellcheck="false" autocomplete="off"></label>
 <label>Who decides<select name="risk">${RISKS.map((r) => html`<option value="${r}"${r === e.risk ? ' selected' : ''}>${RISK_CHOICES[r]}</option>`)}</select></label>
 <label>Label <small>What agents and people call it</small><input name="label" value="${e.label}"></label>
-<div class="row"><button type="submit">Save</button><span class="small muted">Saved to this run; agents see it once you publish.</span></div></form></details>`
+<p class="small muted">Agents see it once you publish.</p><p class="dialog-actions"><button type="submit">Save</button>${cancel}</p></form>`)
       : '';
     return html`<tr id="${rowId}" data-el="${prefix}-${e.id}"><td>${e.box ? html`<a href="#${prefix}-box-${e.id}">${e.label || '(no label)'}</a>` : e.label || '(no label)'}${options.status?.[e.id] ? html` <span class="badge ${options.status[e.id]!}">${options.status[e.id] === 'new' ? 'New' : 'Labelled differently'}</span>` : ''}<span class="saved-note">Saved</span>${condition}${leads}</td><td>${control}</td><td><span class="risk"><span class="risk-dot ${e.risk}"></span>${RISK_NAMES[e.risk]}</span></td><td>${key}${edit}</td></tr>`;
   };
@@ -138,8 +131,8 @@ ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p
 export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean } = {}): string {
   const mode = state.published
     ? html`<fieldset class="mode"><legend>Your site has ${String(state.published)} published map${state.published === 1 ? '' : 's'}</legend>
-<label><input type="radio" name="mode" value="update" checked> <b>Update them</b> <span class="small muted">Each page starts from its published map, so your corrections stay. Anything new on the page is marked for you to check.</span></label>
-<label><input type="radio" name="mode" value="fresh"> <b>Start fresh</b> <span class="small muted">Muse Spark labels every page again, ignoring the published maps. What it labels differently is marked.</span></label>
+<label><input type="radio" name="mode" value="update" checked> <span><b>Update them</b><small>Keeps your corrections and marks anything new.</small></span></label>
+<label><input type="radio" name="mode" value="fresh"> <span><b>Start fresh</b><small>Muse Spark labels every page again.</small></span></label>
 <p class="small muted">Either way, the maps agents get stay as they are until you publish.</p></fieldset>`
     : '';
   return page(
@@ -149,13 +142,15 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
 ${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough">
 ${mode}
-<label>Where to start <span class="small muted">(your home page is fine: Usher asks where to go, and can map every form in one run)</span><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
-<label><input type="checkbox" name="generated" value="1" checked> Use a generated test person (fictional; nothing about anyone real)</label>
-<label>Or your own test answers, one per line as <code>key: value</code> (for example <code>person.first_name: Test</code>)<textarea name="values" rows="6"></textarea></label>
-<label><input type="checkbox" name="final" value="1"> Press the last button too (the one that submits), on this test run</label>
-<p class="small muted">Test answers stay in the run's memory: they are never stored, logged, sent to the model or shown in a screenshot (every input is masked), and are gone when the run ends. One run per day, and a run that maps nothing doesn't count; it counts against the daily model budget. While it runs you can talk to Usher, pick where it goes, or click its browser; it never leaves your site.</p>
+<label>Where to start <small>Your home page is fine. Usher asks where to go.</small><input name="start" placeholder="${origin}/" pattern="${esc(origin).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*"></label>
+<details class="more"><summary>More options</summary>
+<label><input type="checkbox" name="generated" value="1" checked> Use a made-up test person</label>
+<label>Or your own test answers <small>One per line, such as <code>person.first_name: Test</code></small><textarea name="values" rows="4"></textarea></label>
+<label><input type="checkbox" name="final" value="1"> Also press the final submit button on this test run</label>
+</details>
+<p class="small muted">One run a day. Test answers are never stored, logged or sent to the model. Usher stays on your site.</p>
 <button type="submit">Start</button></form>`,
-    { style: '.mode { border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:grid; gap:10px; } .mode legend { font-weight:600; padding:0 6px; } .mode label { display:block; } .mode label .small { display:block; margin-left:1.6em; }' },
+    { style: ANNOTATE_STYLE + '.mode { border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:0 0 18px; } .mode legend { font-weight:600; padding:0 6px; } .mode label small { display:block; color:var(--muted); font-size:13px; font-weight:400; }' },
   );
 }
 
