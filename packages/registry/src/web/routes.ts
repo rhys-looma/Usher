@@ -27,7 +27,7 @@ import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, 
 import type { ThemeDeriver } from '../theme-derive.ts';
 import { CARD_HTML } from './card-page.ts';
 import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
-import { APP_STYLE, appCard, appPage, nextStep, setupStrip } from './app.ts';
+import { APP_STYLE, appCard, appPage, nextStep, setupStrip, stillToDo } from './app.ts';
 import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools, suggestTools, withoutDefaults } from '../site-app.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
@@ -149,6 +149,10 @@ function sendText(res: ServerResponse, body: string): void {
 const ADMIN_BANNER = (origin: string) =>
   `<div class="card warn"><b>Signed in as Usher's admin</b> on ${origin.replace(/[<>&"]/g, '')}, with its owner's powers. Changes are logged and shown to the owner. <a href="/admin/sites">All sites</a> · <form method="post" action="/dashboard/logout" style="display:inline"><button class="secondary">Leave</button></form></div>`;
 
+/** What each setup step says when it's done, for the page the owner lands on next. */
+const DONE = { joined: 'Your site is verified.', mapped: 'Your task is published.', rules: 'Your rules are applied.', look: 'Your look is saved.' } as const;
+const stepDone = (url: URL): string | undefined => DONE[url.searchParams.get('done') as keyof typeof DONE];
+
 function sendHtml(res: ServerResponse, status: number, body: string, options: { siteScript?: boolean; frames?: boolean } = {}): void {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
@@ -195,6 +199,16 @@ export class Web {
 
   private numbers?: Promise<Numbers>;
   private interestCheck?: UsherCheck;
+
+  /**
+   * Where setup goes after a step: the next one not done, saying what was just done. Nothing once
+   * it's all done, so an owner changing something later stays where they are.
+   */
+  private async nextAddress(origin: string, done: keyof typeof DONE): Promise<string | undefined> {
+    const next = (await this.registry.siteSetup(origin)).steps.find((s) => !s.done_at && (s.key !== 'look' || this.options.themes) && (s.key !== 'mapped' || this.options.walkthroughs));
+    const to = { joined: undefined, mapped: `/dashboard/walkthrough/new?done=${done}`, rules: `/dashboard?done=${done}#rules`, look: `/dashboard/theme?done=${done}`, published: `/dashboard/app?done=${done}#switch` };
+    return next && to[next.key];
+  }
 
   /** The front page, with Usher's own site key on its tag. */
   private async landing(extra: Partial<LandingOptions> = {}): Promise<string> {
@@ -621,7 +635,7 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
     if (route === 'GET /sites/new/claim') return site!.claim ? redirect(res, '/dashboard') : sendHtml(res, 200, claimPage({ url: this.registry.url, site: site! })), true;
     if (route === 'POST /sites/new/claim') {
       const reply = await this.registry.verifySiteFor(site!.origin);
-      if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
+      if (reply.status === 200) return redirect(res, (await this.nextAddress(site!.origin, 'joined')) ?? '/dashboard?welcome'), true;
       return sendHtml(res, 422, claimPage({ url: this.registry.url, site: site!, failure: explainClaim(site!.origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
     }
     return false;
@@ -750,7 +764,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
     if (admin && req.method === 'POST') await recordAdminAction(this.registry.storage, origin, route.replace(/\/(s|r)_[A-Za-z0-9_-]+/, '/$1_…'));
     if (route === 'POST /dashboard/verify' && site) {
       const reply = await this.registry.verifySiteFor(origin);
-      if (reply.status === 200) return redirect(res, '/dashboard?welcome'), true;
+      if (reply.status === 200) return redirect(res, (await this.nextAddress(origin, 'joined')) ?? '/dashboard?welcome'), true;
       return send(res, 422, claimPage({ url: this.registry.url, site, fromDashboard: true, failure: explainClaim(origin, (reply.body as { tried?: { method: string; result: string }[] }).tried ?? []) })), true;
     }
     // Until the site has proved it holds its origin, the dashboard shows what's missing, and nothing else (except to the admin).
@@ -767,10 +781,11 @@ ${annotated(drawn, { anchor: 'v' })}`;
       if (asked) return redirect(res, asked[1]!), true;
     }
     if (route === 'GET /dashboard') {
-      const welcome = url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
+      const done = stepDone(url);
+      const welcome = done ? html`<div class="card notice"><b>${done}</b> Next: check your rules below. Confirm them, or tell Usher what to change.</div>` : url.searchParams.has('welcome') ? html`<div class="card notice"><b>You're set up.</b> Agents that knock on your forms will show up here, with what they did, step by step.</div>` : '';
       const card = walk ? walkthroughCard({ origin, refusal: await walk.refusal(origin, `${origin}/`, admin), last: await walk.get(origin) }) : '';
       const app = appCard(await this.registry.siteApp(origin), await this.registry.siteSetup(origin));
-      return boardPage(200, await board.overview(origin, welcome || undefined, undefined, { cards: html`${card}${app}` })), true;
+      return boardPage(200, await board.overview(origin, welcome || undefined, undefined, { cards: html`${card}${app}`, ...(done && { active: 'rules' as const }) })), true;
     }
     if (route === 'GET /dashboard/tools') return redirect(res, '/dashboard#tools'), true;
     const toolRoute = /^\/dashboard\/tools\/([a-z][a-z0-9_.]*)(\/suggest|\/after)?$/.exec(url.pathname);
@@ -829,14 +844,18 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const show = async (status: number, extra: { notice?: string; problems?: string[] } = {}) => {
         const app = await this.registry.siteApp(origin);
         const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : html``;
-        return send(res, status, appPage({ origin, name, endpoint, app, setup: await this.registry.siteSetup(origin), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
+        const setup = await this.registry.siteSetup(origin);
+        return send(res, status, appPage({ origin, name, endpoint, app, setup, needs: admin ? [] : stillToDo(setup, Boolean(this.options.themes)), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
       };
-      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : {}), true;
+      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : stepDone(url) ? { notice: `${stepDone(url)} Last step: publish your app.` } : {}), true;
       if (route === 'POST /dashboard/app/switch') {
         const on = (await readForm(req)).get('enabled') === '1';
         const app = await this.registry.siteApp(origin);
         if (on && !(await this.registry.joined(origin))) return await show(422, { problems: ['Verify your site first: only a site that has proved it controls its address can publish.'] }), true;
         if (on && !(await siteTools(this.registry, origin, app)).length) return await show(422, { problems: ['Map your site first: each thing it maps becomes a task.'] }), true;
+        // Your rules and your look before your name goes on it. Usher's admin may go ahead.
+        const needs = admin ? [] : stillToDo(await this.registry.siteSetup(origin), Boolean(this.options.themes));
+        if (on && needs.length) return await show(422, { problems: [`Finish these first: ${needs.map((n) => n.label.replace(/:.*$/, '')).join(', ')}.`] }), true;
         await this.registry.setSiteApp(origin, { ...app, enabled: on });
         return redirect(res, on ? '/dashboard/app?published' : '/dashboard/app'), true;
       }
@@ -856,7 +875,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const journey = (await this.registry.journeys(origin).catch(() => []))[0];
       const show = async (status: number, extra: Partial<Parameters<typeof themePage>[0]> = {}) =>
         send(res, status, themePage({ origin, record: await this.registry.siteTheme(origin), name, ...(journey && { journey }), refusal: await themes.refusal(origin), busy: themes.busy(origin), ...extra }), { siteScript: true, frames: true });
-      if (route === 'GET /dashboard/theme') return await show(200, url.searchParams.has('saved') ? { notice: 'Saved. Your cards use this look from now on.' } : url.searchParams.has('read') ? { notice: 'Usher read your site and proposed this look. Adjust anything, then accept it.' } : {}), true;
+      if (route === 'GET /dashboard/theme') return await show(200, stepDone(url) ? { notice: `${stepDone(url)} Next: how your app looks to your customers. Change anything you like, then accept it.` } : url.searchParams.has('saved') ? { notice: 'Saved. Your cards use this look from now on.' } : url.searchParams.has('read') ? { notice: 'Usher read your site and proposed this look. Adjust anything, then accept it.' } : {}), true;
       if (route === 'POST /dashboard/theme/refresh') {
         const done = await themes.derive(origin);
         if (typeof done === 'string') return await show(422, { notice: done }), true;
@@ -870,7 +889,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const checked = themeFromForm(await readForm(req), await this.registry.siteTheme(origin), name);
         if ('problems' in checked) return await show(422, { problems: checked.problems }), true;
         await this.registry.approveTheme(origin, checked.theme);
-        return redirect(res, '/dashboard/theme?saved'), true;
+        return redirect(res, (await this.nextAddress(origin, 'look')) ?? '/dashboard/theme?saved'), true;
       }
     }
     if (route === 'GET /dashboard/learning') return send(res, 200, teachingPage(await this.learning.counters(), await this.learning.correctionsFor(origin))), true;
@@ -880,7 +899,10 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const last = await walk.get(origin);
         return { published: (await this.registry.currentMaps(origin)).size, unpublished: Boolean(last && last.status !== 'running' && last.pages.length && !last.published_at) };
       };
-      if (route === 'GET /dashboard/walkthrough/new') return send(res, 200, startForm(origin, undefined, await startState())), true;
+      if (route === 'GET /dashboard/walkthrough/new') {
+        const done = stepDone(url);
+        return send(res, 200, startForm(origin, undefined, { ...(await startState()), ...(done && { notice: `${done} Next: map your site.` }) })), true;
+      }
       // Owners get an allowance per address an hour; Usher's admin has none.
       const limited = (group: 'walk' | 'chat') => !admin && !this.ownerLimits[group].allow(`${group}|${clientAddress(req, this.options.proxyHops)}`);
       if (route === 'POST /dashboard/walkthrough') {
@@ -934,7 +956,8 @@ ${annotated(drawn, { anchor: 'v' })}`;
       if (route === 'POST /dashboard/walkthrough/cancel') return walk.cancel(origin, (await readForm(req)).get('id') ?? ''), redirect(res, '/dashboard/walkthrough'), true;
       if (route === 'POST /dashboard/walkthrough/publish') {
         if (!(await this.registry.joined(origin))) return send(res, 403, page('Map my site', html`<h1>Verify your site first</h1><div class="card error">Usher only publishes maps of a site that has proved it controls its address.</div><p><a href="/dashboard/walkthrough">Back</a></p>`)), true;
-        return await walk.publish(origin), redirect(res, '/dashboard/walkthrough'), true;
+        await walk.publish(origin);
+        return redirect(res, (await this.nextAddress(origin, 'mapped')) ?? '/dashboard/walkthrough'), true;
       }
       if (route === 'POST /dashboard/walkthrough/correct') {
         const form = await readForm(req);
@@ -953,6 +976,8 @@ ${annotated(drawn, { anchor: 'v' })}`;
     const confirm = /^\/dashboard\/rules\/(r_[A-Za-z0-9_-]+)\/confirm$/.exec(url.pathname);
     if (confirm && req.method === 'POST') {
       const reply = await this.registry.confirmRulesFor(origin, confirm[1]!);
+      const onward = reply.status === 200 ? await this.nextAddress(origin, 'rules') : undefined;
+      if (onward) return redirect(res, onward), true;
       return boardPage(reply.status, await board.overview(origin, reply.status === 200 ? html`<div class="card notice">Rules applied.</div>` : html`<div class="card error">That draft is no longer pending.</div>`, undefined, { active: 'rules' })), true;
     }
     if (route === 'POST /dashboard/explain') {

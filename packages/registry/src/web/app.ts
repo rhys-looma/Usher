@@ -16,6 +16,11 @@ export function nextStep(setup: SiteSetup): Raw | null {
   return next ? html`<a href="${HREF[next.key]}">${next.label}</a>` : null;
 }
 
+/** What must be done before an app can be published: its rules and its look, each with where to do it. */
+export function stillToDo(setup: SiteSetup, themes: boolean): { label: string; href: string }[] {
+  return setup.steps.filter((s) => !s.done_at && (s.key === 'rules' || (s.key === 'look' && themes))).map((s) => ({ label: s.label, href: HREF[s.key] }));
+}
+
 /** "14 min 32 s", "2 h 5 min", "3 days". */
 export function duration(ms: number): string {
   const s = Math.round(ms / 1000);
@@ -60,12 +65,12 @@ export const APP_STYLE = `
 @media (max-width:860px) { .strip { grid-template-columns:minmax(0,1fr); } }
 `;
 
-export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[] }): string {
+export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; needs?: { label: string; href: string }[]; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[] }): string {
   const { app, tools } = input;
   const live = tools.filter((t) => !t.hidden);
   const switchCard = html`<div class="card" id="switch"><h2>Publish</h2>
 ${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that add your endpoint can use the tasks below.</p>` : html`<p><b>Off.</b> Your endpoint answers no one until you switch it on.</p>`}
-<form method="post" action="/dashboard/app/switch"><input type="hidden" name="enabled" value="${app.enabled ? '0' : '1'}">${!app.enabled && !live.length ? html`<button type="submit" disabled>Publish my app</button> <span class="small muted">Map a journey first: each one becomes a tool.</span>` : html`<button type="submit"${app.enabled ? ' class="secondary"' : ''}>${app.enabled ? 'Switch my app off' : 'Publish my app'}</button>`}</form>
+<form method="post" action="/dashboard/app/switch"><input type="hidden" name="enabled" value="${app.enabled ? '0' : '1'}">${!app.enabled && live.length && input.needs?.length ? html`<button type="submit" disabled>Publish my app</button> <span class="small muted">First: ${input.needs.map((n, i) => html`${i ? ', ' : ''}<a href="${n.href}">${n.label.replace(/:.*$/, '')}</a>`)}.</span>` : !app.enabled && !live.length ? html`<button type="submit" disabled>Publish my app</button> <span class="small muted">Map a journey first: each one becomes a tool.</span>` : html`<button type="submit"${app.enabled ? ' class="secondary"' : ''}>${app.enabled ? 'Switch my app off' : 'Publish my app'}</button>`}</form>
 <p class="small muted">${input.usage.connections} connection${input.usage.connections === 1 ? '' : 's'} and ${input.usage.fills} fill${input.usage.fills === 1 ? '' : 's'} so far.</p></div>`;
   const endpoint = html`<div class="card"><h2>Your endpoint</h2>
 <p class="endpoint"><code>${input.endpoint}</code></p>

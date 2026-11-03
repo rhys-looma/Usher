@@ -90,7 +90,7 @@ test('signup: keys once, the tag, a claim that fails and says why, then passes, 
 
   await page.getByRole('button', { name: 'Check now' }).click();
   assert.equal(new URL(page.url()).pathname, '/dashboard', 'the dashboard opens, signed in');
-  assert.match(await look(page, 'dashboard'), /You're set up\./);
+  assert.match(await look(page, 'dashboard'), /Your site is verified\./);
   assert.equal((await registry.registry.storage.getSite(site.url))?.claim?.method, 'well-known');
 
   // With maps, as once agents have used the forms: the forms table and a map, as the owner sees them.

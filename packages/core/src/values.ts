@@ -34,6 +34,18 @@ export function toIsoDate(text: string): string | null {
 export type DatePart = 'day' | 'month' | 'year';
 
 const DATES = new Set(vocabulary.dates ?? []);
+/**
+ * A failure's reason, safe to show or keep. A browser automation error quotes what was being typed
+ * ('fill("…")'), and values are never shown back or stored, so only its own explanation survives.
+ */
+export function safeReason(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err);
+  const network = /net::ERR_[A-Z_]+/.exec(text)?.[0];
+  if (network) return `The page couldn't be reached (${network}). Nothing was submitted.`;
+  if (/\bCall log:|^(locator|page|frame|elementHandle)\.[a-zA-Z]+:/.test(text)) return "The page didn't accept one of the answers, so Usher stopped. Nothing more was submitted.";
+  return text;
+}
+
 export const isDateKey = (key: string) => DATES.has(key);
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();

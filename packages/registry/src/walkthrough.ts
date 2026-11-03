@@ -570,6 +570,7 @@ export class Walkthroughs {
       await this.o.registry.verifyMap(origin, map.fingerprint.digest, 'keeper', 'owner walkthrough');
     }
     await this.storage.putCached('walkthrough', origin, { ...run, published_at: this.now().toISOString() });
+    await this.o.registry.suggestRules(origin, { refresh: true });
     return run.pages.length;
   }
 

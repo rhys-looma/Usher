@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan, type CardTheme, type PlanResume, resumeUrl } from '@usher/core';
+import { safeReason, isDateKey, budgeted, compilerModel, lookupFilled, matchOption, modelApi, pickOption, preflight, vocabulary, type ChatFn, type MapAction, type MapField, type SpendLedger, type UsherPlan, type CardTheme, type PlanResume, resumeUrl } from '@usher/core';
 import type { KnockResponse } from '@usher/registry';
 import { RateLimiter } from '../../registry/src/rate-limit.ts';
 import { fillField, httpTransport, runAgent, type AgentEvent, type FallbackModel, type PageDecisions, type Profile, type RegistryTransport, type RunResult, type UserChannel } from '../../agent/src/index.ts';
@@ -57,6 +57,8 @@ export interface Decision {
   short: string;
   /** The page it's on, in words ("About you"), for a card that groups a long form. */
   section?: string;
+  /** The answer is a date, so the card asks for one. */
+  date?: boolean;
 }
 
 /** A decision's name in a confirmation the person sends: the action's own words, or the key's last part. */
@@ -107,6 +109,8 @@ interface Job {
   planned: Decision[];
   /** Each page's name in words, from the plan. */
   sections?: Map<string, string>;
+  /** What the plan knows about each question, to check an answer before it goes near the page. */
+  inputs?: UsherPlan['inputs'];
   pending?: Pending;
   pauses: number;
   /** Keys read from the person's details (never the values). */
@@ -335,7 +339,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           instructions: options.cards?.()
             ? 'The card on screen shows the person these decisions: do not repeat them. Pass their reply to usher_confirm. Never answer for them.'
             : 'Show your user every block marked verbatim word for word, put each decision to them, and pass all their answers to usher_confirm at once. Never answer for them.',
-          decisions: job.sections ? decisions.map((d) => ({ ...d, ...(job.sections!.has(d.page) && { section: job.sections!.get(d.page)! }) })) : decisions,
+          decisions: decisions.map((d) => ({ ...d, ...(job.sections?.has(d.page) && { section: job.sections.get(d.page)! }), ...(d.kind === 'missing_value' && (d.control === 'date' || isDateKey(d.key)) && { date: true }) })),
           blocks,
           confirmation_form: confirmationPhrase(decisions),
           ...(job.fromDetails && { read_from_details: job.fromDetails }),
@@ -517,6 +521,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
     for (const q of job.planned) if (q.kind === 'confirm_value') job.proposed.set(q.key, String(values[q.key]));
     const brand = await options.brand?.(new URL(url).origin).catch(() => undefined);
     if (brand) job.brand = brand;
+    if (plan) job.inputs = plan.inputs;
     if (plan?.resume) job.resume = { origin: new URL(url).origin, page: plan.resume };
     // "Health insurance quote: about you" is the page "About you".
     if (plan) job.sections = new Map(plan.steps.map((s) => [s.path, (s.purpose.includes(':') ? s.purpose.slice(s.purpose.indexOf(':') + 1) : s.purpose).trim().replace(/^(.)/, (c) => c.toUpperCase())]));
@@ -661,7 +666,7 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         });
       } catch (err) {
         // A run that broke (or whose page a cancel closed) ends as failed, never as a crash.
-        return { outcome: 'failed', reason: err instanceof Error ? err.message : String(err), session: null, final_url: job.page?.url() ?? url!, pages: [], maps_submitted: 0, transport: 'http', total_ms: 0, knock_ms: 0, model_ms: 0, fill_ms: 0, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, cost_usd: 0, plan_used: false };
+        return { outcome: 'failed', reason: safeReason(err), session: null, final_url: job.page?.url() ?? url!, pages: [], maps_submitted: 0, transport: 'http', total_ms: 0, knock_ms: 0, model_ms: 0, fill_ms: 0, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 0 }, cost_usd: 0, plan_used: false };
       } finally {
         await transport.close?.();
         admitted.release();
@@ -706,6 +711,15 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         return failure(
           `Answer every decision, as your user answered it: ${[...unanswered, ...unclear].map((d) => `${d.key} ("${d.label}")`).join(', ')}. Consents and the submit take true or false; nothing has been entered or submitted.`,
         );
+      // An answer the page couldn't take is put right now, with the question still open: a date must
+      // be a date. It comes back read as a date, whatever way the person wrote it.
+      const typed = pending.decisions.filter((d) => d.kind === 'missing_value' && given[d.key] !== undefined);
+      const checked = preflight(
+        typed.map((d) => ({ ...(job.inputs?.find((i) => i.key === d.key) ?? {}), key: d.key, label: d.label, required: false, risk: 'safe', ...(d.control && { control: d.control }) })) as Parameters<typeof preflight>[0],
+        Object.fromEntries(typed.map((d) => [d.key, String(given[d.key])])),
+      );
+      if (checked.problems.length) return failure(`Ask your user again; nothing has been entered or submitted. ${checked.problems.map((p) => p.message).join(' ')}`);
+      for (const d of typed) given[d.key] = checked.normalised[d.key];
       for (const d of pending.decisions) {
         const v = given[d.key];
         // A confirmed answer is entered as the person gave it; one they say isn't right is not entered.

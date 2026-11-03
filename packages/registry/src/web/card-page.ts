@@ -143,7 +143,7 @@ ${CARD_CSS}
         row = '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<select name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value"><option value="">Choose…</option>'
           + q.options.map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('') + '</select></label></div>';
       } else {
-        row = '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<input type="text" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
+        row = '<div class="row"><label>' + esc(q.label) + (plan && !q.required ? ' <span class="tag opt">optional</span>' : '') + '<input type="' + (q.date ? 'date' : q.control === 'email' ? 'email' : q.control === 'tel' ? 'tel' : q.control === 'number' ? 'number' : 'text') + '" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="value" autocomplete="off"></label></div>';
       }
       rows.push({ q: q, html: row });
     });

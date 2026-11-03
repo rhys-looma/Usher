@@ -177,6 +177,10 @@ form.stack { display:flex; flex-direction:column; align-items:stretch; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
 button:disabled { opacity:.5; cursor:default; }
+.partner[data-keep] { box-shadow:0 0 0 4px rgba(116,52,211,.2), 0 18px 50px -18px rgba(18,19,44,.55); }
+.fill-examples { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.rules-next { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:14px 0 0; }
+label.button { display:inline-block; font-weight:600; font-size:15px; padding:12px 22px; border:1.5px solid var(--button); border-radius:2px; background:var(--button); color:var(--button-ink); cursor:pointer; }
 p.busy { display:flex; align-items:center; gap:8px; margin:10px 0 0; font-size:14px; font-weight:600; color:var(--accent); }
 /* A dialog: opened by the browser (popover), so it needs no script and sits above any table. */
 .dialog { white-space:normal; margin:auto; padding:24px; width:min(480px, calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1.5px solid var(--rule); border-radius:6px; background:var(--card); color:var(--ink); }
@@ -202,8 +206,8 @@ export function dialog(id: string, open: { label: string; class?: string }, titl
 }
 
 /** Usher at your side: a floating panel for what the model does for you. Folds away; stays while you read the page. */
-export function partner(title: string, body: Raw, options: { id?: string; open?: boolean } = {}): Raw {
-  return html`<details class="partner"${options.id ? html` id="${options.id}"` : ''}${options.open === false ? '' : ' open'}><summary><span class="partner-mark" aria-hidden="true">U</span>${title}</summary><div class="partner-body">${body}</div></details>`;
+export function partner(title: string, body: Raw, options: { id?: string; open?: boolean; keep?: boolean } = {}): Raw {
+  return html`<details class="partner"${options.id ? html` id="${options.id}"` : ''}${options.open === false ? '' : ' open'}${options.keep ? ' data-keep' : ''}><summary><span class="partner-mark" aria-hidden="true">U</span>${title}</summary><div class="partner-body">${body}</div></details>`;
 }
 
 export function page(title: string, body: Raw, options: { nav?: Raw; scripts?: string[]; style?: string } = {}): string {

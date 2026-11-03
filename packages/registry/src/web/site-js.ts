@@ -109,7 +109,13 @@ export const DEMO_JS = `(() => {
  * far show until the page changes. On a narrow screen the floating panel starts folded.
  */
 export const BUSY_JS = `(() => {
-  if (innerWidth < 640) for (const p of document.querySelectorAll('details.partner')) if (!p.querySelector('.card')) p.open = false;
+  if (innerWidth < 640) for (const p of document.querySelectorAll('details.partner')) if (!p.querySelector('.card') && !p.hasAttribute('data-keep')) p.open = false;
+  // An example to start from goes in the box, to change before sending.
+  document.addEventListener('click', (e) => {
+    const example = e.target.closest && e.target.closest('[data-fill]');
+    const box = example && example.form && example.form.querySelector('textarea');
+    if (box) { box.value = example.getAttribute('data-fill'); box.focus(); }
+  });
   let timer;
   document.addEventListener('submit', (e) => {
     const form = e.target;

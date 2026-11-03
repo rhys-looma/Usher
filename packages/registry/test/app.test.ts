@@ -59,6 +59,17 @@ test('the setup strip: each step as it is done, and the time from joining to pub
   setup = await r.siteSetup(site.url);
   assert.deepEqual(setup.steps.map((s) => Boolean(s.done_at)), [true, true, false, true, false]);
 
+  // Its rules before its name goes on it, with some ready to confirm.
+  const held = await post('/dashboard/app/switch', { enabled: '1' });
+  assert.equal(held.status, 422);
+  assert.match(await held.text(), /Finish these first: Rules\./);
+  await get('/dashboard');
+  const [suggested] = (await r.storage.listDrafts(site.url)).filter((d) => d.status === 'pending');
+  assert.equal(suggested?.model, 'usher', 'written from the maps');
+  const onward = await post(`/dashboard/rules/${suggested!.id}/confirm`, {});
+  assert.equal(onward.status, 303);
+  assert.equal(onward.headers.get('location'), '/dashboard/app?done=rules#switch', 'on to the next step');
+  assert.match(await (await get('/dashboard/app?done=rules')).text(), /Your rules are applied\. Last step: publish your app\./);
   assert.equal((await post('/dashboard/app/switch', { enabled: '1' })).status, 303);
   assert.equal(await r.siteAppServed(site.url), true);
   setup = await r.siteSetup(site.url);
@@ -182,7 +193,7 @@ test('what the model does sits in a floating panel, and shows it is working unti
   assert.equal(js.status, 200);
   assert.match(await js.text(), /data-busy/);
   const rules = await (await get('/dashboard')).text();
-  assert.match(rules, /<details class="partner"[^>]*>[\s\S]*?Change your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
+  assert.match(rules, /<details class="partner"[^>]*>[\s\S]*?(Change|Tell Usher) your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
   assert.match(rules, /<script src="\/busy\.js" defer><\/script>/);
   const task = await (await get('/dashboard/tools/quote.health_insurance')).text();
   assert.match(task, /<details class="partner">[\s\S]*?action="\/dashboard\/tools\/quote\.health_insurance\/suggest" data-busy=/);
@@ -222,4 +233,62 @@ test('reloading an address that answered a form goes back to its page, not to "n
     const res = await fetch(`${running.url}${from}`, { redirect: 'manual', headers: { Cookie: cookie } });
     assert.deepEqual([res.status >= 300 && res.status < 400, res.headers.get('location')], [true, to], from);
   }
+});
+
+test('a site with no rules: the page says what applies and leads to the box, with examples to start from', async () => {
+  const fresh = await registerSite(running, 'http://no-rules.localhost:4191');
+  const browser = await chromium.launch();
+  try {
+    const page = await (await browser.newContext({ viewport: { width: 1280, height: 850 } })).newPage();
+    await page.goto(`${running.url}/dashboard`);
+    await page.fill('input[name=origin]', fresh.origin);
+    await page.fill('input[name=secret]', fresh.secret_key);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForLoadState();
+    await page.goto(`${running.url}/dashboard#rules`);
+    await page.locator('text=You haven\'t set any rules yet').waitFor();
+    assert.equal(await page.locator('#rules details.partner[open]').count(), 1, 'the box is open');
+    // The page's button takes you to the box.
+    await page.locator('label.button', { hasText: 'Write my rules' }).click();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'rules-text');
+    // An example goes in the box to change; nothing is sent.
+    await page.getByRole('button', { name: 'Limit how often' }).click();
+    assert.match(await page.inputValue('#rules-text'), /no more than ten submissions an hour/);
+    assert.match(page.url(), /#rules$/);
+    assert.equal(await page.getByRole('button', { name: 'Propose policy' }).isDisabled(), false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a mapped site with no rules gets some to start from: from its maps, proposed, applied only when confirmed', async () => {
+  const origin = 'http://starting-rules.localhost:4192';
+  const owner = await registerSite(running, origin);
+  const r = running.registry;
+  const mapped = (await seedMaps('mock-site')).find((m) => m.path === '/quote/cover')!;
+  // Nothing mapped: nothing to suggest.
+  await r.suggestRules(origin);
+  assert.deepEqual(await r.storage.listDrafts(origin), []);
+  await r.addMap({ ...mapped, origin });
+  await r.suggestRules(origin);
+  const [draft] = (await r.storage.listDrafts(origin)).filter((d) => d.status === 'pending');
+  assert.equal(draft?.model, 'usher', 'no model call');
+  assert.equal(await r.storage.getPolicy(origin), undefined, 'nothing applies yet');
+  assert.match(draft!.text, /The person answers or confirms these themselves: “/);
+  assert.match(draft!.text, /At most 10 submissions an hour/);
+  // Asked again: the same one, not another.
+  await r.suggestRules(origin);
+  assert.equal((await r.storage.listDrafts(origin)).filter((d) => d.status === 'pending').length, 1);
+  // The owner's own proposal is never replaced.
+  await r.storage.putDraft({ ...draft!, id: 'r_ownwords', model: 'muse-spark-1.3', text: 'My own words' });
+  await r.suggestRules(origin, { refresh: true });
+  assert.ok((await r.storage.listDrafts(origin)).some((d) => d.id === 'r_ownwords' && d.status === 'pending'));
+  await r.storage.putDraft({ ...draft!, id: 'r_ownwords', model: 'muse-spark-1.3', status: 'superseded' });
+  // Confirmed: it applies, and nothing more is suggested.
+  const applied = await r.confirmRulesFor(origin, draft!.id);
+  assert.equal(applied.status, 200);
+  assert.ok(await r.storage.getPolicy(origin));
+  await r.suggestRules(origin, { refresh: true });
+  assert.equal((await r.storage.listDrafts(origin)).filter((d) => d.status === 'pending').length, 0);
+  assert.ok(owner.site_key);
 });
