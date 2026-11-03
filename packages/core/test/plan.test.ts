@@ -92,8 +92,8 @@ test('a task\'s handoff setting: one of three, on the site\'s own paths, with sh
   const resume = { url: '/retrieve', label: 'Find your quote', asks: ['your quote reference'] };
   assert.deepEqual(checkHandoff({ mode: 'none', message: ' Call us. ' }), { mode: 'none', show: 'all', message: 'Call us.' });
   assert.deepEqual(checkHandoff({ mode: 'instructions', show: 'reference', resume }), { mode: 'instructions', show: 'reference', resume });
-  assert.deepEqual(checkHandoff({ mode: 'redirect', redirect: { url: '/usher/handoff', label: 'Open' } }), { mode: 'redirect', show: 'all', redirect: { url: '/usher/handoff', label: 'Open' } });
-  assert.deepEqual(checkHandoff({ mode: 'none', resume, redirect: { url: '/usher/handoff' } }), { mode: 'none', show: 'all' }, 'nothing kept that the choice does not use');
+  assert.deepEqual(checkHandoff({ mode: 'redirect', redirect: { url: '/handoff', label: 'Open' } }), { mode: 'redirect', show: 'all', redirect: { url: '/handoff', label: 'Open' } });
+  assert.deepEqual(checkHandoff({ mode: 'none', resume, redirect: { url: '/handoff' } }), { mode: 'none', show: 'all' }, 'nothing kept that the choice does not use');
   for (const url of ['https://evil.example/x', '//evil.example/x', '/\\\\evil.example', 'handoff', '/a b', '']) assert.ok('problems' in checkHandoff({ mode: 'redirect', redirect: { url } }), url);
   for (const bad of [{ mode: 'sideways' }, {}, { mode: 'instructions' }, { mode: 'none', show: 'some' }, { mode: 'none', message: 'x'.repeat(301) }, { mode: 'instructions', resume: { url: 'https://evil.example', label: 'x', asks: [] } }]) assert.ok('problems' in checkHandoff(bad), JSON.stringify(bad));
 });

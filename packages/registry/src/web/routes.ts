@@ -776,7 +776,8 @@ ${annotated(drawn, { anchor: 'v' })}`;
           mode: text('mode'),
           show: text('show'),
           message: text('message'),
-          ...(text('retrieve_url') && { resume: { url: text('retrieve_url'), label: text('retrieve_label') || 'Retrieve your result', asks: text('retrieve_asks').split(',').map((a) => a.trim()).filter(Boolean), reference_param: text('reference_param') } }),
+          // One box for the page: "/retrieve?reference=" also says which parameter fills the reference in.
+          ...(text('retrieve_url') && { resume: { url: text('retrieve_url').split('?')[0], label: text('retrieve_label') || 'Retrieve your result', asks: form.getAll('ask'), reference_param: /\?([^=&]+)/.exec(text('retrieve_url'))?.[1] } }),
           redirect: { url: text('redirect_url'), label: text('redirect_label') },
         });
         if ('problems' in saved) return await show(422, { problems: saved.problems }), true;

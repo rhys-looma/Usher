@@ -94,7 +94,7 @@ export function checkHandoff(input: unknown): SiteHandoff | { problems: string[]
   const given = (r.redirect && typeof r.redirect === 'object' ? r.redirect : {}) as Record<string, unknown>;
   const url = typeof given.url === 'string' ? given.url.trim() : '';
   const label = typeof given.label === 'string' && given.label.trim() ? given.label.trim() : 'Open your result';
-  if (mode === 'redirect' && (!SITE_PATH.test(url) || url.length > 200 || label.length > 80)) problems.push('The redirect route must be a path on your site, such as /usher/handoff.');
+  if (mode === 'redirect' && (!SITE_PATH.test(url) || url.length > 200 || label.length > 80)) problems.push('The redirect route must be a path on your site, such as /handoff.');
   if (problems.length || !mode || !show) return { problems };
   return { mode, show, ...(message && { message }), ...(mode !== 'none' && resume && { resume }), ...(mode === 'redirect' && { redirect: { url, label } }) };
 }

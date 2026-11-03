@@ -9,12 +9,12 @@ This applies to Usher's hosted path, where Usher fills the form in its own brows
 | Option | What the person gets | What your site needs |
 | --- | --- | --- |
 | **Stay in the assistant** | What you choose to return, and your message. No link. | Nothing |
-| **Tell them how to retrieve it** | The reference and a link to your own retrieve page, where they enter it | A page where people can find a result |
+| **Send them to a page** | The reference and a link to your own retrieve page, where they enter it | A page where people can find a result |
 | **Open it on your site** | A one-time link straight to their result | A small route on your server |
 
 Whichever you choose, you also set:
 
-- **What it returns:** everything your result page shows, only the reference, or nothing. A person told to retrieve a result always gets the reference, since they need it.
+- **Show them:** the full result, the reference only, or nothing from the page. A person told to retrieve a result always gets the reference, since they need it.
 - **Your message:** up to 300 characters, shown word for word. Use it for what happens next, such as when documents arrive or who to call.
 
 ## Opening it on your site
@@ -38,8 +38,8 @@ if (check.status === 'knock_required') return usher.reject(req, res, check, 'for
 if (check.status === 'ok') saveResult({ ...result, usherSession: check.claims.sid });
 
 // The new route. GET shows a page; only POST uses the token up.
-app.get('/usher/handoff', (req, res) => sendHandoffPage(res, req.query.token));
-app.post('/usher/handoff', async (req, res) => {
+app.get('/handoff', (req, res) => sendHandoffPage(res, req.query.token));
+app.post('/handoff', async (req, res) => {
   const opened = await usher.openHandoff(req, req.body.token);
   const result = opened.ok && findResultByUsherSession(opened.sid);
   if (!result) return res.redirect('/retrieve');
@@ -72,6 +72,7 @@ Then look up the result by `sid`.
 
 ## What to check before switching it on
 
+- **Your CDN:** the route must accept POST and must not be cached. Check any rule that limits a path to GET or caches it, such as one for scripts. Don't put it under `/usher/`, which a host may treat as static.
 - **POST only:** use the token up on the POST, never the GET. Chat apps fetch links to draw previews, and that would spend it before the person clicks.
 - **More than one server:** `openHandoff` remembers used tokens in memory. If you run several instances, pass a shared `replay` cache, or a token could be used once on each.
 - **A new session:** start a new one rather than adding to the visitor's current session, and don't merge it into an account they're already signed in to. Someone could send a person a link to their own result.

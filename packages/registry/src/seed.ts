@@ -24,10 +24,9 @@ export async function seed(registry: Registry, name: string, origin: string): Pr
   // How each journey is picked up afterwards on the site (the plans' resume), as the seed says.
   const resume = await readFile(new URL(`${name}/resume.json`, SEED_DIR), 'utf8').then((t) => JSON.parse(t) as Record<string, unknown>, () => undefined);
   for (const [intent, entry] of Object.entries(resume ?? {})) await registry.setSiteResume(origin, intent, entry);
-  // What each task does when it finishes, unless the site's owner has chosen since.
+  // What each task does when it finishes, as the seed says (like its resume above).
   const handoff = await readFile(new URL(`${name}/handoff.json`, SEED_DIR), 'utf8').then((t) => JSON.parse(t) as Record<string, unknown>, () => undefined);
-  const chosen = await registry.siteHandoffs(origin);
-  for (const [intent, entry] of Object.entries(handoff ?? {})) if (!chosen[intent]) await registry.setSiteHandoff(origin, intent, entry);
+  for (const [intent, entry] of Object.entries(handoff ?? {})) await registry.setSiteHandoff(origin, intent, entry);
   // The demo site's assistant app is on, unless its owner has set it otherwise.
   if (policy && !(await registry.storage.getCached('site-app', origin))) await registry.setSiteApp(origin, { enabled: true });
   return maps;

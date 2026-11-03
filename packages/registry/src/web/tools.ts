@@ -13,13 +13,23 @@ import { shownWhen } from './walkthrough.ts';
 const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 
 export const TOOLS_STYLE = `
-.after label, .after details { display:block; margin:14px 0; }
-.after label.check { display:flex; gap:10px; align-items:flex-start; margin:10px 0; }
-.after label.check input { flex:none; margin-top:5px; }
-.after input[type=text], .after textarea, .after select { display:block; width:100%; max-width:560px; margin-top:4px; }
-.after fieldset { border:0; margin:0; padding:0; }
-.after legend { font-weight:600; padding:0; }
+.after label { display:block; margin:14px 0; font-weight:600; font-size:14px; }
+.after input[type=text], .after select { display:block; width:100%; max-width:480px; margin-top:4px; font-weight:400; }
+.after fieldset { border:0; margin:0 0 6px; padding:0; }
+.after legend { font-weight:600; font-size:14px; padding:0; margin-bottom:8px; }
+.after-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.after-modes legend { grid-column:1 / -1; }
+.after label.choice { display:flex; gap:10px; align-items:flex-start; margin:0; padding:12px; border:1.5px solid var(--line); border-radius:8px; cursor:pointer; }
+.after label.choice:has(input:checked) { border-color:var(--accent); }
+.after label.choice input { flex:none; margin-top:3px; }
+.after label.choice small { display:block; font-weight:400; color:var(--muted); margin-top:2px; }
+.after .field { font-weight:600; font-size:14px; margin:14px 0 6px; }
+.after .asks { display:flex; flex-wrap:wrap; gap:6px 18px; margin:0 0 14px; }
+.after label.tick { display:inline-flex; gap:6px; align-items:center; margin:0; font-weight:400; font-size:15px; }
+.after details { margin:0 0 14px; font-size:14px; }
 .after summary { cursor:pointer; }
+.after:has(input[value=none]:checked) .if-page, .after:has(input[value=none]:checked) .if-redirect, .after:has(input[value=instructions]:checked) .if-redirect, .after:has(input[value=redirect]:checked) .if-instructions { display:none; }
+@media (max-width:640px) { .after-modes { grid-template-columns:minmax(0,1fr); } }
 
 .dash-nav { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:4px 22px; align-items:center; background:var(--bg); border-bottom:1px solid var(--line); margin:0 0 22px; padding:10px 0 0; }
 .dash-nav a { padding:6px 2px 10px; text-decoration:none; font-weight:600; font-size:15px; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-1px; }
@@ -194,20 +204,28 @@ ${map.actions.length ? html`<table class="small"><thead><tr><th>Button or link</
 
 /** One tool: what assistants see of it, its flow with one page open, and how it's been used. */
 const AFTER_MODES: { mode: SiteHandoff['mode']; title: string; what: string }[] = [
-  { mode: 'none', title: 'Stay in the assistant', what: 'No link out. The person gets what you choose to return below, and that is the end of it.' },
-  { mode: 'instructions', title: 'Tell them how to retrieve it', what: 'The person gets the reference and a link to your own page, where they enter it. Works today, with no change to your site.' },
-  { mode: 'redirect', title: 'Open it on your site', what: 'A one-time link takes the person straight to their result, signed in to it. Needs a small route on your server.' },
+  { mode: 'none', title: 'Stay in the assistant', what: 'No link' },
+  { mode: 'instructions', title: 'Send them to a page', what: 'They enter their reference' },
+  { mode: 'redirect', title: 'Open it on your site', what: 'One click. Needs a developer' },
 ];
 const AFTER_SHOW: { show: SiteHandoff['show']; title: string }[] = [
-  { show: 'all', title: 'Everything your result page shows' },
-  { show: 'reference', title: 'Only the reference' },
+  { show: 'all', title: 'The full result' },
+  { show: 'reference', title: 'The reference only' },
   { show: 'nothing', title: 'Nothing from the page' },
 ];
+/** What a retrieve page may ask for, as tick boxes; a stored ask counts if it mentions the word. */
+const AFTER_ASKS: { word: string; title: string; ask: string }[] = [
+  { word: 'reference', title: 'Reference', ask: 'your reference' },
+  { word: 'birth', title: 'Date of birth', ask: 'your date of birth' },
+  { word: 'postcode', title: 'Postcode', ask: 'your postcode' },
+  { word: 'email', title: 'Email', ask: 'your email' },
+];
 
-/** The owner's choice of what happens when the task finishes; read-only on the public demo. */
+/** The owner's choice of what happens when the task finishes; only what the choice needs shows. Read-only on the public demo. */
 function afterCard(action: string, input: { origin: string; intent: string; demo: boolean; handoff: SiteHandoff; registryUrl: string }): Raw {
   const h = input.handoff;
-  if (input.demo) return html`<div class="card" id="after"><h2>When it finishes</h2><p><b>${AFTER_MODES.find((m) => m.mode === h.mode)!.title}.</b> ${AFTER_MODES.find((m) => m.mode === h.mode)!.what}</p></div>`;
+  if (input.demo) return html`<div class="card" id="after"><h2>When it finishes</h2><p><b>${AFTER_MODES.find((m) => m.mode === h.mode)!.title}.</b> ${AFTER_MODES.find((m) => m.mode === h.mode)!.what}.</p></div>`;
+  const route = h.redirect?.url ?? '/handoff';
   const snippet = `import { createUsherCheck, sendHandoffPage } from '@usher/site-middleware';
 
 const usher = createUsherCheck({
@@ -222,30 +240,25 @@ if (check.status === 'knock_required') return usher.reject(req, res, check, 'for
 if (check.status === 'ok') saveResult({ ...result, usherSession: check.claims.sid });
 
 // 2. A new route. GET shows a page; only POST uses the token up.
-app.get('${h.redirect?.url ?? '/usher/handoff'}', (req, res) => sendHandoffPage(res, req.query.token));
-app.post('${h.redirect?.url ?? '/usher/handoff'}', async (req, res) => {
+app.get('${route}', (req, res) => sendHandoffPage(res, req.query.token));
+app.post('${route}', async (req, res) => {
   const opened = await usher.openHandoff(req, req.body.token);
   const result = opened.ok && findResultByUsherSession(opened.sid);
   if (!result) return res.redirect('/retrieve');
   startNewSession(res, result);        // your own cookie, as after any sign-in
   res.redirect(resultPageFor(result));
 });`;
+  const page = h.resume ? `${h.resume.url}${h.resume.reference_param ? `?${h.resume.reference_param}=` : ''}` : '';
+  const asks = h.resume?.asks ?? ['your reference'];
   return html`<form class="card after" method="post" action="${action}/after" id="after"><h2>When it finishes</h2>
-<p class="small muted">What the person gets once this task is done.</p>
-<fieldset class="after-modes"><legend>Where they go next</legend>${AFTER_MODES.map((m) => html`<label class="check"><input type="radio" name="mode" value="${m.mode}"${h.mode === m.mode ? ' checked' : ''}> <span><b>${m.title}</b><br><span class="small muted">${m.what}</span></span></label>`)}</fieldset>
-<label>What it returns <select name="show">${AFTER_SHOW.map((s) => html`<option value="${s.show}"${h.show === s.show ? ' selected' : ''}>${s.title}</option>`)}</select></label>
-<label>Your message <span class="small muted">(optional, shown word for word)</span><textarea name="message" maxlength="${String(HANDOFF_MESSAGE_MAX)}" rows="2" placeholder="We'll email your documents within a day. Questions? Call 0800 000 000.">${h.message ?? ''}</textarea></label>
-<details${h.mode === 'instructions' || h.mode === 'redirect' ? ' open' : ''}><summary><b>Your retrieve page</b> (for instructions, and if a one-time link has expired)</summary>
-<label>Page on your site <input type="text" name="retrieve_url" value="${h.resume?.url ?? ''}" placeholder="/retrieve" spellcheck="false" autocomplete="off"></label>
-<label>What the page is called <input type="text" name="retrieve_label" value="${h.resume?.label ?? ''}" placeholder="Find your quote" maxlength="80"></label>
-<label>What it asks for, separated by commas <input type="text" name="retrieve_asks" value="${h.resume?.asks.join(', ') ?? ''}" placeholder="your quote reference, your date of birth"></label>
-<label>Address parameter that fills in the reference <span class="small muted">(optional)</span><input type="text" name="reference_param" value="${h.resume?.reference_param ?? ''}" placeholder="reference" spellcheck="false" autocomplete="off"></label></details>
-<details${h.mode === 'redirect' ? ' open' : ''}><summary><b>Your redirect route</b> (to open it on your site)</summary>
-<label>Route on your site <input type="text" name="redirect_url" value="${h.redirect?.url ?? '/usher/handoff'}" spellcheck="false" autocomplete="off"></label>
-<label>What the link says <input type="text" name="redirect_label" value="${h.redirect?.label ?? 'Open your result'}" maxlength="80"></label>
-<p class="small">Ask your developer to add this before you switch it on. Until the route exists, the link leads to a page that isn't there. Usher never sees your session: your server checks the token and signs the person in itself.</p>
-<pre class="wrap small">${snippet}</pre>
-<p class="small"><a href="${REPOSITORY}/blob/main/docs/handoff.md">The full guide</a>, including other languages and what to check first. The package isn't on npm yet; the guide says where to get it.</p></details>
+<fieldset class="after-modes"><legend>Where do they go next?</legend>${AFTER_MODES.map((m) => html`<label class="choice"><input type="radio" name="mode" value="${m.mode}"${h.mode === m.mode ? ' checked' : ''}> <span><b>${m.title}</b><small>${m.what}</small></span></label>`)}</fieldset>
+<div class="if-redirect"><label>Your route <input type="text" name="redirect_url" value="${route}" spellcheck="false" autocomplete="off"></label>
+<details><summary>Setup for your developer</summary><pre class="wrap small">${snippet}</pre><p class="small"><a href="${REPOSITORY}/blob/main/docs/handoff.md">The full guide</a>. Set this up before you switch it on.</p></details></div>
+<div class="if-page"><label><span class="if-redirect">If the link has expired, send them to</span><span class="if-instructions">Your page</span> <input type="text" name="retrieve_url" value="${page}" placeholder="/retrieve?reference=" spellcheck="false" autocomplete="off"></label>
+<div class="if-instructions"><p class="field">They'll need</p><p class="asks">${AFTER_ASKS.map((a) => html`<label class="tick"><input type="checkbox" name="ask" value="${a.ask}"${asks.some((x) => x.includes(a.word)) ? ' checked' : ''}> ${a.title}</label>`)}</p></div></div>
+<label>Show them <select name="show">${AFTER_SHOW.map((s) => html`<option value="${s.show}"${h.show === s.show ? ' selected' : ''}>${s.title}</option>`)}</select></label>
+<label>Your message <span class="small muted">(optional)</span><input type="text" name="message" value="${h.message ?? ''}" maxlength="${String(HANDOFF_MESSAGE_MAX)}" placeholder="We'll email your documents within a day."></label>
+<input type="hidden" name="retrieve_label" value="${h.resume?.label ?? 'Retrieve your result'}"><input type="hidden" name="redirect_label" value="${h.redirect?.label ?? 'Open your result'}">
 <p class="tool-buttons"><button type="submit">Save</button></p></form>`;
 }
 
