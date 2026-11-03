@@ -270,6 +270,7 @@ ${CARD_CSS}
       + '<p class="outcome ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Completed' : esc(r.status)) + (r.reason ? ': ' + esc(r.reason) : '') + '</p>'
       + (facts.length ? '<ul class="facts">' + facts.map(function (f) { return '<li class="verbatim">' + esc(f) + '</li>'; }).join('') + '</ul>' : '')
       + (ok && res.reference ? '<p class="ref">Reference <b>' + esc(res.reference) + '</b></p>' : '') + onward
+      + (ok && res.message ? '<p class="verbatim">' + esc(res.message) + '</p>' : '')
       + (image && image.data ? '<img class="thumb" alt="The page Usher finished on" src="data:' + esc(image.mimeType || 'image/png') + ';base64,' + esc(image.data) + '">' : '')
       + (ok && facts.length ? '<p class="note">As the site shows it, word for word</p>' : '')
       + '</div>';

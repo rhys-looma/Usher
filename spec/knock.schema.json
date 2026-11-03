@@ -178,7 +178,7 @@
           "additionalProperties": false,
           "properties": { "sub": { "const": "hosted" } }
         },
-        "scope": { "const": "map", "description": "A mapper's token: the site's owner mapping their own site through the registry's walkthrough. Good for any intent and action on this origin." },
+        "scope": { "enum": ["map", "handoff"], "description": "map: a mapper's token, the site's owner mapping their own site through the registry's walkthrough; good for any intent and action on this origin. handoff: a finished run's one-time link back to the site, for the person; a site's server turns it into its own session, and it is good for nothing else. A check that doesn't ask for a handoff refuses one." },
         "cnf": { "type": "object", "description": "RFC 7800 confirmation: the agent's public key.", "required": ["jwk"], "properties": { "jwk": { "$ref": "#/$defs/ed25519PublicJwk" } } }
       }
     },

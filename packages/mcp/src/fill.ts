@@ -107,7 +107,7 @@ interface Job {
   pauses: number;
   /** Keys read from the person's details (never the values). */
   fromDetails?: string[];
-  outcome?: { title: string; facts: Block[]; image?: string };
+  outcome?: { title: string; facts: Block[]; image?: string; message?: string };
   /** confirm_value answers as the person gave them: entered as said, confirmed before the submit. */
   proposed: Map<string, string>;
   /** Keys the person alone answers that the site permits an agent to enter (health.*, by its rules). */
@@ -123,9 +123,22 @@ interface Job {
   brand?: Brand;
   /** Where the person picks the result up on the site afterwards (the plan's resume), and the site's origin. */
   resume?: { origin: string; page: PlanResume };
+  /** The site owner's choices for a finished run (hosted only), and their words returned with it. */
+  after?: AfterRun;
+}
+
+/** What the site's owner chose for a finished run, on the hosted path. */
+export interface AfterRun {
+  mode: 'none' | 'instructions' | 'redirect';
+  show: 'all' | 'reference' | 'nothing';
+  message?: string;
+  resume?: PlanResume;
+  link?: { url: string; label: string };
 }
 
 export interface FillOptions {
+  /** The site owner's choices for a finished run, with any signed link; the hosted endpoint only. */
+  afterRun?: (origin: string, intent: string | null, session: string | undefined) => Promise<AfterRun | undefined>;
   /** The registry, over HTTP, signing with the key in keyFile; or `transport` instead. */
   registryUrl?: string;
   keyFile?: string;
@@ -276,9 +289,12 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
   function finishing(job: Job): { result: Record<string, unknown>; lead?: string } {
     const facts = job.outcome?.facts.map((f) => f.text) ?? [];
     const reference = referenceOf(facts);
+    const message = job.outcome?.message;
     const site = job.brand?.name ?? (job.resume ? new URL(job.resume.origin).host : undefined);
     let link: { url: string; label: string; site: string; asks: string[] } | undefined;
-    if (job.resume && site) {
+    if (job.after?.link && site) {
+      link = { ...job.after.link, site, asks: [] };
+    } else if (job.resume && site && job.after?.mode !== 'none') {
       try {
         link = { url: resumeUrl(job.resume.origin, job.resume.page, reference), label: job.resume.page.label, site, asks: job.resume.page.asks };
       } catch {
@@ -289,8 +305,9 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
       job.brand && facts.length ? `${job.brand.name}, as the site shows it: ${facts.join(' · ')}` : '',
       reference ? `Reference: ${reference}.` : '',
       link ? `To continue on ${link.site}, your user opens ${link.url}${link.asks.length ? ` (it asks for ${link.asks.join(' and ')})` : ''}.` : '',
+      message ?? '',
     ].filter(Boolean);
-    return { result: { ...(reference && { reference }), ...(link && { continue: link }) }, ...(lines.length && { lead: lines.join('\n') }) };
+    return { result: { ...(reference && { reference }), ...(link && { continue: link }), ...(message && { message }) }, ...(lines.length && { lead: lines.join('\n') }) };
   }
 
   /** Waits for the job's next decision set or its end, and says which. */
@@ -602,9 +619,15 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
           onEvent,
           onFinish: async (page, outcome) => {
             if (outcome !== 'completed') return;
-            const { title, facts } = await resultFacts(page, supplied);
-            job.outcome = { title, facts, ...(await maskedShot(page).then((image) => image && { image })) };
-            await logShown(job, facts, new URL(page.url()).pathname);
+            const { title, facts: read } = await resultFacts(page, supplied);
+            const after = await options.afterRun?.(new URL(url!).origin, plan?.intent ?? null, job.knock?.session).catch(() => undefined);
+            if (after) job.after = after;
+            // Only what the site's owner chose to return; a person told to enter the reference gets it.
+            const show = after?.mode === 'instructions' && after.show === 'nothing' ? 'reference' : (after?.show ?? 'all');
+            const facts = show === 'all' ? read : show === 'reference' ? read.filter((f) => referenceOf([f.text])) : [];
+            job.outcome = { title, facts, ...(show === 'all' && (await maskedShot(page).then((image) => image && { image }))), ...(after?.message && { message: after.message }) };
+            const said: Block[] = after?.message ? [{ kind: 'fact', text: after.message, verbatim: true, source: {} }] : [];
+            await logShown(job, [...facts, ...said], new URL(page.url()).pathname);
           },
         });
       } catch (err) {

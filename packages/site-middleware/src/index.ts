@@ -130,6 +130,19 @@ class KeyCache {
   }
 }
 
+export type HandoffResult = { ok: true; sid: string; intent: string } | { ok: false; reason: 'missing' | 'keys_unavailable' | TokenErrorCode };
+
+/**
+ * The page a handoff link lands on (GET): it posts the token back to the same address, by itself
+ * where scripts run, by a button where they don't. A link preview fetches this and uses nothing up.
+ */
+export function sendHandoffPage(res: ServerResponse, token: string | null | undefined, label = 'Open your result'): void {
+  const safe = token && /^[A-Za-z0-9_.-]+$/.test(token) ? token : '';
+  const text = label.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+  res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${text}</title><form method="post"><input type="hidden" name="token" value="${safe}"><button type="submit">${text}</button></form><script>document.forms[0].submit()</script>`);
+}
+
 export function createUsherCheck(options: UsherCheckOptions) {
   const registry = options.registry.replace(/\/$/, '');
   const knockUrl = options.knockUrl ?? `${registry}/knock`;
@@ -205,6 +218,21 @@ export function createUsherCheck(options: UsherCheckOptions) {
     }
   }
 
+  /**
+   * A person arriving from a finished run with a handoff token: checks its signature, that it's for
+   * this site, its expiry and that it hasn't been used. Nothing else is accepted, an agent's token
+   * included. Call this from a POST only, so a link preview can't use the token up (handoffPage).
+   */
+  async function openHandoff(req: IncomingMessage, token: string | null | undefined): Promise<HandoffResult> {
+    if (!token) return { ok: false, reason: 'missing' };
+    try {
+      const result = await verifyToken(token, { keys: (kid) => keys.get(kid), origin: originOf(req), issuers: [registry], handoff: true, replay, ...(options.now && { now: options.now() }) });
+      return result.ok ? { ok: true, sid: result.claims.sid, intent: result.claims.intent } : { ok: false, reason: result.error };
+    } catch {
+      return { ok: false, reason: 'keys_unavailable' };
+    }
+  }
+
   function knockRequired(req: IncomingMessage, reason?: string): { status: 403; headers: Record<string, string>; body: KnockRequiredBody } {
     return {
       status: 403,
@@ -232,5 +260,5 @@ export function createUsherCheck(options: UsherCheckOptions) {
     }
   }
 
-  return { check, reject, knockRequired, knockUrl };
+  return { check, reject, knockRequired, knockUrl, openHandoff };
 }

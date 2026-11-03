@@ -1,0 +1,19 @@
+{
+  "quote.health_insurance": {
+    "mode": "redirect",
+    "show": "all",
+    "redirect": {
+      "url": "/usher/handoff",
+      "label": "Open your quote"
+    },
+    "resume": {
+      "url": "/retrieve",
+      "label": "Find your quote",
+      "asks": [
+        "your quote reference",
+        "your date of birth"
+      ],
+      "reference_param": "reference"
+    }
+  }
+}

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import { contentDigest, generateAgentIdentity, knockSchemaErrors, randomId, signHttpMessage, signToken, utf8 } from '@usher/core';
 import { RegistryClient, seed, startRegistry, type RunningRegistry } from '@usher/registry';
-import { createUsherCheck, tokenFrom } from '../src/index.ts';
+import { createUsherCheck, sendHandoffPage, tokenFrom } from '../src/index.ts';
 import { startMockSite, type MockSite } from './mock-site.ts';
 import { testStorage } from '../../registry/test/storage-helper.ts';
 
@@ -188,4 +188,27 @@ test('Web Bot Auth: a signature from the token\'s key is verified; another key, 
   assert.equal(unsigned.status === 'ok' && unsigned.identity, 'unsigned');
   const required = await strict.check(req({ authorization: `Usher ${await knock()}` }), { action: 'form.submit' });
   assert.equal(required.status === 'knock_required' && required.reason, 'signature_required');
+});
+
+test('a handoff page holds the token for a POST, escapes what it is given, and refuses to echo anything but a token', () => {
+  const page = (token: string | null, label?: string) => {
+    let body = '';
+    let headers: Record<string, string> = {};
+    sendHandoffPage({ writeHead: (_: number, h: Record<string, string>) => void (headers = h), end: (b: string) => void (body = b) } as never, token, label);
+    return { body, headers };
+  };
+  const ok = page('a.b-c_d.e', 'Open <your> quote');
+  assert.match(ok.body, /<form method="post"><input type="hidden" name="token" value="a\.b-c_d\.e">/);
+  assert.match(ok.body, /Open &lt;your&gt; quote/);
+  assert.deepEqual([ok.headers['Cache-Control'], ok.headers['Referrer-Policy']], ['no-store', 'no-referrer']);
+  assert.match(page('"><script>alert(1)</script>').body, /name="token" value=""/);
+  assert.match(page(null).body, /name="token" value=""/);
+});
+
+test('openHandoff: no token and a stranger\'s token open nothing', async () => {
+  const usher = createUsherCheck({ registry: registry.url, intent: 'quote.car_insurance', origin: site.url });
+  assert.deepEqual(await usher.openHandoff(req(), null), { ok: false, reason: 'missing' });
+  assert.deepEqual(await usher.openHandoff(req(), 'not-a-token'), { ok: false, reason: 'malformed' });
+  const agent = await knockToken();
+  assert.deepEqual(await usher.openHandoff(req(), agent), { ok: false, reason: 'wrong_scope' });
 });
