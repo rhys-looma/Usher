@@ -183,8 +183,8 @@ test('the front page shows Brightwater\'s own app beside what happens in between
 
 test('For sites leads; For agents gives the hosted URL with the local server one click away; the hero buttons go where they say', async () => {
   const home = await (await fetch(`${registry.url}/`)).text();
-  assert.ok(home.indexOf('<p class="label">For sites</p>') < home.indexOf('<p class="label">For agents</p>'), 'sites first');
-  const card = /<div class="card" id="agents">[\s\S]*?<\/details>/.exec(home)?.[0] ?? '';
+  assert.ok(home.indexOf('id="start"') < home.indexOf('<p class="label">For agents</p>'), 'sites first');
+  const card = /<section id="agents"[^>]*>[\s\S]*?<\/details>/.exec(home)?.[0] ?? '';
   const fold = card.split('<details')[0]!;
   assert.ok(fold.includes('No signup. Your agent&#39;s key is its identity.') || fold.includes("No signup. Your agent's key is its identity."));
   assert.ok(fold.includes(`<pre class="wrap">${registry.url}/mcp</pre>`));
@@ -192,7 +192,6 @@ test('For sites leads; For agents gives the hosted URL with the local server one
   assert.ok(fold.includes('No browser? <code>usher_fill</code> fills the form for you instead.'), 'usher_fill once, as the fallback');
   assert.doesNotMatch(fold, /npx|mcpServers/, 'nothing local above the fold');
   assert.match(card, /<details class="local"><summary>Running your own agent or framework\?<\/summary>[\s\S]*mcpServers[\s\S]*The local server acts on any site, with your own key\./);
-  assert.match(home, /<a class="button" href="\/sites\/new">Publish your app<\/a><a class="button ghost" href="#twenty">See the twenty minutes<\/a>/);
-  assert.match(home, /<section id="twenty"/);
-  assert.match(home, /<a href="#assistant">See it inside an assistant<\/a>/);
+  assert.match(home, /<a class="button" href="\/sites\/new">Add your site<\/a><a class="button ghost" href="#how">See how it works<\/a>/);
+  assert.match(home, /<section class="between" id="how"/);
 });

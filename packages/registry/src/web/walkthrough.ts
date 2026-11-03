@@ -263,14 +263,14 @@ ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(r
 
 /** The whole walkthrough page: live while running, the result after. */
 export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string; setup?: { strip: Raw; next: Raw | null; style: string } }): string {
-  // On the owner's page: where mapping sits in the twenty minutes, and what comes after it.
+  // On the owner's page: where mapping sits in the setup, and what comes after it.
   const after = options.setup && run?.published_at
     ? html`<div class="card notice"><p><b>Published.</b> Each one is a task in your assistant app now, and agents get these maps too.${options.setup.next ? html` Next: ${options.setup.next}.` : ' Your app is published.'}</p></div>`
     : '';
   return page(
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>
-${options.setup ? html`<p class="lede">Step two of the twenty minutes: Usher goes through your site, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
+${options.setup ? html`<p class="lede">Step two of setup: Usher goes through your site, and you publish what it found.</p>${options.setup.strip}` : ''}${after}
 ${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events, options.editable) : html`${transcript(run)}${resultView(run, options)}`}`,
     { scripts: ['/panels.js', '/walkthrough.js'], style: ANNOTATE_STYLE + TOOLS_STYLE + (options.setup?.style ?? '') },
   );

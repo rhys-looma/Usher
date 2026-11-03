@@ -116,7 +116,7 @@ test('other people\'s agents\' sessions go after a day; ours stay', async () => 
 });
 
 test('the front page links it; a registry with no demo site has neither', async () => {
-  assert.match((await get('/')).text, /<a class="button ghost" href="\/demo\/dashboard">See the site&#39;s view<\/a>|<a class="button ghost" href="\/demo\/dashboard">See the site's view<\/a>/);
+  assert.match((await get('/')).text, /<a href="\/demo\/dashboard">See a live dashboard<\/a>/, 'the front page links it');
   assert.ok(!(await get('/', bare)).text.includes('/demo/dashboard'));
   assert.ok(!(await get('/', bare)).text.includes('/mcp to any assistant'), 'no hosted MCP, no address to add');
   assert.equal((await get('/demo/dashboard', bare)).status, 404);
