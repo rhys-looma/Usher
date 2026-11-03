@@ -24,6 +24,7 @@ import type { Trainer } from '../trainer.ts';
 import type { TrainingExample } from '@usher/core';
 import { Learning, learningPage, teachingPage } from './learning.ts';
 import { ANNOTATE_STYLE, WALKTHROUGH_JS, annotated, startForm, walkthroughCard, walkthroughPage } from './walkthrough.ts';
+import { siteHeader } from './tools.ts';
 import type { ThemeDeriver } from '../theme-derive.ts';
 import { CARD_HTML } from './card-page.ts';
 import { THEME_JS, previewOf, themeCard, themeFromForm, themePage } from './theme.ts';
@@ -160,7 +161,7 @@ function sendHtml(res: ServerResponse, status: number, body: string, options: { 
     'X-Frame-Options': 'DENY',
     // One inline stylesheet, this origin's own scripts (never inline) and forms that post to
     // themselves. The front page also runs Usher's own site script, which talks only to this origin.
-    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; script-src 'self';${options.siteScript ? " connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data:; script-src 'self';${options.siteScript ? " connect-src 'self';" : ''}${options.frames ? " frame-src 'self';" : ''} form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
   });
   res.end(body);
 }
@@ -264,6 +265,13 @@ export class Web {
     if (route === 'GET /privacy') return sendHtml(res, 200, privacyPage({ url: this.registry.url, ...(this.options.contact && { contact: this.options.contact }) })), true;
     if (route === 'GET /robots.txt') return sendText(res, ROBOTS), true;
     if (route === 'GET /learning') return sendHtml(res, 200, learningPage(await this.learning.counters())), true;
+    // The two typefaces, self-hosted (html.ts names the files). Missing files fall back to the system face.
+    if (req.method === 'GET' && /^\/fonts\/[a-z-]+-[4-7]00\.woff2$/.test(url.pathname)) {
+      const font = await readFile(new URL(`../../assets/fonts/${url.pathname.slice('/fonts/'.length)}`, import.meta.url)).catch(() => null);
+      if (!font) return false;
+      res.writeHead(200, { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' });
+      return res.end(font), true;
+    }
     if (route === 'GET /walkthrough.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(WALKTHROUGH_JS), true;
@@ -874,7 +882,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       const name = await this.registry.displayName(origin).catch(() => new URL(origin).host);
       const journey = (await this.registry.journeys(origin).catch(() => []))[0];
       const show = async (status: number, extra: Partial<Parameters<typeof themePage>[0]> = {}) =>
-        send(res, status, themePage({ origin, record: await this.registry.siteTheme(origin), name, ...(journey && { journey }), refusal: await themes.refusal(origin), busy: themes.busy(origin), ...extra }), { siteScript: true, frames: true });
+        send(res, status, themePage({ origin, record: await this.registry.siteTheme(origin), name, ...(journey && { journey }), refusal: await themes.refusal(origin), busy: themes.busy(origin), on: Boolean((await this.registry.siteApp(origin)).enabled), ...extra }), { siteScript: true, frames: true });
       if (route === 'GET /dashboard/theme') return await show(200, stepDone(url) ? { notice: `${stepDone(url)} Next: how your app looks to your customers. Change anything you like, then accept it.` } : url.searchParams.has('saved') ? { notice: 'Saved. Your cards use this look from now on.' } : url.searchParams.has('read') ? { notice: 'Usher read your site and proposed this look. Adjust anything, then accept it.' } : {}), true;
       if (route === 'POST /dashboard/theme/refresh') {
         const done = await themes.derive(origin);
@@ -901,7 +909,7 @@ ${annotated(drawn, { anchor: 'v' })}`;
       };
       if (route === 'GET /dashboard/walkthrough/new') {
         const done = stepDone(url);
-        return send(res, 200, startForm(origin, undefined, { ...(await startState()), ...(done && { notice: `${done} Next: map your site.` }) })), true;
+        return send(res, 200, startForm(origin, undefined, { ...(await startState()), site: siteHeader(origin, Boolean((await this.registry.siteApp(origin)).enabled), false), ...(done && { notice: `${done} Next: map your site.` }) })), true;
       }
       // Owners get an allowance per address an hour; Usher's admin has none.
       const limited = (group: 'walk' | 'chat') => !admin && !this.ownerLimits[group].allow(`${group}|${clientAddress(req, this.options.proxyHops)}`);
@@ -916,7 +924,8 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const run = await walk.get(origin);
         const setup = await this.registry.siteSetup(origin);
         const strip = { strip: setupStrip(setup, new Date()), next: nextStep(setup), style: APP_STYLE };
-        return send(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), setup: strip, ...(editError && { editError }) }), { siteScript: true });
+        const site = siteHeader(origin, Boolean((await this.registry.siteApp(origin)).enabled), false);
+        return send(res, status, walkthroughPage(run, { editable: true, ...(run && { events: `/dashboard/walkthrough/events?id=${run.id}` }), publishAction: '/dashboard/walkthrough/publish', edits: await walk.pendingEdits(origin), setup: strip, site, ...(editError && { editError }) }), { siteScript: true });
       };
       if (route === 'GET /dashboard/walkthrough') return await resultPage(200), true;
       // The chat editor: suggest from a sentence, then accept or discard.

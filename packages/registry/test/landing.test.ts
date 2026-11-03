@@ -36,11 +36,12 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the s
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
-  // The sentence, its second half set in italic.
-  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<b>20 min<sup>*</sup></b><span>from joining to open to AI assistants', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'built by <a href="https://looma.insure"'];
+  // The sentence in one weight, then the sections in the spec's order.
+  const order = ['<h1>Let AI agents use your site. On your terms.</h1>', 'One script tag. Assistants fill what you allow, your customer answers what is theirs, and you see every session.</p>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Twenty minutes. No developer.</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', '<h2>One tag. Nothing else changes.</h2>', 'Looma, the team behind Usher, sets it up with you', '<h2>Building an agent?</h2>', '× faster', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'built by <a href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
+  assert.doesNotMatch(text, /class="ticket"|class="label"|<em>/, 'no ticket, no eyebrow, no italic');
   assert.doesNotMatch(text.split('</section>')[0]!, /Ask your assistant|class="bubble"/, 'the hero shows no prompt box');
   assert.doesNotMatch(text, /id="try"|class="picker"/, 'no map picker on the front page');
   assert.ok(text.includes('No signup. Your agent&#39;s key is its identity.') || text.includes("No signup. Your agent's key is its identity."));
@@ -154,7 +155,7 @@ test('what happens in between: Brightwater\'s own app on one side, six hosted st
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
-  assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.22;/, 'faded only once site.js plays the sequence');
+  assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.3;/, 'faded only once site.js plays the sequence');
   // A generic assistant, no product's interface.
   for (const shown of [customer, /<div class="hood">[\s\S]*?<\/ol>/.exec(section)?.[0] ?? '']) assert.doesNotMatch(shown, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
 });

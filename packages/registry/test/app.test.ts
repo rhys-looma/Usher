@@ -193,7 +193,7 @@ test('what the model does sits in a floating panel, and shows it is working unti
   assert.equal(js.status, 200);
   assert.match(await js.text(), /data-busy/);
   const rules = await (await get('/dashboard')).text();
-  assert.match(rules, /<details class="partner"[^>]*>[\s\S]*?(Change|Tell Usher) your rules[\s\S]*?action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
+  assert.match(rules, /<div class="card rules-change" id="change"><h2>(Change|Tell Usher) your rules<\/h2><form method="post" action="\/dashboard\/rules" data-busy="Muse Spark is writing your policy…"/);
   assert.match(rules, /<script src="\/busy\.js" defer><\/script>/);
   const task = await (await get('/dashboard/tools/quote.health_insurance')).text();
   assert.match(task, /<details class="partner">[\s\S]*?action="\/dashboard\/tools\/quote\.health_insurance\/suggest" data-busy=/);
@@ -217,7 +217,6 @@ test('what the model does sits in a floating panel, and shows it is working unti
     // The rules, the slowest wait of all.
     await page.goto(`${running.url}/dashboard#rules`);
     await page.evaluate(() => window.addEventListener('submit', (e) => e.preventDefault()));
-    if (!(await page.locator('#rules details.partner').evaluate((d) => (d as HTMLDetailsElement).open))) await page.locator('#rules details.partner summary').click();
     await page.fill('#rules-text', 'Agents may fill it in.');
     await page.getByRole('button', { name: 'Propose policy' }).click();
     await page.locator('#rules p.busy').waitFor();
@@ -247,7 +246,7 @@ test('a site with no rules: the page says what applies and leads to the box, wit
     await page.waitForLoadState();
     await page.goto(`${running.url}/dashboard#rules`);
     await page.locator('text=You haven\'t set any rules yet').waitFor();
-    assert.equal(await page.locator('#rules details.partner[open]').count(), 1, 'the box is open');
+    assert.equal(await page.locator('#rules .rules-change #rules-text').count(), 1, 'the box is on the page');
     // The page's button takes you to the box.
     await page.locator('label.button', { hasText: 'Write my rules' }).click();
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'rules-text');

@@ -7,9 +7,9 @@
 import type { UsherMap } from '@usher/core';
 import { RISKS, vocabulary } from '@usher/core';
 import type { ChatMessage, EditProposal, WalkthroughPage, WalkthroughRun } from '../walkthrough.ts';
-import { dialog, esc, html, page, partner, when, type Raw } from './html.ts';
+import { dialog, esc, html, page, partner, when, type Raw, type SiteHeader } from './html.ts';
 import { keyMeaning } from './plain.ts';
-import { TOOLS_STYLE, flowStrip, stepNames, type FlowStep } from './tools.ts';
+import { TOOLS_STYLE, dashNav, flowStrip, stepNames, type FlowStep } from './tools.ts';
 
 const RISK_NAMES: Record<string, string> = { safe: 'Agent fills', consequential: 'Person confirms', needs_user: 'Person only' };
 const RISK_CHOICES: Record<string, string> = {
@@ -31,10 +31,10 @@ export function shownWhen(map: UsherMap, c: NonNullable<UsherMap['fields'][numbe
 }
 
 export const ANNOTATE_STYLE = `
-.activity { display:flex; align-items:center; gap:10px; margin:10px 0 0; padding:10px 12px; border:1.5px solid var(--accent); border-radius:10px; background:rgba(116,52,211,.08); font-size:14px; font-weight:600; }
-.activity .count { margin-left:auto; flex:none; font-weight:400; color:var(--muted); font-variant-numeric:tabular-nums; }
-.activity.yours { border-color:#0f7a3d; background:rgba(15,122,61,.08); }
-.activity.yours .spin { animation:none; border-color:#0f7a3d; background:#0f7a3d; }
+.activity { display:flex; align-items:center; gap:10px; margin:10px 0 0; padding:10px 12px; border:1px solid var(--accent); border-radius:4px; font-size:14px; font-weight:600; }
+.activity .count { margin-left:auto; flex:none; font-weight:400; color:var(--muted); font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:12px; }
+.activity.yours { border-color:var(--cons); }
+.activity.yours .spin { animation:none; border-color:var(--cons); background:var(--cons); }
 .activity.ended .spin { display:none; }
 .run-summary h2 { margin:2px 0 4px; }
 .run-summary p { margin:0 0 12px; }
@@ -47,21 +47,21 @@ details.more summary { margin-bottom:10px; }
 .annotated { position:relative; display:inline-block; max-width:100%; border:1px solid var(--line); background:var(--card); }
 .annotated img { display:block; max-width:100%; height:auto; }
 .annotated .box { position:absolute; border:2px solid; border-radius:3px; text-decoration:none; outline-offset:2px; }
-.annotated .box span { position:absolute; left:-2px; top:-1.45em; font:600 11px/1.3 system-ui,sans-serif; padding:1px 5px; border-radius:3px 3px 3px 0; white-space:nowrap; color:#fff; }
-.annotated .box.safe { border-color:#0f7a3d; } .annotated .box.safe span { background:#0f7a3d; }
-.annotated .box.consequential { border-color:#b26a00; } .annotated .box.consequential span { background:#b26a00; }
-.annotated .box.needs_user { border-color:#b3261e; } .annotated .box.needs_user span { background:#b3261e; }
-.annotated .box.lit, .annotated .box:focus { box-shadow:0 0 0 4px rgba(116,52,211,.45); z-index:2; }
-table.elements tr.lit { background:rgba(116,52,211,.10); }
+.annotated .box span { position:absolute; left:-2px; top:-1.45em; font:500 11px/1.3 var(--mono); padding:1px 5px; border-radius:3px 3px 3px 0; white-space:nowrap; color:#fff; }
+.annotated .box.safe { border-color:#1f9d66; } .annotated .box.safe span { background:#1f9d66; }
+.annotated .box.consequential { border-color:#b8860b; } .annotated .box.consequential span { background:#b8860b; }
+.annotated .box.needs_user { border-color:#a1251b; } .annotated .box.needs_user span { background:#a1251b; }
+.annotated .box.lit, .annotated .box:focus { box-shadow:0 0 0 4px rgba(255,106,77,.5); z-index:2; }
+table.elements tr.lit { background:var(--cons-bg); }
 table.elements td { vertical-align:top; }
 .pages { display:grid; gap:28px; }
 .page-head { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:baseline; }
 .leads { display:flex; align-items:center; gap:10px; margin:8px 0 0; font-size:14px; }
 .leads img { width:120px; border:1px solid var(--line); }
-.risk-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:0; }
-.risk-dot.safe { background:#0f7a3d; } .risk-dot.consequential { background:#b26a00; } .risk-dot.needs_user { background:#b3261e; }
+.risk-dot { display:inline-block; width:8px; height:8px; margin-right:6px; vertical-align:0; }
+.risk-dot.safe { background:var(--safe); } .risk-dot.consequential { background:var(--cons); } .risk-dot.needs_user { background:var(--user); }
 .live { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:18px; align-items:start; }
-.browser { border:1.5px solid var(--line); border-radius:10px; overflow:hidden; background:var(--card); }
+.browser { border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--card); }
 .browser .bar { display:flex; gap:6px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
 .browser .bar i { width:10px; height:10px; border-radius:50%; background:var(--line); display:inline-block; }
 .browser img { display:block; width:100%; min-height:240px; background:#eef0f3; }
@@ -70,30 +70,29 @@ ol.steplog li { margin:4px 0; }
 table.elements th, table.elements td { padding:10px 12px 10px 0; }
 table.elements .meaning { display:block; margin-top:4px; max-width:28em; }
 table.elements .note { display:block; margin-top:4px; font-size:13px; color:var(--muted); line-height:1.4; }
-.elements .badge, .badge.new, .badge.changed { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; vertical-align:1px; }
-.badge.new { background:var(--cons-bg); color:var(--cons); }
-.badge.changed { background:rgba(178,106,0,.14); color:#8a5200; }
-table.elements tr.saved { background:rgba(15,122,61,.08); }
-table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font-weight:600; color:#0f7a3d; }
+.badge.new, .badge.changed { display:inline-flex; margin-left:6px; font-size:12px; font-weight:600; color:var(--cons); }
+table.elements tr.saved { background:var(--safe-bg); }
+table.elements .saved-note { display:none; margin-left:8px; font-size:13px; font-weight:600; color:var(--safe); }
 table.elements tr.saved .saved-note { display:inline; }
 .risk { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:14px; }
 .risk .risk-dot { margin:0; }
 .live.talk { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); }
-.browser.clickable img { cursor:pointer; outline:3px solid rgba(116,52,211,.35); outline-offset:-3px; }
+.browser.clickable img { cursor:pointer; outline:3px solid rgba(255,106,77,.45); outline-offset:-3px; }
 .browser .hint { margin-left:auto; color:var(--accent); font-weight:600; }
-.chat { display:flex; flex-direction:column; gap:10px; max-height:560px; overflow:auto; padding:2px 2px 8px; }
+.chat { display:flex; flex-direction:column; gap:10px; max-height:560px; overflow:auto; padding:14px; background:var(--stage); border-radius:6px; }
 .msg { max-width:92%; padding:10px 14px; border-radius:14px; font-size:15px; line-height:1.45; }
 .msg p { margin:0; }
-.msg.usher { align-self:flex-start; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:4px; }
-.msg.owner { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+.msg.usher { align-self:flex-start; background:var(--stage-paper); color:var(--stage-ink); border:1px solid var(--stage-line); border-bottom-left-radius:4px; }
+.msg.owner { align-self:flex-end; background:var(--stage-accent); color:#061b22; border-bottom-right-radius:4px; }
 .msg .thumbs { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
-.msg .thumbs img { width:150px; max-height:110px; object-fit:cover; object-position:top; border:1px solid var(--line); border-radius:6px; }
+.msg .thumbs img { width:150px; max-height:110px; object-fit:cover; object-position:top; border:1px solid var(--stage-line); border-radius:4px; }
 .msg form.choices { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
-.msg form.choices button { padding:6px 12px; font-size:14px; border-radius:999px; }
+.msg form.choices button { padding:8px 12px; font-size:14px; background:transparent; border-color:var(--stage-line); color:var(--stage-ink); }
+.msg form.choices button:hover { border-color:var(--stage-accent); color:var(--stage-accent); background:transparent; }
 .msg form.choices button:disabled { opacity:.45; cursor:default; }
-.msg.thinking { color:var(--muted); font-style:italic; }
+.msg.thinking { color:var(--stage-muted); font-style:italic; }
 form.say { display:flex; gap:8px; margin-top:10px; align-items:flex-end; }
-form.say textarea { flex:1; font:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; resize:vertical; }
+form.say textarea { flex:1; font:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; resize:vertical; }
 .live details summary { cursor:pointer; color:var(--muted); font-size:14px; margin-top:12px; }
 @media (max-width:860px) { .live, .live.talk { grid-template-columns:minmax(0,1fr); } }
 `;
@@ -140,7 +139,7 @@ ${input.refusal ? html`<p><button type="button" disabled>Map my site</button></p
 }
 
 /** The start form: the first page, update or fresh, the test answers, whether the last button may be pressed. */
-export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean; notice?: string } = {}): string {
+export function startForm(origin: string, error?: string, state: { published?: number; unpublished?: boolean; notice?: string; site?: SiteHeader } = {}): string {
   const mode = state.published
     ? html`<fieldset class="mode"><legend>Your site has ${String(state.published)} published map${state.published === 1 ? '' : 's'}</legend>
 <label><input type="radio" name="mode" value="update" checked> <span><b>Update them</b><small>Keeps your corrections and marks anything new.</small></span></label>
@@ -162,7 +161,7 @@ ${mode}
 </details>
 <p class="small muted">One run a day. Test answers are never stored, logged or sent to the model. Usher stays on your site.</p>
 <button type="submit">Start</button></form>`,
-    { style: ANNOTATE_STYLE + '.mode { border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:0 0 18px; } .mode legend { font-weight:600; padding:0 6px; } .mode label small { display:block; color:var(--muted); font-size:13px; font-weight:400; }' },
+    { style: ANNOTATE_STYLE + TOOLS_STYLE + '.mode { border:1px solid var(--line); border-radius:4px; padding:12px 14px; margin:0 0 18px; } .mode legend { font-weight:600; padding:0 6px; } .mode label small { display:block; color:var(--muted); font-size:13px; font-weight:400; }', ...(state.site && { site: state.site, tabs: dashNav(null) }) },
   );
 }
 
@@ -231,7 +230,7 @@ ${edits.refused.length ? html`<p class="small muted"><b>Left out:</b> ${edits.re
 /** The conversation of a finished run, folded away above its pages. */
 function transcript(run: WalkthroughRun): Raw {
   if (!run.chat?.length) return html``;
-  return html`<details class="card"><summary>The conversation (${String(run.chat.length)} messages)</summary><div class="chat">${run.chat.map((m) => chatMessage(run, m, { interactive: false, open: false }))}</div></details>`;
+  return html`<details class="card"><summary>The conversation (${String(run.chat.length)} messages)</summary><div class="chat" style="margin-top:10px">${run.chat.map((m) => chatMessage(run, m, { interactive: false, open: false }))}</div></details>`;
 }
 
 export function resultView(run: WalkthroughRun, options: { editable: boolean; publishAction?: string; edits?: EditProposal | null; editError?: string }): Raw {
@@ -273,7 +272,7 @@ ${next ? html`<p class="leads">Leads to <a href="#page-${String(run.pages.indexO
   // Stopping at the final button is how a test run is meant to end: nothing went wrong.
   const atFinal = run.status === 'stopped' && Boolean(run.reason?.startsWith('Mapped up to'));
   const state = run.published_at ? 'Published' : run.status === 'completed' || atFinal ? 'Ready to check' : run.status === 'stopped' ? 'Stopped early' : run.status === 'cancelled' ? 'Cancelled' : 'Failed';
-  const summary = run.pages.length ? html`<div class="card run-summary"><p class="label">${state}</p><h2>${tasks === 1 ? taskName([...journeys.values()][0]!) : `${tasks} tasks`}</h2><p class="small muted">${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'} mapped${marked ? ` · ${marked} to check` : ''}${run.published_at ? html` · published ${when(run.published_at)}` : ' · not published yet'}${run.reason && !run.published_at ? ` · ${run.reason}` : ''}</p>
+  const summary = run.pages.length ? html`<div class="card run-summary"><p class="mono-label">${state}</p><h2>${tasks === 1 ? taskName([...journeys.values()][0]!) : `${tasks} tasks`}</h2><p class="small muted">${String(run.pages.length)} page${run.pages.length === 1 ? '' : 's'} mapped${marked ? ` · ${marked} to check` : ''}${run.published_at ? html` · published ${when(run.published_at)}` : ' · not published yet'}${run.reason && !run.published_at ? ` · ${run.reason}` : ''}</p>
 ${options.publishAction && !run.published_at ? html`<form method="post" action="${options.publishAction}"><button type="submit">Publish ${tasks === 1 ? 'this task' : 'these tasks'}</button></form>` : ''}</div>` : html`<p><b>Nothing was mapped.</b>${run.reason ? html` ${run.reason}` : ''}</p>`;
   return html`${mode}${summary}
 ${flows}<div class="pages" data-panels>${run.pages.map(section)}</div>
@@ -282,7 +281,7 @@ ${options.editable && run.pages.length && run.status !== 'running' ? editPanel(r
 }
 
 /** The whole walkthrough page: live while running, the result after. */
-export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string; setup?: { strip: Raw; next: Raw | null; style: string } }): string {
+export function walkthroughPage(run: WalkthroughRun | null, options: { editable: boolean; events?: string; publishAction?: string; title?: string; edits?: EditProposal | null; editError?: string; setup?: { strip: Raw; next: Raw | null; style: string }; site?: SiteHeader }): string {
   // On the owner's page: where mapping sits in the setup, and what comes after it.
   const after = options.setup && run?.published_at
     ? html`<div class="card notice"><p><b>Published.</b> Each one is a task in your assistant app now, and agents get these maps too.${options.setup.next ? html` Next: ${options.setup.next}.` : ' Your app is published.'}</p></div>`
@@ -290,9 +289,9 @@ export function walkthroughPage(run: WalkthroughRun | null, options: { editable:
   return page(
     options.title ?? 'Map my site',
     html`<h1>${options.title ?? 'Map my site'}</h1>
-${options.setup ? html`<p class="lede">Step two of setup: Usher goes through your site, and you publish what it found.</p>${run?.status === 'running' ? '' : options.setup.strip}` : ''}${after}
+${options.setup ? html`<p class="status">Step two of setup: Usher goes through your site, and you publish what it found.</p>${run?.status === 'running' ? '' : options.setup.strip}` : ''}${after}
 ${!run ? html`<p>No walkthrough yet. <a href="/dashboard/walkthrough/new">Start one</a>.</p>` : run.status === 'running' && options.events ? liveView(run, options.events, options.editable) : html`${transcript(run)}${resultView(run, options)}`}`,
-    { scripts: ['/panels.js', '/walkthrough.js'], style: ANNOTATE_STYLE + TOOLS_STYLE + (options.setup?.style ?? '') },
+    { scripts: ['/panels.js', '/walkthrough.js'], style: ANNOTATE_STYLE + TOOLS_STYLE + (options.setup?.style ?? ''), ...(options.site && { site: options.site, tabs: dashNav(null) }) },
   );
 }
 

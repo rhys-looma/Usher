@@ -7,10 +7,24 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { effectiveRules, toBase64Url } from '@usher/core';
 import { DEMO_SUBMIT_LIMIT, claimInstructions, visibleTo, type Registry } from '../registry.ts';
 import type { MapRecord, RulesDraft, Session, Storage } from '../storage.ts';
-import { html, page, siteClaims, when, type Raw, partner } from './html.ts';
+import { html, page, siteClaims, when, type Raw } from './html.ts';
+import { APP_STYLE, setupStrip } from './app.ts';
 import { SUGGESTED_BY } from '../registry.ts';
 import { isMappingRun, keyMeaning, labelsOf, pageName, plainLog, ruleWords, whoRan } from './plain.ts';
-import { TOOLS_STYLE, dashNav, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
+import { TOOLS_STYLE, dashNav, siteHeader, toolPage, toolViews, toolsList, type ToolView } from './tools.ts';
+
+/** The dashboard's own layout: the address line, the two-column rules tab with its sticky panel. */
+const DASH_STYLE = `
+.endpoint { display:flex; gap:8px 14px; align-items:center; flex-wrap:wrap; margin:0 0 16px; font-size:14px; }
+.endpoint code { font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:4px; background:var(--paper); word-break:break-all; }
+.foot-line { margin:18px 0 0; }
+.rules-grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:14px; align-items:start; }
+.rules-grid > div > .card:first-child { margin-top:0; }
+.rules-change { position:sticky; top:16px; margin:0; }
+.rules-change h2 { margin-top:0; }
+.rules-change textarea { min-height:120px; }
+@media (max-width:860px) { .rules-grid { grid-template-columns:minmax(0,1fr); } .rules-change { position:static; } }
+`;
 
 /** How the agent proved who it is: both are checked signatures; Web Bot Auth is the web standard. */
 function identityBadge(session: Session | undefined): Raw {
@@ -182,27 +196,25 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
   async overview(origin: string, notice?: Raw, demo?: DemoView, options: { cards?: Raw; active?: 'tools' | 'activity' | 'rules' } = {}): Promise<string> {
     const base = demo ? '/demo/dashboard' : '/dashboard';
     const storage = this.registry.storage;
+    const now = new Date();
     // A site that's mapped but has no rules has some to start from (sites mapped before this, too).
     if (!demo) await this.registry.suggestRules(origin);
-    const [records, sessions, policy, drafts, blockedAll, explanations] = await Promise.all([
+    const [records, sessions, policy, drafts, blockedAll, explanations, name, usage] = await Promise.all([
       storage.mapsForOrigin(origin),
       storage.listSessions(origin),
       storage.getPolicy(origin),
       storage.listDrafts(origin),
       storage.readLog('blocked') as Promise<BlockedEntry[]>,
       this.hooks.explanations?.(origin) ?? Promise.resolve([]),
+      this.registry.displayName(origin).catch(() => new URL(origin).host),
+      this.registry.siteAppUsage(origin),
     ]);
     const adminActions = demo ? [] : ((await storage.getCached<AdminAction[]>('admin-audit', origin)) ?? []).slice(-10).reverse();
     const blocked = blockedAll.filter((b) => b.origin === origin).reverse();
     // Agents, not the owner's own mapping runs.
     const mappingRuns = sessions.filter(isMappingRun);
     const agentSessions = sessions.filter((s) => !isMappingRun(s));
-    const byAgent = new Map<string, Session[]>();
-    // Each hosted connection gets its own key, so its id says nothing: they're one line.
-    for (const s of agentSessions) {
-      const who = s.identity?.method === 'hosted' ? 'hosted' : s.agent;
-      byAgent.set(who, [...(byAgent.get(who) ?? []), s]);
-    }
+    const byAgent = new Set(agentSessions.map((s) => (s.identity?.method === 'hosted' ? 'hosted' : s.agent)));
     const pending = drafts.filter((d) => d.status === 'pending');
     // One row per form: its current (newest) version, with what happened to the ones before.
     const byPath = new Map<string, MapRecord[]>();
@@ -214,27 +226,81 @@ ${error ? html`<div class="card error">${error}</div>` : ''}
     );
 
     const app = await this.registry.siteApp(origin);
+    const setup = demo ? null : await this.registry.siteSetup(origin);
     const tools = await toolViews(this.registry, origin, app, { records, sessions, blocked });
     const toolOf = new Map(tools.flatMap((v) => v.plan.steps.map((s) => [s.path, v] as const)));
+    const toolByIntent = new Map(tools.map((v) => [v.tool.intent, v] as const));
     const outside = forms.filter((f) => !toolOf.has(f.current.map.path)).length;
     const active = options.active ?? 'tools';
+    const endpoint = `${this.registry.url}/mcp/${new URL(origin).host}`;
+    const maps = records.map((r) => r.map);
+    const today = now.toISOString().slice(0, 10);
+    const sessionsToday = agentSessions.filter((s) => s.created_at.slice(0, 10) === today).length;
+    const latest = [...explanations].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const month = now.toISOString().slice(0, 7);
+    const thisMonth = Object.entries(usage.days).filter(([d]) => d.startsWith(month)).reduce((t, [, d]) => ({ connections: t.connections + d.connections, fills: t.fills + d.fills }), { connections: 0, fills: 0 });
+
+    // Where a session got to, as one of the two states: completed is the agent's, a wait is the person's.
+    const outcome = (s: Session): Raw => {
+      const run = s.events.find((e) => e.action === 'run');
+      if (run) return !run.detail?.outcome || run.detail.outcome === 'completed' ? html`<span class="badge rule-allow">Completed</span>` : html`<span class="badge rule-confirm">Stopped: ${String(run.detail.outcome)}</span>`;
+      if (s.events.some((e) => e.action === 'held' || e.action === 'handoff')) return html`<span class="badge rule-confirm">Waiting on the person</span>`;
+      return html`<span class="badge plain">${s.events.length ? 'In progress' : 'Opened'}</span>`;
+    };
+    const taskName = (s: Session) => toolByIntent.get(s.intent)?.tool.title.replace(/ from .*$/, '') ?? s.intent;
+
+    // The status line: where the app stands, and today in one breath.
+    const status = demo
+      ? html`The demo quote site's live dashboard. ${String(sessionsToday)} session${sessionsToday === 1 ? '' : 's'} today, ${String(tools.length)} task${tools.length === 1 ? '' : 's'}.`
+      : app.enabled
+        ? html`Published, on since ${when(app.enabled_at)}. ${String(sessionsToday)} session${sessionsToday === 1 ? '' : 's'} today.`
+        : html`Your app is off. ${setup ? `${String(setup.steps.filter((s) => !s.done_at).length)} setup step${setup.steps.filter((s) => !s.done_at).length === 1 ? '' : 's'} to go.` : ''}`;
+
+    const rulesPanel = policy
+      ? html`<div class="card dark"><p class="mono-label">Your rules</p>${policy.text ? html`<p class="quote">“${policy.text}”</p>` : html`<p class="quote">Set as a policy, without words.</p>`}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p></div>`
+      : html`<div class="card dark"><p class="mono-label">Your rules</p><p class="quote">${demo ? 'No rules yet: Usher’s defaults apply.' : pending.length ? 'Nothing applies until you confirm a proposal.' : 'You haven’t set any rules yet. Usher’s defaults apply.'}</p>
+<p class="small muted">Agents may fill in your forms. They ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p></div>`;
+
+    const changeRules = demo
+      ? html`<div class="card rules-change" id="change"><h2>Try the rules</h2><form method="post" action="/demo/dashboard/rules" id="sandbox" data-busy="Muse Spark is writing the policy…">
+  <p><label for="rules-text">Say the rules in plain English and see the policy. <span class="badge rule-confirm">Preview only</span></label></p>
+  <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
+  <p><button type="submit">Preview policy</button></p>
+  <p class="small muted">About 45 seconds. Nothing on the demo changes.</p>
+</form></div>`
+      : html`<div class="card rules-change" id="change"><h2>${policy || pending.length ? 'Change your rules' : 'Tell Usher your rules'}</h2><form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
+  <p><label for="rules-text">${policy || pending.length ? 'What should change?' : 'What may agents do on your site?'} Say it in your own words. You check it before anything changes.</label></p>
+  ${policy || pending.length ? '' : html`<p class="fill-examples small"><span class="muted">Start from one:</span> ${RULE_EXAMPLES.map((e) => html`<button type="button" class="secondary small" data-fill="${e.text}">${e.label}</button> `)}</p>`}
+  <textarea id="rules-text" name="text" required placeholder="Agents can fill in my forms, but the person confirms before anything is submitted."></textarea>
+  <p><button type="submit">Propose policy</button></p>
+  <p class="small muted">About 45 seconds. Nothing changes until you apply it.</p>
+</form>
+${drafts.length ? html`<p class="small"><b>Last proposal:</b> ${when(drafts.at(-1)!.created_at)}, ${drafts.at(-1)!.status}. <a href="#rules-history">The history</a>.</p>` : ''}</div>`;
 
     return page(
-      demo ? `Demo dashboard · ${origin}` : `Dashboard · ${origin}`,
-      html`${demo ? LIVE_SCRIPT : html`<form method="post" action="/dashboard/logout" style="float:right"><button class="secondary">Sign out</button></form>`}
-<h1>${origin}</h1>
-<p class="lede">${demo ? 'The demo quote site: what it offers assistants, who knocked, what they did, what was refused, and the rules they follow.' : 'What your site offers assistants, who knocked, what they did, what was refused, and the rules they follow.'}</p>
+      demo ? `Demo dashboard · ${origin}` : `${name} · ${origin}`,
+      html`${demo ? LIVE_SCRIPT : ''}
+<h1>${name}</h1>
+<p class="status">${status}</p>
 ${demo ? demoBanner(origin) : ''}
 ${notice ?? ''}
-${dashNav(active, { base, demo: Boolean(demo) })}
 <div data-panels data-active="${active}">
 <section id="tools" data-panel>
+${demo ? '' : html`<p class="endpoint"><code>${endpoint}</code> <a href="/dashboard/app">Add to an assistant</a></p>`}
+${setup ? setupStrip(setup, now) : ''}
 <h2 style="margin-top:0">Tasks</h2>
 <p class="small muted">What assistants can do on your site. Open a task to see its steps, its rules and how it's been used.</p>
-<div data-live="top">${toolsList(tools, { base, published: Boolean(app.enabled), demo: Boolean(demo) })}</div>
+<div data-live="top">${toolsList(tools, { base, published: Boolean(app.enabled), demo: Boolean(demo), now })}</div>
+<div class="two">
+<div class="card dark" data-live="today"><p class="mono-label">Today</p>${latest ? html`<p>${latest.text}</p><p class="small muted">${latest.model} · ${when(latest.created_at)} · <a href="${base}#activity">Activity</a></p>` : html`<p>${sessionsToday ? `${String(sessionsToday)} session${sessionsToday === 1 ? '' : 's'} so far.` : 'No agent has used your site today.'} ${explanations.length ? '' : demo ? 'Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? 'Usher writes what they did once there are sessions to read.' : ''}</p><p class="small muted"><a href="${base}#activity">Activity</a></p>`}</div>
+${policy
+      ? html`<div class="card"><p class="mono-label">Your rules</p>${policy.text ? html`<p class="quote">“${policy.text}”</p>` : html`<p>Set as a policy.</p>`}<p class="small muted">Applied ${when(policy.confirmed_at)} · <a href="${base}#rules">Rules</a></p></div>`
+      : html`<div class="card"><p class="mono-label">Your rules</p><p>${pending.length ? 'A proposal is waiting for you.' : 'None yet: Usher’s defaults apply.'}</p><p class="small muted"><a href="${base}#rules">Rules</a></p></div>`}
+</div>
+${demo ? '' : html`<p class="foot-line small muted">This month: ${String(thisMonth.fills)} fill${thisMonth.fills === 1 ? '' : 's'}, ${String(thisMonth.connections)} connection${thisMonth.connections === 1 ? '' : 's'} · <a href="/sites/lost">Your keys</a> · <a href="/dashboard/app#switch">${app.enabled ? 'Switch your app off' : 'Publish your app'}</a></p>`}
 ${options.cards ?? ''}
 <details class="card" id="forms"><summary><b>All mapped pages</b> <span class="muted small">(${String(forms.length)}${outside ? `, ${outside} not in a task` : ''})</span></summary>
-<div data-live="pages"><table>
+<div data-live="pages" class="table-scroll"><table>
 <thead><tr><th>Page</th><th>Task</th><th>Elements</th><th>Map</th><th>Status</th><th>Keeper</th></tr></thead>
 <tbody>${forms.length ? forms.map(({ current: r, earlier }) => {
         const rebuilt = earlier.find((e) => e.replaced?.by === r.digest);
@@ -249,72 +315,59 @@ ${options.cards ?? ''}
 
 <section id="activity" data-panel>
 <div data-live="bottom">
-<div class="grid">
+<div class="grid stats">
   <div class="card stat"><b>${records.length}</b><span>forms mapped${drifted ? html`, <span class="badge rule-confirm">${drifted} drifted</span>` : ''}</span></div>
   <div class="card stat"><b>${agentSessions.length}</b><span>agent sessions</span></div>
   <div class="card stat"><b>${byAgent.size}</b><span>agents seen</span></div>
-  <div class="card stat"><b>${blocked.length}</b><span>blocked attempts</span></div>
+  <div class="card stat"><b>${blocked.length}</b><span>refused</span></div>
 </div>
 
 <h2 id="explanations">What agents are doing</h2>
-<div class="card">${
+<div class="card dark">${
         explanations.length
-          ? html`${explanations.map((e) => html`<h3><code>${e.path}</code> <span class="muted small">${e.sessions} session${e.sessions === 1 ? '' : 's'} · ${e.model} · ${when(e.created_at)}</span></h3><p>${e.text}</p>`)}`
-          : html`<p class="muted">No explanations yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Generate them once agents have used your forms.' : ''}</p>`
+          ? html`${explanations.map((e) => html`<h3><code>${e.path}</code> <span class="muted small">${e.sessions} session${e.sessions === 1 ? '' : 's'}</span></h3><p>${e.text}</p>`)}<p class="small muted">Written ${when(latest!.created_at)} by ${latest!.model}.</p>`
+          : html`<p class="muted">Nothing written yet.${demo ? ' Muse Spark explains recent sessions every few minutes.' : this.hooks.explain ? ' Usher writes it once agents have used your forms.' : ''}</p>`
       }
-${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain" data-busy="Muse Spark is reading the sessions…"><button class="secondary">Explain recent sessions</button></form>` : ''}</div>
+${this.hooks.explain && !demo ? html`<form method="post" action="/dashboard/explain" data-busy="Muse Spark is reading the sessions…"><button class="secondary">${explanations.length ? 'Write it again' : 'Explain recent sessions'}</button></form>` : ''}</div>
 
 <h2 id="sessions">Agent sessions</h2>
-<div class="card"><table>
-<thead><tr><th>Who</th><th>Sessions</th><th>Last seen</th><th>Recent</th></tr></thead>
-<tbody>${byAgent.size ? [...byAgent].map(
-        ([agent, list]) => html`<tr><td><a href="${base}/sessions/${list[0]!.id}">${whoRan(list[0]!)}</a>${agent === 'hosted' ? '' : html` <span class="mono small muted" title="${agent}">${shortAgent(agent)}</span>`}</td><td>${list.length}</td><td>${when(list[0]?.created_at)}</td>
-<td>${list.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${s.events.length} steps</a> `)}</td></tr>`,
-      ) : html`<tr><td colspan="4" class="muted">No agent sessions yet.</td></tr>`}</tbody></table>
+<div class="card table-scroll"><table>
+<thead><tr><th>When</th><th>Assistant</th><th>Task</th><th>Outcome</th><th>Steps</th></tr></thead>
+<tbody>${agentSessions.length ? agentSessions.slice(0, 50).map(
+        (s) => html`<tr><td class="mono"><a href="${base}/sessions/${s.id}">${when(s.created_at)}</a></td><td>${whoRan(s)}</td><td>${taskName(s)}</td><td>${outcome(s)}</td><td>${String(s.events.length)}</td></tr>`,
+      ) : html`<tr><td colspan="5" class="muted">No agent sessions yet.</td></tr>`}</tbody></table>
 ${mappingRuns.length ? html`<p class="small muted">Your own mapping runs aren't counted here: ${mappingRuns.slice(0, 5).map((s) => html`<a href="${base}/sessions/${s.id}">${when(s.created_at)}</a> `)}</p>` : ''}</div>
 
-<h2 id="blocked">Blocked attempts</h2>
-<div class="card"><table>
+<h2 id="blocked">Refused</h2>
+${blocked.length ? html`<div class="card table-scroll"><table>
 <thead><tr><th>When</th><th>Where</th><th>Why</th><th>Agent</th><th>Refused by</th></tr></thead>
-<tbody>${blocked.length ? blocked.slice(0, 50).map(
-        (b) => html`<tr><td class="small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent, b.hosted === true)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
-      ) : html`<tr><td colspan="5" class="muted">Nothing refused yet.</td></tr>`}</tbody></table></div>
+<tbody>${blocked.slice(0, 50).map(
+        (b) => html`<tr><td class="mono small">${when(b.ts)}</td><td><code>${b.path}</code>${b.action ? html` <span class="small muted">${b.action}</span>` : ''}</td><td>${reasonText(b.reason)}</td><td class="mono small">${shortAgent(b.agent, b.hosted === true)}</td><td class="small">${b.source === 'site' ? 'your server' : 'Usher'}</td></tr>`,
+      )}</tbody></table></div>` : html`<div class="card dashed"><p>Nothing refused yet. When Usher or your server turns an agent away, it shows here with the reason.</p></div>`}
 </div>
 ${adminActions.length ? html`<details class="card"><summary><b>Changes by Usher's admin</b> <span class="muted small">(${String(adminActions.length)} most recent, newest first)</span></summary><ul class="small">${adminActions.map((a) => html`<li>${when(a.ts)}: <code>${a.action}</code></li>`)}</ul></details>` : ''}
 </section>
 
 <section id="rules" data-panel>
-<h2 style="margin-top:0">Rules</h2>
-${demo ? '' : pending.map((d) => draftCard(d, records.map((r) => r.map)))}
-<div class="card">${
-        policy
-          ? html`${policy.text ? html`<p><b>Your rules:</b> “${policy.text}”</p>` : ''}<p class="small muted">Applied ${when(policy.confirmed_at)}.</p>${policySummary(policy.policy, records.map((r) => r.map))}
-<details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details>`
-          : demo
-            ? html`<p class="muted">No rules yet. Agents may use your forms, and they ask the person before anything that matters, such as submitting. Declarations and payments are always the person's own.</p>`
-            : pending.length
-              ? html`<p class="muted">Nothing above applies until you confirm it. Until then, agents may fill in your forms and ask the person before anything that matters.</p>`
-              : html`<p><b>You haven't set any rules yet.</b> Until you do, Usher's defaults apply:</p>
-<ul><li>Agents may fill in your forms.</li><li>They ask the person before anything that matters, such as submitting.</li><li>Declarations and payments are always the person's own.</li></ul>
-<p class="rules-next"><label for="rules-text" class="button">Write my rules</label> <span class="small muted">Tell Usher what you want in the box at the bottom right, in your own words.</span></p>`
-      }${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}</div>
-${
-        demo
-          ? html`${demo.preview ?? ''}${partner('Try the rules', html`<form method="post" action="/demo/dashboard/rules" id="sandbox" data-busy="Muse Spark is writing the policy…">
-  <p><label for="rules-text">Say the rules in plain English and see the policy. <span class="badge rule-confirm">preview only</span></label></p>
-  <textarea id="rules-text" name="text" required maxlength="1000" placeholder="Agents can fill in quotes, but a person confirms the submit, and at most five an hour."></textarea>
-  <p><button type="submit">Preview policy</button></p>
-</form>`)}`
-          : html`${partner(policy || pending.length ? 'Change your rules' : 'Tell Usher your rules', html`<form method="post" action="/dashboard/rules" data-busy="Muse Spark is writing your policy…">
-  <p><label for="rules-text">${policy || pending.length ? 'What should change?' : 'What may agents do on your site?'} Say it in your own words. You check it before anything changes.</label></p>
-  ${policy || pending.length ? '' : html`<p class="fill-examples small"><span class="muted">Start from one:</span> ${RULE_EXAMPLES.map((e) => html`<button type="button" class="secondary small" data-fill="${e.text}">${e.label}</button> `)}</p>`}
-  <textarea id="rules-text" name="text" required placeholder="Agents can fill in my forms, but the person confirms before anything is submitted."></textarea>
-  <p><button type="submit">Propose policy</button></p>
-</form>`, { open: !policy && !pending.length, keep: !policy && !pending.length })}`
-      }
+<div class="rules-grid">
+<div>
+${demo ? '' : pending.map((d) => draftCard(d, maps))}
+${rulesPanel}
+${policy
+      ? html`<div class="card">${policySummary(policy.policy, maps)}
+<details><summary>Policy JSON</summary><pre>${JSON.stringify(policy.policy, null, 2)}</pre></details></div>`
+      : demo || pending.length
+        ? ''
+        : html`<p class="rules-next"><label for="rules-text" class="button">Write my rules</label> <span class="small muted">Tell Usher what you want, in your own words.</span></p>`}
+${demo ? html`<p class="small">On this demo the registry also holds each agent to at most ${DEMO_SUBMIT_LIMIT.max} confirmed quotes (<code>${DEMO_SUBMIT_LIMIT.action}</code>) an ${DEMO_SUBMIT_LIMIT.window}, whatever the rules say.</p>` : ''}
+${demo?.preview ?? ''}
+${!demo && drafts.length ? html`<details class="card" id="rules-history"><summary><b>Every proposal</b> <span class="muted small">(${String(drafts.length)})</span></summary><table class="small"><thead><tr><th>When</th><th>From</th><th>Status</th></tr></thead><tbody>${[...drafts].reverse().map((d) => html`<tr><td class="mono">${when(d.created_at)}</td><td>“${d.text}”</td><td>${d.status}</td></tr>`)}</tbody></table></details>` : ''}
+</div>
+${changeRules}
+</div>
 </section>
 </div>`,
-      { scripts: ['/panels.js'], style: TOOLS_STYLE },
+      { scripts: ['/panels.js'], style: TOOLS_STYLE + APP_STYLE + DASH_STYLE, site: siteHeader(origin, Boolean(app.enabled), Boolean(demo)), tabs: dashNav(active, { base, demo: Boolean(demo), mapped: records.length > 0 }) },
     );
   }
 
@@ -355,16 +408,16 @@ ${policySummary(preview.policy, maps)}
     const maps = (await this.registry.storage.mapsForOrigin(origin)).map((r) => r.map);
     return page(
       'Agent session',
-      html`${demo ? LIVE_SCRIPT : ''}${dashNav('activity', { base, demo: Boolean(demo) })}<p class="muted small"><a href="${base}#sessions">Activity</a> · ${whoRan(session)}</p>
+      html`${demo ? LIVE_SCRIPT : ''}<p class="muted small"><a href="${base}#sessions">Activity</a> · ${whoRan(session)}</p>
 <h1>${whoRan(session)}</h1>
-<p class="lede">Started ${when(session.created_at)}. ${isMappingRun(session) ? "This is Usher going through your site for you, not an agent acting for someone." : 'What was done, never what anyone typed.'}</p>
-${demo ? (explained ? html`<div class="card notice"><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain && !isMappingRun(session) ? html`<div class="card notice">${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
+<p class="status">Started ${when(session.created_at)}. ${isMappingRun(session) ? "This is Usher going through your site for you, not an agent acting for someone." : 'What was done, never what anyone typed.'}</p>
+${demo ? (explained ? html`<div class="card dark"><p class="mono-label">What happened</p><p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p></div>` : '') : this.hooks.explain && !isMappingRun(session) ? html`<div class="card dark"><p class="mono-label">What happened</p>${explained ? html`<p>${explained.text}</p><p class="small muted">${explained.model} · ${when(explained.created_at)}</p>` : html`<p class="muted">Not explained yet.</p>`}
 <form method="post" action="/dashboard/sessions/${session.id}/explain" data-busy="Muse Spark is reading this session…"><button class="secondary">${explained ? 'Explain again' : 'Explain this session'}</button></form></div>` : ''}
 <div class="card" data-live="timeline">${plainLog(events, maps)}
 <details><summary>Technical log</summary><p class="small muted">Agent <span class="mono">${session.identity?.method === 'hosted' ? 'hosted:' : ''}${session.agent}</span> ${identityBadge(session)} · <code>${session.intent}</code> · session ${session.id}</p><ol class="timeline">${events.map(
-        (e) => html`<li><span class="small">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
+        (e) => html`<li><span class="small mono">${e.ts.slice(11, 19)}</span><span class="src small">${e.source}</span><span><b>${e.action}</b>${e.key ? html` <code>${e.key}</code>` : ''}${e.path ? html` <span class="muted small">on ${e.path}</span>` : ''}${e.detail ? html` <span class="muted small">${detailText(e.detail)}</span>` : ''}</span></li>`,
       )}</ol></details></div>`,
-      { style: TOOLS_STYLE },
+      { style: TOOLS_STYLE, site: siteHeader(origin, Boolean((await this.registry.siteApp(origin)).enabled), Boolean(demo)), tabs: dashNav('activity', { base, demo: Boolean(demo) }) },
     );
   }
 }
@@ -400,7 +453,7 @@ function detailText(detail: Record<string, unknown>): string {
 /** A rate limit in words: "At most 5 visits an hour, for each agent". */
 function limitWords(l: { action: string; max: number; per: string; window: string }, labels: Map<string, string>): string {
   const what = l.action === 'knock' ? 'visits' : `uses of “${labels.get(l.action) ?? keyMeaning(l.action)}”`;
-  return `At most ${l.max} ${what} ${l.window === 'hour' ? 'an hour' : `a ${l.window}`}, ${l.per === 'agent' ? 'for each agent' : 'across all agents'}.`;
+  return `At most ${l.max} ${what} ${l.window === 'hour' ? 'an hour' : `a ${l.window}`}, ${l.per === 'agent' ? 'for each assistant' : 'across all assistants'}.`;
 }
 
 function policySummary(policy: import('@usher/core').UsherPolicy, maps: import('@usher/core').UsherMap[]): Raw {
@@ -415,7 +468,7 @@ function policySummary(policy: import('@usher/core').UsherPolicy, maps: import('
     .sort((a, b) => a.map.path.localeCompare(b.map.path));
   const chip = (k: string) => html`<span class="badge plain" title="${k}">${labels.get(k) ?? keyMeaning(k)}</span> `;
   const limits = [...(policy.default.rate_limits ?? []), ...(policy.forms ?? []).flatMap((f) => f.rate_limits ?? [])];
-  return html`<table class="small"><thead><tr><th>Page</th><th>Agents</th><th>The person confirms</th><th>Agents may not</th></tr></thead><tbody>${rows.map(
+  return html`<table class="small"><thead><tr><th>Page</th><th>Agent fills</th><th>Person confirms</th><th>Agents may not</th></tr></thead><tbody>${rows.map(
     (r) => html`<tr><td>${pageName(r.map, r.map.path)}<br><code>${r.map.path}</code></td><td>${ruleWords(r.lane ? 'allow' : 'forbid')}</td>
 <td>${r.confirm.map(chip)}</td>
 <td>${r.forbid.map(chip)}</td></tr>`,
