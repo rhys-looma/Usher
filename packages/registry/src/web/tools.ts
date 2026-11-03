@@ -7,7 +7,7 @@ import type { Registry, SiteApp } from '../registry.ts';
 import { siteTools, type SiteTool } from '../site-app.ts';
 import type { MapRecord, Session } from '../storage.ts';
 import type { BlockedEntry } from './dashboard.ts';
-import { html, page, partner, when, type Raw } from './html.ts';
+import { html, page, partner, when, type Raw, type SiteHeader } from './html.ts';
 import { isMappingRun, keyMeaning, ruleWords, whoBadge, whoRan } from './plain.ts';
 import { shownWhen } from './walkthrough.ts';
 
@@ -25,7 +25,7 @@ export const TOOLS_STYLE = `
 .after legend { font-weight:600; font-size:14px; padding:0; margin-bottom:8px; }
 .after-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .after-modes legend { grid-column:1 / -1; }
-.after label.choice { display:flex; gap:10px; align-items:flex-start; margin:0; padding:12px; border:1.5px solid var(--line); border-radius:8px; cursor:pointer; }
+.after label.choice { display:flex; gap:10px; align-items:flex-start; margin:0; padding:12px; border:1px solid var(--line); border-radius:4px; cursor:pointer; }
 .after label.choice:has(input:checked) { border-color:var(--accent); }
 .after label.choice input { flex:none; margin-top:3px; }
 .after label.choice small { display:block; font-weight:400; color:var(--muted); margin-top:2px; }
@@ -37,51 +37,57 @@ export const TOOLS_STYLE = `
 .after:has(input[value=none]:checked) .if-page, .after:has(input[value=none]:checked) .if-redirect, .after:has(input[value=instructions]:checked) .if-redirect, .after:has(input[value=redirect]:checked) .if-instructions { display:none; }
 @media (max-width:640px) { .after-modes { grid-template-columns:minmax(0,1fr); } }
 
-.dash-nav { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:4px 22px; align-items:center; background:var(--bg); border-bottom:1px solid var(--line); margin:0 0 22px; padding:10px 0 0; }
-.dash-nav a { padding:6px 2px 10px; text-decoration:none; font-weight:600; font-size:15px; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-1px; }
-.dash-nav a:hover { color:var(--ink); }
-.dash-nav a[aria-current] { color:var(--ink); border-bottom-color:var(--accent); }
-.dash-nav .action { margin-left:auto; color:var(--accent); }
-[data-panel], [data-panel] [id], #flow { scroll-margin-top:70px; }
+[data-panel], [data-panel] [id], #flow { scroll-margin-top:16px; }
 [data-panel].off { display:none; }
-.tool-row { display:grid; gap:8px; }
-.tool-row h3 { margin:0; font-size:20px; } .tool-row h3 a { text-decoration:none; } .tool-row h3 a:hover { text-decoration:underline; }
+/* The tasks: one row each in one panel, hairlines between. */
+.tool-list { padding:0 22px; }
+.tool-row { display:grid; gap:6px; padding:16px 0; border-top:1px solid var(--line); }
+.tool-row:first-child { border-top:0; }
+.tool-row h3 { margin:0; font-size:17px; } .tool-row h3 a { text-decoration:none; } .tool-row h3 a:hover { text-decoration:underline; }
 .tool-row p { margin:0; }
-.tool-top { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; }
-.tool-top .open { margin-left:auto; font-weight:600; font-size:15px; white-space:nowrap; }
+.tool-top { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+.tool-top .open { margin-left:auto; font-weight:600; font-size:14px; white-space:nowrap; }
 .clip { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; max-width:75ch; }
 .crumb { margin:0 0 6px; }
-ol.flow { list-style:none; margin:0; padding:0; display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
-ol.flow a, ol.flow .end { display:flex; gap:10px; align-items:flex-start; height:100%; padding:10px 12px; border:1px solid var(--line); border-radius:4px; background:var(--card); color:var(--ink); text-decoration:none; font-size:14px; line-height:1.3; min-width:0; }
+/* The steps: tiles in one row, the last one dashed and the person's. */
+ol.flow { list-style:none; margin:0; padding:0; display:flex; gap:8px; flex-wrap:wrap; }
+ol.flow li { flex:1 1 150px; min-width:0; }
+ol.flow a, ol.flow .end { display:flex; gap:10px; align-items:flex-start; height:100%; padding:10px 12px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink); text-decoration:none; font-size:14px; line-height:1.3; min-width:0; }
 ol.flow a:hover { border-color:var(--accent); }
-ol.flow a[aria-current] { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
-ol.flow .n { flex:none; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; background:var(--code); }
-ol.flow a[aria-current] .n { background:var(--accent); color:var(--accent-ink); }
+ol.flow a[aria-current] { border-color:var(--rule); box-shadow:inset 0 0 0 1px var(--rule); }
+ol.flow .n { flex:none; font:500 12px/1.6 var(--mono); color:var(--muted); }
+ol.flow a[aria-current] .n { color:var(--accent); }
 ol.flow b, ol.flow small { display:block; overflow-wrap:anywhere; } ol.flow b { font-weight:600; } ol.flow small { color:var(--muted); font-size:12.5px; margin-top:2px; }
 ol.flow .flag { color:var(--cons); font-weight:600; }
-ol.flow .end { border-style:dashed; color:var(--muted); }
+ol.flow .end { border-style:dashed; color:var(--muted); background:transparent; }
+ol.flow .end .n { color:var(--cons); }
 .flow-group { margin:0 0 14px; } .flow-group > p { margin:0 0 6px; font-weight:600; font-size:14px; }
 ol.dots { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:4px 0; align-items:center; }
 ol.dots li { display:flex; align-items:center; }
-ol.dots li + li::before { content:""; width:14px; height:2px; background:var(--line); }
-ol.dots a { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; text-decoration:none; color:var(--ink); background:var(--code); }
-ol.dots a:hover { background:var(--accent); color:var(--accent-ink); }
-ol.dots a.flag { background:var(--cons-bg); color:var(--cons); }
-ol.dots .tick { width:24px; text-align:center; color:var(--muted); }
-.step-head { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; margin-bottom:12px; } .step-head h2 { margin:0; font-size:22px; }
-.step-nav { display:flex; justify-content:space-between; gap:16px; margin-top:16px !important; font-weight:600; font-size:15px; } .step-nav .next { margin-left:auto; text-align:right; }
+ol.dots li + li::before { content:""; width:14px; height:1px; background:var(--line); }
+ol.dots a { width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; font:500 12px var(--mono); text-decoration:none; color:var(--ink); border:1px solid var(--line); border-radius:4px; }
+ol.dots a:hover { border-color:var(--accent); color:var(--accent); }
+ol.dots a.flag { border-color:var(--cons); color:var(--cons); }
+ol.dots .tick { width:24px; text-align:center; color:var(--safe); }
+.step-head { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; margin-bottom:12px; } .step-head h2 { margin:0; font-size:20px; }
+.step-nav { display:flex; justify-content:space-between; gap:16px; margin-top:16px !important; font-weight:600; font-size:14px; } .step-nav .next { margin-left:auto; text-align:right; }
 .tool-edit label { display:block; margin:10px 0 0; } .tool-edit input[type=text] { width:100%; } .tool-edit label.check { display:flex; gap:8px; align-items:center; }
-.tool-edit.suggested { border-left:3px solid var(--accent); }
 .tool-buttons { margin-top:14px !important; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.suggested-note { padding:10px 12px; border-radius:8px; background:rgba(116,52,211,.08); }
+.suggested-note { padding:10px 12px; border:1px solid var(--cons); border-radius:4px; }
+.use-today { font-family:var(--mono); font-size:12px; color:var(--dim); }
 `;
 
-/** The owner's tabs. On the dashboard itself they switch panels; anywhere else they lead back to it. */
-export function dashNav(active: 'tools' | 'activity' | 'rules' | 'publish' | null, options: { base?: string; demo?: boolean } = {}): Raw {
+/** The owner's tabs, in the dark header. On the dashboard itself they switch panels; anywhere else they lead back to it. */
+export function dashNav(active: 'tools' | 'activity' | 'rules' | 'look' | 'publish' | null, options: { base?: string; demo?: boolean; mapped?: boolean } = {}): Raw {
   const base = options.base ?? '/dashboard';
   const tab = (id: string, name: string, href: string) => html`<a href="${href}"${active === id ? html` aria-current="page"` : ''}>${name}</a>`;
-  return html`<nav class="dash-nav" aria-label="Dashboard" data-panel-nav>${tab('tools', 'Tasks', `${base}#tools`)}${tab('activity', 'Activity', `${base}#activity`)}${tab('rules', 'Rules', `${base}#rules`)}${options.demo ? '' : html`${tab('publish', 'Publish', '/dashboard/app')}<a class="action" href="/dashboard/walkthrough/new">Map my site</a>`}</nav>`;
+  return html`<nav class="tabs" aria-label="Dashboard" data-panel-nav>${tab('tools', 'Tasks', `${base}#tools`)}${tab('activity', 'Activity', `${base}#activity`)}${tab('rules', 'Rules', `${base}#rules`)}${options.demo ? '' : html`${tab('look', 'Look', '/dashboard/theme')}${tab('publish', 'Publish', '/dashboard/app')}<a class="action" href="/dashboard/walkthrough/new">${options.mapped === false ? 'Map my site' : 'Map my site again'}</a>`}</nav>`;
 }
+
+/** The header's account of a site: its host, and whether its app is on. */
+export const siteHeader = (origin: string, on: boolean, demo: boolean): SiteHeader => ({ host: new URL(origin).host, on, signOut: !demo });
+
+const today = (iso: string, now: Date) => iso.slice(0, 10) === now.toISOString().slice(0, 10);
 
 export interface FlowStep {
   name: string;
@@ -178,32 +184,37 @@ function steps(view: ToolView, base: string): FlowStep[] {
   }));
 }
 
-/** The top of the dashboard: each tool, what state it's in, and the way down to its pages. */
-export function toolsList(views: ToolView[], options: { base: string; published: boolean; demo: boolean }): Raw {
-  if (!views.length) return html`<div class="card"><p><b>No tasks yet.</b> Each thing Usher maps on your site, like a quote or a booking, becomes a task assistants can do.${options.demo ? '' : html` <a href="/dashboard/walkthrough/new">Map my site</a>.`}</p></div>`;
-  return html`${views.map((v) => {
+/** The top of the dashboard: one row per task, its live state, its tool name, and today's use. */
+export function toolsList(views: ToolView[], options: { base: string; published: boolean; demo: boolean; now?: Date }): Raw {
+  if (!views.length) return html`<div class="card dashed"><p><b>No tasks yet.</b> Each thing Usher maps on your site, like a quote or a booking, becomes a task assistants can do.${options.demo ? '' : html` <a href="/dashboard/walkthrough/new">Map my site</a>.`}</p></div>`;
+  const now = options.now ?? new Date();
+  return html`<div class="card tool-list">${views.map((v) => {
     const href = `${options.base}/tools/${v.tool.intent}`;
     const name = v.tool.title.replace(/ from .*$/, '');
-    return html`<article class="card tool-row"><div class="tool-top"><h3><a href="${href}">${name}</a></h3>${toolStatus(v, options.published)}<code>${v.tool.name}</code><a class="open" href="${href}">Open →</a></div>
+    const runsToday = v.runs.filter((s) => today(s.created_at, now)).length;
+    return html`<article class="tool-row"><div class="tool-top"><h3><a href="${href}">${name}</a></h3>${toolStatus(v, options.published)}<code>${v.tool.name}</code><span class="use-today">${runsToday ? `${plural(runsToday, 'run')} today` : 'not used today'}</span><a class="open" href="${href}">Open →</a></div>
 <p class="small muted clip">${v.blurb}</p>
 ${flowDots(steps(v, options.base), { label: `Steps in ${name}`, complete: journeyEnd(v.plan).kind !== 'open' })}
 <p class="small muted">${plural(v.plan.steps.length, 'step')} · ${plural(v.tool.params.length, 'question')} · ${plural(v.runs.length, 'run')}${v.blocked.length ? ` · ${v.blocked.length} blocked` : ''}</p></article>`;
-  })}`;
+  })}</div>`;
 }
 
-function stepPanel(view: ToolView, index: number, options: { base: string; mapHref: (digest: string) => string | undefined; policy: UsherPolicy | undefined }): Raw {
+function stepPanel(view: ToolView, index: number, options: { base: string; demo: boolean; mapHref: (digest: string) => string | undefined; policy: UsherPolicy | undefined }): Raw {
   const step = view.plan.steps[index]!;
   const map = view.maps.get(step.path)!;
   const rules = effectiveRules(options.policy, map, step.path).actions;
   const link = options.mapHref(step.map);
   const at = (i: number) => `${options.base}/tools/${view.tool.intent}?step=${i + 1}#flow`;
+  // Where each is changed: who decides a question, in the map; what a button needs, in the rules.
+  const change = (where: 'map' | 'rules') => (options.demo ? '' : html`<td class="small">${where === 'map' ? html`<a href="/dashboard/walkthrough">In the map</a>` : html`<a href="/dashboard#rules">In your rules</a>`}</td>`);
+  const tint = (risk: string) => (risk === 'consequential' ? html` class="cons"` : '');
   return html`<section class="card" id="step"><div class="step-head"><h2>${String(index + 1)}. ${view.names[index]!}</h2><code>${step.path}</code>${view.drifted.has(step.path) ? html`<span class="badge rule-confirm">Form changed</span>` : ''}${link ? html`<a class="small" href="${link}">View the full map</a>` : ''}</div>
 <p class="small muted">${step.purpose}</p>
-${map.fields.length ? html`<table class="small"><thead><tr><th>Question</th><th>Who decides</th><th>Notes</th></tr></thead><tbody>${map.fields.map(
-    (f) => html`<tr><td>${f.label || keyMeaning(f.key)}</td><td>${whoBadge(f.risk)}</td><td class="muted">${[f.required ? 'Required' : '', f.shown_if ? shownWhen(map, f.shown_if) : ''].filter(Boolean).join('. ')}</td></tr>`,
+${map.fields.length ? html`<table class="small"><thead><tr><th>Question</th><th>Who decides</th><th>Notes</th>${options.demo ? '' : html`<th>Change</th>`}</tr></thead><tbody>${map.fields.map(
+    (f) => html`<tr${tint(f.risk)}><td>${f.label || keyMeaning(f.key)}</td><td>${whoBadge(f.risk)}</td><td class="muted">${[f.required ? 'Required' : '', f.shown_if ? shownWhen(map, f.shown_if) : ''].filter(Boolean).join('. ')}</td>${change('map')}</tr>`,
   )}</tbody></table>` : html`<p class="muted small">No questions on this page.</p>`}
-${map.actions.length ? html`<table class="small"><thead><tr><th>Button or link</th><th>Who decides</th><th>Under your rules</th></tr></thead><tbody>${map.actions.map(
-    (a) => html`<tr><td>${a.label || keyMeaning(a.key)}${a.leads_to ? html` <span class="muted">→ ${a.leads_to}</span>` : ''}</td><td>${whoBadge(a.risk)}</td><td>${rules[a.key] ? ruleWords(rules[a.key]!) : ''}</td></tr>`,
+${map.actions.length ? html`<table class="small"><thead><tr><th>Button or link</th><th>Who decides</th><th>Under your rules</th>${options.demo ? '' : html`<th>Change</th>`}</tr></thead><tbody>${map.actions.map(
+    (a) => html`<tr${tint(rules[a.key] === 'confirm' ? 'consequential' : a.risk)}><td>${a.label || keyMeaning(a.key)}${a.leads_to ? html` <span class="muted">→ ${a.leads_to}</span>` : ''}</td><td>${whoBadge(a.risk)}</td><td>${rules[a.key] ? ruleWords(rules[a.key]!) : ''}</td>${change('rules')}</tr>`,
   )}</tbody></table>` : ''}
 <p class="step-nav">${index > 0 ? html`<a href="${at(index - 1)}">← ${view.names[index - 1]!}</a>` : ''}${index < view.plan.steps.length - 1 ? html`<a class="next" href="${at(index + 1)}">${view.names[index + 1]!} →</a>` : ''}</p></section>`;
 }
@@ -293,7 +304,7 @@ export function toolPage(view: ToolView, input: {
   const end = finish.kind === 'done'
     ? html`<span class="end"><span class="n">✓</span><span><b>Done</b><small>The site's result page</small></span></span>`
     : finish.kind === 'final'
-      ? html`<span class="end"><span class="n">✓</span><span><b>${finish.label}</b><small>The final step, left to the person</small></span></span>`
+      ? html`<span class="end"><span class="n">✓</span><span><b>${finish.label}</b><small>The final step: the person confirms</small></span></span>`
       : html`<span class="end"><span class="n">?</span><span><b>Not mapped yet</b><small>What comes after this page</small></span></span>`;
   const edit = input.demo ? '' : html`<form class="card tool-edit${input.suggested ? ' suggested' : ''}" method="post" action="${action}" id="edit"><h2>How assistants see it</h2>
 <p class="small muted">The name is what assistants call; the description tells them when to use it. Usher wrote these from the pages; change them in your own words.</p>
@@ -304,21 +315,22 @@ ${input.suggested ? html`<p class="suggested-note"><b>Muse Spark's suggestion is
 <details class="small"><summary>What it asks for (${String(tool.params.length)})</summary><ul>${tool.params.map((p) => html`<li><code>${p.name}</code>: ${p.description}${p.options ? html` <span class="muted">(${p.options.join(', ')})</span>` : ''}</li>`)}</ul></details>
 <p class="tool-buttons"><button type="submit">Save</button>${input.suggested ? html` <a href="${action}">Discard the suggestion</a>` : ''}</p></form>`;
   const sessions = view.runs.slice(0, 10);
+  const now = new Date();
+  const runsToday = view.runs.filter((s) => today(s.created_at, now)).length;
+  const after = afterCard(action, { ...input, intent: tool.intent });
   return page(
     `${title} · ${input.origin}`,
-    html`${dashNav('tools', { base: input.base, demo: input.demo })}
-<p class="crumb small muted"><a href="${input.base}#tools">Tasks</a> · ${title}</p>
+    html`<p class="crumb small muted"><a href="${input.base}#tools">Tasks</a> · ${title}</p>
 <h1>${title}</h1>
-<p class="lede">${toolStatus(view, input.published)} <code>${tool.name}</code> · ${plural(plan.steps.length, 'step')} · ${plural(tool.params.length, 'question')}</p>
+<p class="status">${toolStatus(view, input.published)} <code>${tool.name}</code> · ${plural(plan.steps.length, 'step')} · ${plural(tool.params.length, 'question')}</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
 <div class="flow-group" id="flow"><p>The steps</p>${flowStrip(steps(view, input.base), { label: `Steps in ${title}`, current: index, end })}</div>
 ${stepPanel(view, index, input)}
-${edit}
+${edit ? html`<div class="two">${edit}${after}</div>` : after}
 ${!input.demo && input.canSuggest ? partner('Need better words?', html`<form method="post" action="${action}/suggest" data-busy="Muse Spark is writing…"><p>Usher can write a name and description for this task. Nothing changes until you save.</p><button type="submit" class="secondary">Suggest with Muse Spark</button></form>`, { open: false }) : ''}
-${afterCard(action, { ...input, intent: tool.intent })}
-<div class="card"><h2>How it's been used</h2>
-${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Who</th><th>Steps</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td>${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}" class="mono">${whoRan(s)}</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}
+<div class="card"><h2>How it's been used <span class="use-today">${runsToday ? `${plural(runsToday, 'run')} today` : 'not used today'}</span></h2>
+${sessions.length ? html`<table class="small"><thead><tr><th>When</th><th>Who</th><th>Steps</th></tr></thead><tbody>${sessions.map((s) => html`<tr><td class="mono">${when(s.created_at)}</td><td><a href="${input.base}/sessions/${s.id}">${whoRan(s)}</a></td><td>${String(s.events.length)}</td></tr>`)}</tbody></table>` : html`<p class="muted">No agents have run this yet.</p>`}
 ${view.blocked.length ? html`<p class="small"><a href="${input.base}#blocked">${plural(view.blocked.length, 'blocked attempt')}</a> on these pages.</p>` : ''}</div>`,
-    { style: TOOLS_STYLE },
+    { style: TOOLS_STYLE, site: siteHeader(input.origin, input.published, input.demo), tabs: dashNav('tools', { base: input.base, demo: input.demo }) },
   );
 }

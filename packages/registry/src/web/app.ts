@@ -6,7 +6,7 @@
 import type { SiteApp, SiteAppUsage, SiteSetup } from '../registry.ts';
 import { examplePrompts, type SiteTool } from '../site-app.ts';
 import { html, page, when, type Raw } from './html.ts';
-import { TOOLS_STYLE, dashNav } from './tools.ts';
+import { TOOLS_STYLE, dashNav, siteHeader } from './tools.ts';
 
 const HREF: Record<SiteSetup['steps'][number]['key'], string> = { joined: '/dashboard', mapped: '/dashboard/walkthrough', rules: '/dashboard#rules', look: '/dashboard/theme', published: '/dashboard/app#switch' };
 
@@ -30,7 +30,7 @@ export function duration(ms: number): string {
   return `${Math.floor(s / 86_400)} days`;
 }
 
-/** The strip: each step done (when) or still to do (where), and the time from joining to publishing. */
+/** The strip: one row of five ticks, each done (when, on hover) or still to do (a link), and the time from joining to publishing at the right. */
 export function setupStrip(setup: SiteSetup, now: Date): Raw {
   const joined = setup.steps[0]!.done_at;
   const time = setup.join_to_publish_ms !== undefined
@@ -38,8 +38,9 @@ export function setupStrip(setup: SiteSetup, now: Date): Raw {
     : joined
       ? html`<p class="timer">Joined ${duration(now.getTime() - Date.parse(joined))} ago; not published yet.</p>`
       : '';
+  const short = (label: string) => label.replace(/:.*$/, '');
   return html`<div class="card setup"><ol class="strip">${setup.steps.map(
-    (s) => html`<li class="${s.done_at ? 'done' : 'todo'}"><span class="mark" aria-hidden="true">${s.done_at ? '✓' : ''}</span><span>${s.done_at ? s.label : html`<a href="${HREF[s.key]}">${s.label}</a>`}${s.done_at ? html`<br><small class="muted">${when(s.done_at)}</small>` : ''}</span></li>`,
+    (s) => html`<li class="${s.done_at ? 'done' : 'todo'}" title="${s.label}${s.done_at ? `, ${s.done_at.replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC')}` : ''}"><span class="mark" aria-hidden="true">${s.done_at ? '✓' : ''}</span><span>${s.done_at ? short(s.label) : html`<a href="${HREF[s.key]}">${short(s.label)}</a>`}</span></li>`,
   )}</ol>${time}</div>`;
 }
 
@@ -52,17 +53,17 @@ export function appCard(app: SiteApp, setup: SiteSetup): Raw {
 }
 
 export const APP_STYLE = `
-.strip { list-style:none; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:0; padding:0; }
-.strip li { display:flex; gap:8px; align-items:flex-start; font-size:14px; }
-.strip .mark { flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line); display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
-.strip li.done .mark { background:#0f7a3d; border-color:#0f7a3d; color:#fff; }
-.timer { margin:12px 0 0; }
+.card.setup { display:flex; gap:10px 24px; align-items:center; flex-wrap:wrap; padding:14px 22px; }
+.strip { flex:1 1 auto; list-style:none; display:flex; flex-wrap:wrap; gap:8px 22px; margin:0; padding:0; }
+.strip li { display:flex; gap:8px; align-items:center; font-size:14px; }
+.strip .mark { flex:none; width:16px; height:16px; border:1px solid var(--line); display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+.strip li.done .mark { background:var(--safe); border-color:var(--safe); color:#fff; }
+.timer { margin:0; font-size:14px; } .timer b { font-family:var(--mono); font-weight:500; font-size:13px; }
 .endpoint { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.endpoint code { font-size:15px; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); word-break:break-all; }
-.suggested-note { padding:10px 12px; border-radius:8px; background:rgba(116,52,211,.08); }
+.endpoint code { font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:4px; background:var(--bg); word-break:break-all; }
+.suggested-note { padding:10px 12px; border:1px solid var(--cons); border-radius:4px; }
 .tool-buttons { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .prompts li { margin:4px 0; }
-@media (max-width:860px) { .strip { grid-template-columns:minmax(0,1fr); } }
 `;
 
 export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; needs?: { label: string; href: string }[]; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[] }): string {
@@ -81,8 +82,8 @@ ${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that
 ${tools.length ? html`<p class="small muted">What your app offers. Open a task to name it, describe it or hide it.</p>
 <table class="small"><thead><tr><th>Task</th><th>Assistants call it</th><th></th></tr></thead><tbody>${tools.map((t) => html`<tr><td><a href="/dashboard/tools/${t.intent}">${t.title}</a></td><td><code>${t.name}</code></td><td>${t.hidden ? html`<span class="badge plain">Hidden</span>` : ''}</td></tr>`)}</tbody></table>` : html`<p>No journeys mapped yet. <a href="/dashboard/walkthrough/new">Map my site</a>.</p>`}</div>`;
   const prompts = examplePrompts(input.name, live);
-  const body = html`${dashNav('publish')}<h1>Publish as an assistant app</h1>
-<p class="lede">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your tasks, on cards in your look, run by Usher under your rules.</p>
+  const body = html`<h1>Publish as an assistant app</h1>
+<p class="status">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your tasks, on cards in your look, run by Usher under your rules.</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
 ${setupStrip(input.setup, input.now)}
 ${switchCard}${endpoint}${toolList}
@@ -90,5 +91,5 @@ ${input.look}
 <div class="card"><h2>Example prompts</h2>${prompts.length ? html`<ul class="prompts">${prompts.map((p) => html`<li>“${p}”</li>`)}</ul>` : html`<p class="muted">Once a task is mapped.</p>`}</div>
 <div class="card"><h2>List it in the directories</h2><p>Everything Claude's and ChatGPT's directories ask for, filled in from your app: name, descriptions, endpoint, tools, example prompts, logo and how data is handled. Add your contact and policy links, then submit.</p>
 <p><a class="button" href="/dashboard/app/pack.md">Download the pack (Markdown)</a> <a href="/dashboard/app/pack.json">or as JSON, with the logo</a></p></div>`;
-  return page('Publish as an assistant app', body, { style: APP_STYLE + TOOLS_STYLE });
+  return page('Publish as an assistant app', body, { style: APP_STYLE + TOOLS_STYLE, site: siteHeader(input.origin, app.enabled, false), tabs: dashNav('publish') });
 }

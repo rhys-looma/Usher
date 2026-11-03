@@ -7,6 +7,7 @@
 import { RADII, RESULT_FIELDS, TYPEFACE_IDS, cardTheme, themeTokens, validateTheme, type CardTheme, type SiteTheme, type ThemeProblem } from '@usher/core';
 import type { SiteThemeRecord } from '../registry.ts';
 import { Raw, html, page, when } from './html.ts';
+import { TOOLS_STYLE, dashNav, siteHeader } from './tools.ts';
 
 const FIELD_NAMES: Record<string, string> = { more_facts: 'Every figure on the result, not only the headline', thumbnail: 'A thumbnail of the result page (fields masked)' };
 const TYPEFACE_NAMES: Record<string, string> = { system: 'System (the device\'s own)', grotesque: 'Grotesque (Helvetica, Arial)', humanist: 'Humanist (Segoe, Gill Sans)', geometric: 'Geometric (Avenir, Futura)', rounded: 'Rounded', serif: 'Serif (Charter, Georgia)' };
@@ -103,19 +104,19 @@ export function themeCard(record: SiteThemeRecord, busy: boolean): Raw {
 export const THEME_STYLE = `
 .theme-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:22px; align-items:start; }
 .previews { display:grid; gap:14px; position:sticky; top:12px; }
-.previews iframe { width:100%; border:1px solid var(--line); border-radius:10px; background:var(--card); height:260px; display:block; }
+.previews iframe { width:100%; border:1px solid var(--line); border-radius:6px; background:var(--card); height:260px; display:block; }
 .previews .modes { display:flex; gap:12px; font-size:14px; align-items:center; }
 .swatches { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 0; }
-.swatches button { width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:6px; cursor:pointer; }
+.swatches button { width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:4px; cursor:pointer; }
 .logos { display:flex; flex-wrap:wrap; gap:10px; }
-.logos label { display:flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+.logos label { display:flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:4px; padding:6px 10px; }
 .logos img { max-height:32px; max-width:140px; display:block; }
-.shot { max-width:100%; border:1px solid var(--line); border-radius:8px; }
+.shot { max-width:100%; border:1px solid var(--line); border-radius:4px; }
 .theme-form label { display:block; margin:12px 0 0; }
 .theme-form > label > input[name=name], .theme-form > label > select { display:block; width:100%; max-width:22em; margin-top:4px; font:inherit; padding:6px 8px; }
 .theme-form fieldset { margin:14px 0 0; }
 .theme-form input[type=color] { width:56px; height:34px; padding:0 2px; vertical-align:middle; }
-.theme-form .hex { width:7.5em; font-family:ui-monospace,monospace; }
+.theme-form .hex { width:7.5em; font-family:var(--mono); }
 #notes:empty { display:none; }
 @media (max-width:900px) { .theme-grid { grid-template-columns:minmax(0,1fr); } .previews { position:static; } }
 `;
@@ -127,6 +128,8 @@ export function themePage(input: {
   journey?: { title: string; start: string };
   refusal: string | null;
   busy: boolean;
+  /** Whether the site's app is on (for the header). */
+  on?: boolean;
   notice?: Raw | string;
   problems?: ThemeProblem[];
   form?: SiteTheme;
@@ -150,7 +153,7 @@ export function themePage(input: {
     : '';
   const problems = input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p.message}</p>`)}</div>` : '';
   const body = html`<h1>Your assistant app's look</h1>
-<p class="lede">How the cards look when someone uses your site through Claude, ChatGPT or another assistant: your name, logo, colours, typeface and corners. What the cards do never changes: Usher asks your customer, not the assistant; consents start unticked; your wording is shown word for word; nothing is submitted until they say so; and every card says "via Usher".</p>
+<p class="status">How the cards look when someone uses your site through Claude, ChatGPT or another assistant: your name, logo, colours, typeface and corners. What the cards do never changes: Usher asks your customer, not the assistant; consents start unticked; your wording is shown word for word; nothing is submitted until they say so; and every card says "via Usher".</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${problems}
 <div class="theme-grid">
 <div>
@@ -182,7 +185,7 @@ ${(['decision', 'result', 'ticket'] as const).map((k) => html`<iframe sandbox="a
 </div>
 <script type="application/json" id="samples">${new Raw(embed(previewSamples(input.origin, input.journey, derived?.shot)))}</script>
 <script type="application/json" id="initial">${new Raw(embed(previewOf(validateTheme(theme))))}</script>`;
-  return page('Your assistant app\'s look', body, { scripts: ['/theme.js'], style: THEME_STYLE });
+  return page('Your assistant app\'s look', body, { scripts: ['/theme.js'], style: THEME_STYLE + TOOLS_STYLE, site: siteHeader(input.origin, Boolean(input.on), false), tabs: dashNav('look') });
 }
 
 /** Plays the assistant's part for the preview frames, and keeps the colour pickers and text in step. */

@@ -107,32 +107,36 @@ const JOURNEY_NAMES: Record<string, string> = {
   'httpbin.org/forms/post, 1 page, filled not submitted': 'A one-page order form (httpbin.org)',
 };
 
-function numbersSection(numbers: Numbers): Raw {
+/** The health journey's benchmark row, else the car journey's: the figures the agents row quotes. */
+function headline(numbers: Numbers): BenchmarkRow | undefined {
+  return numbers.benchmark.rows.find((r) => r.journey === HEALTH_JOURNEY) ?? numbers.benchmark.rows.find((r) => r.journey === CAR_JOURNEY);
+}
+
+/** The full numbers, under the agents row: the benchmark table and the human-checked accuracy. */
+function numbersDetail(numbers: Numbers): Raw {
   const { rows, generated } = numbers.benchmark;
   const a = numbers.accuracy;
-  return html`<section id="numbers" data-reveal><h2>Why agents take the way you offer</h2>
-${
+  return html`${
   rows.length
-    ? html`<div class="card"><table>
+    ? html`<div class="table-scroll"><table>
 <thead><tr><th>Journey</th><th>Agent reads each page</th><th>Agent uses the map</th><th></th></tr></thead>
 <tbody>${rows.map(
         (r) => html`<tr><td><b>${JOURNEY_NAMES[r.journey] ?? r.journey}</b></td><td data-label="Agent reads each page">${r.reading.time.toFixed(1)} s · ${r.reading.cost}</td><td data-label="Agent uses the map">${r.maps.time.toFixed(1)} s · ${r.maps.cost}</td><td><b>${(r.reading.time / r.maps.time).toFixed(1)}× faster</b></td></tr>`,
-      )}</tbody></table>
-<p class="small muted">The same agent filling the same form, five runs each, medians. Reading a page means the agent's model (Muse Spark) reads its structure and a screenshot first; with a map it reads nothing. Model time is replayed from recorded calls${generated ? `, ${generated}` : ''}. <a href="${REPOSITORY}/blob/main/reports/benchmark.md">Method and ranges</a>.</p></div>`
+      )}</tbody></table></div>
+<p class="small muted">The same agent filling the same form, five runs each, medians. Reading a page means the agent's model (Muse Spark) reads its structure and a screenshot first; with a map it reads nothing. Model time is replayed from recorded calls${generated ? `, ${generated}` : ''}. <a href="${REPOSITORY}/blob/main/reports/benchmark.md">Method and ranges</a>.</p>`
     : ''
 }
 ${
   a?.kind === 'reviewed'
-    ? html`<div class="grid"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons on public forms given the right meaning (${a.keysOf}), human-checked</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk (${a.riskOf})</span></div></div>
+    ? html`<div class="grid stats two-up"><div class="card stat"><b>${a.keys}</b><span>of fields and buttons on public forms given the right meaning (${a.keysOf}), human-checked</span></div><div class="card stat"><b>${a.risk}</b><span>given the right risk (${a.riskOf})</span></div></div>
 <p class="small muted">${a.run ? `The run of ${a.run}, every element marked by hand. ` : 'Every element marked by hand. '}<a href="${REPOSITORY}/blob/main/reports/accuracy-scored.md">Both runs, scored</a>.</p>`
     : a?.kind === 'automatic'
-      ? html`<div class="grid"><div class="card stat"><b>${pct(a.resolved, a.elements)}</b><span>of ${a.elements} fields and buttons on ${a.forms} forms found again on the live page by their map</span></div>${a.agreement.map(
+      ? html`<div class="grid stats two-up"><div class="card stat"><b>${pct(a.resolved, a.elements)}</b><span>of ${a.elements} fields and buttons on ${a.forms} forms found again on the live page by their map</span></div>${a.agreement.map(
           (g) => html`<div class="card stat"><b>${g.pct}</b><span>agreement on risk between two models (Muse Spark and Muse Spark Open), ${g.of} elements on ${g.set}</span></div>`,
         )}</div>
 <p class="small muted">Whether each meaning is right hasn't been human-checked yet; these are the parts code can check. <a href="${REPOSITORY}/blob/main/reports/accuracy.md">The accuracy report</a>.</p>`
       : ''
-}
-</section>`;
+}`;
 }
 
 export interface LandingOptions {
@@ -177,25 +181,47 @@ function resultCard(host: string): Raw {
 <p><span class="button">Continue on Brightwater Insurance</span></p><p class="note">Find your quote asks for your quote reference and your date of birth.</p></div>`;
 }
 
-/** The call-out under the hero: twenty minutes from joining to open to AI assistants, step by step, measured. */
-function twentySection(): Raw {
-  const steps: [string, number][] = [['Join', 1], ['Map', 15], ['Rules', 4], ['Publish', 1]];
-  return html`<aside class="twenty" aria-label="Twenty minutes from joining to open to AI assistants">
-<div class="big"><b>20 min<sup>*</sup></b><span>from joining to open to AI assistants.</span><em>No developer needed.</em></div>
-<ol class="bar" aria-label="The four steps and how long each takes">${steps.map(([title, mins]) => html`<li style="flex-grow:${String(mins)}"><b>${title}</b><span>${String(mins)} min</span></li>`)}</ol>
-<p class="proof"><sup>*</sup>On average, every step by the owner. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">The log</a>.</p>
-</aside>`;
+/** Four steps in one row: twenty minutes, no developer, the measured time as the only figure. */
+function stepsSection(): Raw {
+  const brief = ['Keys, the tag, prove it is yours.', 'Usher reads your journeys. You check them.', 'Plain English, turned into policy you confirm.', 'Your look, your app, on.'];
+  return html`<section id="start" data-reveal class="four">
+<div class="four-lead"><h2>Twenty minutes. No developer.</h2><p class="small muted">On average, every step by the owner, measured. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">The log</a>.</p><p class="actions"><a class="button" href="/sites/new">Add your site</a></p></div>
+<ol class="setup-steps">${SETUP.map((t, i) => html`<li><span class="n">${String(i + 1).padStart(2, '0')}</span><h3>${t.title}</h3><p>${brief[i]}</p></li>`)}</ol>
+</section>`;
 }
 
-/** The setup: four steps, Brightwater's measured machine time, the tag, and the help on offer. */
-function setupSection(tag: string): Raw {
-  return html`<section id="start" data-reveal><h2>Four steps to switch it on</h2>
-<ol class="setup-steps">${SETUP.map((t, i) => html`<li><span class="n">${String(i + 1)}</span><h3>${t.title}</h3><p>${t.what}</p></li>`)}</ol>
-<p class="small muted">Brightwater, our demo insurer, went from joined to published in 79 seconds of machine time. The rest is you, reading and clicking. <a href="${REPOSITORY}/blob/main/reports/log-2026-10-29.md">How it was measured</a>.</p>
+/** One bordered row: the tag, and the help on offer. */
+function tagSection(tag: string): Raw {
+  return html`<section id="tag" data-reveal class="tag-row">
+<div><h2>One tag. Nothing else changes.</h2><p class="small muted">In the pages that have your forms. It shows agents where to knock and logs what they do; it never sees what anyone types.</p>
+<p class="small muted">Or Looma, the team behind Usher, sets it up with you: <a href="#interest">tell us about your site</a>. To lock the actions that matter, add <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a> on your server.</p></div>
 <pre class="wrap">${tag}</pre>
-<p class="actions"><a class="button" href="/sites/new">Add your site</a></p>
-<p>Or Looma, the team behind Usher, sets it up with you: <a href="#interest">tell us about your site</a>.</p>
-<p class="small muted">To lock the actions that matter, add <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a> on your server.</p>
+</section>`;
+}
+
+/** For agents: the two figures, the way in, and the full numbers under them. */
+function agentsSection(o: LandingOptions, mcp: string): Raw {
+  const row = headline(o.numbers);
+  const faster = row ? `${(row.reading.time / row.maps.time).toFixed(1)}×` : '';
+  const cost = row ? `$${(Number(row.maps.cost.replace(/[^\d.]/g, '')) || 0).toFixed(2)}` : '';
+  return html`<section id="agents" data-reveal class="agents">
+<div class="agents-row">
+<div><h2>Building an agent?</h2><p class="small muted">No signup. Your agent's key is its identity. Usher gives you the plan and holds the door; you drive.</p><p class="actions"><a class="button ghost" href="/spec/">Read the spec</a></p></div>
+${row ? html`<div class="figure"><b>${faster}</b><span>faster with a map than reading pages</span></div><div class="figure"><b>${cost}</b><span>model spend to fill a form from its map</span></div>` : ''}
+</div>
+<div class="agents-how">
+${o.hosted
+  ? html`<pre class="wrap">${o.url}/mcp</pre>
+<p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>
+<p class="small muted">No browser? <code>usher_fill</code> fills the form for you instead.</p>
+<details class="local"><summary>Running your own agent or framework?</summary>
+<pre>${mcp}</pre>
+<p class="small muted">The local server acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>
+</details>`
+  : html`<pre>${mcp}</pre>
+<p><code>get_plan</code> gives you the journey and the rules; <code>prepare_run</code> puts your user's answers in the site's own form; you fill and stop where the rules say.</p>`}
+</div>
+<div class="numbers" id="numbers">${numbersDetail(o.numbers)}</div>
 </section>`;
 }
 
@@ -215,7 +241,7 @@ function howSection(url: string, hosted: boolean, demo: boolean): Raw {
   const you = html`<span class="by-you">you</span>`;
   return html`<section class="between" id="how" data-reveal>
 <h2>What happens in between</h2>
-<p class="lede">One quote from Brightwater, our demo insurer: its own three-page form, unchanged. Your customer sees your app. You see the session.${demo ? html` <a href="/demo/dashboard">See a live dashboard</a>` : ''}</p>
+<p class="lede">One quote from Brightwater, our demo insurer. Its own three-page form, unchanged.${demo ? html` <a href="/demo/dashboard">See a live dashboard</a>` : ''}</p>
 <div class="views seq" data-steps>
 <div class="view" id="assistant"><h3 class="view-label">What your customer sees <span>Brightwater Insurance's own app</span></h3>
 <figure class="assistant uc" aria-label="Illustration: a customer answers Brightwater Insurance's questions in their assistant and gets a quote" inert>
@@ -250,58 +276,23 @@ ${hosted ? html`<p class="small muted assistant-note">Each site's app has its ow
 </section>`;
 }
 
-/** The hero ticket's stub: the health journey's benchmark, or the car journey's, or nothing measured yet. */
-function heroTimes(numbers: Numbers): Raw {
-  const row = numbers.benchmark.rows.find((r) => r.journey === HEALTH_JOURNEY) ?? numbers.benchmark.rows.find((r) => r.journey === CAR_JOURNEY);
-  return row ? html`Filled in ${row.maps.time.toFixed(1)} s<br>instead of ${String(Math.round(row.reading.time))} s` : html`Filled in seconds`;
-}
-
 export function landingPage(o: LandingOptions): string {
   const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="usp_your_site_key" defer></script>`;
   const mcp = JSON.stringify({ mcpServers: { usher: { command: 'npx', args: ['-y', '@usher-run/mcp'], env: { USHER_REGISTRY_URL: o.url } } } }, null, 2);
   const description = DESCRIPTION;
-  const [first, ...rest] = SENTENCE.split('. ');
   const body = html`<section class="hero">
-<div class="hero-copy">
-<h1>${first}. <em>${rest.join('. ')}</em></h1>
-<p class="lede">${POSITIONING}</p>
-<p class="actions"><a class="button" href="/sites/new">Add your site</a><a class="button ghost" href="#how">See how it works</a></p>
-</div>
-<aside class="ticket" aria-label="An example of what an agent receives when it knocks">
-<div class="ticket-main">
-<p class="label">Admit one agent</p>
-<p class="ticket-title">Health insurance quote</p>
-<dl>
-<div><dt>Agent</dt><dd>key 7f3a…c21, signed</dd></div>
-<div><dt>Map</dt><dd>3 pages, every field by meaning</dd></div>
-<div><dt>House rules</dt><dd>Ask the person before submitting. Five quotes an hour.</dd></div>
-<div><dt>Valid</dt><dd>10 minutes, this site only</dd></div>
-</dl>
-</div>
-<div class="ticket-stub"><span class="label">No.</span><b>0042</b><span>${heroTimes(o.numbers)}</span></div>
-</aside>
+<h1>${SENTENCE}</h1>
+<p class="lede">${HERO_LINE}</p>
+<p class="actions"><a class="button" href="/sites/new">Add your site</a><a class="button ghost" href="#how">See it happen</a></p>
 </section>
-
-${twentySection()}
 
 ${howSection(o.url, Boolean(o.hosted), Boolean(o.demo))}
 
-${setupSection(tag)}
+${stepsSection()}
 
-<section id="agents" data-reveal><div class="card"><h2>Usher gives you the plan and holds the door; you drive.</h2>
-<p class="lede">Driving your own browser? No signup. Your agent's key is its identity.</p>
-${o.hosted
-  ? html`<pre class="wrap">${o.url}/mcp</pre>
-<p>Ask for the plan, ask your user once, then fill in your own browser and stop where the rules say.</p>
-<p class="small muted">No browser? <code>usher_fill</code> fills the form for you instead.</p>
-<details class="local"><summary>Running your own agent or framework?</summary>
-<pre>${mcp}</pre>
-<p class="small muted">The local server acts on any site, with your own key. <a href="${REPOSITORY}/blob/main/docs/hosted-mcp.md">Setup for each assistant</a>.</p>
-</details>`
-  : html`<pre>${mcp}</pre>
-<p><code>get_plan</code> gives you the journey and the rules; <code>prepare_run</code> puts your user's answers in the site's own form; you fill and stop where the rules say.</p>`}
-</div></section>
-${numbersSection(o.numbers)}
+${tagSection(tag)}
+
+${agentsSection(o, mcp)}
 
 <section id="interest" data-reveal><h2>Talk to us</h2>
 ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : ''}
@@ -336,7 +327,7 @@ ${o.interest?.error ? html`<div class="card error">${o.interest.error}</div>` : 
 <script src="/site.js" defer></script>
 ${o.siteKey ? `<script src="${esc(o.url)}/usher.js" data-usher-registry="${esc(o.url)}" data-usher-site-key="${esc(o.siteKey)}" defer></script>\n` : ''}</head>
 <body>
-<header class="top"><div class="inner"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a href="/dashboard">Sign in</a></nav></div></header>
+<header class="top"><div class="inner bar"><a class="brand" href="/">Usher</a><nav><a class="wide" href="#how">How it works</a><a class="wide" href="#start">Get started</a><a class="wide" href="#agents">Agents</a><a href="/dashboard">Sign in</a><a class="button" href="/sites/new">Add your site</a></nav></div></header>
 <main>${body}</main>
 <footer><div class="inner">
 ${LOOMA_FOOTER}
@@ -352,9 +343,17 @@ ${LOOMA_FOOTER}
 </html>`;
 }
 
+/** The one sentence under the headline. */
+export const HERO_LINE = 'One script tag. Assistants fill what you allow, your customer answers what is theirs, and you see every session.';
+
 const LANDING_STYLE = `
 ${THEME}
-section { margin:0 0 56px; }
+/* The front page is the stage: dark throughout, whatever the system setting. */
+:root { --bg:#0b2a33; --paper:#061b22; --card:#0a2129; --ink:#eef5f5; --muted:#a7c4c8; --dim:#7fa8ae; --line:#1c4650; --rule:#275a66; --accent:#ff6a4d; --accent-ink:#061b22;
+  --button:#ff6a4d; --button-ink:#061b22; --code:#0f3540; --footer:#061b22; --stage:#061b22;
+  --safe:#6fe3a6; --safe-bg:#0f3a2c; --cons:#f0b429; --cons-bg:#3a2f14; --user:#f19389; --user-bg:#3b1d1a; }
+body { font-size:16px; }
+section { margin:0 0 72px; }
 /* Sections settle into place as they come near (site.js). Content is always present and fully
    visible: only position moves, so pages without JavaScript and screenshots see everything. */
 ${CARD_CSS}
@@ -362,109 +361,88 @@ ${CARD_CSS}
 html.reveal [data-reveal]:not(.shown) { transform:translateY(16px); }
 @media (prefers-reduced-motion: reduce) { [data-reveal] { transition:none; } html.reveal [data-reveal]:not(.shown) { transform:none; } }
 main { padding-top:0; }
-.hero { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:56px; align-items:center; padding:56px 0 44px; border-bottom:1px solid var(--rule); margin-bottom:44px; }
-@media (max-width:880px) { .hero { grid-template-columns:1fr; gap:40px; padding-top:36px; padding-bottom:48px; } }
-.hero h1 { font-size:clamp(36px, 5.6vw, 64px); margin:14px 0 20px; max-width:17ch; }
-.hero h1 em { font-style:normal; }
-.hero .lede { font-size:20px; margin:0 0 28px; }
+h2 { font-size:26px; font-weight:700; letter-spacing:-0.025em; }
+.hero { padding:72px 0 56px; border-bottom:1px solid var(--rule); margin-bottom:56px; }
+.hero h1 { font-size:clamp(40px, 6vw, 72px); font-weight:700; letter-spacing:-0.04em; line-height:0.98; margin:0 0 24px; max-width:16ch; }
+.hero .lede { font-size:19px; margin:0 0 32px; max-width:52ch; }
 .actions { display:flex; gap:12px; flex-wrap:wrap; margin:0; }
-/* The call-out: twenty minutes from joining to open to AI assistants, as a timeline of the four steps. */
-.twenty { display:grid; grid-template-columns:auto minmax(0,1fr); gap:20px 36px; align-items:center; border:1.5px solid var(--accent); border-radius:6px; padding:24px 28px; margin:-8px 0 56px; }
-.twenty .big { display:flex; flex-direction:column; gap:4px; }
-.twenty .big b { font-size:56px; font-weight:700; letter-spacing:-0.045em; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--accent); }
-.twenty .big sup { font-size:22px; font-weight:500; vertical-align:top; margin-left:2px; }
-.twenty .big span { font-size:15px; color:var(--muted); max-width:22ch; line-height:1.35; }
-.twenty .big em { font-style:normal; font-weight:600; font-size:15px; color:#7a5200; margin-top:6px; align-self:flex-start; padding:3px 9px; border-radius:3px; background:var(--cons-bg); }
-@media (prefers-color-scheme: dark) { .twenty .big em { color:#061b22; background:var(--cons); } }
-.twenty ol.bar { list-style:none; margin:0; padding:0; display:flex; gap:4px; align-items:stretch; }
-.twenty li { flex-basis:0; min-width:72px; display:flex; flex-direction:column; gap:10px; font-size:15px; }
-.twenty li::before { content:""; display:block; height:10px; border-radius:2px; background:var(--accent); opacity:.35; }
-.twenty li:nth-child(2)::before { opacity:1; }
-.twenty li b { font-weight:600; line-height:1.2; } .twenty li span { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; color:var(--muted); margin-top:-6px; }
-.twenty .proof { grid-column:1 / -1; margin:0; font-size:12.5px; color:var(--dim); } .twenty .proof a { color:var(--dim); }
-@media (max-width:880px) { .twenty { grid-template-columns:1fr; } .twenty li { min-width:56px; } }
-.ticket { display:grid; grid-template-columns:minmax(0,1fr) 112px; background:var(--card); border:1.5px solid var(--rule); transform:rotate(-1.5deg); max-width:470px; justify-self:center; position:relative; }
-.ticket::before, .ticket::after { content:""; position:absolute; right:104px; width:18px; height:18px; border-radius:50%; background:var(--bg); border:1.5px solid var(--rule); }
-.ticket::before { top:-10px; clip-path:inset(50% 0 0 0); } .ticket::after { bottom:-10px; clip-path:inset(0 0 50% 0); }
-.ticket-main { padding:22px 22px 20px; }
-.ticket-title { font-size:26px; font-weight:700; line-height:1.15; margin:4px 0 14px; }
-.ticket dl { margin:0; display:grid; gap:8px; }
-.ticket dl div { display:grid; grid-template-columns:96px 1fr; gap:10px; border-top:1px dotted var(--line); padding-top:8px; }
-.ticket dt { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-top:3px; }
-.ticket dd { margin:0; font-size:14.5px; line-height:1.45; }
-.ticket-stub { border-left:1.5px dashed var(--rule); padding:22px 12px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; gap:8px; }
-.ticket-stub b { font-size:30px; writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; }
-.ticket-stub span:last-child { font-size:12px; color:var(--muted); line-height:1.35; }
-@media (max-width:480px) { .ticket { grid-template-columns:1fr; transform:none; } .ticket::before, .ticket::after { display:none; } .ticket-stub { border-left:0; border-top:1.5px dashed var(--rule); flex-direction:row; padding:12px 22px; } .ticket-stub b { writing-mode:horizontal-tb; transform:none; } .ticket dl div { grid-template-columns:1fr; gap:2px; } }
-/* What your customer sees, and the rails underneath: two panes side by side, always dark like an
-   assistant, playing in step (site.js marks the steps reached as r1…r6 on .views). */
+@media (max-width:640px) { .hero { padding:40px 0 36px; } .hero .lede { font-size:17px; } }
+/* What your customer sees, and the rails underneath: two panes side by side, on the stage's paper
+   with one rule round each, playing in step (site.js marks the steps reached as r1…r6 on .views). */
 .between .lede { max-width:64ch; }
 .views { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:28px; align-items:start; margin-top:22px; }
 .view-label { font-size:17px; font-weight:600; margin:0 0 10px; }
 .view-label span { display:block; font-size:13px; font-weight:400; color:var(--muted); margin-top:2px; }
 /* The customer's side: a plain assistant window of our own (no product's interface). */
-.assistant { ${CARD_DARK} margin:0; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; overflow:hidden; font-size:15px; line-height:1.5; }
+.assistant { ${CARD_DARK} margin:0; background:var(--paper); color:var(--ink); border:1px solid var(--rule); border-radius:6px; overflow:hidden; font-size:15px; line-height:1.5; }
 .assistant-window { display:none; }
 .assistant-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--card); }
 .assistant-name { font-weight:600; font-size:14px; }
-.assistant-tag { font-size:12px; font-weight:600; color:var(--safe); background:var(--safe-bg); padding:3px 10px; border-radius:999px; }
+.assistant-tag { font-size:12px; font-weight:600; color:var(--safe); display:inline-flex; align-items:center; gap:7px; }
+.assistant-tag::before { content:""; width:8px; height:8px; background:currentColor; }
 .assistant > .step { padding:9px 18px; min-width:0; }
 .assistant > .person { display:flex; justify-content:flex-end; padding-top:18px; }
 .assistant .bubble { margin:0; max-width:88%; padding:10px 14px; background:var(--accent); color:#061b22; border:0; border-radius:18px 18px 4px 18px; font-weight:500; }
 .assistant .working { margin:0; font-size:14px; color:var(--muted); display:flex; align-items:center; gap:9px; }
 .spinner, .tool-icon { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent); border-right-color:transparent; display:inline-block; flex:none; }
 .s-result { padding-bottom:20px !important; }
-.assistant .card { border-radius:12px; }
+/* The site's own cards keep their white ground and band: they are the site's app, not Usher's chrome. */
+.assistant .card { border-radius:6px; }
+.assistant .card.branded { --card:#ffffff; --ink:#0b2a33; --muted:#4f6d72; --line:#d3e0e2; --rule:#0b2a33; --bg:#f3f7f7; --cons:#b8860b; --cons-bg:#fff9ec; --user:#a1251b; --user-bg:#f7e2de; --safe:#1f9d66; --safe-bg:#e3f5ec; --accent:#c2452c; --btn:#0b6e6e; --btn-ink:#ffffff; --band:#0b6e6e; --band-ink:#ffffff; }
 /* Drawn boxes: the illustration is a picture. */
 .assistant .check { display:flex; gap:10px; align-items:flex-start; }
 .assistant .box { flex:none; width:18px; height:18px; margin-top:3px; border:1.5px solid var(--muted); border-radius:3px; display:inline-grid; place-items:center; }
 .assistant .box::after { content:"✓"; font-size:13px; font-weight:800; line-height:1; color:var(--card); }
 .assistant .check .box { background:var(--accent); border-color:var(--accent); }
-.assistant .by-you { margin-left:auto; padding-left:8px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); white-space:nowrap; }
+.assistant .by-you { margin-left:auto; padding-left:8px; font:500 11px var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--accent); white-space:nowrap; }
 .assistant .radio { display:inline-block; width:14px; height:14px; border:1.5px solid var(--muted); border-radius:50%; vertical-align:-2px; }
 .assistant .radio.on { border:4px solid var(--accent); }
 .assistant .yesno { align-items:center; gap:6px; }
 .assistant .yesno .by-you { margin-left:auto; }
-.assistant .confirm { display:inline-block; margin-top:12px; background:var(--rule); color:var(--card); font-weight:600; padding:10px 18px; border:0; border-radius:8px; }
+.assistant .confirm { display:inline-block; margin-top:12px; background:var(--rule); color:var(--card); font-weight:600; padding:10px 18px; border:0; border-radius:4px; }
 .assistant .link { text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:3px; }
 .assistant-note { max-width:760px; margin:14px 0 0; }
 details.local { margin:4px 0 14px; } details.local summary { cursor:pointer; font-weight:600; } details.local pre { margin-top:10px; }
 /* The rails: Brightwater's app on Usher, the route, the six steps. */
-.hood { ${CARD_DARK} background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:16px 18px 10px; }
+.hood { ${CARD_DARK} background:var(--paper); color:var(--ink); border:1px solid var(--rule); border-radius:6px; padding:16px 18px 10px; }
 .tool-head { margin:0 0 10px; font-size:13px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px; }
 .seq.ended .tool-icon, .seq:not(.seq-on) .tool-icon { border-color:var(--safe); }
-.runs-on { margin-left:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 8px; }
+.runs-on { margin-left:6px; font:500 11px var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--accent); }
 ol.route { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; font-size:12.5px; }
 .route li { display:flex; align-items:center; color:var(--muted); }
 .route li + li::before { content:""; width:26px; height:2px; margin:0 6px; background:linear-gradient(90deg, var(--line) 0 40%, var(--accent) 40% 60%, var(--line) 60% 100%) 0 0 / 300% 100%; }
 .seq.seq-on:not(.ended) .route li + li::before { animation:flow 1.2s linear infinite; }
-.route li.usher span { color:#061b22; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:999px; box-shadow:0 0 0 3px rgba(255,106,77,.2); }
-ol.seq-steps { list-style:none; margin:0; padding:4px 14px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
-.seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px dotted var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out; }
+.route li.usher span { color:#061b22; background:var(--accent); font-weight:700; padding:2px 10px; border-radius:3px; }
+ol.seq-steps { list-style:none; margin:0; padding:4px 14px; border-top:1px solid var(--line); }
+.seq-steps li { position:relative; padding:12px 0 12px 40px; border-top:1px solid var(--line); transition:opacity 450ms ease-out, transform 450ms ease-out; }
 .seq-steps li:first-child { border-top:0; }
 .seq-steps li::before { content:""; position:absolute; left:12px; top:38px; bottom:-14px; width:2px; background:var(--line); }
 .seq-steps li::after { content:""; position:absolute; left:12px; top:38px; width:2px; height:0; background:var(--accent); transition:height 700ms ease-out; }
 .seq-steps li:last-child::before, .seq-steps li:last-child::after { display:none; }
 .seq-steps li.done::after, .seq:not(.seq-on) .seq-steps li::after { height:calc(100% - 24px); }
-.seq-steps h3 { font-size:17.5px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
-.seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:500 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--bg); border:1px solid var(--line); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
+.seq-steps h3 { font-size:17px; line-height:1.25; margin:0 0 4px; color:var(--ink); }
+.seq-steps .n { position:absolute; left:0; top:11px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:500 12px var(--mono); color:var(--accent); background:var(--paper); border:1px solid var(--line); padding:0; margin:0; transition:background-color 300ms, color 300ms; }
 button.n { cursor:pointer; }
 button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .seq-steps p { margin:0 0 6px; font-size:14px; color:var(--ink); }
-.seq-steps .note { font-weight:600; color:var(--user); }
-.seq-steps .sees { display:inline-block; margin:2px 0 0; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px 11px 3px 10px; }
+.seq-steps .note { font-weight:600; color:var(--cons); }
+.seq-steps .sees { display:inline-block; margin:2px 0 0; font-size:12.5px; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:3px 11px 3px 10px; }
 .seq-steps .sees b { color:var(--safe); font-weight:700; }
 .seq-steps li.done .n, .seq:not(.seq-on) .seq-steps .n { background:var(--accent); color:#061b22; }
 .seq-controls { margin:10px 0 4px; }
 .seq-replay[hidden] { display:none; }
-.seq-replay { font:inherit; font-size:13px; font-weight:600; background:none; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 14px; cursor:pointer; }
-/* Playing: on the rails, steps not reached wait faded and lowered, the one in play pulses and
-   shimmers. On the customer's side, in step: working while Usher knocks and fills; the card at the
-   questions that are theirs, ticked one by one; Confirm at the submit; the quote with the record. */
-.seq.seq-on .seq-steps li { opacity:.22; transform:translateY(6px); }
+.seq-replay { font:inherit; font-size:13px; font-weight:600; background:none; color:var(--ink); border:1px solid var(--rule); border-radius:4px; padding:7px 14px; cursor:pointer; }
+/* Playing: on the rails, steps not reached wait faded, the one in play is lit; step four, the
+   person's, is picked out in the person's colour while they decide. On the customer's side, in step:
+   working while Usher knocks and fills; the card at the questions that are theirs, ticked one by
+   one; Confirm at the submit; the quote with the record. */
+.seq.seq-on .seq-steps li { opacity:.3; transform:translateY(6px); }
 .seq.seq-on .seq-steps li.on, .seq.seq-on .seq-steps li.done { opacity:1; transform:none; }
 .seq.seq-on .seq-steps li.on .n { animation:pulse 1.2s ease-out infinite; }
-.seq.seq-on .seq-steps li.on h3 { background:linear-gradient(90deg, var(--ink) 0%, var(--accent) 50%, var(--ink) 100%) 0 0 / 200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:shimmer 1.6s linear infinite; }
+.seq.seq-on .seq-steps li.on h3 { color:var(--accent); }
+.seq.seq-on .seq-steps li[data-step="4"].on .n { background:var(--cons); border-color:var(--cons); color:#061b22; animation:pulse-cons 1.2s ease-out infinite; }
+.seq.seq-on .seq-steps li[data-step="4"].on h3 { color:var(--cons); }
+.seq.seq-on .seq-steps li[data-step="4"].on::after { background:var(--cons); }
 .seq.seq-on .tool-icon, .seq.seq-on:not(.r4) .spinner { animation:spin .9s linear infinite; }
 .seq.seq-on.ended .tool-icon { animation:none; }
 .assistant .step, .assistant .box, .assistant .by-you, .assistant .confirm, .assistant .radio { transition:opacity 450ms ease-out, transform 450ms ease-out, background-color 250ms ease-out, border-color 250ms ease-out, border-width 250ms ease-out; }
@@ -476,45 +454,59 @@ button.n:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .seq.r4 .t2 .box, .seq.r4 .t2 .box::after, .seq.r4 .t2 .by-you { transition-delay:1000ms; }
 .seq.r4 .t3 .box, .seq.r4 .t3 .box::after, .seq.r4 .t3 .by-you { transition-delay:1500ms; }
 .seq.seq-on:not(.r5) .confirm { opacity:.45; }
-/* The decision card, the one thing no other way of filling forms gives: picked out with an
-   annotation for the reader (outside the app's own card) and a glow that lights up when the rails
-   reach the questions that are the customer's. */
+/* The decision card, the one thing no other way of filling forms gives: an annotation for the
+   reader (outside the app's own card), and the person's colour round it while they decide. */
 .assistant .callout { margin:8px 0 10px; font-size:13px; color:var(--ink); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
-.assistant .callout b { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#061b22; background:var(--accent); padding:2px 9px; border-radius:999px; }
-.assistant .card.decision { border:2px solid var(--accent); box-shadow:0 0 0 5px rgba(197,163,255,.14), 0 18px 40px -18px rgba(197,163,255,.45); }
+.assistant .callout b { font:500 11px var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--cons); }
+.assistant .card.decision { border:2px solid var(--cons); }
 .seq.seq-on.r4:not(.r5) .card.decision { animation:glow 1.6s ease-in-out infinite; }
-.seq-steps li[data-step="4"] { background:linear-gradient(90deg, rgba(197,163,255,.10), transparent 70%); margin:0 -14px; padding-left:54px; padding-right:14px; }
-.seq-steps li[data-step="4"] .n { left:14px; }
-.seq-steps li[data-step="4"]::before, .seq-steps li[data-step="4"]::after { left:26px; }
-@keyframes glow { 50% { box-shadow:0 0 0 9px rgba(197,163,255,.24), 0 18px 48px -14px rgba(197,163,255,.6); } }
-@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(197,163,255,.6); } 100% { box-shadow:0 0 0 12px rgba(197,163,255,0); } }
-@keyframes shimmer { to { background-position:-200% 0; } }
+@keyframes glow { 50% { box-shadow:0 0 0 6px rgba(240,180,41,.22); } }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(255,106,77,.6); } 100% { box-shadow:0 0 0 12px rgba(255,106,77,0); } }
+@keyframes pulse-cons { 0% { box-shadow:0 0 0 0 rgba(240,180,41,.6); } 100% { box-shadow:0 0 0 12px rgba(240,180,41,0); } }
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes flow { from { background-position:100% 0; } to { background-position:-50% 0; } }
-.keeps { margin:28px 0 0; padding:20px 22px; border:1.5px solid var(--rule); background:var(--card); max-width:760px; }
+.keeps { margin:28px 0 0; padding:20px 22px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); max-width:760px; }
 .keeps h3 { font-size:17px; font-weight:600; margin:0 0 10px; }
 .keeps ul { margin:0; padding-left:20px; }
 .keeps li { margin:8px 0; }
 @media (prefers-reduced-motion: reduce) { .seq *, .seq *::before, .seq *::after { transition:none !important; animation:none !important; } }
 @media (max-width:900px) { .views { grid-template-columns:minmax(0,1fr); } }
 @media (max-width:480px) { .assistant > .step { padding:8px 12px; } .hood { padding:14px 12px 8px; } ol.seq-steps { padding:4px 10px; } }
-.grid.three { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-.grid:not(.three) { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-.stat { border-top:3px solid var(--ink); }
-.stat b { display:block; font-size:40px; font-weight:700; letter-spacing:-0.04em; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums; }
-.stat span { color:var(--muted); font-size:15px; }
-@media (max-width:640px) { table, tbody, tr, td { display:block; } thead { display:none; } tr { padding:8px 0; border-bottom:1px solid var(--line); } td { border:0; padding:2px 0; } td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); } }
-/* What the owner gets, and the setup. */
-.logo-mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
-.assistant .ref { margin:6px 0; font-size:14px; }
-.assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:8px; }
-.assistant .card.branded { --btn:#0b6e6e; --btn-ink:#ffffff; --band:#0b6e6e; --band-ink:#ffffff; }
-ol.setup-steps { list-style:none; margin:20px 0 14px; padding:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; counter-reset:none; }
-.setup-steps li { border-top:1px solid var(--rule); padding:16px 0 0; position:relative; }
-.setup-steps .n { font:500 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); }
+/* Four steps: the claim left, four columns right, hairlines between. */
+.four { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:28px 48px; align-items:start; border-top:1px solid var(--rule); padding-top:40px; }
+.four h2 { margin:0 0 10px; } .four .four-lead p { margin:0 0 14px; } .four .actions { margin-top:20px; }
+ol.setup-steps { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; }
+.setup-steps li { border-left:1px solid var(--rule); padding:0 16px 8px; min-width:0; }
+.setup-steps li:first-child { border-left:0; padding-left:0; }
+.setup-steps .n { font:500 12px var(--mono); color:var(--accent); }
 .setup-steps h3 { font-size:17px; margin:10px 0 6px; }
-.setup-steps p { margin:0; font-size:14.5px; line-height:1.5; }
-@media (max-width:980px) { ol.setup-steps { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); } }
+.setup-steps p { margin:0; font-size:14px; line-height:1.5; color:var(--muted); }
+@media (max-width:900px) { .four { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:720px) { ol.setup-steps { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 0; } .setup-steps li:nth-child(3) { border-left:0; padding-left:0; } }
+/* The tag: one bordered row. */
+.tag-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); gap:20px 40px; align-items:center; border:1px solid var(--rule); border-radius:6px; padding:28px; }
+.tag-row h2 { margin:0 0 10px; } .tag-row p { margin:0 0 10px; } .tag-row pre { margin:0; }
+@media (max-width:860px) { .tag-row { grid-template-columns:minmax(0,1fr); padding:20px; } }
+/* Agents: one row with two figures, then the way in and the full numbers. */
+.agents-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr); gap:24px 40px; align-items:start; border-top:1px solid var(--rule); padding-top:40px; }
+.agents-row h2 { margin:0 0 10px; } .agents-row p { margin:0 0 14px; }
+.figure { min-width:0; } .figure b { display:block; font-size:clamp(36px, 4vw, 48px); font-weight:700; letter-spacing:-0.04em; line-height:1; font-variant-numeric:tabular-nums; color:var(--accent); overflow-wrap:anywhere; }
+.figure span { display:block; margin-top:8px; font-size:14px; color:var(--muted); max-width:22ch; }
+@media (max-width:860px) { .agents-row { grid-template-columns:repeat(2,minmax(0,1fr)); } .agents-row > div:first-child { grid-column:1 / -1; } }
+@media (max-width:480px) { .agents-row { grid-template-columns:minmax(0,1fr); gap:20px; } }
+.agents-how { margin:28px 0 0; max-width:760px; }
+.numbers { margin:28px 0 0; border-top:1px solid var(--line); padding-top:24px; }
+.numbers table { font-size:14px; min-width:0; }
+.grid.stats.two-up { grid-template-columns:repeat(2,minmax(0,1fr)); margin:18px 0 10px; }
+.grid.stats > .stat { border-left:1px solid var(--line); border-radius:0; margin:0; padding:16px 18px; } .grid.stats > .stat:first-child { border-left:0; }
+.grid.stats { gap:0; background:var(--paper); border:1px solid var(--line); border-radius:6px; display:grid; }
+.stat b { display:block; font-size:34px; font-weight:700; letter-spacing:-0.04em; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums; }
+.stat span { color:var(--muted); font-size:13px; }
+@media (max-width:640px) { .grid.stats.two-up { grid-template-columns:minmax(0,1fr); } .grid.stats > .stat { border-left:0; border-top:1px solid var(--line); } .grid.stats > .stat:first-child { border-top:0; } table, tbody, tr, td { display:block; } thead { display:none; } tr { padding:8px 0; border-bottom:1px solid var(--line); } td { border:0; padding:2px 0; } td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); } }
+/* What the owner gets, and the setup. */
+.logo-mark { width:22px; height:22px; border-radius:3px; background:linear-gradient(160deg, #e6f4f4 0 45%, #0b6e6e 45%); flex:none; }
+.assistant .ref { margin:6px 0; font-size:14px; }
+.assistant .card .button { display:inline-block; background:var(--btn); color:var(--btn-ink); font-weight:600; padding:9px 16px; border-radius:4px; }
 fieldset.setup { border:0; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px 18px; }
 fieldset.setup legend { font-weight:600; font-size:14px; margin-bottom:6px; padding:0; }
 form.stack label.choice { flex-direction:row; align-items:center; gap:6px; font-weight:400; font-size:15px; }
@@ -523,4 +515,6 @@ form.stack label { display:flex; flex-direction:column; gap:2px; font-weight:600
 form.stack input { min-width:0; }
 form.inline input[type=url] { flex:1 1 240px; }
 pre.wrap { white-space:pre-wrap; word-break:break-word; }
+#interest h2 { margin-bottom:14px; }
+.card.error { color:var(--user); border:0; background:transparent; padding:0; }
 `;

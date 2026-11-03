@@ -36,11 +36,12 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the s
   const res = await fetch(`${registry.url}/`);
   const text = await res.text();
   assert.equal(res.status, 200);
-  // The sentence, its second half set in italic.
-  const order = ['Let AI agents use your site. <em>On your terms.</em>', 'with every action on your record. Nothing to rebuild.</p>', '<p class="ticket-title">Health insurance quote</p>', '<b>20 min<sup>*</sup></b><span>from joining to open to AI assistants', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Four steps to switch it on</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', 'Looma, the team behind Usher, sets it up with you', '<h2>Usher gives you the plan and holds the door; you drive.</h2>', '<h2>Why agents take the way you offer</h2>', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'built by <a href="https://looma.insure"'];
+  // The sentence in one weight, then the sections in the spec's order.
+  const order = ['<h1>Let AI agents use your site. On your terms.</h1>', 'One script tag. Assistants fill what you allow, your customer answers what is theirs, and you see every session.</p>', '<h2>What happens in between</h2>', '<h3>What Usher keeps</h3>', '<h2>Twenty minutes. No developer.</h2>', '<h3>Join</h3>', '<h3>Map</h3>', '<h3>Rules</h3>', '<h3>Publish</h3>', '<h2>One tag. Nothing else changes.</h2>', 'Looma, the team behind Usher, sets it up with you', '<h2>Building an agent?</h2>', '× faster', '<h2>Talk to us</h2>', 'Would you want Looma to set up and publish your assistant app?', 'built by <a href="https://looma.insure"'];
   const at = order.map((s) => text.indexOf(s));
   assert.ok(at.every((i) => i >= 0), `all present: ${order.filter((_, i) => at[i]! < 0).join(', ')}`);
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
+  assert.doesNotMatch(text, /class="ticket"|<h1>[^<]*<em>|<p class="label">Admit one agent/, 'no ticket, no italic in the headline');
   assert.doesNotMatch(text.split('</section>')[0]!, /Ask your assistant|class="bubble"/, 'the hero shows no prompt box');
   assert.doesNotMatch(text, /id="try"|class="picker"/, 'no map picker on the front page');
   assert.ok(text.includes('No signup. Your agent&#39;s key is its identity.') || text.includes("No signup. Your agent's key is its identity."));
@@ -95,6 +96,19 @@ test('interest: people are stored, agents must knock, mistakes are explained, th
   assert.match(list, /owner@shop\.example/);
   assert.match(list, /A checkout form<\/td><td>yes<\/td>/, 'with the answer to "Looma to set up"');
   assert.doesNotMatch(list, /a@shop\.example/, 'the refused agent stored nothing');
+});
+
+test('the two typefaces are served from this origin, and nothing else from /fonts/', async () => {
+  const text = await (await fetch(`${registry.url}/`)).text();
+  assert.match(text, /@font-face \{ font-family:"Instrument Sans"; font-style:normal; font-weight:400 700; font-display:swap; src:url\("\/fonts\/instrument-sans\.woff2"\)/);
+  assert.match(text, /@font-face \{ font-family:"JetBrains Mono"; font-style:normal; font-weight:500; font-display:swap; src:url\("\/fonts\/jetbrains-mono-500\.woff2"\)/);
+  for (const file of ['instrument-sans.woff2', 'jetbrains-mono-400.woff2', 'jetbrains-mono-500.woff2']) {
+    const res = await fetch(`${registry.url}/fonts/${file}`);
+    assert.deepEqual([res.status, res.headers.get('content-type')], [200, 'font/woff2'], file);
+    assert.equal(Buffer.from(await res.arrayBuffer()).toString('latin1', 0, 4), 'wOF2', `${file} is woff2`);
+  }
+  assert.equal((await fetch(`${registry.url}/fonts/other.woff2`)).status, 404);
+  assert.match((await fetch(`${registry.url}/privacy`)).headers.get('content-security-policy') ?? '', /font-src 'self'/);
 });
 
 test('specifications are served with this registry in place of the example registry', async () => {
@@ -154,7 +168,7 @@ test('what happens in between: Brightwater\'s own app on one side, six hosted st
   const js = await (await fetch(`${registry.url}/site.js`)).text();
   assert.match(js, /prefers-reduced-motion: reduce\)'\)\.matches\) return;/, 'reduced motion: no autoplay, everything shown');
   assert.match(js, /data-steps/);
-  assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.22;/, 'faded only once site.js plays the sequence');
+  assert.match(text, /\.seq\.seq-on \.seq-steps li \{ opacity:\.3;/, 'faded only once site.js plays the sequence');
   // A generic assistant, no product's interface.
   for (const shown of [customer, /<div class="hood">[\s\S]*?<\/ol>/.exec(section)?.[0] ?? '']) assert.doesNotMatch(shown, /Claude|ChatGPT|OpenAI|Anthropic|Gemini|Copilot|Cursor|<img/);
 });
