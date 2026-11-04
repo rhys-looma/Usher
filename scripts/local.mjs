@@ -4,6 +4,8 @@
 //
 //   npm run local                    registry on 4200, demo site on 4100 (PORT, SITE_PORT to change)
 //   npm run local -- --agent         the same, and run the agent once they are up
+//   npm run local -- --sites         the same, and six more fictional businesses to join and map as
+//                                    an owner, on ports 4301 to 4306 (mapping needs MODEL_API_KEY)
 //
 // Stores its data in data/local (gitignored): delete the folder to start again. The keys below are
 // for this machine only, as in docker-compose.yml.
@@ -12,7 +14,14 @@ import { spawn } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
-const { values } = parseArgs({ options: { agent: { type: 'boolean', default: false } } });
+const { values } = parseArgs({ options: { agent: { type: 'boolean', default: false }, sites: { type: 'boolean', default: false } } });
+
+// The registry reads .env with process.loadEnvFile.
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 20 || (major === 20 && minor < 12)) {
+  console.error(`Usher needs Node 20.12 or later; this is ${process.version}.`);
+  process.exit(1);
+}
 
 const host = 'localhost';
 const registryUrl = `http://${host}:${process.env.PORT ?? 4200}`;
@@ -73,6 +82,7 @@ registry.on('exit', (code) => {
 await ready(`${registryUrl}/healthz`);
 start('site', ['server.mjs'], { PORT: new URL(siteUrl).port, USHER_REGISTRY_URL: registryUrl, USHER_SITE_KEY: siteKey, USHER_SITE_ORIGIN: siteUrl }, 'examples/mock-quote-site');
 await ready(`${siteUrl}/healthz`);
+if (values.sites) start('sites', ['server.mjs'], { USHER_REGISTRY_URL: registryUrl }, 'examples/sites');
 
 const agentCommand = (path, profile, intent) => ['run', 'agent', '--', `${siteUrl}${path}`, '--profile', `packages/agent/profiles/${profile}.json`, '--intent', intent, '--mcp', '--auto-confirm'];
 console.log(`
@@ -88,7 +98,9 @@ Get a quote with an agent, in another terminal:
   npm ${agentCommand('/health/about', 'test-health', 'quote.health_insurance').join(' ')}
   npm ${agentCommand('/quote/driver', 'test-driver', 'quote.car_insurance').join(' ')}
 
-Press Ctrl+C to stop.
+${values.sites ? `Join and map a site as its owner, starting at ${registryUrl}/sites/new, with http://${host}:4301 for Larchmont (examples/sites/README.md).
+
+` : ''}Press Ctrl+C to stop.
 `);
 
 if (values.agent) {
@@ -96,6 +108,7 @@ if (values.agent) {
   agent.on('exit', (code) => {
     children.delete(agent);
     console.log(code === 0 ? `\nThe agent finished. See its session at ${registryUrl}/dashboard.` : `\nThe agent stopped with code ${code}.`);
+    if (code && process.platform === 'linux') console.log('If Chromium could not start, run: npx playwright install --with-deps chromium');
     if (code) process.exitCode = code;
   });
 }
