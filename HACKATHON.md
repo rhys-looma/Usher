@@ -91,4 +91,5 @@ Status on 4 November: steps 1 to 4 are live. Step 5 has run once on a GPU, by ha
 | 3 Nov | Who answers what: a consent is only the person's own yes, a detail is what they say to use |
 | 3 Nov | A new look across every page: one typeface, flat panels, self-hosted type, phone width |
 | 4 Nov | First GPU training run: Muse Glimmer 30B tuned with LoRA on a Baseten H100; 61.3% of keys and 100% of risks on held-out forms, against 68.0% and 100% for Muse Spark Open, so it stays off in production (docs/finetune.md) |
-| 4 Nov | `npm run local`: the registry and demo site joined up with one command and no keys; the last recordings and report rows from real insurers' pages removed |
+| 4 Nov | `npm run local`: the portal, the demo site and six test sites joined up with one command, needing only a Meta key; the agent's quote makes no model calls; the last recordings and report rows from real insurers' pages removed |
+| 4 Nov | The site check refuses agents it can identify and says so; the docs say what it does and doesn't stop. The front page says how long joining takes. The README opens with the live site and the demo dashboard, and this statement records what we saw before building |
