@@ -152,7 +152,7 @@ export function startForm(origin: string, error?: string, state: { published?: n
   return page(
     'Map my site',
     html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
-${/^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(origin).hostname) ? html`<div class="card"><h2>What happens next</h2>
+${local(origin) ? html`<div class="card"><h2>What happens next</h2>
 <p><b>You do:</b> tell Usher where to go, check the map it builds, and write your rules in plain English.</p>
 <p><b>You get:</b> a site AI can use, under your controls, with every agent action on the record. And your own app in Claude, ChatGPT and other assistants, with no API to build.</p></div>` : ''}
 ${state.notice ? html`<div class="card notice">${state.notice}</div>` : ''}${error ? html`<div class="card error">${error}</div>` : ''}
@@ -215,6 +215,9 @@ export function chatMessage(run: Pick<WalkthroughRun, 'id' | 'pages'>, m: ChatMe
 
 /** The finished run: each page annotated, in order, with what leads where, the diff and Publish. */
 /** The chat editor: a sentence in, proposed changes out, nothing applied until the owner accepts. */
+/** A site on this machine: someone trying Usher out, who gets a word more about what they're looking at. */
+const local = (origin: string) => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(origin).hostname);
+
 function editPanel(run: WalkthroughRun, edits: EditProposal | null, error?: string): Raw {
   const name = (r: string) => RISK_NAMES[r] ?? r;
   const change = (c: EditProposal['changes'][number]) =>
@@ -228,9 +231,10 @@ ${edits.refused.length ? html`<p class="small muted"><b>Left out:</b> ${edits.re
 <form method="post" action="/dashboard/walkthrough/edit/apply" class="inline">${edits.changes.length ? html`<input type="hidden" name="id" value="${edits.id}"><button type="submit">Make these changes</button> ` : ''}<button type="submit" formaction="/dashboard/walkthrough/edit/discard" class="secondary">Discard</button></form></div>`
     : '';
   return partner('Change it in words', html`${error ? html`<div class="card error">${error}</div>` : ''}${pending}
+${local(run.origin) ? html`<p class="small"><b>Try this:</b> Muse Spark turns your words into changes to the map and shows them to you first. This is how an owner corrects Usher without touching any code.</p>` : ''}
 <form method="post" action="/dashboard/walkthrough/edit" data-busy="Muse Spark is reading your request…"><p><label for="edit-text">Tell Usher what to change, such as "the smoker question is the person's own on every page". Nothing changes until you accept.</label></p>
 <textarea id="edit-text" name="text" rows="3" maxlength="1000" required></textarea>
-<p><button type="submit">Suggest changes</button></p></form>`, { id: 'edit', open: Boolean(edits || error) });
+<p><button type="submit">Suggest changes</button></p></form>`, { id: 'edit', open: true });
 }
 
 /** The conversation of a finished run, folded away above its pages. */
