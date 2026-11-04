@@ -142,7 +142,8 @@ Add the test site to Usher:
   2. Go to ${larchmontUrl}/__settings, paste the site key and save. That adds Usher's tag to the site.
   3. Back on the portal, press Next, then Check now, to prove the site is yours.
   4. In Map my site, start at ${larchmontUrl}/aip/you and press Start. Muse Spark goes through the form.
-  5. Choose Finish here, check the map and publish it. Then write your rules, accept the look and publish the app.
+     If Usher asks where to go, click an option, such as Get an agreement in principle.
+  5. When a form is mapped, choose Finish here, check the map and publish it. Then write your rules, accept the look and publish the app.
 
 Chat with a site's app, as an assistant would use it:
 

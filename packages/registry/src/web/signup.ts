@@ -58,7 +58,8 @@ export function keysFile(o: { origin: string; siteKey: string; secretKey: string
   return `Usher keys for ${o.origin}\n\nSite key (public; goes in the tag on your pages):\n${o.siteKey}\n\nSecret key (private; signs you in to your dashboard; keep it safe):\n${o.secretKey}\n`;
 }
 
-export function tagPage(o: { url: string; siteKey: string }): string {
+export function tagPage(o: { url: string; siteKey: string; origin?: string }): string {
+  const local = o.origin && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(o.origin).hostname);
   const tag = `<script src="${o.url}/usher.js"\n        data-usher-registry="${o.url}"\n        data-usher-site-key="${o.siteKey}" defer></script>`;
   return page(
     'The tag',
@@ -66,6 +67,7 @@ export function tagPage(o: { url: string; siteKey: string }): string {
 <h1>Add the tag</h1>
 <p class="lede">Put this in the pages that have your forms, before <code>&lt;/head&gt;</code>:</p>
 <pre>${tag}</pre>
+${local ? html`<div class="card notice"><p><b>Trying one of the local demo sites?</b> You don't need to edit its pages. <a href="${o.origin}/__settings" target="_blank" rel="noopener">Open its settings</a>, paste your site key, <code>${o.siteKey}</code>, and save. Then come back here.</p></div>` : ''}
 <div class="card"><p>It shows agents where to knock and records what agents that knock do on your forms; it never tracks people and never sees what anyone types.</p></div>
 <p><a class="button" href="/sites/new/claim">Next: prove it's yours</a></p>`,
   );

@@ -61,7 +61,10 @@ table.elements td { vertical-align:top; }
 .risk-dot { display:inline-block; width:8px; height:8px; margin-right:6px; vertical-align:0; }
 .risk-dot.safe { background:var(--safe); } .risk-dot.consequential { background:var(--cons); } .risk-dot.needs_user { background:var(--user); }
 .live { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:18px; align-items:start; }
-.browser { border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--card); }
+.browser { position:relative; border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--card); }
+.browser.working::after { content:''; position:absolute; left:0; right:0; top:36px; height:70px; pointer-events:none; background:linear-gradient(to bottom, transparent, rgba(255,106,77,.22)); border-bottom:2px solid rgba(255,106,77,.65); animation:scan 2.6s ease-in-out infinite alternate; }
+@keyframes scan { from { transform:translateY(0); } to { transform:translateY(340px); } }
+@media (prefers-reduced-motion: reduce) { .browser.working::after { animation:none; opacity:.4; } }
 .browser .bar { display:flex; gap:6px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
 .browser .bar i { width:10px; height:10px; border-radius:50%; background:var(--line); display:inline-block; }
 .browser img { display:block; width:100%; min-height:240px; background:#eef0f3; }
@@ -323,9 +326,12 @@ export const WALKTHROUGH_JS = `(() => {
   const activity = document.getElementById('live-activity');
   const what = document.getElementById('live-what');
   const count = document.getElementById('live-count');
+  let elements = '';
+  const stage = document.querySelector('.live .browser');
+  const working = (on) => { if (stage) stage.classList.toggle('working', on); };
   const plain = (line) => {
-    if (/^Labelling/.test(line)) return 'Muse Spark is reading this page';
-    if (/^Extracting/.test(line)) return 'Looking through this page';
+    if (/^Labelling/.test(line)) return 'Muse Spark is reading ' + (elements ? elements + ' ' : 'this page\'s ') + 'fields and buttons, up to three times to be sure. This can take a minute or two';
+    if (/^Extracting/.test(line)) { const n = /: (\d+) visible element/.exec(line); elements = n ? n[1] : ''; return 'Looking through this page'; }
     if (/^Opening/.test(line)) return 'Opening your site';
     if (/^Filled/.test(line)) return 'Filling in test answers';
     if (/^Pressing "(.*)"/.test(line)) return 'Going on: ' + /^Pressing "(.*)"/.exec(line)[1];
@@ -339,9 +345,11 @@ export const WALKTHROUGH_JS = `(() => {
     what.textContent = doing + '… ' + (s >= 3 ? s + ' s' : '');
   };
   const ticking = setInterval(tick, 1000);
+  working(!yours);
   const setDoing = (words) => { doing = words; since = Date.now(); tick(); };
   const setYours = (w) => {
     yours = w;
+    working(!w);
     if (activity) activity.classList.toggle('yours', w);
     if (what) { if (w) what.textContent = 'Your turn: pick a choice or say where to go'; else setDoing('Usher is working'); }
   };
@@ -356,6 +364,7 @@ export const WALKTHROUGH_JS = `(() => {
   source.addEventListener('done', () => {
     clearInterval(ticking);
     if (activity) activity.classList.add('ended');
+    working(false);
     if (what) what.textContent = 'Finished. Opening the result…';
     source.close(); setTimeout(() => location.reload(), 600);
   });
