@@ -65,7 +65,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 npm install
 npm test             # installs chromium if needed, starts mock site (A, B and C) on free ports, runs tests
 npm run typecheck
-npm run local [-- --agent] [--sites]    # registry and demo site joined up, no keys; --agent runs a quote, --sites adds the six businesses
+npm run local                           # portal and test sites, with the steps to add one; npm run local:agent gets a quote from Brightwater, no keys
 npm run compile -- <url> [--out file] [--classify]   # compile one page with Muse Spark (+ Spark Open second opinion)
 npm run fixtures:record                 # re-record model fixtures (needs MODEL_API_KEY)
 npm run fixtures:record:open            # same for Muse Spark Open (needs BASETEN_API_KEY)

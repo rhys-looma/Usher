@@ -37,7 +37,7 @@ This uses Larchmont as the example; the steps are the same for every site.
 1. Start everything, with the sites, from the repository's root:
 
    ```bash
-   npm run local -- --sites
+   npm run local
    ```
 
    The walkthrough calls Muse Spark, so the registry needs `MODEL_API_KEY` in `.env`.

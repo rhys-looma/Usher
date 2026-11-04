@@ -22,44 +22,93 @@ Underneath is an open protocol, the map, the knock and the log, which any agent 
 
 > **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
 
-## Run it locally
+## Run it and test it
 
-You need Node 20.12 or later. You don't need any keys or accounts. The first run downloads Chromium for Playwright.
+You'll start the Usher portal and a test site on your machine, add the site to Usher as its owner, then watch an agent use a site and see what the owner sees.
+
+### 1. Start it
+
+You need Node 20.12 or later and a Meta Model API key. Muse Spark uses the key to read the pages. The first run also downloads Chromium.
 
 ```bash
 git clone https://github.com/rhys-looma/Usher.git
 cd Usher
 npm install
-npm run local -- --agent
-```
-
-This starts the registry and Brightwater, the fictional demo insurer, joined up with their maps, on ports 4200 and 4100 (set `PORT` and `SITE_PORT` to change them). An agent then gets a health insurance quote from Brightwater: it knocks, fills the safe fields by meaning, confirms the consequential answers and submits with a token Brightwater's server checks. It takes about 5 seconds and no model calls, because the map already exists. The terminal prints every address, the commands to run the agent again, and how to sign in to the dashboard.
-
-Then look at:
-
-- **The dashboard:** the agent's session step by step, by meaning, with nothing anyone typed, plus the site's tasks and rules.
-- **The demo site:** the quote form itself. Its `/__admin` page switches the form's layout, so you can watch the map go stale.
-- **The site's app:** already published, at the address `/dashboard/app` shows. An MCP client on your machine can connect to it. Without model keys, pass answers by field rather than in the person's own words. Claude's and ChatGPT's web apps can't reach your machine, so use [the hosted version](docs/hosted-mcp.md) to try it in one, with nothing to install.
-
-Press Ctrl+C to stop. Each start begins again from a clean `data/local`.
-
-**With model keys,** Muse Spark also turns plain-English rules into policy, explains sessions and builds new maps. Copy the example file, fill in your keys and start again:
-
-```bash
 cp .env.example .env
 ```
 
-Then try the rules: on the dashboard's Rules page, write "Agents may not use the car insurance quote" and confirm it. Run the car quote command the terminal printed, and the agent is refused.
+Open `.env` and fill in `MODEL_API_KEY`, plus `BASETEN_API_KEY` if you have one. Then:
 
-To map a site as its owner, also with keys, run `npm run local -- --sites`. It adds six fictional businesses, and [examples/sites](examples/sites/README.md#map-one-as-its-owner) walks through joining one, mapping it and publishing its app. Mapping a three-page form takes about three minutes.
+```bash
+npm run local
+```
 
-If something goes wrong:
+Leave it running. The terminal prints every address and step below, ready to click.
 
-- **"Something is already running":** set `PORT` and `SITE_PORT`, for example `PORT=4210 SITE_PORT=4110 npm run local`.
+There's no database to set up. A local run keeps its data in files in `data/local`, and clears them each time it starts.
+
+| Address | What it is |
+| --- | --- |
+| `localhost:4200` | The Usher portal |
+| `localhost:4301` | **Larchmont Mortgages:** the test site, fictional and not on Usher yet |
+| `localhost:4100` | **Brightwater Insurance:** a fictional site that's already set up |
+
+### 2. Add the test site to Usher
+
+| Step | Go to | Do this | You'll see |
+| --- | --- | --- | --- |
+| 1. Join | `localhost:4200/sites/new` | Enter Larchmont's address as the terminal prints it, starting `http://`, and save your keys | A site key and a secret key |
+| 2. Add the tag | `localhost:4301/__settings` | Paste the site key and press **Save** | Larchmont now carries Usher's script tag |
+| 3. Prove it's yours | Back on the portal | Press **Next**, then **Check now** | You're signed in, on **Map my site** |
+| 4. Map it | The same page | Start at `localhost:4301/aip/you`, with `http://` in front, and press **Start** | Muse Spark goes through the form live, in about 3 minutes |
+| 5. Check and publish | The same page | Choose **Finish here** (scroll down the chat if you can't see it), look over the map and publish it | Each field by meaning, never a typed value |
+| 6. Set your rules | **Rules** | Write the rules below, press **Propose policy**, then **Confirm and apply** | Plain English turned into policy |
+| 7. Publish the app | **Look**, then **Publish** | Accept the look and publish | The app's MCP address, and the time from joining to publishing |
+
+Rules to try:
+
+> Agents may fill the agreement in principle. The person confirms the declaration and the final button themselves.
+
+### 3. See an agent use a site
+
+In a second terminal:
+
+```bash
+npm run local:agent
+```
+
+An agent gets a health insurance quote from Brightwater. It knocks, fills the safe fields by meaning, confirms the consequential answers and submits with a token Brightwater's server checks. It takes about 5 seconds and makes no model calls, because the map already exists.
+
+Now see what the owner sees. Sign out of the dashboard, then sign in with Brightwater's address and the secret key, both printed in the terminal. Open the session to see each step by meaning, with nothing anyone typed, and press **Explain this session**.
+
+### 4. Test the rules
+
+On Brightwater's **Rules** page, write this, then press **Propose policy** and **Confirm and apply**:
+
+> Agents may not use the car insurance quote.
+
+Then run the car quote:
+
+```bash
+npm run local:agent -- car
+```
+
+The agent is refused with `agents_not_allowed`.
+
+### 5. Run the test suite
+
+```bash
+npm test
+```
+
+It takes about ten minutes and runs offline from recorded model responses.
+
+### If something goes wrong
+
+- **"Something is already running":** stop it, or move Usher: `PORT=4210 SITE_PORT=4110 PORT_BASE=5300 npm run local`. The terminal prints the new addresses.
 - **Chromium won't start on Linux:** run `npx playwright install --with-deps chromium`, which needs root.
 - **On Windows:** use WSL. We haven't run it directly on Windows.
-
-Run the tests with `npm test` (about ten minutes, offline, from recorded model responses). `docker compose up --build` runs the same stack on Postgres, on ports 4100 and 4200.
+- **Start again:** press Ctrl+C and run `npm run local`. Each start begins from nothing.
 
 ## Site apps
 
