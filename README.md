@@ -45,6 +45,8 @@ npm run local
 
 Leave it running. The terminal prints every address and step below, ready to click.
 
+There's no database to set up. A local run keeps its data in files in `data/local`, and clears them each time it starts.
+
 | Address | What it is |
 | --- | --- |
 | `localhost:4200` | The Usher portal |
@@ -57,9 +59,9 @@ Leave it running. The terminal prints every address and step below, ready to cli
 | --- | --- | --- | --- |
 | 1. Join | `localhost:4200/sites/new` | Enter Larchmont's address as the terminal prints it, starting `http://`, and save your keys | A site key and a secret key |
 | 2. Add the tag | `localhost:4301/__settings` | Paste the site key and press **Save** | Larchmont now carries Usher's script tag |
-| 3. Prove it's yours | Back on the portal | Press **Next**, then **Check now** | You're signed in to the site's dashboard |
-| 4. Map it | **Map my site** | Start at `localhost:4301/aip/you`, with `http://` in front, and press **Start** | Muse Spark goes through the form live, in about 3 minutes |
-| 5. Check and publish | The same page | Choose **Finish here**, look over the map and publish it | Each field by meaning, never a typed value |
+| 3. Prove it's yours | Back on the portal | Press **Next**, then **Check now** | You're signed in, on **Map my site** |
+| 4. Map it | The same page | Start at `localhost:4301/aip/you`, with `http://` in front, and press **Start** | Muse Spark goes through the form live, in about 3 minutes |
+| 5. Check and publish | The same page | Choose **Finish here** (scroll down the chat if you can't see it), look over the map and publish it | Each field by meaning, never a typed value |
 | 6. Set your rules | **Rules** | Write the rules below, press **Propose policy**, then **Confirm and apply** | Plain English turned into policy |
 | 7. Publish the app | **Look**, then **Publish** | Accept the look and publish | The app's MCP address, and the time from joining to publishing |
 
