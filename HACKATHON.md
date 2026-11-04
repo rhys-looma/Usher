@@ -5,6 +5,14 @@ Usher is an entry in the **Meta Global AI Developer Hackathon** (Startups track,
 - Building period: 26 October 2026 (kickoff) to 4 November 2026
 - Repository created: 26 October 2026, after kickoff
 
+## What we saw
+
+Before building, we watched ChatGPT complete Larchmont's mortgage agreement-in-principle form, the fictional test site in this repository, as a customer would ask it to. It took two and a half minutes. It guessed answers it had not been given, put three questions into one box, and never showed the customer the key information on the page. The site had no way of knowing whether the customer had agreed to the terms, or to the submit.
+
+With Usher, the same journey took just over a minute, including the customer's replies on the card: Usher filled the safe fields on the real form, the customer answered the questions that are theirs in Larchmont's own words and pressed the final button, and Larchmont's server checked the token.
+
+In a usability test on 3 November, going from joining Usher to a published app took about 20 minutes, every step by the owner, with no developer. Brightwater, the demo insurer, took 79 s of machine time for the same path.
+
 ## What was built during the hackathon
 
 **Everything in this repository.** No code, specifications or data here existed before the hackathon. The repository started empty apart from the licence file, and the commit history is the record of the work.
