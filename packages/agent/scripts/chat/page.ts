@@ -149,7 +149,7 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; margin:6px 0
   }
 
   function loadSites() {
-    var keep = $('site').value;
+    var keep = $('site').value || new URLSearchParams(location.search).get('site');
     return fetch('/api/sites').then(function (r) { return r.json(); }).then(function (r) {
       $('site').textContent = '';
       r.sites.forEach(function (s) {

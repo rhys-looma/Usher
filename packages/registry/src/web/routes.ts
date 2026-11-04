@@ -32,6 +32,8 @@ import { APP_STYLE, appCard, appPage, nextStep, setupStrip, stillToDo } from './
 import { checkToolSettings, directoryPack, directoryPackMarkdown, siteTools, suggestTools, withoutDefaults } from '../site-app.ts';
 
 export interface WebOptions extends Omit<ViewerOptions, 'storage'> {
+  /** The local chat tester's address, from npm run local: never set in production. */
+  chatTester?: string;
   hooks?: DashboardHooks;
   /** USHER_ADMIN_KEY: signs in to /admin, the list of interest. No admin pages without it. */
   adminKey?: string;
@@ -853,9 +855,9 @@ ${annotated(drawn, { anchor: 'v' })}`;
         const app = await this.registry.siteApp(origin);
         const look = this.options.themes ? themeCard(await this.registry.siteTheme(origin), this.options.themes.busy(origin)) : html``;
         const setup = await this.registry.siteSetup(origin);
-        return send(res, status, appPage({ origin, name, endpoint, app, setup, needs: admin ? [] : stillToDo(setup, Boolean(this.options.themes)), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
+        return send(res, status, appPage({ ...(this.options.chatTester && { tester: `${this.options.chatTester}/?site=${encodeURIComponent(origin)}` }), origin, name, endpoint, app, setup, needs: admin ? [] : stillToDo(setup, Boolean(this.options.themes)), usage: await this.registry.siteAppUsage(origin), tools: await siteTools(this.registry, origin, app, { includeHidden: true }), look, now: new Date(), ...extra }));
       };
-      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : stepDone(url) ? { notice: `${stepDone(url)} Last step: publish your app.` } : {}), true;
+      if (route === 'GET /dashboard/app') return await show(200, url.searchParams.has('published') ? { notice: this.options.chatTester ? 'Published.' : `Published. Add ${endpoint} to Claude or ChatGPT to try it.` } : stepDone(url) ? { notice: `${stepDone(url)} Last step: publish your app.` } : {}), true;
       if (route === 'POST /dashboard/app/switch') {
         const on = (await readForm(req)).get('enabled') === '1';
         const app = await this.registry.siteApp(origin);
