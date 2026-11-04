@@ -24,12 +24,11 @@ interface PublicPage {
   chosen: number | null;
 }
 
-// Recorded scans (structure only) of the pages that used to get the wrong form: a cookie widget or
+// Scans (structure only) of the kind of page that used to get the wrong form: a cookie widget or
 // a site search was mapped instead of the form, or instead of nothing.
 for (const [id, expected] of [
   ['ico-contact', []],
-  ['admiral-car', []],
-  ['churchill-car', []],
+  ['consent-only-page', []],
 ] as const) {
   test(`form choice, recorded page ${id}: never a cookie widget, site search or newsletter box`, async () => {
     const page = await fixture<PublicPage>(id);

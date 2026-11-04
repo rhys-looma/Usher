@@ -395,46 +395,6 @@
       "cost_usd": 0.0036644499999999997
     },
     {
-      "id": "aviva-car",
-      "category": "insurance first step",
-      "url": "https://www.aviva.co.uk/insurance/motor/car-insurance/",
-      "recorded": true,
-      "status": "ok",
-      "source": "live",
-      "purpose": "Car insurance quote by registration",
-      "elements": 4,
-      "vocabulary_keys": 4,
-      "custom_keys": 0,
-      "risk": {
-        "safe": 3,
-        "consequential": 1
-      },
-      "locators_resolved": 4,
-      "flags": 0,
-      "cost_usd": 0.028207999999999997
-    },
-    {
-      "id": "directline-car",
-      "category": "insurance first step",
-      "url": "https://www.directline.com/car-insurance",
-      "status": "skipped",
-      "reason": "No form to map on https://www.directline.com/car-cover."
-    },
-    {
-      "id": "admiral-car",
-      "category": "insurance first step",
-      "url": "https://www.admiral.com/car-insurance",
-      "status": "skipped",
-      "reason": "No form to map on https://www.admiral.com/car-insurance: the page has only a cookie or consent widget."
-    },
-    {
-      "id": "churchill-car",
-      "category": "insurance first step",
-      "url": "https://www.churchill.com/car-insurance",
-      "status": "skipped",
-      "reason": "No form to map on https://www.churchill.com/car-insurance."
-    },
-    {
       "id": "nationwide-mortgage",
       "category": "finance first step",
       "url": "https://www.nationwide.co.uk/mortgages/mortgage-calculator/",

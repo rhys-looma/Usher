@@ -1,5 +1,7 @@
 # Key disagreements
 
+Rows for real insurers' pages were removed from this report on 4 November. The figures above still count them (2 elements).
+
 Every element where Muse Spark's (`muse-spark-1.3`) key is not settled, grouped by kind. Generated 2026-10-27 by `packages/core/scripts/key-disagreements.ts` from the compiler log, the fine-tuning eval and `reports/accuracy-review.csv`. Labels are the page's own text; no values.
 
 | Kind | Between runs | Per element vs whole form | Review |
@@ -65,9 +67,7 @@ Two different vocabulary keys, or a key a reviewer marked wrong.
 | --- | --- | --- | --- |
 | between runs | www.travelodge.co.uk/ (7 runs) | Search | `form.submit` / `nav.next` / `search.submit` |
 | between runs | en.wikipedia.org/wiki/Special:Search (3 runs) | Search | `custom.search` / `form.submit` / `nav.next` |
-| between runs | www.aviva.co.uk/insurance/motor/car-insurance/ (5 runs) | Don't know the registration? | `ui.expand` / `nav.skip` |
 | between runs | ico.org.uk/global/contact-us/ (3 runs) | Search | `form.submit` / `search.submit` |
 | between runs | www.nhs.uk/ (2 runs) | Search | `nav.next` / `search.submit` |
 | per element vs whole form | www.eventbrite.co.uk/ | autocomplete | `search.location` / `search.query` |
 | review | eventbrite-search |  | `search.submit` |
-| review | aviva-car | Continue your saved quote | `nav.next` |

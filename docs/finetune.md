@@ -88,7 +88,7 @@ How it is built:
 
 ### How many examples there are
 
-Rebuilt on 27 October from labels compiled with the current prompt only (`npm run finetune:export -- --since 2026-10-27T10:00:00Z`): the mock site's recordings and a fresh live accuracy run over `evals/forms.json`. That run compiled 19 of the 28 pages that load in an automated browser. The other 9 have no form to map: Admiral and Churchill show only a consent widget, now left out, and Direct Line's page has no visible form field.
+Rebuilt on 27 October from labels compiled with the current prompt only (`npm run finetune:export -- --since 2026-10-27T10:00:00Z`): the mock site's recordings and a fresh live accuracy run over `evals/forms.json`. That run compiled 19 of the 28 pages that load in an automated browser. The other 9 have no form to map: some show only a consent widget, now left out, and some have no visible form field.
 
 | | |
 | --- | --- |
@@ -97,10 +97,10 @@ Rebuilt on 27 October from labels compiled with the current prompt only (`npm ru
 | **Unique examples** | **131** |
 | Train | 103, from 13 forms |
 | Eval | 28, from 3 forms: the mock site's cover step, GOV.UK contact, Eventbrite |
-| By source | mock quote site 62, GOV.UK 23, httpbin 11, Eventbrite 9, Travelodge 6, National Rail 4, Aviva 4, and 2 each from ICO, Mozilla, Wikipedia, ONS, NHS, BBC |
+| By source | mock quote site 62, GOV.UK 23, httpbin 11, Eventbrite 9, Travelodge 6, National Rail 4, an insurer's first step 4, and 2 each from ICO, Mozilla, Wikipedia, ONS, NHS, BBC |
 | By risk | safe 124, consequential 5, needs_user 2 |
 
-The set from 26 October (161 unique, 120 train and 41 eval) mixed labels from older prompts, before `search.submit` and the short list. It also held 24 Direct Line elements from controls outside any form, FAQ accordions beside hidden cookie toggles, with no visible field. The page is no longer mapped.
+The set from 26 October (161 unique, 120 train and 41 eval) mixed labels from older prompts, before `search.submit` and the short list. It also held 24 elements from one insurer's page, controls outside any form, FAQ accordions beside hidden cookie toggles, with no visible field. The page is no longer mapped.
 
 That is still far too few to tune on. It shows the pipeline, not a training set. Consequential and needs_user elements are rare, and they are the ones that matter. Growing it means more forms: more entries in `evals/forms.json` (`npm run accuracy -- --forms all --live`, about $0.01 a form), plus the keeper's recompiles and the map viewer, which write to the same log. A few hundred forms would give a few thousand elements. Before tuning, oversample the consequential and needs_user examples, or weight them.
 

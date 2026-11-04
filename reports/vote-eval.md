@@ -2,7 +2,7 @@
 
 Generated 2026-10-28 by `packages/core/scripts/vote-eval.ts`. Marks: `reports/accuracy-review-2026-10-27.csv` (69 public elements on 13 forms, every one marked by hand). Live model spend: $0.5699.
 
-The marked run itself: 51 of 69 keys right (73.9%), 68 risks right (98.6%).
+The marked run itself, before 4 rows from a real insurer's page were removed: 51 of 69 keys right (73.9%), 68 risks right (98.6%).
 
 Each form compiled again today, once with one run and once in vote mode, and each element matched to its marked row by label and control (pages change; unmatched elements are left out). A key or risk equal to the marked one inherits its mark; a changed one where the mark said right counts as a regression; a changed one where the mark said wrong may be a fix, and waits for a person to mark it.
 
@@ -25,7 +25,6 @@ Each form compiled again today, once with one run and once in vote mode, and eac
 - ons-search: vote mode 1 run
 - nhs-search: vote mode 2 runs
 - bbc-signup: vote mode 1 run
-- aviva-car: vote mode 3 runs
 
 ## Changed by vote mode, waiting for a mark
 

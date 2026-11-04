@@ -22,6 +22,37 @@ Underneath is an open protocol, the map, the knock and the log, which any agent 
 
 > **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
 
+## Run it locally
+
+You need Node 20.11 or later. You don't need any keys or accounts. The first run downloads Chromium for Playwright.
+
+```bash
+git clone https://github.com/rhys-looma/Usher.git
+cd Usher
+npm install
+npm run local -- --agent
+```
+
+This starts the registry and Brightwater, the fictional demo insurer, joined up with their maps, on ports 4200 and 4100 (set `PORT` and `SITE_PORT` to change them). An agent then gets a health insurance quote from Brightwater: it knocks, fills the safe fields by meaning, confirms the consequential answers and submits with a token Brightwater's server checks. It takes about 5 seconds and no model calls, because the map already exists. The terminal prints every address, the commands to run the agent again, and how to sign in to the dashboard.
+
+Then look at:
+
+- **The dashboard:** the agent's session step by step, by meaning, with nothing anyone typed, plus the site's tasks and rules.
+- **The demo site:** the quote form itself. Its `/__admin` page switches the form's layout, so you can watch the map go stale.
+- **The site's app:** already published, at the address `/dashboard/app` shows. Claude's and ChatGPT's web apps can't reach your machine, so use [the hosted version](docs/hosted-mcp.md) to try it in one.
+
+Press Ctrl+C to stop. Each start begins again from a clean `data/local`.
+
+**With model keys,** Muse Spark also turns plain-English rules into policy, explains sessions and builds new maps. Copy the example file, fill in your keys and start again:
+
+```bash
+cp .env.example .env
+```
+
+Then try the rules: on the dashboard's Rules page, write "Agents may not use the car insurance quote" and confirm it. Run the car quote command the terminal printed, and the agent is refused.
+
+Run the tests with `npm test` (about ten minutes, offline, from recorded model responses). `docker compose up --build` runs the same stack on Postgres.
+
 ## Site apps
 
 A site that has joined gets an MCP server at `/mcp/<its host>` on the registry, with one tool per mapped journey. The owner sets it up at `/dashboard/app`. A setup strip shows each step: joined, mapped, rules, look, published. Once published, it shows the time from joining to publishing; Brightwater, the demo insurer, took 79 s of machine time.
@@ -95,26 +126,9 @@ Usher fills the safe fields, asks the person to confirm the smoker answer and th
 
 It knocks on the public registry by default. For your own registry, add `"env": { "USHER_REGISTRY_URL": "https://registry.example" }` with its `REGISTRY_PUBLIC_URL`; the registry's front page shows the entry already filled in. `npx @usher-run/mcp --check` knocks on the demo site and prints what came back. The MCP server runs where the agent runs, because it holds the agent's private key; only the registry URL is shared. Setup for Claude Desktop, Cursor and other clients is in [packages/mcp](packages/mcp/README.md).
 
-## Try it
+## More to try
 
-You need Node 20+ and a fresh clone:
-
-```bash
-npm install
-npm test
-```
-
-`npm test` builds everything, installs Chromium for Playwright, and runs the suite offline from recorded model responses.
-
-**The demo**, scene by scene against the live registry and demo site: each scene resets the demo site, opens its windows and prints the numbers it shows. Scenes 1 to 9, or `all`; `--once` closes the windows when done.
-
-```bash
-npm run demo -- 3
-```
-
-`npm run demo:local` is the first video's six scenes on a local registry and demo site, at `/demo` on the registry.
-
-**Each piece by hand.** Set two addresses first: `REGISTRY_PUBLIC_URL`, where the registry will be reached (it listens on port 4200), and `SITE_URL`, the demo site (port 4100). Then start the registry with demo maps (it prints the demo site's keys), the demo site, and the agent:
+**Each piece by hand**, in place of `npm run local`. Set two addresses first: `REGISTRY_PUBLIC_URL`, where the registry will be reached (it listens on port 4200), and `SITE_URL`, the demo site (port 4100). Then start the registry with demo maps (it prints the demo site's keys), the demo site, and the agent. Run `npm run build` once first:
 
 ```bash
 npm run registry -- --seed mock-site --seed-origin "$SITE_URL" --allow-private
@@ -125,17 +139,15 @@ USHER_REGISTRY_URL="$REGISTRY_PUBLIC_URL" USHER_SITE_KEY=usp_… npm start --pre
 ```
 
 ```bash
-npm run agent -- "$SITE_URL/health/about" --profile packages/agent/profiles/test-health.json --mcp --auto-confirm
-npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test-driver.json --mcp --auto-confirm
+npm run agent -- "$SITE_URL/health/about" --profile packages/agent/profiles/test-health.json --intent quote.health_insurance --mcp --auto-confirm
+npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test-driver.json --intent quote.car_insurance --mcp --auto-confirm
 ```
 
 - The dashboard, at `/dashboard` on the registry, signed in with the secret key, shows the session, lets you write rules in English, and lists blocked attempts.
-- The front page builds a map for any public form.
+- `npm run sites` starts six more fictional businesses to join and map as an owner, with `MODEL_API_KEY` set. Usher maps only sites whose owner has verified them.
 - `/__admin` on the demo site switches the form's layout, to watch the map go stale and rebuild.
 
-Live model calls need `MODEL_API_KEY` (Meta Model API) and `BASETEN_API_KEY` (Muse Spark Open) in `.env`. Without them, everything runs from recordings.
-
-**With Docker:** `docker compose up --build`, then `npm run e2e:remote`. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
+**With Docker:** after `docker compose up --build`, `npm run e2e:remote` runs a journey against it. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
 
 ## What Usher can fill
 
