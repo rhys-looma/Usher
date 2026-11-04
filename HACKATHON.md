@@ -24,7 +24,7 @@ Looma has an existing consumer app that automates car insurance quote journeys. 
 | Keeper triage: is a changed form's change cosmetic or real, and did anything consequential change? Cheap, so only real changes reach Muse Spark | Muse Spark Open on Baseten. In use: $0.004 to $0.005 per changed form; unchanged forms cost nothing. |
 | Second, independent agent using the registry (and its fallback when a page has no map) | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`; JSON mode, schema in the prompt). In use. |
 | Map my site: label each page of an owner's walkthrough, with a masked screenshot, in vote mode | Muse Spark `muse-spark-1.3` (image input checked first). In use. |
-| A small labeller tuned on Muse Spark's and owners' labels, as a second opinion on risk | Muse Glimmer (`meta-models/Muse-Glimmer-30B`, open weights) with LoRA. Built and dry-run; not trained yet, off in production (`USHER_STUDENT_MODEL`). |
+| A small labeller tuned on Muse Spark's and owners' labels, as a second opinion on risk | Muse Glimmer (`meta-models/Muse-Glimmer-30B`, open weights) with LoRA. Trained once on a Baseten H100 on 4 November; it agrees with Muse Spark on 61% of keys and 100% of risks on forms it never saw. Off in production, because untuned Muse Spark Open still scores higher (68%, 100%). |
 
 This table is updated as the build progresses.
 
@@ -36,10 +36,10 @@ Usher gets better at reading forms from the people who run them (the registry's 
 2. **Agents use the map**: structure only, never values.
 3. **The site's owner checks it** in a walkthrough of their own form ("Map my site") and corrects what it got wrong.
 4. **Each correction is an owner-verified label**, kept with the element's structure. In the training set it outranks any number of model runs.
-5. **Muse Glimmer is tuned on that set with LoRA** (`deploy/finetune/`: Modal H100 training with TRL, vLLM serving), to label one element at a time cheaply.
+5. **Muse Glimmer is tuned on that set with LoRA** (`deploy/finetune/`: H100 training with TRL on Baseten or Modal, vLLM serving), to label one element at a time cheaply.
 6. **The tuned student gives a second opinion on risk.** Where it and Muse Spark disagree, the stricter answer is kept, so the student can make maps more careful but never less.
 
-Status on 29 October: steps 1 to 4 are live; step 5 has passed a dry run (one training step on CPU with a tiny stand-in model, adapter saved) and waits for a GPU run; step 6 is built and tested, behind a flag that is off in production. Details in [docs/finetune.md](docs/finetune.md).
+Status on 4 November: steps 1 to 4 are live. Step 5 has run once on a GPU, by hand, on Muse Spark's labels (490 examples, about 17 minutes, about $2): 61.3% of keys and 100% of risks on 150 elements from 10 forms it never saw, with no risk under-called. Muse Spark Open, untuned, scored 68.0% and 100% on the same elements, and only 9 of the 150 are risky, so the tuned model is not switched on. Step 6 is built and tested, behind a flag that is off in production. Details in [docs/finetune.md](docs/finetune.md#the-first-training-run).
 
 ## Build log
 
@@ -74,3 +74,4 @@ Status on 29 October: steps 1 to 4 are live; step 5 has passed a dry run (one tr
 | 29 Oct | Front page, README and docs follow the product: your site inside every assistant in twenty minutes; docs/site-apps.md |
 | 3 Nov | Captures of real insurers' pages used in tests (Aviva) removed; those tests now use markup we wrote |
 | 3 Nov | When a task finishes, by the owner's choice: stay in the assistant, tell the person how to retrieve the result, or a signed one-time link the site's server turns into its own session (docs/handoff.md) |
+| 4 Nov | First GPU training run: Muse Glimmer 30B tuned with LoRA on a Baseten H100; 61.3% of keys and 100% of risks on held-out forms, against 68.0% and 100% for Muse Spark Open, so it stays off in production (docs/finetune.md) |

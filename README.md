@@ -176,7 +176,7 @@ Spark Open's times are its recorded calls, made on 28 October while Baseten was 
 | [DEPLOY.md](DEPLOY.md) | Deploying to AWS (CloudFront, ALB, ECS Fargate, RDS), the pre-deploy dry run, configuration, backups |
 | [docs/site-apps.md](docs/site-apps.md) | Site apps: what one is, what the owner controls, what Usher never stores, where it acts |
 | [docs/security.md](docs/security.md) | Threats, controls, and what Usher does not do |
-| [docs/finetune.md](docs/finetune.md) | A small labeller: the short list and retrieval few-shot (no training, measured), the per-element dataset, and how Muse Glimmer would be tuned |
+| [docs/finetune.md](docs/finetune.md) | A small labeller: the short list and retrieval few-shot (no training, measured), the per-element dataset, and the first tuned Muse Glimmer run: trained, scored on held-out forms, off in production |
 | [reports/](reports/) | [Benchmark](reports/benchmark.md), [drift and rebuild](reports/drift-demo.md), [map accuracy](reports/accuracy.md), [classifier agreement](reports/classifier-agreement.md) |
 | [HACKATHON.md](HACKATHON.md) | Build log and the Meta models used |
 

@@ -1,15 +1,15 @@
 {
   "student": {
-    "stage": "dry_run",
-    "date": "2026-10-28",
-    "detail": "The pipeline ran 1 training step on 10 examples on CPU, with a tiny stand-in for the base model, and saved the adapter"
+    "stage": "trained",
+    "date": "2026-11-04",
+    "detail": "Muse Glimmer 30B tuned with LoRA on 490 examples on one GPU. On 150 elements from 10 forms it never saw, it agrees with Muse Spark on 61% of keys and 100% of risks, against 68% and 100% for untuned Muse Spark Open, so it stays off in production"
   },
   "dataset": {
-    "generated": "2026-10-28T23:18:26.910Z",
-    "unique": 525,
-    "train": 400,
-    "eval": 125,
-    "forms": 54,
-    "owner_verified": 0
+    "generated": "2026-11-03T23:07:29.393Z",
+    "unique": 640,
+    "train": 490,
+    "eval": 150,
+    "forms": 65,
+    "owner_verified": 1
   }
 }

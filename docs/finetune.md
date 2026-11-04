@@ -1,10 +1,32 @@
-# A small labeller: no training first, fine-tuning ready to run
+# A small labeller: no training first, then a first tuned run
 
 Muse Spark labels whole forms well, but most of what it does per element is routine: "First name" is `person.first_name`, and "Get my quote" is `form.submit` and consequential. A small open-weights model could do that part cheaply, beside a self-hosted registry. There are two ways to get it there:
 
 - **No training** (built, and measured below): code proposes the candidate keys for each element (the short list), and the nearest labelled examples from other sites go into the prompt (retrieval few-shot). This works with Muse Spark Open as it is.
-- **Fine-tuning** (ready to run): a LoRA-tuned Muse Glimmer on Muse Spark's labels and site owners' corrections. The export, the training script (Modal, one H100), the serving app (vLLM) and the student's place in the compiler are built and tested. The pipeline has passed a dry run on CPU; **no GPU training has been run yet**. See [Running it](#running-it).
+- **Fine-tuning** (trained once, off in production): a LoRA-tuned Muse Glimmer on Muse Spark's labels and site owners' corrections. The export, the training scripts (Baseten or Modal, one H100), the serving app (vLLM) and the student's place in the compiler are built and tested. **The first GPU run was on 4 November, and it did not beat Muse Spark Open.** See [The first training run](#the-first-training-run) and [Running it](#running-it).
 - **Automatic retraining** (built, off): the registry retrains the student on Baseten as owners correct maps, and promotes a run only if it does no worse than the adapter serving. See [Automatic retraining](#automatic-retraining).
+
+## The first training run
+
+On 4 November 2026 we tuned Muse Glimmer 30B with LoRA on one Baseten H100, by hand (`scripts/baseten-train.sh --minutes 45`, job `qkzzd8q`), with the [settings below](#tuning-muse-glimmer-with-lora) at batch size 4. It proves the training works. It does not yet give a model worth switching on.
+
+**The data.** 640 unique examples from 65 forms, exported on 3 November with real insurers' forms left out: 490 to train and 150 held out, from 10 forms never seen in training. The labels are Muse Spark's: none of the 490 is owner-verified, as owners have made almost no corrections yet. "Agrees" below means agrees with Muse Spark seeing the whole form with a screenshot, which is not the same as being right.
+
+| Per element, 150 held-out elements | Key, exact | Key, equivalent | Risk | Risk under-called | Spend |
+| --- | --- | --- | --- | --- | --- |
+| Baseline: commonest per control | 13.3% | 13.3% | 88.7% | 9 | $0 |
+| Muse Glimmer, tuned, with the short list | 61.3% | 66.7% | 100% | 0 | scored inside the job |
+| Muse Spark Open (`-1026`), untuned, with the short list, one run | **68.0%** | **72.0%** | 100% | 0 | $0.48 |
+
+- **Glimmer does not beat Spark Open**, so it stays off in production, by the rule under [Using the student](#running-it). Spark Open's answers change between runs, and these are one run of each. Earlier sets moved it by several points, so treat the 6.7-point gap as a direction, not a measurement.
+- **Risk is a small test.** Both models get all 150 right, but only 9 of the 150 are consequential or needs_user. Both get those 9 right, where the baseline under-calls all 9.
+- **Most key misses are wording.** 39 of Glimmer's 58 exact misses are custom keys worded differently, and 8 more match once normalised. Only 5 are two different vocabulary keys.
+- **It is memorising.** Training loss fell from 1.45 to about 0.002 by the third epoch, while held-out loss ended at 0.204. More examples, owner corrections above all, are what it needs next. Consequential and needs_user examples aren't oversampled yet.
+- **The first-run gate would have passed it**, narrowly: at least 90% valid JSON (100%), 60% of keys (61.3%) and 80% of risks (100%). That gate only asks whether a run is usable. Switching the student on asks more.
+
+**Time and cost.** Training took 11.5 minutes for 93 steps, and the whole job took 16.7 minutes from creation to finish (15 of them running). At Baseten's $0.10833 a minute that is about $1.80, worked out from the job's times rather than read from a bill. The two earlier jobs that found the image and batch size came to about $1.40.
+
+**What has not been checked.** The adapter was scored inside the training job and saved with it. It has not been served through vLLM or `deploy/baseten/student`, and the registry's automatic path has not run a job. [Automatic retraining](#automatic-retraining) stays off.
 
 ## The no-training path
 
@@ -125,7 +147,7 @@ Spark Open's answers change between runs at temperature 0, so it is shown twice.
 
 On the earlier, smaller split (30 elements from 3 forms), Spark Open scored 86.7% on keys and Muse Spark 83.3%. The forms added since are the ones with the most custom keys.
 
-A tuned Muse Glimmer would need to match Spark Open with the short list (on the rebuilt set, about 61% of keys exact and 67% equivalent, with no risk under-called) to earn its place.
+A tuned Muse Glimmer would need to beat Spark Open with the short list to earn its place. On the set used for [the first training run](#the-first-training-run), it has not yet.
 
 ## Running it
 
@@ -134,6 +156,7 @@ Everything is in `deploy/finetune/` and behind `npm run finetune:*`:
 | Command | What it does | Cost |
 | --- | --- | --- |
 | `npm run finetune:export -- [--since …] [--corrections corrections.jsonl] [--publish]` | The dataset (below). Owners' corrections outrank model labels. `--publish` writes the counts to `reports/learning.json`, which `/learning` shows | Free |
+| `scripts/baseten-train.sh --minutes 45` | The real run on one Baseten H100, by hand, with no registry involved: trains on `data/finetune`, stops itself at `--minutes`, and keeps the adapter, `scores.json` and `answers.jsonl` with the job (`truss train get_checkpoint_urls --job-id <id>`). `--smoke` runs 20 steps on 64 examples first. Needs `truss` and `BASETEN_TRAINING_API_KEY` | Paid: about $2 |
 | `npm run finetune:train -- --dry-run` | One training step on 10 examples, on CPU, with a tiny stand-in model (`hf-internal-testing/tiny-random-LlamaForCausalLM`): proves the chat format, completion-only loss and the adapter save. Needs Python with `deploy/finetune/requirements.txt` (`FINETUNE_PYTHON` points at it) | Free |
 | `npm run finetune:train -- --confirm-spend` | The real run on one Modal H100: fetches `meta-models/Muse-Glimmer-30B` into the `usher-finetune` volume once, trains, saves the adapter beside it | Paid: Modal GPU time |
 | `npm run finetune:status` | Modal apps, and the latest run in the volume | Free |
@@ -164,9 +187,9 @@ With `USHER_AUTO_TRAIN=1` the registry retrains the student itself, on Baseten (
 
 **Serving.** One Baseten deployment serves every run (`deploy/baseten/student`, pushed once with `scripts/baseten-student.sh`). At each start it asks the registry which run is promoted (`GET /training/student`, with `USHER_TRAINING_SECRET`), downloads that adapter, and starts vLLM with it. On promotion the registry deactivates and reactivates the deployment, so its next start loads the new adapter. It scales to zero when idle. With retraining on, the compiler asks the student only once a run has been promoted; until then Muse Spark Open gives the second opinion. As always, the stricter risk is kept.
 
-**Cost.** Baseten bills an H100 at $0.10833 a minute (about $6.50 an hour). A run on today's set (about 600 examples) should take 20 to 30 minutes, about $2 to $4; the job's own start and finish times are what the registry counts against the cap. Serving costs the same rate while the deployment is up, and nothing once it has scaled to zero.
+**Cost.** Baseten bills an H100 at $0.10833 a minute (about $6.50 an hour). The first run, on about 500 training examples, took 17 minutes, about $2; the job's own start and finish times are what the registry counts against the cap. Serving costs the same rate while the deployment is up, and nothing once it has scaled to zero.
 
-**What has not been checked.** No job has run on Baseten yet. Before turning it on, run one by hand and check that Muse Glimmer 30B trains on one H100 at these settings (bf16 with gradient checkpointing; it may need a smaller batch), how long it takes, and that the deployment starts with the adapter.
+**What has not been checked.** [One job has run on Baseten by hand](#the-first-training-run): Muse Glimmer 30B trains on one H100 at these settings with batch size 4, in about 17 minutes. Before turning this on, check that the registry can start and finish a job itself, and that the deployment starts with the adapter.
 
 **Status.** `GET /admin/training` (admin key) lists runs, the promoted run, pending corrections and the month's spend. `POST /admin/training/check` runs the hourly check now. `/learning` shows the promoted run's held-out scores.
 
@@ -178,7 +201,7 @@ The task is narrow (one JSON object of two fields out) and the prompt is fixed, 
 - **Training:** 3 epochs, learning rate 1e-4 with a 10-step warmup, sequence length 2,048. The system prompt with the vocabulary is about 3,000 characters; an element is a few hundred more, about 1,000 tokens in all.
 - **Loss on the assistant turn only**, so the model learns the answer, not the prompt.
 - **Base model:** [`meta-models/Muse-Glimmer-30B`](https://huggingface.co/meta-models/Muse-Glimmer-30B), checked on Hugging Face on 27 October: Apache-2.0, not gated, `transformers`, image-text-to-text, about 29.8 billion parameters, last updated 22 October. Meta also publishes GGUF and ExecuTorch builds and an `-assistant` variant; tune the base.
-- **Data:** 212 unique examples on 28 October (168 train, 44 eval, from 19 forms), up from 131 the day before (see [How many examples there are](#how-many-examples-there-are)). That is still too few: the paid run should wait until the log holds a few thousand, with owners' corrections among them.
+- **Data:** 212 unique examples on 28 October (168 train, 44 eval, from 19 forms), up from 131 the day before (see [How many examples there are](#how-many-examples-there-are)). The first run used 640 (490 train, 150 eval, from 65 forms). That is still too few, and it shows: a model worth switching on should wait until the log holds a few thousand, with owners' corrections among them.
 
 ### On Fireworks
 
