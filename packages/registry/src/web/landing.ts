@@ -13,10 +13,10 @@ const ROOT = new URL('../../../../', import.meta.url);
 export const SENTENCE = 'Let AI agents use your site. On your terms.';
 export const SUBLINE = 'Usher: audited AI access to your forms. Nothing to rebuild.';
 /** The meta and OpenGraph description. */
-export const DESCRIPTION = 'Usher lets AI agents and assistants use the forms on your site, under rules you write, with every action on your record. Nothing to rebuild. Usher fills the form and forgets it.';
+export const DESCRIPTION = 'Usher lets AI agents and assistants use the forms on your site, under rules you write, with each action through Usher on your record. Nothing to rebuild. Usher fills the form and forgets it.';
 export const REPOSITORY = 'https://github.com/rhys-looma/Usher';
 /** The one-sentence positioning, under the headline. */
-export const POSITIONING = 'People are starting to ask AI to fill in forms for them. Usher lets them do it on your site, under rules you write, with every action on your record. Nothing to rebuild.';
+export const POSITIONING = 'People are starting to ask AI to fill in forms for them. Usher lets them do it on your site, under rules you write, with each action through Usher on your record. Nothing to rebuild.';
 /** The example the page follows: a health insurance quote on the demo site, asked in plain words. */
 export const EXAMPLE = "Get me a health insurance quote from Brightwater. I'm Sam Taylor, born 2 April 1988, WR14 1AA, just me, non-smoker, comprehensive cover with a £250 excess.";
 const HEALTH_JOURNEY = 'Brightwater Health, 3 steps, submitted';
@@ -194,7 +194,7 @@ function stepsSection(): Raw {
 function tagSection(tag: string): Raw {
   return html`<section id="tag" data-reveal class="tag-row">
 <div><h2>One tag. Nothing else changes.</h2><p class="small muted">In the pages that have your forms. It shows agents where to knock and logs what they do; it never sees what anyone types.</p>
-<p class="small muted">Or Looma, the team behind Usher, sets it up with you: <a href="#interest">tell us about your site</a>. To lock the actions that matter, add <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a> on your server.</p></div>
+<p class="small muted">Or Looma, the team behind Usher, sets it up with you: <a href="#interest">tell us about your site</a>. To guard the actions that matter, add <a href="${REPOSITORY}/tree/main/packages/site-middleware">one check</a> on your server.</p></div>
 <pre class="wrap">${tag}</pre>
 </section>`;
 }

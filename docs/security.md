@@ -15,7 +15,9 @@ The front page and the privacy notice say the same, word for word. In code: `ush
 ## What could go wrong, and what stops it
 
 **An agent that doesn't knock.** It fills the form and submits anyway.
-The site's server is the lock, not the page. On a consequential endpoint (getting a quote, placing an order, an API) the server-side check wants a token from a knock, and refuses with `403 knock_required` and where to knock. The token must be signed by the registry, unexpired, for this origin and this intent, and must allow this action. Actions the site's rules say need the user's confirmation are refused unless the agent knocked again saying its user confirmed. The demo's "locked" and "rules hold" scenes show both refusals.
+The site's server does the checking, not the page. On a consequential endpoint (getting a quote, placing an order, an API) the server-side check wants a token from a knock, and refuses with `403 knock_required` and where to knock. The token must be signed by the registry, unexpired, for this origin and this intent, and must allow this action. Actions the site's rules say need the user's confirmation are refused unless the agent knocked again saying its user confirmed. The demo's "locked" and "rules hold" scenes show both refusals.
+
+This stops agents the server can identify: those that say so (a signature or an agent header) and obvious automation (a headless browser, or the flag the site script sends for `navigator.webdriver`). **It doesn't stop an agent that looks like an ordinary browser**, such as an assistant driving a real one: the server treats it as a person. Usher is a faster, permitted way in, with the owner's rules and a record, and not a wall. The check also refuses AI agents that name themselves in their user agent (ChatGPT-User, Claude-User and others), which only catches those that say so. In production, a CDN or bot-detection service does the identifying, and a site passes that to the check as `isAgent`.
 
 **A stolen or replayed token.** Someone copies a token from a request or a page and uses it again.
 - Tokens last 10 minutes.
@@ -39,7 +41,7 @@ The site's server is the lock, not the page. On a consequential endpoint (gettin
   A key made a moment ago for the purpose has neither.
 - **The keeper always wins where it visits.** On those sites, agents' agreement never verifies a map. Only the keeper's own rebuild does, and it replaces maps it disagrees with.
 - **What's left:** an attacker who builds up an identity elsewhere first, then agrees with themselves on a site the keeper doesn't visit. That buys a public map only on a form both runs completed, still with risk floored and the server-side check enforcing the real action (below).
-- A map can't weaken the lock. The server-side check enforces the action the endpoint itself performs (say `form.submit`), using the token's rules and the vocabulary's floor for that action, never the map's label for a button.
+- A map can't weaken the check. The server-side check enforces the action the endpoint itself performs (say `form.submit`), using the token's rules and the vocabulary's floor for that action, never the map's label for a button.
 - Risk is floored by key. The registry raises every element of a shared map to at least its key's default risk, so a map can't call `form.submit` safe.
 - When the form changes, the keeper rebuilds from the live page with its own model, not from what anyone sent.
 

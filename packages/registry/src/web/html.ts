@@ -166,8 +166,8 @@ export function verificationNote(record: { submitted_by?: string; verification?:
 /** What a site gets, in three claims: on the front page, the dashboard sign-in and signup. */
 export const SITE_CLAIMS: [string, string][] = [
   ['No changes to your systems.', 'One script tag on the pages you already have. Agents come through the same forms your customers use.'],
-  ['You set the terms.', 'Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit.'],
-  ['Every agent action on the record.', 'Who the agent was and what it did, step by step, by meaning. Your customers\' data is never captured.'],
+  ['You set the terms.', 'Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit through Usher.'],
+  ['Agents that use Usher, on the record.', 'Who the agent was and what it did, step by step, by meaning. Your customers\' data is never captured.'],
 ];
 
 export function siteClaims(): Raw {

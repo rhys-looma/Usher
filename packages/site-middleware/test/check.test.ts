@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import { contentDigest, generateAgentIdentity, knockSchemaErrors, randomId, signHttpMessage, signToken, utf8 } from '@usher/core';
 import { RegistryClient, seed, startRegistry, type RunningRegistry } from '@usher/registry';
-import { createUsherCheck, sendHandoffPage, tokenFrom } from '../src/index.ts';
+import { createUsherCheck, identifiesAsAgent, knownAiAgent, sendHandoffPage, tokenFrom } from '../src/index.ts';
 import { startMockSite, type MockSite } from './mock-site.ts';
 import { testStorage } from '../../registry/test/storage-helper.ts';
 
@@ -211,4 +211,15 @@ test('openHandoff: no token and a stranger\'s token open nothing', async () => {
   assert.deepEqual(await usher.openHandoff(req(), 'not-a-token'), { ok: false, reason: 'malformed' });
   const agent = await knockToken();
   assert.deepEqual(await usher.openHandoff(req(), agent), { ok: false, reason: 'wrong_scope' });
+});
+
+test('an AI agent that names itself in its user agent is an agent, and is named; a person is not', () => {
+  const asked = (ua: string) => ({ headers: { 'user-agent': ua } }) as unknown as IncomingMessage;
+  const chatgpt = asked('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot');
+  assert.equal(knownAiAgent(chatgpt), 'ChatGPT-User');
+  assert.ok(identifiesAsAgent(chatgpt));
+  assert.equal(knownAiAgent(asked('Claude-User/1.0')), 'Claude-User');
+  const person = asked('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36');
+  assert.equal(knownAiAgent(person), undefined);
+  assert.ok(!identifiesAsAgent(person));
 });

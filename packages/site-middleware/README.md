@@ -1,6 +1,6 @@
 # @usher/site-middleware
 
-The server-side check: the real lock on a site's consequential endpoints. It verifies, offline, the token an agent got by knocking, against the registry's published keys.
+The server-side check on a site's consequential endpoints. It refuses agents it can identify, not one that looks like an ordinary browser, and takes your own bot detection as `isAgent`. It verifies, offline, the token an agent got by knocking, against the registry's published keys.
 
 ```js
 import { createUsherCheck } from '@usher/site-middleware';
