@@ -133,11 +133,11 @@ test('a host that can\'t take a card\'s tool calls: Confirm sends the person\'s 
   assert.equal(await card.locator('text=Usher is asking you, not the agent').count(), 1);
   assert.equal(await card.locator('text=I confirm the information I have given is true and complete').count(), 1, 'the site\'s wording, verbatim');
   assert.match((await card.locator('.where').textContent()) ?? '', /\/quote\/cover$/);
-  assert.equal(await card.locator('input[type=checkbox]').count(), 2, 'the declaration and the submit');
+  assert.equal(await card.locator('input[type=checkbox]').count(), 1, 'the declaration: the submit is the card\'s own button');
+  assert.equal((await card.locator('button#go').textContent())?.trim(), 'Get my quote');
   assert.equal(await card.locator('input[type=radio]').count(), 2, 'marketing as yes/no');
   await shot(decision, 'decision-card.png');
   await card.locator('input[data-key="consent.declaration"]').check();
-  await card.locator('input[data-key="form.submit"]').check();
   await card.locator('button#go').click();
   await card.locator('text=Sent as your message: Confirm: declaration yes, marketing no, get my quote yes').waitFor();
   const msgs = await sent(decision);
@@ -187,7 +187,6 @@ test('a host that passes a card\'s tool calls on (serverTools): Confirm calls us
   const page = await render(html, filled, { caps: { serverTools: {}, message: { text: {} } }, client });
   const card = page.frameLocator('#v');
   await card.locator('input[data-key="consent.declaration"]').check();
-  await card.locator('input[data-key="form.submit"]').check();
   await card.locator('button#go').click();
   await card.locator('h1:text("Your quote")').waitFor();
   const msgs = await sent(page);
@@ -253,7 +252,6 @@ test('Brightwater Health\'s card: the smoker answer as the person said it, nothi
   await shot(decision, 'decision-card-health.png');
   // Unanswered, Confirm asks again; answered, it sends the person's own words.
   await card.locator('input[data-key="consent.declaration"]').check();
-  await card.locator('input[data-key="form.submit"]').check();
   await card.locator('button#go').click();
   await card.locator('text=Please answer every question first.').waitFor();
   await card.locator('input[data-key="person.smoker"][value="yes"]').check();

@@ -59,7 +59,6 @@ async function behaviour(page: Page) {
   const verbatim = await card.locator('.verbatim').allTextContents();
   await card.locator('input[data-key="person.smoker"][value="yes"]').check();
   await card.locator('input[data-key="consent.declaration"]').check();
-  await card.locator('input[data-key="form.submit"]').check();
   await card.locator('button#go').click();
   await card.locator('text=Sent as your message:').waitFor();
   const msgs = (await page.evaluate('window.msgs')) as { method?: string; params?: { content?: { text: string }[] } }[];
