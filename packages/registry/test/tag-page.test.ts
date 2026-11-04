@@ -15,3 +15,9 @@ test('the live walkthrough script parses: it is written inside a template string
   assert.doesNotThrow(() => new Function(WALKTHROUGH_JS));
   assert.match(WALKTHROUGH_JS, /visible element/);
 });
+
+test('Map my site explains the process on a local site only', async () => {
+  const { startForm } = await import('../src/web/walkthrough.ts');
+  assert.match(startForm('http://localhost:4301'), /You do:[\s\S]*You get:/);
+  assert.doesNotMatch(startForm('https://quote.example'), /You get:/);
+});
