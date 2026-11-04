@@ -160,7 +160,9 @@ test('a missing postcode is a question in the decision set, not a failure', asyn
   assert.equal(postcode.kind, 'missing_value');
   assert.ok(first.blocks!.some((b) => b.kind === 'question' && b.source.key === 'address.postcode' && !b.verbatim));
   // The rest of the journey's decisions come with it, from the plan.
-  for (const k of ['consent.declaration', 'consent.marketing', 'form.submit']) assert.ok(first.decisions!.some((d) => d.key === k), k);
+  for (const k of ['consent.declaration', 'consent.marketing']) assert.ok(first.decisions!.some((d) => d.key === k), k);
+  // Except the submit: it is asked once, on its own page, beside the site's words for it.
+  assert.ok(!first.decisions!.some((d) => d.key === 'form.submit'));
   const { last } = await toTheEnd(first, { 'address.postcode': 'WR14 1AA' });
   assert.equal(last.status, 'completed', last.reason);
   assert.ok(last.submitted!.includes('address.postcode'));
