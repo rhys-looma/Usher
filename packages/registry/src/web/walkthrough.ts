@@ -384,7 +384,7 @@ export const WALKTHROUGH_JS = `(() => {
     box.appendChild(el('p', '', m.text));
     if (m.pages && m.pages.length) {
       const thumbs = el('div', 'thumbs');
-      for (const i of m.pages) { const img = el('img'); img.src = '/dashboard/walkthrough/shot?page=' + i; img.alt = 'A page as Usher mapped it'; thumbs.appendChild(img); }
+      for (const i of m.pages) { const img = el('img'); img.src = '/dashboard/walkthrough/shot?page=' + i; img.alt = 'A page as Usher mapped it'; img.addEventListener('load', () => { chat.scrollTop = chat.scrollHeight; }); thumbs.appendChild(img); }
       box.appendChild(thumbs);
     }
     if (m.options && act) {
