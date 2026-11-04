@@ -608,7 +608,8 @@ export function registerFillTools(server: McpServer, options: FillOptions): { cl
         if (toAsk.length) {
           for (const q of toAsk) job.answers.delete(q.key);
           const keys = new Set(toAsk.map((q) => q.key));
-          const later = job.planned.filter((q) => !keys.has(q.key) && !job.answers.has(q.key) && !here.some((h) => h.key === q.key));
+          // The submit waits for its own page: the person answers it once, beside the site's words for it.
+          const later = job.planned.filter((q) => q.kind !== 'submit' && !keys.has(q.key) && !job.answers.has(q.key) && !here.some((h) => h.key === q.key));
           const laterBlocks: Block[] = later.map((q) => ({ kind: q.kind === 'missing_value' || q.kind === 'confirm_value' ? 'question' : q.kind === 'submit' ? 'disclosure' : 'consent', text: q.label, verbatim: false, source: { key: q.key } }));
           const stop = await ask([...toAsk, ...later], [...blocks.filter((b) => !b.source.key || keys.has(b.source.key)), ...laterBlocks.filter((b) => b.kind !== 'disclosure')], d.path);
           if (stop) return { stop };
