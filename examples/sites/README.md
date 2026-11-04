@@ -34,14 +34,10 @@ That starts all six sites, each on its own port. Each port is its own origin, so
 
 This uses Larchmont as the example; the steps are the same for every site.
 
-1. Build the middleware once, then start a local registry that may open local addresses:
+1. Start everything, with the sites, from the repository's root:
 
    ```bash
-   npm run build
-   ```
-
-   ```bash
-   npm run registry -- --allow-private
+   npm run local -- --sites
    ```
 
    The walkthrough calls Muse Spark, so the registry needs `MODEL_API_KEY` in `.env`.

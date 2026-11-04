@@ -35,6 +35,9 @@ services:
       USHER_ALLOW_PRIVATE: "1"
       # The map viewer, for local demos; deployments leave it off.
       USHER_VIEWER: "1"
+      # The demo site's maps, so a first agent needs no model.
+      USHER_SEED: mock-site
+      USHER_SEED_ORIGIN: http://localhost:4100
       USHER_DAILY_MODEL_BUDGET_USD: ${USHER_DAILY_MODEL_BUDGET_USD:-1}
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       BASETEN_API_KEY: ${BASETEN_API_KEY:-}

@@ -24,7 +24,7 @@ Underneath is an open protocol, the map, the knock and the log, which any agent 
 
 ## Run it locally
 
-You need Node 20.11 or later. You don't need any keys or accounts. The first run downloads Chromium for Playwright.
+You need Node 20.12 or later. You don't need any keys or accounts. The first run downloads Chromium for Playwright.
 
 ```bash
 git clone https://github.com/rhys-looma/Usher.git
@@ -39,7 +39,7 @@ Then look at:
 
 - **The dashboard:** the agent's session step by step, by meaning, with nothing anyone typed, plus the site's tasks and rules.
 - **The demo site:** the quote form itself. Its `/__admin` page switches the form's layout, so you can watch the map go stale.
-- **The site's app:** already published, at the address `/dashboard/app` shows. Claude's and ChatGPT's web apps can't reach your machine, so use [the hosted version](docs/hosted-mcp.md) to try it in one.
+- **The site's app:** already published, at the address `/dashboard/app` shows. An MCP client on your machine can connect to it. Without model keys, pass answers by field rather than in the person's own words. Claude's and ChatGPT's web apps can't reach your machine, so use [the hosted version](docs/hosted-mcp.md) to try it in one, with nothing to install.
 
 Press Ctrl+C to stop. Each start begins again from a clean `data/local`.
 
@@ -51,7 +51,15 @@ cp .env.example .env
 
 Then try the rules: on the dashboard's Rules page, write "Agents may not use the car insurance quote" and confirm it. Run the car quote command the terminal printed, and the agent is refused.
 
-Run the tests with `npm test` (about ten minutes, offline, from recorded model responses). `docker compose up --build` runs the same stack on Postgres.
+To map a site as its owner, also with keys, run `npm run local -- --sites`. It adds six fictional businesses, and [examples/sites](examples/sites/README.md#map-one-as-its-owner) walks through joining one, mapping it and publishing its app. Mapping a three-page form takes about three minutes.
+
+If something goes wrong:
+
+- **"Something is already running":** set `PORT` and `SITE_PORT`, for example `PORT=4210 SITE_PORT=4110 npm run local`.
+- **Chromium won't start on Linux:** run `npx playwright install --with-deps chromium`, which needs root.
+- **On Windows:** use WSL. We haven't run it directly on Windows.
+
+Run the tests with `npm test` (about ten minutes, offline, from recorded model responses). `docker compose up --build` runs the same stack on Postgres, on ports 4100 and 4200.
 
 ## Site apps
 
@@ -147,7 +155,7 @@ npm run agent -- "$SITE_URL/quote/driver" --profile packages/agent/profiles/test
 - `npm run sites` starts six more fictional businesses to join and map as an owner, with `MODEL_API_KEY` set. Usher maps only sites whose owner has verified them.
 - `/__admin` on the demo site switches the form's layout, to watch the map go stale and rebuild.
 
-**With Docker:** after `docker compose up --build`, `npm run e2e:remote` runs a journey against it. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
+**With Docker:** after `docker compose up --build`, `npm run e2e:remote` checks the whole stack. The addresses are in `docker-compose.yml`. [DEPLOY.md](DEPLOY.md) covers hosting.
 
 ## What Usher can fill
 
