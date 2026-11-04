@@ -1,20 +1,22 @@
-// npm run local: the registry and the demo site on this machine, joined up, with the demo maps. No
-// keys needed: everything an agent does here runs from the maps. With --agent, a reference agent
-// also gets a health quote from the demo site, so there is a session to look at on the dashboard.
+// npm run local: the Usher portal and the test sites on this machine, then the steps to follow.
+// Larchmont and five other fictional businesses wait to be added to Usher. Brightwater is already
+// set up. Needs MODEL_API_KEY in .env (.env.example has the list).
 //
-//   npm run local                    registry on 4200, demo site on 4100 (PORT, SITE_PORT to change)
-//   npm run local -- --agent         the same, and run the agent once they are up
-//   npm run local -- --sites         the same, and six more fictional businesses to join and map as
-//                                    an owner, on ports 4301 to 4306 (mapping needs MODEL_API_KEY)
+//   npm run local                    portal on 4200, Brightwater on 4100, the others on 4301 to 4306
+//                                    (PORT, SITE_PORT and PORT_BASE to change)
+//   npm run local:agent              in another terminal: an agent gets a quote from Brightwater
+//   npm run local:agent -- car       the same for its car insurance quote
 //
 // Stores its data in data/local (gitignored): delete the folder to start again. The keys below are
 // for this machine only, as in docker-compose.yml.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-const { values } = parseArgs({ options: { agent: { type: 'boolean', default: false }, sites: { type: 'boolean', default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { agent: { type: 'boolean', default: false } } });
 
 // The registry reads .env with process.loadEnvFile.
 const [major, minor] = process.versions.node.split('.').map(Number);
@@ -28,7 +30,29 @@ const registryUrl = `http://${host}:${process.env.PORT ?? 4200}`;
 const siteUrl = `http://${host}:${process.env.SITE_PORT ?? 4100}`;
 const siteKey = 'usp_localdevelopmentonly000';
 const secretKey = 'uss_localdevelopmentonly00000000';
+const larchmontUrl = `http://${host}:${process.env.PORT_BASE ?? 4301}`;
 const tsx = ['--disable-warning=ExperimentalWarning', '--import', 'tsx'];
+
+const QUOTES = {
+  health: ['/health/about', 'test-health', 'quote.health_insurance'],
+  car: ['/quote/driver', 'test-driver', 'quote.car_insurance'],
+};
+const agentArgs = (quote) => {
+  const [path, profile, intent] = QUOTES[quote];
+  return [`${siteUrl}${path}`, '--profile', `packages/agent/profiles/${profile}.json`, '--intent', intent, '--mcp', '--auto-confirm'];
+};
+
+// npm run local:agent: one quote against the portal and site already running.
+if (positionals[0] === 'agent') {
+  const quote = positionals[1] ?? 'health';
+  if (!QUOTES[quote]) {
+    console.error('Use health or car.');
+    process.exit(2);
+  }
+  const { status } = spawnSync(process.execPath, [...tsx, 'packages/agent/src/cli.ts', ...agentArgs(quote)], { stdio: 'inherit' });
+  if (status) console.log(`\nIs npm run local running in another terminal?${process.platform === 'linux' ? ' If Chromium could not start, run: npx playwright install --with-deps chromium' : ''}`);
+  process.exit(status ?? 1);
+}
 
 const children = new Set();
 const start = (name, args, env, cwd) => {
@@ -56,12 +80,21 @@ const ready = async (url) => {
 };
 
 const portBusy = async (url) => fetch(url).then(() => true, () => false);
-for (const url of [registryUrl, siteUrl]) {
+for (const url of [registryUrl, siteUrl, larchmontUrl]) {
   if (await portBusy(url)) {
-    console.error(`Something is already running at ${url}. Stop it, or set PORT and SITE_PORT.`);
+    console.error(`Something is already running at ${url}. Stop it, or set PORT, SITE_PORT and PORT_BASE.`);
     process.exit(1);
   }
 }
+
+// Muse Spark reads the pages, so nothing here works far without its key.
+const env = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
+const hasKey = (name) => Boolean(process.env[name]) || new RegExp(`^${name}=\\S`, 'm').test(env);
+if (!hasKey('MODEL_API_KEY')) {
+  console.error('Usher needs your Meta Model API key. Copy .env.example to .env, fill in MODEL_API_KEY, and run this again.');
+  process.exit(1);
+}
+if (!hasKey('BASETEN_API_KEY')) console.log('No BASETEN_API_KEY in .env: Muse Spark Open gives no second opinion on risk.');
 
 // The dev keys go with a fresh store each start, so the demo always opens the same way.
 await rm('data/local', { recursive: true, force: true });
@@ -82,29 +115,37 @@ registry.on('exit', (code) => {
 await ready(`${registryUrl}/healthz`);
 start('site', ['server.mjs'], { PORT: new URL(siteUrl).port, USHER_REGISTRY_URL: registryUrl, USHER_SITE_KEY: siteKey, USHER_SITE_ORIGIN: siteUrl }, 'examples/mock-quote-site');
 await ready(`${siteUrl}/healthz`);
-if (values.sites) start('sites', ['server.mjs'], { USHER_REGISTRY_URL: registryUrl }, 'examples/sites');
+// Their settings go with the store, so each start has them waiting to be added again.
+start('sites', ['server.mjs'], { USHER_REGISTRY_URL: registryUrl, SITES_SETTINGS: resolve('data/local/site-settings.json') }, 'examples/sites');
+await ready(`${larchmontUrl}/`);
 
-const agentCommand = (path, profile, intent) => ['run', 'agent', '--', `${siteUrl}${path}`, '--profile', `packages/agent/profiles/${profile}.json`, '--intent', intent, '--mcp', '--auto-confirm'];
 console.log(`
 Usher is running on this machine.
 
-  Front page    ${registryUrl}
-  Dashboard     ${registryUrl}/dashboard
-                sign in with the site's address, ${siteUrl}, and the secret key ${secretKey}
-  Demo site     ${siteUrl}/health/about    Brightwater, a fictional insurer
+  Usher portal    ${registryUrl}
+  Test site       ${larchmontUrl}    Larchmont Mortgages, not on Usher yet
+  Ready-made site ${siteUrl}/health/about    Brightwater, already set up
 
-Get a quote with an agent, in another terminal:
+Add the test site to Usher:
 
-  npm ${agentCommand('/health/about', 'test-health', 'quote.health_insurance').join(' ')}
-  npm ${agentCommand('/quote/driver', 'test-driver', 'quote.car_insurance').join(' ')}
+  1. Go to ${registryUrl}/sites/new, enter ${larchmontUrl} and save your keys.
+  2. Go to ${larchmontUrl}/__settings, paste the site key and save. That adds Usher's tag to the site.
+  3. Back on the portal, press Next, then Check now, to prove the site is yours.
+  4. In Map my site, start at ${larchmontUrl}/aip/you and press Start. Muse Spark goes through the form.
+  5. Choose Finish here, check the map and publish it. Then write your rules, accept the look and publish the app.
 
-${values.sites ? `Join and map a site as its owner, starting at ${registryUrl}/sites/new, with http://${host}:4301 for Larchmont (examples/sites/README.md).
+See an agent use a site, in another terminal:
 
-` : ''}Press Ctrl+C to stop.
+  npm run local:agent
+
+  Then see its session at ${registryUrl}/dashboard
+  Sign in with ${siteUrl} and the secret key ${secretKey}
+
+Press Ctrl+C to stop. Each start begins again from nothing.
 `);
 
 if (values.agent) {
-  const agent = start('agent', [...tsx, 'packages/agent/src/cli.ts', ...agentCommand('/health/about', 'test-health', 'quote.health_insurance').slice(3)], {});
+  const agent = start('agent', [...tsx, 'packages/agent/src/cli.ts', ...agentArgs('health')], {});
   agent.on('exit', (code) => {
     children.delete(agent);
     console.log(code === 0 ? `\nThe agent finished. See its session at ${registryUrl}/dashboard.` : `\nThe agent stopped with code ${code}.`);
