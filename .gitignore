@@ -6,6 +6,7 @@ test-results/
 .env
 data/compiler-log/
 data/registry/
+data/local/
 data/finetune/
 backups/
 deploy/ecs/config.env

@@ -65,13 +65,22 @@ Status on 4 November: steps 1 to 4 are live. Step 5 has run once on a GPU, by ha
 | 27 Oct | Plans across steps with get_plan; pre-flight validation and structured errors for agents (LU-40) |
 | 27 Oct | Benchmark harness: raw pages vs maps vs plans, both agents, mock site and a public form (LU-41) |
 | 28 Oct | Brightwater Health: a private medical insurance quick quote (layouts A and B) seeded as the headline example; `person.smoker` confirmed on the decision card, `health.*` never filled; front page "What happens in between" and "What Usher keeps"; a test that a fill leaves no value behind |
-| 28 Oct | Aviva life insurance captured as its answers open it; life cover (`cover.*`) and second-person (`partner.*`) keys; the extractor reads a heading inside a fieldset |
+| 28 Oct | A life insurance journey captured as its answers open it; life cover (`cover.*`) and second-person (`partner.*`) keys; the extractor reads a heading inside a fieldset |
 | 29 Oct | The site decides on medical answers: a site's rules may permit `health.*` and smoking answers (`confirm`), entered from what the person said and confirmed by them; off by default |
 | 29 Oct | Rules behave as the demo describes; site apps at `/mcp/<host>`, one tool per mapped journey (LU-57) |
 | 29 Oct | A site's look on the cards, proposed by Muse Spark from the site's own pages and accepted by the owner (LU-58) |
 | 29 Oct | Finishable quotes: the reference and "Continue on <site>" from the plan's resume page |
 | 29 Oct | Publish as an assistant app: the setup strip with join-to-publish time (Brightwater 79 s of machine time), the switch, tool settings, the directory pack (LU-59) |
 | 29 Oct | Front page, README and docs follow the product: your site inside every assistant in twenty minutes; docs/site-apps.md |
-| 3 Nov | Captures of real insurers' pages used in tests (Aviva) removed; those tests now use markup we wrote |
+| 30 Oct | Demo sites: six fictional businesses with their own designs, two of them React and Vue apps, to join and map as an owner |
+| 31 Oct | Single-page apps: following route changes, stopping held submits, one intent per journey |
+| 1 Nov | Map my site as a conversation with limits; updates published maps by default; admin can purge every record of a site |
+| 2 Nov | Owner pages in plain words: tasks and steps, not tools and journeys |
+| 3 Nov | Mapping needs a verified site; the front page is for site owners and no longer maps any address |
+| 3 Nov | Captures of real insurers' pages used in tests removed; those tests now use markup we wrote |
 | 3 Nov | When a task finishes, by the owner's choice: stay in the assistant, tell the person how to retrieve the result, or a signed one-time link the site's server turns into its own session (docs/handoff.md) |
+| 3 Nov | Fixes from a usability review; guided onboarding and starting rules; clearer inputs; a shorter card, not repeated in the chat |
+| 3 Nov | Who answers what: a consent is only the person's own yes, a detail is what they say to use |
+| 3 Nov | A new look across every page: one typeface, flat panels, self-hosted type, phone width |
 | 4 Nov | First GPU training run: Muse Glimmer 30B tuned with LoRA on a Baseten H100; 61.3% of keys and 100% of risks on held-out forms, against 68.0% and 100% for Muse Spark Open, so it stays off in production (docs/finetune.md) |
+| 4 Nov | `npm run local`: the registry and demo site joined up with one command and no keys; the last recordings and report rows from real insurers' pages removed |

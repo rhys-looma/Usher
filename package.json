@@ -21,6 +21,8 @@
     "compile": "tsx packages/core/src/compile/cli.ts",
     "fixtures:record": "node scripts/record-fixtures.mjs && node --disable-warning=ExperimentalWarning --import tsx packages/mcp/scripts/record-details.ts",
     "sites": "node examples/sites/server.mjs",
+    "prelocal": "npm run build && playwright install chromium",
+    "local": "node scripts/local.mjs",
     "registry": "node --disable-warning=ExperimentalWarning --import tsx packages/registry/src/server.ts",
     "seed:build": "node scripts/with-mock-sites.mjs node --disable-warning=ExperimentalWarning --import tsx packages/registry/scripts/build-seed.ts",
     "agent": "node --disable-warning=ExperimentalWarning --import tsx packages/agent/src/cli.ts",
