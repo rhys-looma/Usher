@@ -66,7 +66,7 @@ export const APP_STYLE = `
 .prompts li { margin:4px 0; }
 `;
 
-export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; needs?: { label: string; href: string }[]; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[] }): string {
+export function appPage(input: { origin: string; name: string; endpoint: string; app: SiteApp; setup: SiteSetup; needs?: { label: string; href: string }[]; usage: SiteAppUsage; tools: SiteTool[]; look: Raw; now: Date; notice?: Raw | string; problems?: string[]; tester?: string }): string {
   const { app, tools } = input;
   const live = tools.filter((t) => !t.hidden);
   const switchCard = html`<div class="card" id="switch"><h2>Publish</h2>
@@ -75,8 +75,8 @@ ${app.enabled ? html`<p><b>On</b> since ${when(app.enabled_at)}. Assistants that
 <p class="small muted">${input.usage.connections} connection${input.usage.connections === 1 ? '' : 's'} and ${input.usage.fills} fill${input.usage.fills === 1 ? '' : 's'} so far.</p></div>`;
   const endpoint = html`<div class="card"><h2>Your endpoint</h2>
 <p class="endpoint"><code>${input.endpoint}</code></p>
-<ul class="small"><li><b>Claude:</b> Settings, Connectors, Add custom connector; paste the address. No sign-in is needed.</li>
-<li><b>ChatGPT:</b> Settings, Apps and connectors, Create (developer mode); paste the address, with no authentication.</li>
+<ul class="small">${input.tester ? html`<li>This address is on your machine, so Claude's and ChatGPT's web apps can't reach it. Use the chat tester, or any MCP client on this machine. On a public address, you'd add it to them as a custom connector.</li>` : html`<li><b>Claude:</b> Settings, Connectors, Add custom connector; paste the address. No sign-in is needed.</li>
+<li><b>ChatGPT:</b> Settings, Apps and connectors, Create (developer mode); paste the address, with no authentication.</li>`}
 <li>It serves ${input.name}'s tasks alone and acts on ${new URL(input.origin).host} only.</li></ul></div>`;
   const toolList = html`<div class="card" id="tools"><h2>Tasks</h2>
 ${tools.length ? html`<p class="small muted">What your app offers. Open a task to name it, describe it or hide it.</p>
@@ -86,6 +86,7 @@ ${tools.length ? html`<p class="small muted">What your app offers. Open a task t
 <p class="status">${input.name} inside Claude, ChatGPT and every assistant that speaks MCP: your tasks, on cards in your look, run by Usher under your rules.</p>
 ${input.notice ? html`<div class="card notice">${input.notice}</div>` : ''}${input.problems?.length ? html`<div class="card error">${input.problems.map((p) => html`<p>${p}</p>`)}</div>` : ''}
 ${setupStrip(input.setup, input.now)}
+${input.tester && app.enabled ? html`<div class="card notice"><h2>Test your app</h2><p>Chat with it as a customer would: Muse Spark acts as their assistant, using your real app and its cards.</p><p><a class="button" href="${input.tester}" target="_blank" rel="noopener">Open the chat tester</a></p></div>` : ''}
 ${switchCard}${endpoint}${toolList}
 ${input.look}
 <div class="card"><h2>Example prompts</h2>${prompts.length ? html`<ul class="prompts">${prompts.map((p) => html`<li>“${p}”</li>`)}</ul>` : html`<p class="muted">Once a task is mapped.</p>`}</div>

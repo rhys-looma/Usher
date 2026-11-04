@@ -21,3 +21,14 @@ test('Map my site explains the process on a local site only', async () => {
   assert.match(startForm('http://localhost:4301'), /You do:[\s\S]*You get:/);
   assert.doesNotMatch(startForm('https://quote.example'), /You get:/);
 });
+
+test('the publish page offers the chat tester on a local run, and the assistants everywhere else', async () => {
+  const { appPage } = await import('../src/web/app.ts');
+  const input = { origin: 'http://localhost:4301', name: 'Larchmont', endpoint: 'http://r/mcp/x', app: { enabled: true, enabled_at: '2026-11-04T00:00:00Z' }, setup: { steps: [{ key: 'joined', label: 'Joined', done_at: '2026-11-04T00:00:00Z' }] }, usage: { connections: 0, fills: 0 }, tools: [], look: '', now: new Date() } as never as Parameters<typeof appPage>[0];
+  const local = appPage({ ...input, tester: 'http://chat/?site=x' });
+  assert.match(local, /href="http:\/\/chat\/\?site=x"/);
+  assert.doesNotMatch(local, /Add custom connector/);
+  const live = appPage(input);
+  assert.match(live, /Add custom connector/);
+  assert.doesNotMatch(live, /chat tester/i);
+});

@@ -104,6 +104,7 @@ await rm('data/local', { recursive: true, force: true });
 const registry = start('registry', [...tsx, 'packages/registry/src/server.ts', '--port', new URL(registryUrl).port, '--data', 'data/local', '--seed', 'mock-site', '--seed-origin', siteUrl, '--allow-private'], {
   REGISTRY_PUBLIC_URL: registryUrl,
   USHER_VIEWER: '1',
+  USHER_CHAT_URL: chatUrl,
   USHER_DEV_SITE_ORIGIN: siteUrl,
   USHER_DEV_SITE_KEY: siteKey,
   USHER_DEV_SECRET_KEY: secretKey,

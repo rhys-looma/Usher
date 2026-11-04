@@ -210,6 +210,7 @@ const running = await startRegistry({
   web: {
     // Public addresses only, unless explicitly allowed for a local demo.
     allowPrivate: values['allow-private'],
+    ...(env.USHER_CHAT_URL && !production && { chatTester: env.USHER_CHAT_URL }),
     ...(env.USHER_ADMIN_KEY && { adminKey: env.USHER_ADMIN_KEY }),
     ...(env.USHER_CONTACT_EMAIL && { contact: env.USHER_CONTACT_EMAIL }),
     // The map viewer: a fixed list of public forms (and owners' own pages); any address only for
