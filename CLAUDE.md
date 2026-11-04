@@ -32,7 +32,7 @@ An open protocol and script tag that lets websites control AI agents on their fo
 | `packages/registry/` | Registry: knock, maps, sessions, policy and rules, drift; HTTP, MCP, and server-rendered pages (`src/web/`: map viewer, dashboard); JSON-file storage |
 | `packages/site-middleware/` | Server-side token check for Node handlers; bundled to `dist/` by `npm run build` for the mock site |
 | `packages/site-script/` | The one-tag site script, bundled to `dist/usher.js` and served by the registry at `/usher.js` |
-| `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test |
+| `packages/agent/` | Reference agent (`npm run agent`): knock, bind, fill by key, confirm consequential, Muse Spark fallback; end-to-end test. `scripts/chat/`: the local chat tester `npm run local` starts |
 | `data/` | Gitignored: compiler log (fine-tuning set), file-store registry data |
 | `Dockerfile.*`, `docker-compose.yml`, `DEPLOY.md` | Images, local stack (Postgres + registry + mock site), deployment |
 | `deploy/terraform/ecr/` | Terraform for the two ECR repositories, and the build and push |

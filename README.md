@@ -52,6 +52,7 @@ There's no database to set up. A local run keeps its data in files in `data/loca
 | `localhost:4200` | The Usher portal |
 | `localhost:4301` | **Larchmont Mortgages:** the test site, fictional and not on Usher yet |
 | `localhost:4100` | **Brightwater Insurance:** a fictional site that's already set up |
+| `localhost:4400` | The chat tester, to try a site's assistant app |
 
 ### 2. Add the test site to Usher
 
@@ -61,7 +62,7 @@ There's no database to set up. A local run keeps its data in files in `data/loca
 | 2. Add the tag | `localhost:4301/__settings` | Paste the site key and press **Save** | Larchmont now carries Usher's script tag |
 | 3. Prove it's yours | Back on the portal | Press **Next**, then **Check now** | You're signed in, on **Map my site** |
 | 4. Map it | The same page | Start at `localhost:4301/aip/you`, with `http://` in front, and press **Start** | Muse Spark goes through the form live, in about 3 minutes |
-| 5. Check and publish | The same page | Choose **Finish here** (scroll down the chat if you can't see it), look over the map and publish it | Each field by meaning, never a typed value |
+| 5. Check and publish | The same page | Choose **Finish here**, look over the map and publish it | Each field by meaning, never a typed value |
 | 6. Set your rules | **Rules** | Write the rules below, press **Propose policy**, then **Confirm and apply** | Plain English turned into policy |
 | 7. Publish the app | **Look**, then **Publish** | Accept the look and publish | The app's MCP address, and the time from joining to publishing |
 
@@ -81,7 +82,18 @@ An agent gets a health insurance quote from Brightwater. It knocks, fills the sa
 
 Now see what the owner sees. Sign out of the dashboard, then sign in with Brightwater's address and the secret key, both printed in the terminal. Open the session to see each step by meaning, with nothing anyone typed, and press **Explain this session**.
 
-### 4. Test the rules
+### 4. Chat with the app
+
+Open `localhost:4400`, the chat tester. Muse Spark, on your key, acts as an assistant connected to a site's real MCP app, with its real card, so you can test the integration without setting up Claude or ChatGPT.
+
+1. Choose Larchmont once you've published it, or Brightwater, which is ready now.
+2. Press the suggested prompt, or write your own.
+3. Fill in the card and press **Confirm**. Keep going until you see the result.
+4. For Brightwater, press **Continue** to open the quote on the site itself.
+
+The side panel shows each tool call and what the model has cost so far, about 2 cents for a quote.
+
+### 5. Test the rules
 
 On Brightwater's **Rules** page, write this, then press **Propose policy** and **Confirm and apply**:
 
@@ -95,7 +107,7 @@ npm run local:agent -- car
 
 The agent is refused with `agents_not_allowed`.
 
-### 5. Run the test suite
+### 6. Run the test suite
 
 ```bash
 npm test
@@ -105,7 +117,7 @@ It takes about ten minutes and runs offline from recorded model responses.
 
 ### If something goes wrong
 
-- **"Something is already running":** stop it, or move Usher: `PORT=4210 SITE_PORT=4110 PORT_BASE=5300 npm run local`. The terminal prints the new addresses.
+- **"Something is already running":** stop it, or move Usher: `PORT=4210 SITE_PORT=4110 PORT_BASE=5300 CHAT_PORT=4410 npm run local`. The terminal prints the new addresses.
 - **Chromium won't start on Linux:** run `npx playwright install --with-deps chromium`, which needs root.
 - **On Windows:** use WSL. We haven't run it directly on Windows.
 - **Start again:** press Ctrl+C and run `npm run local`. Each start begins from nothing.
