@@ -133,7 +133,7 @@ test('numbers: a half-marked accuracy run is never shown; the latest complete on
   if (accuracy?.kind !== 'reviewed') return;
   // The current review still has unmarked public rows, so the complete run of 27 October shows.
   assert.equal(accuracy.run, '2026-10-27');
-  assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.9%', '51 of 69', '98.6%', '68 of 69']);
+  assert.deepEqual([accuracy.keys, accuracy.keysOf, accuracy.risk, accuracy.riskOf], ['73.8%', '48 of 65', '98.5%', '64 of 65']);
 });
 
 test('what happens in between: Brightwater\'s own app on one side, six hosted steps with what Usher sees on the other, readable with no JavaScript', async () => {

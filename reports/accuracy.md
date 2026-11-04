@@ -17,6 +17,8 @@ Generated 2026-10-28 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 - Elements: 444; locators resolving: 89%; vocabulary keys (not custom): 59.9%.
 - Mock site, matches the mock site's answer key: keys 100% correct, risk 100% correct (after the classifier's stricter-wins).
 
+Rows for real insurers' pages were removed from this report on 4 November. The figures above still count them (one page, 4 elements, and 3 skipped pages).
+
 ## Per form
 
 | Form | Category | Source | Elements | Keys (vocabulary / custom) | Risk (safe / consequential / needs user) | Locators resolve | Classifier flags | Notes |
@@ -43,10 +45,6 @@ Generated 2026-10-28 by `packages/core/scripts/accuracy.ts` (forms: all, live wi
 | nhs-search | search | live | 2 | 2 / 0 | 2 / 0 / 0 | 100% | 0 | Search the NHS website |
 | reddit-signup | account sign-up | – | – | – | – | – | – | skipped: No form to map on https://www.reddit.com/register/. |
 | bbc-signup | account sign-up | recorded | 2 | 2 / 0 | 2 / 0 / 0 | 100% | 0 | BBC sign in: enter email or username |
-| aviva-car | insurance first step | live | 4 | 4 / 0 | 3 / 1 / 0 | 100% | 0 | Car insurance quote by registration |
-| directline-car | insurance first step | – | – | – | – | – | – | skipped: No form to map on https://www.directline.com/car-cover. |
-| admiral-car | insurance first step | – | – | – | – | – | – | skipped: No form to map on https://www.admiral.com/car-insurance: the page has only a cookie or consent widget. |
-| churchill-car | insurance first step | – | – | – | – | – | – | skipped: No form to map on https://www.churchill.com/car-insurance. |
 | barclays-loans | finance first step | – | – | – | – | – | – | skipped: No form to map on https://www.barclays.co.uk/loans/. |
 | hl-isa | finance first step | – | – | – | – | – | – | skipped: No form to map on https://www.hl.co.uk/investment-services/isa: the page has only a site search. |
 | govuk-find-council | lookup | live | 3 | 3 / 0 | 3 / 0 / 0 | 100% | 0 | Find your local council |

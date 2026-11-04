@@ -1,0 +1,23 @@
+{
+  "url": "https://quote.example/car-insurance",
+  "intent": "quote.car_insurance",
+  "note": "Written by hand, not recorded: a page whose only controls are a cookie or consent widget.",
+  "forms": [
+    {
+      "index": 0,
+      "pseudo": true,
+      "banner": true,
+      "search": false,
+      "newsletter": false,
+      "elements": [
+        { "kind": "field", "control": "select", "label": "Select language", "visible": false },
+        { "kind": "action", "control": "button", "label": "Let me choose", "visible": true },
+        { "kind": "action", "control": "button", "label": "Accept all", "visible": true },
+        { "kind": "action", "control": "button", "label": "Reject all", "visible": true }
+      ]
+    }
+  ],
+  "candidates": [],
+  "chosen": null,
+  "attempts": []
+}

@@ -1,12 +1,12 @@
 # Accuracy, from review marks
 
-Scored 2026-10-28. Only elements marked y or n count. Public forms are human-checked: a person marked each key and risk right or wrong. The mock site is marked automatically by whether each key matches the mock site's answer key (`packages/core/test/fixtures/expected-keys.json`), with risk following from that key; that shows the compiler agrees with our own answer key on a form we built, not accuracy in general.
+Scored 2026-11-04. Only elements marked y or n count. Public forms are human-checked: a person marked each key and risk right or wrong. The mock site is marked automatically by whether each key matches the mock site's answer key (`packages/core/test/fixtures/expected-keys.json`), with risk following from that key; that shows the compiler agrees with our own answer key on a form we built, not accuracy in general.
 
 | Run | Set | Keys correct | Risk correct | Locators resolve | Not yet marked |
 | --- | --- | --- | --- | --- | --- |
-| Latest run (`accuracy-review.csv`) | Public forms, human-checked | 95% (38/40) | 97.5% (39/40) | 87% (327/376) | 336 |
+| Latest run (`accuracy-review.csv`) | Public forms, human-checked | 97.2% (35/36) | 97.2% (35/36) | 86.8% (323/372) | 336 |
 |  | Mock site, matches the mock site's answer key | 100% (68/68) | 100% (68/68) | 100% (68/68) |  |
-| Run of 2026-10-27 (`accuracy-review-2026-10-27.csv`) | Public forms, human-checked | 73.9% (51/69) | 98.6% (68/69) | 98.6% (68/69) | 0 |
+| Run of 2026-10-27 (`accuracy-review-2026-10-27.csv`) | Public forms, human-checked | 73.8% (48/65) | 98.5% (64/65) | 98.5% (64/65) | 0 |
 |  | Mock site, matches the mock site's answer key | 100% (68/68) | 100% (68/68) | 100% (68/68) |  |
 
 ## Latest run
@@ -29,7 +29,6 @@ Scored 2026-10-28. Only elements marked y or n count. Public forms are human-che
 | ons-search | 100% (2/2) | 100% (2/2) | 100% (2/2) |
 | nhs-search | 100% (2/2) | 100% (2/2) | 100% (2/2) |
 | bbc-signup | 100% (2/2) | 100% (2/2) | 100% (2/2) |
-| aviva-car | 75% (3/4) | 100% (4/4) | 100% (4/4) |
 | govuk-find-council | not reviewed | not reviewed | 100% (3/3) |
 | govuk-travel-advice | not reviewed | not reviewed | 100% (1/1) |
 | govuk-electoral-office | not reviewed | not reviewed | 100% (3/3) |
@@ -97,7 +96,6 @@ Scored 2026-10-28. Only elements marked y or n count. Public forms are human-che
 | ons-search | 100% (2/2) | 100% (2/2) | 100% (2/2) |
 | nhs-search | 100% (2/2) | 100% (2/2) | 100% (2/2) |
 | bbc-signup | 100% (2/2) | 100% (2/2) | 100% (2/2) |
-| aviva-car | 75% (3/4) | 100% (4/4) | 100% (4/4) |
 
 ### Mock site, matches the mock site's answer key
 
