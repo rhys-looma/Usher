@@ -639,7 +639,7 @@ ${asks.length ? html`<div class="card"><table><thead><tr><th>Site</th><th>Intent
     const origin = board.originOf(req);
     const site = origin ? await this.registry.storage.getSite(origin) : undefined;
     if (!site && (route === 'GET /sites/new/tag' || url.pathname === '/sites/new/claim')) return redirect(res, '/sites/new'), true;
-    if (route === 'GET /sites/new/tag') return sendHtml(res, 200, tagPage({ url: this.registry.url, siteKey: site!.site_key })), true;
+    if (route === 'GET /sites/new/tag') return sendHtml(res, 200, tagPage({ url: this.registry.url, siteKey: site!.site_key, origin: site!.origin })), true;
     if (route === 'GET /sites/new/claim') return site!.claim ? redirect(res, '/dashboard') : sendHtml(res, 200, claimPage({ url: this.registry.url, site: site! })), true;
     if (route === 'POST /sites/new/claim') {
       const reply = await this.registry.verifySiteFor(site!.origin);

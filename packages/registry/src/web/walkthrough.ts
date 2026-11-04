@@ -61,7 +61,10 @@ table.elements td { vertical-align:top; }
 .risk-dot { display:inline-block; width:8px; height:8px; margin-right:6px; vertical-align:0; }
 .risk-dot.safe { background:var(--safe); } .risk-dot.consequential { background:var(--cons); } .risk-dot.needs_user { background:var(--user); }
 .live { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:18px; align-items:start; }
-.browser { border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--card); }
+.browser { position:relative; border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--card); }
+.browser.working::after { content:''; position:absolute; left:0; right:0; top:36px; height:70px; pointer-events:none; background:linear-gradient(to bottom, transparent, rgba(255,106,77,.22)); border-bottom:2px solid rgba(255,106,77,.65); animation:scan 2.6s ease-in-out infinite alternate; }
+@keyframes scan { from { transform:translateY(0); } to { transform:translateY(340px); } }
+@media (prefers-reduced-motion: reduce) { .browser.working::after { animation:none; opacity:.4; } }
 .browser .bar { display:flex; gap:6px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
 .browser .bar i { width:10px; height:10px; border-radius:50%; background:var(--line); display:inline-block; }
 .browser img { display:block; width:100%; min-height:240px; background:#eef0f3; }
@@ -149,6 +152,9 @@ export function startForm(origin: string, error?: string, state: { published?: n
   return page(
     'Map my site',
     html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
+${local(origin) ? html`<div class="card"><h2>What happens next</h2>
+<p><b>You do:</b> tell Usher where to go, check the map it builds, and write your rules in plain English.</p>
+<p><b>You get:</b> a site AI can use, under your controls, with every agent action on the record. And your own app in Claude, ChatGPT and other assistants, with no API to build.</p></div>` : ''}
 ${state.notice ? html`<div class="card notice">${state.notice}</div>` : ''}${error ? html`<div class="card error">${error}</div>` : ''}
 ${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough" data-busy="Starting Usher's browser…">
@@ -209,6 +215,9 @@ export function chatMessage(run: Pick<WalkthroughRun, 'id' | 'pages'>, m: ChatMe
 
 /** The finished run: each page annotated, in order, with what leads where, the diff and Publish. */
 /** The chat editor: a sentence in, proposed changes out, nothing applied until the owner accepts. */
+/** A site on this machine: someone trying Usher out, who gets a word more about what they're looking at. */
+const local = (origin: string) => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(origin).hostname);
+
 function editPanel(run: WalkthroughRun, edits: EditProposal | null, error?: string): Raw {
   const name = (r: string) => RISK_NAMES[r] ?? r;
   const change = (c: EditProposal['changes'][number]) =>
@@ -222,9 +231,10 @@ ${edits.refused.length ? html`<p class="small muted"><b>Left out:</b> ${edits.re
 <form method="post" action="/dashboard/walkthrough/edit/apply" class="inline">${edits.changes.length ? html`<input type="hidden" name="id" value="${edits.id}"><button type="submit">Make these changes</button> ` : ''}<button type="submit" formaction="/dashboard/walkthrough/edit/discard" class="secondary">Discard</button></form></div>`
     : '';
   return partner('Change it in words', html`${error ? html`<div class="card error">${error}</div>` : ''}${pending}
+${local(run.origin) ? html`<p class="small"><b>Try this:</b> Muse Spark turns your words into changes to the map and shows them to you first. This is how an owner corrects Usher without touching any code.</p>` : ''}
 <form method="post" action="/dashboard/walkthrough/edit" data-busy="Muse Spark is reading your request…"><p><label for="edit-text">Tell Usher what to change, such as "the smoker question is the person's own on every page". Nothing changes until you accept.</label></p>
 <textarea id="edit-text" name="text" rows="3" maxlength="1000" required></textarea>
-<p><button type="submit">Suggest changes</button></p></form>`, { id: 'edit', open: Boolean(edits || error) });
+<p><button type="submit">Suggest changes</button></p></form>`, { id: 'edit', open: true });
 }
 
 /** The conversation of a finished run, folded away above its pages. */
@@ -323,9 +333,12 @@ export const WALKTHROUGH_JS = `(() => {
   const activity = document.getElementById('live-activity');
   const what = document.getElementById('live-what');
   const count = document.getElementById('live-count');
+  let elements = '';
+  const stage = document.querySelector('.live .browser');
+  const working = (on) => { if (stage) stage.classList.toggle('working', on); };
   const plain = (line) => {
-    if (/^Labelling/.test(line)) return 'Muse Spark is reading this page';
-    if (/^Extracting/.test(line)) return 'Looking through this page';
+    if (/^Labelling/.test(line)) return 'Muse Spark is reading ' + (elements ? elements + ' ' : 'the ') + 'fields and buttons, up to three times to be sure. This can take a minute or two';
+    if (/^Extracting/.test(line)) { const n = /: ([0-9]+) visible element/.exec(line); elements = n ? n[1] : ''; return 'Looking through this page'; }
     if (/^Opening/.test(line)) return 'Opening your site';
     if (/^Filled/.test(line)) return 'Filling in test answers';
     if (/^Pressing "(.*)"/.test(line)) return 'Going on: ' + /^Pressing "(.*)"/.exec(line)[1];
@@ -339,9 +352,11 @@ export const WALKTHROUGH_JS = `(() => {
     what.textContent = doing + '… ' + (s >= 3 ? s + ' s' : '');
   };
   const ticking = setInterval(tick, 1000);
+  working(!yours);
   const setDoing = (words) => { doing = words; since = Date.now(); tick(); };
   const setYours = (w) => {
     yours = w;
+    working(!w);
     if (activity) activity.classList.toggle('yours', w);
     if (what) { if (w) what.textContent = 'Your turn: pick a choice or say where to go'; else setDoing('Usher is working'); }
   };
@@ -356,6 +371,7 @@ export const WALKTHROUGH_JS = `(() => {
   source.addEventListener('done', () => {
     clearInterval(ticking);
     if (activity) activity.classList.add('ended');
+    working(false);
     if (what) what.textContent = 'Finished. Opening the result…';
     source.close(); setTimeout(() => location.reload(), 600);
   });
@@ -384,7 +400,7 @@ export const WALKTHROUGH_JS = `(() => {
     box.appendChild(el('p', '', m.text));
     if (m.pages && m.pages.length) {
       const thumbs = el('div', 'thumbs');
-      for (const i of m.pages) { const img = el('img'); img.src = '/dashboard/walkthrough/shot?page=' + i; img.alt = 'A page as Usher mapped it'; thumbs.appendChild(img); }
+      for (const i of m.pages) { const img = el('img'); img.src = '/dashboard/walkthrough/shot?page=' + i; img.alt = 'A page as Usher mapped it'; img.addEventListener('load', () => { chat.scrollTop = chat.scrollHeight; }); thumbs.appendChild(img); }
       box.appendChild(thumbs);
     }
     if (m.options && act) {
