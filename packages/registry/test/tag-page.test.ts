@@ -9,3 +9,9 @@ test('the tag page links a local demo site to its settings, and no other site', 
   assert.doesNotMatch(page('https://quote.example'), /__settings/);
   assert.doesNotMatch(page(), /__settings/);
 });
+
+test('the live walkthrough script parses: it is written inside a template string', async () => {
+  const { WALKTHROUGH_JS } = await import('../src/web/walkthrough.ts');
+  assert.doesNotThrow(() => new Function(WALKTHROUGH_JS));
+  assert.match(WALKTHROUGH_JS, /visible element/);
+});

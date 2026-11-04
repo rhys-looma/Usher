@@ -330,8 +330,8 @@ export const WALKTHROUGH_JS = `(() => {
   const stage = document.querySelector('.live .browser');
   const working = (on) => { if (stage) stage.classList.toggle('working', on); };
   const plain = (line) => {
-    if (/^Labelling/.test(line)) return 'Muse Spark is reading ' + (elements ? elements + ' ' : 'this page\'s ') + 'fields and buttons, up to three times to be sure. This can take a minute or two';
-    if (/^Extracting/.test(line)) { const n = /: (\d+) visible element/.exec(line); elements = n ? n[1] : ''; return 'Looking through this page'; }
+    if (/^Labelling/.test(line)) return 'Muse Spark is reading ' + (elements ? elements + ' ' : 'the ') + 'fields and buttons, up to three times to be sure. This can take a minute or two';
+    if (/^Extracting/.test(line)) { const n = /: ([0-9]+) visible element/.exec(line); elements = n ? n[1] : ''; return 'Looking through this page'; }
     if (/^Opening/.test(line)) return 'Opening your site';
     if (/^Filled/.test(line)) return 'Filling in test answers';
     if (/^Pressing "(.*)"/.test(line)) return 'Going on: ' + /^Pressing "(.*)"/.exec(line)[1];
