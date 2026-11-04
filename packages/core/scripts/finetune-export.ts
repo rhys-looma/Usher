@@ -4,7 +4,7 @@
 // validation and risk floors. De-duplicated, and split into train and eval by form, so no eval form
 // is ever seen in training. Structure only: the compiler log never holds anything anyone typed.
 //
-//   npm run finetune:export -- [--log data/compiler-log] [--out data/finetune] [--models muse-spark-1.3] [--eval-share 0.2] [--since 2026-10-27T10:00Z]
+//   npm run finetune:export -- [--log data/compiler-log] [--out data/finetune] [--models muse-spark-1.3] [--eval-share 0.2] [--since 2026-10-27T10:00Z] [--exclude host,host]
 //
 // --since keeps only labels logged from then on, so a set can be rebuilt from one prompt's labels
 // without older runs outvoting them.
@@ -20,6 +20,9 @@ import { parseArgs } from 'node:util';
 import { chatRow, correctionExample, dedupeExamples, exampleId, exampleSource, isOwnerVerified, splitByForm, type CorrectionRecord } from '../src/index.ts';
 import { systemPrompt, withCandidates, type ElementInput, type Example } from './finetune-shared.ts';
 
+// Real insurers' forms stay out of the training set, whatever is in the log.
+const INSURERS = 'www.admiral.com,www.aviva.co.uk,www.churchill.com,www.directline.com,lifeinsurance.lv.com';
+
 const { values } = parseArgs({
   options: {
     log: { type: 'string', default: 'data/compiler-log' },
@@ -28,6 +31,7 @@ const { values } = parseArgs({
     models: { type: 'string', default: 'muse-spark-1.3' },
     'eval-share': { type: 'string', default: '0.2' },
     since: { type: 'string' },
+    exclude: { type: 'string', default: INSURERS },
     corrections: { type: 'string' },
     // Also write the counts the /learning page shows to reports/learning.json (committed).
     publish: { type: 'boolean', default: false },
@@ -35,6 +39,7 @@ const { values } = parseArgs({
 });
 const models = new Set(values.models.split(','));
 const evalShare = Number(values['eval-share']);
+const exclude = new Set(values.exclude.split(','));
 const since = values.since ? Date.parse(values.since) : null;
 if (since !== null && Number.isNaN(since)) {
   console.error(`--since ${values.since} is not a date.`);
@@ -110,6 +115,7 @@ for (const file of files) {
     const clamps = new Map(r.validation.clamps.map((c) => [c.id, c.final]));
     const excluded = new Set(r.validation.excluded.map((e) => e.id));
     const url = new URL(r.url);
+    if (exclude.has(url.hostname)) continue;
     const form = `${exampleSource(url)}${extraction.page.path}`;
     const elements = extraction.elements;
     for (const label of response.elements) {

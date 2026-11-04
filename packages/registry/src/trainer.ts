@@ -121,7 +121,7 @@ export class Trainer {
       evalShare: 0.2,
       firstRun: { key: 0.6, risk: 0.8 },
       minValid: 0.9,
-      image: 'python:3.11-slim',
+      image: 'python:3.11',
       baseWeights: 'hf://meta-models/Muse-Glimmer-30B@main',
       ...options,
     };
