@@ -2,7 +2,7 @@
 
 **Let AI agents use your site. On your terms.**
 
-Usher gives a site audited AI access to its forms, with the controls in the owner's hands. The forms become the site's own assistant app, hosted by Usher, in Claude, ChatGPT and any assistant that speaks MCP, in the site's name and look. The owner writes the rules and sees every agent session. Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt.
+Usher gives a site audited AI access to its forms, with the controls in the owner's hands. The forms become the site's own assistant app, hosted by Usher, in Claude, ChatGPT and any assistant that speaks MCP, in the site's name and look. The owner writes the rules and sees each session through it. Multi-step quote forms, applications and bookings stay exactly as they are. There's no API to build, no MCP server to run and no new standard to adopt.
 
 The site does four things:
 - adds one script tag;
@@ -143,14 +143,14 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 
 **For sites: your own app in every assistant, under your rules. No integration required.**
 - **No changes to your systems.** One script tag on the pages you already have. Agents come through the same forms your customers use.
-- **You set the terms.** Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit.
-- **Every agent action on the record.** Who the agent was and what it did, step by step, by meaning. Your customers' data is never captured.
+- **You set the terms.** Which forms, which actions need a person, how often, which agents. Written in plain English, enforced on every visit through Usher.
+- **Agents that use Usher, on the record.** Who the agent was and what it did, step by step, by meaning. Your customers' data is never captured.
 
 **For agents: Usher gives you the plan and holds the door; you drive. No signup: your agent's key is its identity.** `get_plan` hands an assistant that drives its own browser the journey as Usher mapped it: what to ask the person first, each field by meaning and where to find it, and the stops where the site's own words go to the person. `prepare_run` puts the person's answers in the site's format and, on a site that has joined, returns an entry URL with the token. The assistant fills and stops where the rules say; Usher never touches the site with the person's values. No browser? `usher_fill` in [`@usher-run/mcp`](packages/mcp) fills the form for you.
 
 **Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher, sites don't write declarations: Usher derives them from the live form and verifies them before any agent acts on them. The tag on the page watches for changes and reports drift, and agents get the map only from the registry, never from page content ([why](docs/security.md#considered-and-rejected-maps-published-in-the-page)).
 
-**An agent that doesn't knock** is treated as it is today, except where the site's server requires a knock, for example on "Get my quote" or its API.
+**An agent that doesn't knock** is treated as it is today. Where the site's server asks for a knock, for example on "Get my quote" or its API, an agent that identifies itself is refused, and so is obvious automation. An agent that looks like an ordinary browser is treated as a person. Usher gives agents a faster, permitted way in and gives owners control over it; it isn't a wall. A site that wants one can add its own bot detection to the check with `isAgent`.
 
 ## Quickstart: a site
 
@@ -162,7 +162,7 @@ Agents can read any page. Forms are different: that's where agents act, and wher
    <script src="https://registry.example/usher.js" data-usher-registry="https://registry.example" data-usher-site-key="usp_…" defer></script>
    ```
 
-Then lock consequential endpoints on your server with [`@usher/site-middleware`](packages/site-middleware/). The script in the page is a convenience; the server is the lock.
+Then lock consequential endpoints on your server with [`@usher/site-middleware`](packages/site-middleware/). The script in the page is a convenience; the server check is what counts. It refuses agents it can identify, not one that passes for a person.
 
 4. Open `/dashboard/app` and follow the strip:
    - map your journeys;

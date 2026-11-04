@@ -52,7 +52,7 @@ test('front page: the sentence (no prompt box in the hero), the six steps, the s
   assert.match(text, /of fields and buttons on public forms given the right meaning \(\d+ of \d+\), human-checked/, 'human-checked public forms only, never the mock site\'s answer key');
   assert.match(text, /given the right risk \(\d+ of \d+\)/, 'with the sample size');
   assert.match(text, /<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user&#39;s answers in the site&#39;s own form|<code>get_plan<\/code> gives you the journey and the rules; <code>prepare_run<\/code> puts your user's answers in the site's own form/);
-  const description = 'Usher lets AI agents and assistants use the forms on your site, under rules you write, with every action on your record. Nothing to rebuild. Usher fills the form and forgets it.';
+  const description = 'Usher lets AI agents and assistants use the forms on your site, under rules you write, with each action through Usher on your record. Nothing to rebuild. Usher fills the form and forgets it.';
   assert.ok(text.includes(`<meta name="description" content="${description}">`) && text.includes(`<meta property="og:description" content="${description}">`));
   assert.match(text, /<meta property="og:image" content="[^"]+\/og\.png">/);
   assert.match(text, /<title>Usher: let AI agents use your site, on your terms<\/title>/);
@@ -122,7 +122,7 @@ test('specifications are served with this registry in place of the example regis
 test('the dashboard sign-in and signup step 1 carry the same three claims', async () => {
   for (const path of ['/dashboard', '/sites/new']) {
     const text = await (await fetch(`${registry.url}${path}`)).text();
-    for (const claim of ['No changes to your systems.', 'You set the terms.', 'Every agent action on the record.']) assert.ok(text.includes(`<b>${claim}</b>`), `${path}: ${claim}`);
+    for (const claim of ['No changes to your systems.', 'You set the terms.', 'Agents that use Usher, on the record.']) assert.ok(text.includes(`<b>${claim}</b>`), `${path}: ${claim}`);
   }
 });
 

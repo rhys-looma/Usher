@@ -154,7 +154,7 @@ export function startForm(origin: string, error?: string, state: { published?: n
     html`<h1>${state.published ? 'Update my maps' : 'Map my site'}</h1>
 ${local(origin) ? html`<div class="card"><h2>What happens next</h2>
 <p><b>You do:</b> tell Usher where to go, check the map it builds, and write your rules in plain English.</p>
-<p><b>You get:</b> a site AI can use, under your controls, with every agent action on the record. And your own app in Claude, ChatGPT and other assistants, with no API to build.</p></div>` : ''}
+<p><b>You get:</b> a site AI can use through Usher, under your controls, with a record of what each agent did. And your own app in Claude, ChatGPT and other assistants, with no API to build.</p></div>` : ''}
 ${state.notice ? html`<div class="card notice">${state.notice}</div>` : ''}${error ? html`<div class="card error">${error}</div>` : ''}
 ${state.unpublished ? html`<div class="card warn">Your last run isn't published. Starting a new one replaces it, with any corrections you made to it. <a href="/dashboard/walkthrough">Publish it first</a>.</div>` : ''}
 <form class="card stack" method="post" action="/dashboard/walkthrough" data-busy="Starting Usher's browser…">
