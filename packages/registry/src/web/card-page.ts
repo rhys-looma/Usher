@@ -37,6 +37,9 @@ export const CARD_HTML = `<!doctype html>
 html, body { margin:0; background:transparent; color:var(--ink); font:15px/1.5 var(--font,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif); -webkit-font-smoothing:antialiased; }
 main { padding:14px; max-width:560px; }
 ${CARD_CSS}
+.actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px; }
+.actions button { margin:0; }
+.actions button.quiet { background:transparent; color:var(--ink); border:1px solid var(--line); }
 </style>
 <style id="brand"></style>
 </head>
@@ -133,7 +136,8 @@ ${CARD_CSS}
           + '<div class="yesno"><label><input type="radio" name="' + name + '" value="yes" data-key="' + esc(q.key) + '" data-kind="yesno"> Yes</label><label><input type="radio" name="' + name + '" value="no" checked data-key="' + esc(q.key) + '" data-kind="yesno"> No</label></div></div>';
       } else if (q.kind === 'submit') {
         var said = own.filter(function (b) { return b.kind === 'disclosure'; }).map(function (b) { return '<p class="disclosure">' + esc(b.text) + '</p>'; }).join('');
-        row = '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span>Yes, press <b>“' + esc(q.label) + '”</b> for me</span></label>' + said + '</div>';
+        // On a plan, a tick among the answers. Here the card's own button is the answer, beside the site's words.
+        row = plan ? '<div class="row"><label class="check"><input type="checkbox" name="' + name + '" data-key="' + esc(q.key) + '" data-kind="consent"><span>Yes, press <b>“' + esc(q.label) + '”</b> for me</span></label>' + said + '</div>' : (said ? '<div class="row">' + said + '</div>' : '');
       } else if (q.kind === 'confirm_value') {
         // Theirs alone: what they said, put back to them, nothing chosen until they choose.
         row = '<div class="row"><span class="verbatim">' + esc(q.label) + '<span class="tag req">confirm</span></span><p class="said">You said: <b>' + esc(q.value || '') + '</b></p>'
@@ -162,7 +166,11 @@ ${CARD_CSS}
       var mine = rows.filter(function (r) { return r.q.kind !== 'missing_value'; });
       if (mine.length) html += '<div class="yours"><p class="yours-head">Your decisions</p>' + mine.map(function (r) { return r.html; }).join('') + '</div>';
     }
-    html += '<button type="button" id="go">Confirm</button><p class="note" id="msg">Confirm sends your answers on. Leave a required box unticked and Usher stops; nothing is submitted.</p></div></div>';
+    // The button says what it does: on to the next page, or the site's own final button.
+    var final = plan ? null : (d.decisions || []).filter(function (q) { return q.kind === 'submit'; })[0];
+    var canDecline = final && !(d.decisions || []).some(function (q) { return q.kind === 'missing_value'; });
+    html += '<div class="actions"><button type="button" id="go">' + esc(plan ? 'Confirm' : final ? final.label : 'Next') + '</button>' + (canDecline ? '<button type="button" id="no" class="quiet">Not now</button>' : '') + '</div>'
+      + '<p class="note" id="msg">' + (plan ? 'Confirm sends your answers on.' : final ? 'Usher presses this on the site for you. Not now stops here, and nothing is submitted.' : 'Usher enters these on the site and goes on. Nothing is submitted yet.') + '</p></div></div>';
     root.innerHTML = html;
     // How far through the details they are, overall and page by page; never what they typed.
     function filled(el) { return Boolean(el && el.value && el.value.trim()); }
@@ -200,9 +208,11 @@ ${CARD_CSS}
       }, 4000);
     }
     // A button, not a form: sandboxed cards may not be allowed to submit forms.
-    document.getElementById('go').addEventListener('click', function () {
-      var answers = {}, missing = [], parts = [];
+    var send = function (declined) {
+      var answers = {}, missing = [], parts = [], unticked = false;
       (d.decisions || []).forEach(function (q) {
+        if (declined && q.kind !== 'missing_value') { answers[q.key] = false; parts.push(q.short + ' no'); return; }
+        if (!plan && q.kind === 'submit') { answers[q.key] = true; parts.push(q.short + ' yes'); return; }
         var els = document.querySelectorAll('[data-key="' + q.key + '"]'), value;
         Array.prototype.forEach.call(els, function (el) {
           var kind = el.getAttribute('data-kind');
@@ -211,10 +221,15 @@ ${CARD_CSS}
           else if (el.value.trim()) value = el.value.trim();
         });
         if (value === undefined) { if (!plan || q.required || q.kind !== 'missing_value') missing.push(q.key); return; }
+        if (!plan && q.kind === 'required_consent' && value === false) unticked = true;
         answers[q.key] = value;
         parts.push(q.short + ' ' + (typeof value === 'boolean' ? (value ? 'yes' : 'no') : '"' + value + '"'));
       });
       var msg = document.getElementById('msg');
+      if (unticked && !missing.length) {
+        msg.className = 'note warn'; msg.textContent = 'Please tick the required box to go on, or tell your assistant to stop.';
+        resize(); return;
+      }
       if (missing.length) {
         msg.className = 'note warn'; msg.textContent = 'Please answer every question first.';
         // A question can't be missed because its page is folded away.
@@ -231,6 +246,9 @@ ${CARD_CSS}
       var phrase = (plan ? 'My answers for the Usher plan: ' : 'Confirm: ') + parts.join(', ');
       answeredHere = true;
       document.getElementById('go').disabled = true;
+      var no = document.getElementById('no');
+      if (no) no.disabled = true;
+      if (!plan) { msg.className = 'note'; msg.textContent = declined ? 'Stopping…' : final ? 'Usher is pressing it on the site…' : 'Usher is entering these on the site…'; resize(); }
       function say(cls, text) { msg.className = cls; msg.textContent = text; resize(); }
       // Path 2, the default: the confirmation goes into the chat as the person's message, and the
       // agent calls usher_confirm from it. Hosts without ui/message: the person sends it themselves.
@@ -272,7 +290,10 @@ ${CARD_CSS}
           if (caps && caps.message) request('ui/message', { role: 'user', content: [{ type: 'text', text: 'I confirmed in the Usher card: ' + phrase.replace(/^Confirm: /, '') + '. What happened?' }] }).catch(function () {});
         }).catch(viaMessage);
       } else viaMessage();
-    });
+    };
+    document.getElementById('go').addEventListener('click', function () { send(false); });
+    var decline = document.getElementById('no');
+    if (decline) decline.addEventListener('click', function () { send(true); });
     bindLinks();
   }
 
