@@ -87,7 +87,17 @@ export function tokenFrom(req: IncomingMessage, form?: URLSearchParams): string 
 }
 
 export function identifiesAsAgent(req: IncomingMessage, form?: URLSearchParams): boolean {
-  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent'] || hasSignature(req.headers)) || isAutomated(req, form);
+  return Boolean(req.headers['usher-agent'] || req.headers['signature-agent'] || hasSignature(req.headers)) || isAutomated(req, form) || Boolean(knownAiAgent(req));
+}
+
+const KNOWN_AI_AGENTS = /\b(ChatGPT-User|OAI-SearchBot|GPTBot|Claude-User|Claude-SearchBot|ClaudeBot|Perplexity-User|PerplexityBot|meta-externalagent|meta-externalfetcher)\b/i;
+
+/**
+ * An AI agent that names itself in its user agent, and which one. It only catches those that say so:
+ * a site that wants more passes its own bot detection (a CDN's, say) as `isAgent`.
+ */
+export function knownAiAgent(req: IncomingMessage): string | undefined {
+  return KNOWN_AI_AGENTS.exec(String(req.headers['user-agent'] ?? ''))?.[1];
 }
 
 /**
@@ -250,7 +260,7 @@ export function createUsherCheck(options: UsherCheckOptions) {
     if (options.siteKey) {
       // Who: the agent id from the token, or what the agent called itself. Nothing about the visitor.
       const token = tokenFrom(req);
-      const agent = (token && decodeToken(token)?.claims.sub) || (typeof req.headers['usher-agent'] === 'string' ? req.headers['usher-agent'].slice(0, 100) : undefined);
+      const agent = (token && decodeToken(token)?.claims.sub) || (typeof req.headers['usher-agent'] === 'string' ? req.headers['usher-agent'].slice(0, 100) : undefined) || knownAiAgent(req);
       const path = new URL(req.url ?? '/', 'http://site').pathname;
       void (options.fetch ?? fetch)(`${internal}/sites/${encodeURIComponent(originOf(req))}/blocked`, {
         method: 'POST',

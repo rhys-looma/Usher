@@ -150,7 +150,7 @@ Agents can read any page. Forms are different: that's where agents act, and wher
 
 **Not another declaration to write.** Proposals like WebMCP ask each site to declare its forms as tools in the page and keep those declarations in step with every redesign. With Usher, sites don't write declarations: Usher derives them from the live form and verifies them before any agent acts on them. The tag on the page watches for changes and reports drift, and agents get the map only from the registry, never from page content ([why](docs/security.md#considered-and-rejected-maps-published-in-the-page)).
 
-**An agent that doesn't knock** is treated as it is today. Where the site's server asks for a knock, for example on "Get my quote" or its API, an agent that identifies itself is refused, and so is obvious automation. An agent that looks like an ordinary browser is treated as a person. Usher gives agents a faster, permitted way in and gives owners control over it; it isn't a wall. A site that wants one can add its own bot detection to the check with `isAgent`.
+**An agent that doesn't knock** is treated as it is today. Where the site's server asks for a knock, for example on "Get my quote" or its API, an agent that identifies itself is refused, and so is obvious automation. An agent that looks like an ordinary browser is treated as a person. Usher gives agents a faster, permitted way in and gives owners control over it; it isn't a wall. The check also refuses AI agents that name themselves in their user agent. In production, a CDN or bot-detection service does the identifying, and a site passes that to the check with `isAgent`: it tells agents apart, and Usher gives the ones you permit a way in.
 
 ## Quickstart: a site
 
