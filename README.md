@@ -22,6 +22,16 @@ Underneath is an open protocol, the map, the knock and the log, which any agent 
 
 > **Status:** built during the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). See [HACKATHON.md](HACKATHON.md).
 
+## See it live
+
+- **[usher.run](https://usher.run):** the portal, with a played-through quote on the front page.
+- **[Brightwater Insurance](https://brightwater.usher.run/health/about):** the demo insurer, already on Usher. Add `https://usher.run/mcp` to an assistant as a remote MCP server and ask for a quote from Brightwater ([how](docs/hosted-mcp.md)).
+- **[The demo dashboard](https://usher.run/demo/dashboard):** what Brightwater's owner sees, read-only, with your session on it.
+
+![The Usher front page](docs/images/front-page.png)
+
+![Brightwater's dashboard: its two tasks, today's explanation and its rules](docs/images/demo-dashboard.png)
+
 ## Run it and test it
 
 You'll start the Usher portal and a test site on your machine, add the site to Usher as its owner, then watch an agent use a site and see what the owner sees.
