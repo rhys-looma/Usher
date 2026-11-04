@@ -52,7 +52,9 @@ if (positionals[0] === 'agent') {
     process.exit(2);
   }
   const { status } = spawnSync(process.execPath, [...tsx, 'packages/agent/src/cli.ts', ...agentArgs(quote)], { stdio: 'inherit' });
-  if (status) console.log(`\nIs npm run local running in another terminal?${process.platform === 'linux' ? ' If Chromium could not start, run: npx playwright install --with-deps chromium' : ''}`);
+  // A refusal by the site's rules is the agent's answer, not a fault; the hint is for when nothing answered.
+  const up = status ? await fetch(`${registryUrl}/healthz`).then((r) => r.ok, () => false) : true;
+  if (!up) console.log(`\nIs npm run local running in another terminal?${process.platform === 'linux' ? ' If Chromium could not start, run: npx playwright install --with-deps chromium' : ''}`);
   process.exit(status ?? 1);
 }
 
